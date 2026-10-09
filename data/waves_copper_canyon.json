@@ -1,0 +1,314 @@
+{
+ "waves": [
+  [
+   {
+    "type": "walker",
+    "count": 20,
+    "interval": 0.6,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 22,
+    "interval": 0.5,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 6,
+    "interval": 1.2,
+    "delay": 5
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 30,
+    "interval": 0.25,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 6,
+    "interval": 1.2,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 4,
+    "interval": 1.8,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 28,
+    "interval": 0.35,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "repair_drone",
+    "count": 6,
+    "interval": 1.2,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 10,
+    "interval": 0.9,
+    "delay": 1
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 6,
+    "interval": 1.5,
+    "delay": 0
+   },
+   {
+    "type": "brute",
+    "count": 4,
+    "interval": 1.6,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 70,
+    "interval": 0.11,
+    "delay": 0
+   },
+   {
+    "type": "repair_drone",
+    "count": 6,
+    "interval": 1.0,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 12,
+    "interval": 0.9,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 14,
+    "interval": 0.7,
+    "delay": 2
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 12,
+    "interval": 0.9,
+    "delay": 0
+   },
+   {
+    "type": "repair_drone",
+    "count": 8,
+    "interval": 0.9,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "shield_bot",
+    "count": 26,
+    "interval": 0.45,
+    "delay": 0
+   },
+   {
+    "type": "brute",
+    "count": 12,
+    "interval": 0.8,
+    "delay": 3
+   },
+   {
+    "type": "walker",
+    "count": 40,
+    "interval": 0.2,
+    "delay": 6
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 90,
+    "interval": 0.08,
+    "delay": 0
+   },
+   {
+    "type": "repair_drone",
+    "count": 12,
+    "interval": 0.7,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 20,
+    "interval": 0.6,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 12,
+    "interval": 0.8,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "shield_bot",
+    "count": 40,
+    "interval": 0.3,
+    "delay": 0
+   },
+   {
+    "type": "repair_drone",
+    "count": 14,
+    "interval": 0.6,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 32,
+    "interval": 0.45,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 20,
+    "interval": 0.45,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 20,
+    "interval": 0.5,
+    "delay": 0
+   },
+   {
+    "type": "scout",
+    "count": 70,
+    "interval": 0.08,
+    "delay": 3
+   },
+   {
+    "type": "repair_drone",
+    "count": 14,
+    "interval": 0.5,
+    "delay": 6
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 44,
+    "interval": 0.32,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 30,
+    "interval": 0.32,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "shield_bot",
+    "count": 56,
+    "interval": 0.22,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 20,
+    "interval": 0.45,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 44,
+    "interval": 0.28,
+    "delay": 0
+   },
+   {
+    "type": "repair_drone",
+    "count": 22,
+    "interval": 0.4,
+    "delay": 2
+   },
+   {
+    "type": "shield_bot",
+    "count": 34,
+    "interval": 0.3,
+    "delay": 6
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 56,
+    "interval": 0.22,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 28,
+    "interval": 0.35,
+    "delay": 4
+   },
+   {
+    "type": "shield_bot",
+    "count": 44,
+    "interval": 0.22,
+    "delay": 8
+   }
+  ],
+  [
+   {
+    "type": "siege_crawler",
+    "count": 2,
+    "interval": 10.0,
+    "delay": 0
+   },
+   {
+    "type": "shield_bot",
+    "count": 30,
+    "interval": 0.45,
+    "delay": 4
+   },
+   {
+    "type": "brute",
+    "count": 28,
+    "interval": 0.5,
+    "delay": 8
+   },
+   {
+    "type": "repair_drone",
+    "count": 16,
+    "interval": 0.6,
+    "delay": 10
+   }
+  ]
+ ]
+}

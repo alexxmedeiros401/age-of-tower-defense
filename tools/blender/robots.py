@@ -137,8 +137,84 @@ def prime():
     return root
 
 
+# ------------------------------------------------------------------ BRONZE AGE ROBOTS
+CYAN = mat("ShieldGlow", (0.3, 0.85, 1.0), 0.2, 0.0, emit=(0.15, 0.7, 1.0), strength=1.6)
+GREEN = mat("RepairGlow", (0.3, 1.0, 0.4), 0.3, 0.0, emit=(0.2, 1.0, 0.3), strength=2.0)
+
+
+def shield_bot():
+    root = empty("ShieldBot")
+    body = empty("Body", (0, 0, 0), root)
+    box((0.32, 0.22, 0.14), (0, 0.04, 0.55), DARK, body, bevel=0.02)
+    leg("LegA_L", (0.13, 0.04, 0.55), body, thigh=(0.15, 0.17, 0.24), shin=0.08, foot=(0.17, 0.25, 0.07), length=0.52)
+    leg("LegB_R", (-0.13, 0.04, 0.55), body, thigh=(0.15, 0.17, 0.24), shin=0.08, foot=(0.17, 0.25, 0.07), length=0.52)
+    box((0.5, 0.36, 0.42), (0, 0.05, 0.86), SHELL, body, bevel=0.06)
+    ico(0.07, (0, -0.14, 0.9), RED, body, sub=1, name="Core")
+    box((0.26, 0.2, 0.14), (0, 0.02, 1.15), STEEL, body, bevel=0.03)
+    box((0.2, 0.03, 0.04), (0, -0.09, 1.16), RED, body, name="Visor")
+    # emitter arm and the curved energy shield in front
+    box((0.08, 0.3, 0.08), (0.3, -0.12, 0.9), DARK, body)
+    for k in range(5):
+        a = math.radians(-50 + k * 25)
+        box((0.17, 0.035, 0.62), (math.sin(a) * 0.42, -0.38 - (1 - math.cos(a)) * -0.12, 0.86), CYAN, body,
+            rot=(0, 0, a), name="Shield")
+    box((0.62, 0.05, 0.05), (0, -0.4, 1.19), STEEL, body)
+    box((0.62, 0.05, 0.05), (0, -0.4, 0.54), STEEL, body)
+    return root
+
+
+def repair_drone():
+    root = empty("RepairDrone")
+    body = empty("Body", (0, 0, 0.9), root)
+    uvs(0.2, (0, 0, 0), SHELL, body, seg=12, rings=8, scale=(1.1, 1.1, 0.8))
+    box((0.16, 0.05, 0.05), (0, -0.21, 0.02), GREEN, body)  # cross light
+    box((0.05, 0.05, 0.16), (0, -0.21, 0.02), GREEN, body)
+    for s in (-1, 1):
+        cyl(0.12, 0.03, (s * 0.32, 0.0, 0.12), DARK, body, verts=10)        # rotor hubs
+        box((0.42, 0.04, 0.02), (s * 0.32, 0.0, 0.14), STEEL, body, rot=(0, 0, 0.6))
+        cyl(0.02, 0.28, (s * 0.15, -0.08, -0.2), STEEL, body, verts=5, rot=(0.3, 0, s * 0.3))  # tool arms
+        ico(0.045, (s * 0.2, -0.12, -0.33), GREEN, body, sub=1)
+    cyl(0.07, 0.08, (0, 0, -0.18), DARK, body, verts=8)
+    cyl(0.04, 0.03, (0, 0, -0.24), THRUST, body, verts=8)
+    return root
+
+
+def siege_crawler():
+    root = empty("SiegeCrawler")
+    body = empty("Body", (0, 0, 0), root)
+    # six legs: alternate gait groups A/B
+    for i, (x, y) in enumerate([(0.75, -0.7), (0.85, 0.05), (0.75, 0.8), (-0.75, -0.7), (-0.85, 0.05), (-0.75, 0.8)]):
+        grp = "A" if (i % 2 == 0) == (x > 0) else "B"
+        side = 1 if x > 0 else -1
+        hip = empty(f"Leg{grp}_{i}", (side * 0.5, y, 1.05), body)
+        # thigh rises from the hip to the knee, shin drops from the knee to the foot
+        box((0.76, 0.2, 0.2), (side * 0.335, 0, 0.15), STEEL, hip, bevel=0.03, rot=(0, -side * 0.42, 0))
+        ico(0.13, (side * 0.67, 0, 0.3), DARK, hip, sub=1)
+        box((0.17, 0.17, 1.34), (side * 0.76, 0, -0.35), DARK, hip, bevel=0.03, rot=(0, -side * 0.14, 0))
+        cyl(0.14, 0.1, (side * 0.85, 0, -1.0), STEEL, hip, verts=8)
+    # armored hull
+    box((1.3, 1.9, 0.62), (0, 0.05, 1.15), SHELL, body, bevel=0.14)
+    box((1.0, 1.5, 0.3), (0, 0.15, 1.55), STEEL, body, bevel=0.08)
+    for k in range(4):
+        box((1.36, 0.08, 0.06), (0, -0.55 + k * 0.38, 1.47), RED, body, name="Vent")
+    # battering ram with bronze-looted plates in front
+    box((0.5, 0.7, 0.4), (0, -1.2, 1.05), DARK, body, bevel=0.06)
+    cyl(0.2, 0.7, (0, -1.7, 1.05), STEEL, body, verts=8, rot=(math.radians(90), 0, 0))
+    cyl(0.26, 0.2, (0, -2.05, 1.05), STEEL, body, verts=8, r2=0.1, rot=(math.radians(90), 0, 0))
+    for s in (-1, 0, 1):
+        ico(0.09, (s * 0.24, -0.98, 1.3), RED, body, sub=1, name="Eye")
+    # shield generator dome
+    uvs(0.32, (0, 0.45, 1.75), CYAN, body, seg=12, rings=6, scale=(1, 1, 0.6), name="Dome")
+    torus(0.36, 0.05, (0, 0.45, 1.72), DARK, body, major=16)
+    for s in (-1, 1):
+        cyl(0.04, 0.6, (s * 0.45, 0.85, 1.95), DARK, body, verts=5)
+        ico(0.06, (s * 0.45, 0.85, 2.27), RED, body, sub=1)
+    return root
+
+
 cam = lp.stage()
-lineup = [("scout", scout, 0.0), ("walker", walker, 0.0), ("brute", brute, 0.0), ("carrier", carrier, 0.0), ("prime_walker", prime, 0.0)]
+lineup = [("scout", scout, 0.0), ("walker", walker, 0.0), ("brute", brute, 0.0), ("carrier", carrier, 0.0), ("prime_walker", prime, 0.0),
+          ("shield_bot", shield_bot, 0.0), ("repair_drone", repair_drone, 0.0), ("siege_crawler", siege_crawler, 0.0)]
 roots = []
 for name, fn, _ in lineup:
     r = fn()
@@ -146,9 +222,10 @@ for name, fn, _ in lineup:
     roots.append((name, r))
 
 # preview lineup: little robots in front, boss behind
-pos = {"scout": (-2.2, -0.6), "walker": (-1.1, -0.9), "brute": (0.3, -0.9), "carrier": (1.9, -0.7), "prime_walker": (0.2, 2.2)}
+pos = {"scout": (-2.2, -0.6), "walker": (-1.1, -0.9), "brute": (0.3, -0.9), "carrier": (1.9, -0.7), "prime_walker": (-1.6, 2.2),
+       "shield_bot": (3.2, -0.9), "repair_drone": (4.3, -0.6), "siege_crawler": (2.6, 2.4)}
 for name, r in roots:
     r.location = (*pos[name], 0)
     r.rotation_euler = (0, 0, math.radians(-18))
-lp.shoot(cam, os.path.join(OUT, "robots_lineup.png"), (0.1, 0.4, 1.3), 6.6, res=1100, pos_dir=(0.55, -1.2, 0.55))
+lp.shoot(cam, os.path.join(OUT, "robots_lineup.png"), (1.0, 0.6, 1.3), 8.6, res=1200, pos_dir=(0.55, -1.2, 0.55))
 print("DONE")

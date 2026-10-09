@@ -124,5 +124,7 @@
    "rocks"
   ]
  ],
- "boss_hp_mult": 0.8
+ "boss_hp_mult": 0.8,
+ "base": "cave",
+ "boss": "prime_walker"
 }

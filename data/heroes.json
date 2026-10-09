@@ -1,0 +1,200 @@
+{
+ "levels": [
+  0,
+  80,
+  220,
+  420,
+  700,
+  1060,
+  1520,
+  2080,
+  2760,
+  3600
+ ],
+ "heroes": {
+  "ugo": {
+   "name": "Ugo the Firstborn",
+   "title": "Sling Champion",
+   "era": "Stone Age",
+   "color": [
+    0.85,
+    0.5,
+    0.15
+   ],
+   "blurb": "Deadly with a sling. Speeds up nearby Ranged towers.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.5,
+    "cooldown": 0.8,
+    "damage": 3,
+    "dtype": "pierce",
+    "proj_speed": 18,
+    "splash": 0
+   },
+   "per_level": {
+    "damage": 0.7,
+    "range": 0.08,
+    "cooldown": -0.015
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Ranged",
+    "speed": 0.08,
+    "speed_per_level": 0.01
+   },
+   "ability": {
+    "id": "stone_rain",
+    "name": "Stone Rain",
+    "cooldown": 60,
+    "unlock": 3,
+    "targets": 10,
+    "damage": 30,
+    "damage_per_level": 10,
+    "desc": "Boulders crush the 10 robots closest to your base."
+   },
+   "swing": [
+    -1.2,
+    0.9
+   ],
+   "model_scale": 0.55
+  },
+  "mara": {
+   "name": "Mara Stonecaller",
+   "title": "Earth Shaman",
+   "era": "Stone Age",
+   "color": [
+    0.45,
+    0.3,
+    0.6
+   ],
+   "blurb": "Shakes the ground. Extends the range of nearby towers.",
+   "base": {
+    "kind": "pulse",
+    "range": 3.0,
+    "cooldown": 1.2,
+    "damage": 1.5,
+    "dtype": "blunt",
+    "slow": 0.25,
+    "slow_time": 1.2
+   },
+   "per_level": {
+    "damage": 0.5,
+    "range": 0.06
+   },
+   "aura": {
+    "radius": 3.5,
+    "lineage": "",
+    "range": 0.06,
+    "range_per_level": 0.008
+   },
+   "ability": {
+    "id": "earthquake",
+    "name": "Earthquake",
+    "cooldown": 60,
+    "unlock": 3,
+    "stun": 1.5,
+    "stun_per_level": 0.1,
+    "damage": 15,
+    "damage_per_level": 6,
+    "desc": "Stuns every robot on the map."
+   },
+   "swing": [
+    -0.5,
+    0.35
+   ],
+   "model_scale": 0.55
+  },
+  "kira": {
+   "name": "Kira Sunblade",
+   "title": "Bronze Duelist",
+   "era": "Bronze Age",
+   "color": [
+    0.95,
+    0.7,
+    0.2
+   ],
+   "blurb": "A whirlwind with a bronze sword. Strengthens nearby Brute towers.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 8,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 3
+   },
+   "per_level": {
+    "damage": 1.8,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Brute",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "solar_flare",
+    "name": "Solar Flare",
+    "cooldown": 45,
+    "unlock": 3,
+    "radius": 5.5,
+    "damage": 120,
+    "damage_per_level": 40,
+    "expose": 0.25,
+    "expose_time": 6.0,
+    "desc": "Burns every robot near Kira and marks them to take more damage."
+   },
+   "swing": [
+    -0.9,
+    1.4
+   ],
+   "model_scale": 0.55
+  },
+  "tarek": {
+   "name": "Tarek the Smith",
+   "title": "Forge Master",
+   "era": "Bronze Age",
+   "color": [
+    0.7,
+    0.4,
+    0.25
+   ],
+   "blurb": "Throws red-hot hammers. Nearby towers hit harder.",
+   "base": {
+    "kind": "projectile",
+    "range": 4.5,
+    "cooldown": 1.0,
+    "damage": 5,
+    "dtype": "blunt",
+    "proj_speed": 14,
+    "splash": 0.6,
+    "shred": 1
+   },
+   "per_level": {
+    "damage": 1.2,
+    "range": 0.05
+   },
+   "aura": {
+    "radius": 4.5,
+    "lineage": "",
+    "damage": 0.08,
+    "damage_per_level": 0.01
+   },
+   "ability": {
+    "id": "forge_fury",
+    "name": "Forge Fury",
+    "cooldown": 60,
+    "unlock": 3,
+    "speed": 0.5,
+    "duration": 7.0,
+    "desc": "Every tower on the map attacks 50% faster for 7 seconds."
+   },
+   "swing": [
+    -0.8,
+    1.6
+   ],
+   "model_scale": 0.55
+  }
+ }
+}

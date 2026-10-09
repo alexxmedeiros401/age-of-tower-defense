@@ -110,7 +110,13 @@
           }
         ]
       }
-    }
+    },
+    "era": "Stone Age",
+    "model_scale": 0.56,
+    "swing": [
+      -1.4,
+      0.9
+    ]
   },
   "club_warrior": {
     "name": "Club Warrior",
@@ -218,7 +224,13 @@
           }
         ]
       }
-    }
+    },
+    "era": "Stone Age",
+    "model_scale": 0.56,
+    "swing": [
+      -0.7,
+      1.6
+    ]
   },
   "boulder_catapult": {
     "name": "Boulder Catapult",
@@ -326,7 +338,13 @@
           }
         ]
       }
-    }
+    },
+    "era": "Stone Age",
+    "model_scale": 0.58,
+    "swing": [
+      -0.15,
+      2.0
+    ]
   },
   "tar_shaman": {
     "name": "Tar Pit Shaman",
@@ -428,6 +446,477 @@
             "desc": "Devastating fire",
             "mods": {
               "damage": 24,
+              "range": 0.8
+            }
+          }
+        ]
+      }
+    },
+    "era": "Stone Age",
+    "model_scale": 0.56,
+    "swing": [
+      -0.5,
+      0.35
+    ]
+  },
+  "bronze_archer": {
+    "name": "Bronze Archer",
+    "lineage": "Ranged",
+    "era": "Bronze Age",
+    "model_scale": 0.56,
+    "swing": [
+      -0.9,
+      0.5
+    ],
+    "desc": "Looses two arrows at once.",
+    "cost": 260,
+    "radius": 0.7,
+    "color": [
+      0.78,
+      0.52,
+      0.2
+    ],
+    "base": {
+      "kind": "projectile",
+      "range": 5.8,
+      "cooldown": 0.8,
+      "damage": 4,
+      "dtype": "pierce",
+      "proj_speed": 20,
+      "splash": 0,
+      "shots": 2
+    },
+    "tiers": [
+      {
+        "name": "Recurve Bow",
+        "cost": 140,
+        "desc": "+1 range",
+        "mods": {
+          "range": 1.0
+        }
+      },
+      {
+        "name": "Bronze Tips",
+        "cost": 220,
+        "desc": "+2 damage, pierces 2 armor",
+        "mods": {
+          "damage": 2,
+          "armor_pierce": 2
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Fire Archer",
+        "desc": "Burning arrows that splash.",
+        "tiers": [
+          {
+            "name": "Fire Arrows",
+            "cost": 480,
+            "desc": "Fire damage, small splash",
+            "mods": {
+              "dtype": "fire",
+              "damage": 3,
+              "splash": 0.7
+            }
+          },
+          {
+            "name": "Burning Volley",
+            "cost": 950,
+            "desc": "+6 damage, 3 arrows",
+            "mods": {
+              "damage": 6,
+              "shots": 1
+            }
+          },
+          {
+            "name": "Sun Arrows",
+            "cost": 2600,
+            "desc": "Blazing arrows rain down",
+            "mods": {
+              "damage": 16,
+              "splash": 0.5,
+              "shots": 1
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Volley Master",
+        "desc": "More arrows, faster.",
+        "tiers": [
+          {
+            "name": "Twin Quiver",
+            "cost": 450,
+            "desc": "4 arrows per volley",
+            "mods": {
+              "shots": 2,
+              "cooldown_mult": 0.85
+            }
+          },
+          {
+            "name": "Hawkeye",
+            "cost": 900,
+            "desc": "25% chance to crit for 4x",
+            "mods": {
+              "crit_chance": 0.25,
+              "crit_mult": 4.0,
+              "range": 1.5
+            }
+          },
+          {
+            "name": "Arrow Storm",
+            "cost": 2500,
+            "desc": "A sky full of arrows",
+            "mods": {
+              "shots": 4,
+              "cooldown_mult": 0.55,
+              "damage": 3
+            }
+          }
+        ]
+      }
+    }
+  },
+  "spear_guard": {
+    "name": "Spear Guard",
+    "lineage": "Brute",
+    "era": "Bronze Age",
+    "model_scale": 0.56,
+    "swing": [
+      -0.5,
+      1.2
+    ],
+    "desc": "Bronze spear punches through armor.",
+    "cost": 360,
+    "radius": 0.7,
+    "color": [
+      0.62,
+      0.4,
+      0.2
+    ],
+    "base": {
+      "kind": "melee",
+      "range": 2.5,
+      "cooldown": 1.0,
+      "damage": 8,
+      "dtype": "pierce",
+      "max_targets": 3,
+      "armor_pierce": 4
+    },
+    "tiers": [
+      {
+        "name": "Long Spear",
+        "cost": 180,
+        "desc": "+0.5 reach",
+        "mods": {
+          "range": 0.5
+        }
+      },
+      {
+        "name": "Bronze Shield",
+        "cost": 260,
+        "desc": "+4 damage, hits 4",
+        "mods": {
+          "damage": 4,
+          "max_targets": 1
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Phalanx",
+        "desc": "Holds the line: stuns and pushes back.",
+        "tiers": [
+          {
+            "name": "Phalanx",
+            "cost": 650,
+            "desc": "Hits 8, stuns",
+            "mods": {
+              "max_targets": 4,
+              "stun": 0.35,
+              "range": 0.4
+            }
+          },
+          {
+            "name": "Shield Wall",
+            "cost": 1400,
+            "desc": "+10 damage, knockback",
+            "mods": {
+              "damage": 10,
+              "knockback": 0.4
+            }
+          },
+          {
+            "name": "Unbreakable Line",
+            "cost": 3200,
+            "desc": "Hits everything in reach",
+            "mods": {
+              "damage": 28,
+              "max_targets": 40,
+              "stun": 0.05
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Champion",
+        "desc": "A single deadly warrior.",
+        "tiers": [
+          {
+            "name": "Champion",
+            "cost": 600,
+            "desc": "Strikes almost twice as fast",
+            "mods": {
+              "cooldown_mult": 0.55
+            }
+          },
+          {
+            "name": "Bronze Blade",
+            "cost": 1250,
+            "desc": "+16 damage, more armor pierce",
+            "mods": {
+              "damage": 16,
+              "armor_pierce": 4
+            }
+          },
+          {
+            "name": "Giant Slayer",
+            "cost": 3000,
+            "desc": "Triple damage to bosses",
+            "mods": {
+              "damage": 24,
+              "boss_mult": 3.0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "torsion_catapult": {
+    "name": "Torsion Catapult",
+    "lineage": "Siege",
+    "era": "Bronze Age",
+    "model_scale": 0.58,
+    "swing": [
+      -0.15,
+      2.0
+    ],
+    "desc": "Heavy stones crack robot armor.",
+    "cost": 520,
+    "radius": 0.8,
+    "color": [
+      0.5,
+      0.42,
+      0.32
+    ],
+    "base": {
+      "kind": "lob",
+      "range": 9.5,
+      "cooldown": 2.2,
+      "damage": 10,
+      "dtype": "blunt",
+      "splash": 1.8,
+      "flight": 0.9,
+      "shred": 1
+    },
+    "tiers": [
+      {
+        "name": "Twisted Sinew",
+        "cost": 260,
+        "desc": "Fires 20% faster",
+        "mods": {
+          "cooldown_mult": 0.8
+        }
+      },
+      {
+        "name": "Wider Cup",
+        "cost": 340,
+        "desc": "+0.5 splash",
+        "mods": {
+          "splash": 0.5
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Naphtha Pots",
+        "desc": "Fire pots ignore armor.",
+        "tiers": [
+          {
+            "name": "Naphtha Pots",
+            "cost": 760,
+            "desc": "Fire damage",
+            "mods": {
+              "dtype": "fire",
+              "damage": 6
+            }
+          },
+          {
+            "name": "Burning Field",
+            "cost": 1600,
+            "desc": "+12 damage, bigger blast",
+            "mods": {
+              "damage": 12,
+              "splash": 0.6
+            }
+          },
+          {
+            "name": "Wrath of Ra",
+            "cost": 3900,
+            "desc": "Firestorm that stuns",
+            "mods": {
+              "damage": 50,
+              "splash": 1.0,
+              "stun": 0.3
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Heavy Stones",
+        "desc": "Shatters armor and stuns.",
+        "tiers": [
+          {
+            "name": "Heavy Stones",
+            "cost": 700,
+            "desc": "Strips 2 more armor, stuns",
+            "mods": {
+              "shred": 2,
+              "stun": 0.25
+            }
+          },
+          {
+            "name": "Wall Breaker",
+            "cost": 1450,
+            "desc": "+14 damage, strips more",
+            "mods": {
+              "damage": 14,
+              "shred": 2
+            }
+          },
+          {
+            "name": "Siege Master",
+            "cost": 3600,
+            "desc": "Relentless bombardment",
+            "mods": {
+              "damage": 30,
+              "cooldown_mult": 0.6,
+              "shred": 3
+            }
+          }
+        ]
+      }
+    }
+  },
+  "sun_priest": {
+    "name": "Sun Priest",
+    "lineage": "Control",
+    "era": "Bronze Age",
+    "model_scale": 0.56,
+    "swing": [
+      -0.5,
+      0.35
+    ],
+    "desc": "Blinding light slows robots and marks them to take extra damage.",
+    "cost": 400,
+    "radius": 0.7,
+    "color": [
+      0.85,
+      0.66,
+      0.2
+    ],
+    "base": {
+      "kind": "pulse",
+      "range": 3.6,
+      "cooldown": 1.4,
+      "damage": 2,
+      "dtype": "fire",
+      "slow": 0.35,
+      "slow_time": 1.6,
+      "expose": 0.2,
+      "expose_time": 3.0
+    },
+    "tiers": [
+      {
+        "name": "Golden Disc",
+        "cost": 200,
+        "desc": "Marked robots take +10% more",
+        "mods": {
+          "expose": 0.1
+        }
+      },
+      {
+        "name": "Temple Reach",
+        "cost": 280,
+        "desc": "+0.8 range",
+        "mods": {
+          "range": 0.8
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "High Priest",
+        "desc": "Blinds and stuns.",
+        "tiers": [
+          {
+            "name": "Blinding Light",
+            "cost": 620,
+            "desc": "Pulses stun, slows harder",
+            "mods": {
+              "stun": 0.3,
+              "slow": 0.15
+            }
+          },
+          {
+            "name": "Eye of Ra",
+            "cost": 1300,
+            "desc": "Marks +20% more, wider",
+            "mods": {
+              "expose": 0.2,
+              "range": 0.6
+            }
+          },
+          {
+            "name": "Solar Eclipse",
+            "cost": 2900,
+            "desc": "Long stuns, huge mark",
+            "mods": {
+              "stun": 0.3,
+              "expose": 0.25,
+              "range": 1.0
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Solar Lance",
+        "desc": "Burning sunlight.",
+        "tiers": [
+          {
+            "name": "Solar Lance",
+            "cost": 580,
+            "desc": "+6 fire damage",
+            "mods": {
+              "damage": 6
+            }
+          },
+          {
+            "name": "Sunfire",
+            "cost": 1250,
+            "desc": "+12 damage, faster",
+            "mods": {
+              "damage": 12,
+              "cooldown_mult": 0.7
+            }
+          },
+          {
+            "name": "Midday Sun",
+            "cost": 3100,
+            "desc": "Scorching pulses",
+            "mods": {
+              "damage": 34,
               "range": 0.8
             }
           }

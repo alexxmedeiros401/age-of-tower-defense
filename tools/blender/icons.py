@@ -5,7 +5,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 SRC = sys.argv[sys.argv.index("--src") + 1]
 OUT = sys.argv[sys.argv.index("--out") + 1]
 os.makedirs(OUT, exist_ok=True)
-for name in ["rock_slinger", "club_warrior", "boulder_catapult", "tar_shaman"]:
+NAMES = sys.argv[sys.argv.index("--names") + 1].split(",") if "--names" in sys.argv else ["rock_slinger", "club_warrior", "boulder_catapult", "tar_shaman"]
+for name in NAMES:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, name + ".glb"))
@@ -19,8 +20,10 @@ for name in ["rock_slinger", "club_warrior", "boulder_catapult", "tar_shaman"]:
     sc.view_settings.look = "Medium High Contrast"
     sc.render.film_transparent = True
     bpy.ops.object.camera_add(); cam = bpy.context.object; sc.camera = cam
-    cam.data.type = "ORTHO"; cam.data.ortho_scale = 4.5
-    t = Vector((0, -0.1, 1.35)); d = Vector((0.7, -1.2, 0.75)).normalized()
+    ZOOM = float(sys.argv[sys.argv.index("--zoom") + 1]) if "--zoom" in sys.argv else 4.5
+    TZ = float(sys.argv[sys.argv.index("--tz") + 1]) if "--tz" in sys.argv else 1.35
+    cam.data.type = "ORTHO"; cam.data.ortho_scale = ZOOM
+    t = Vector((0, -0.1, TZ)); d = Vector((0.7, -1.2, 0.75)).normalized()
     cam.location = t + d * 20
     cam.rotation_euler = (t - cam.location).to_track_quat("-Z", "Y").to_euler()
     sc.render.resolution_x = sc.render.resolution_y = 256

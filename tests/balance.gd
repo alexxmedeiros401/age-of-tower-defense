@@ -1,10 +1,15 @@
-## Headless balance test: bots play all 20 waves with different strategies.
-## Run: godot --headless --script res://tests/balance.gd
+## Headless balance test: bots play all 20 waves of a map with different strategies,
+## with and without heroes. Plans are written with Stone Age ids and translated to the
+## map's era by lineage (rock_slinger -> bronze_archer, etc.).
+## Run: godot --headless --path . --script res://tests/balance.gd -- <map_id>
 extends SceneTree
+
+const STONE := {"rock_slinger": "Ranged", "club_warrior": "Brute", "boulder_catapult": "Siege", "tar_shaman": "Control"}
 
 var defs: Dictionary
 var map: Dictionary
 var samples := PackedVector2Array()
+var era_ids := {}   # lineage -> tower id for this map's era
 
 
 func _init() -> void:
@@ -12,24 +17,38 @@ func _init() -> void:
 	var map_id: String = args[0] if args.size() > 0 else "mammoth_valley"
 	map = Defs.load_map(map_id)
 	defs = Defs.load_all(map)
-	print("=== ", map.name, " (hp x", map.get("hp_mult", 1.0), ", start gold ", map.start_gold, ")")
+	print("=== ", map.name, " [", map.get("era", "Stone Age"), "] (hp x", map.get("hp_mult", 1.0), ", start gold ", map.start_gold, ")")
 	var s := Sim.new()
 	s.setup(defs, map)
+	for id in s.tower_types():
+		era_ids[defs.towers[id].lineage] = id
 	for pi in s.paths.size():
 		var d := 0.0
 		while d < s.paths[pi].length:
 			samples.append(s.pos_at(d, pi))
 			d += 0.25
+	var era_heroes := []
+	for h in defs.heroes.heroes:
+		if str(defs.heroes.heroes[h].era) == str(map.get("era", "Stone Age")):
+			era_heroes.append(h)
 
-	var strategies := {
-		"lazy (2 slingers, no upgrades)": [["place", "rock_slinger"], ["place", "rock_slinger"]],
-		"slinger spam (no upgrades)": _repeat([["place", "rock_slinger"]], 40),
-		"balanced": _balanced(),
-		"siege heavy": _siege(),
-	}
-	for name in strategies:
-		_run(name, strategies[name], name == "balanced" or name == "siege heavy")
+	var runs := [
+		["lazy (2 ranged, no upgrades)", [["place", "rock_slinger"], ["place", "rock_slinger"]], false, ""],
+		["ranged spam (no upgrades)", _repeat([["place", "rock_slinger"]], 40), false, ""],
+		["balanced", _balanced(), true, ""],
+		["siege heavy", _siege(), true, ""],
+	]
+	for h in era_heroes:
+		runs.append(["balanced + " + h, _balanced(), true, h])
+	if not era_heroes.is_empty():
+		runs.append(["siege heavy + " + era_heroes[0], _siege(), true, era_heroes[0]])
+	for r in runs:
+		_run(r[0], r[1], r[2], r[3])
 	quit()
+
+
+func _t(stone_id: String) -> String:
+	return era_ids[STONE[stone_id]]
 
 
 func _repeat(a: Array, n: int) -> Array:
@@ -81,7 +100,7 @@ func _spend_greedy(sim: Sim, placed: Array) -> void:
 				best_id = t.id
 				best_key = o.key
 	var order := ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]
-	var type: String = order[placed.size() % order.size()]
+	var type: String = _t(order[placed.size() % order.size()])
 	var tcost := int(defs.towers[type].cost)
 	# upgrade when it's affordable and not wildly pricier than a fresh tower; otherwise expand
 	if best_id != -1 and sim.gold >= best_cost and (best_cost <= tcost * 6 or placed.size() >= 14):
@@ -104,9 +123,8 @@ func _coverage(p: Vector2, r: float) -> int:
 	return c
 
 
-func _best_spot(sim: Sim, type: String) -> Vector2:
-	var def: Dictionary = defs.towers[type]
-	var r := float(def.base.range)
+func _best_spot(sim: Sim, type: String, hero_spot := false) -> Vector2:
+	var r: float = float(sim.hero_def.base.range) if hero_spot else float(defs.towers[type].base.range)
 	var best := Vector2.INF
 	var best_score := -1
 	var x := -14.5
@@ -114,7 +132,7 @@ func _best_spot(sim: Sim, type: String) -> Vector2:
 		var z := -8.0
 		while z <= 8.0:
 			var p := Vector2(x, z)
-			var err := sim.placement_error(type, p)
+			var err := sim.hero_placement_error(p) if hero_spot else sim.placement_error(type, p)
 			if err == "" or err == "Not enough gold":
 				var sc := _coverage(p, r)
 				if sc > best_score:
@@ -125,25 +143,29 @@ func _best_spot(sim: Sim, type: String) -> Vector2:
 	return best
 
 
-func _run(name: String, plan: Array, keep_spending := false) -> void:
+func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> void:
 	var sim := Sim.new()
 	sim.setup(defs, map)
+	if hero_id != "":
+		sim.set_hero(hero_id)
+		sim.place_hero(_best_spot(sim, "", true))
 	var placed := []
 	var step := 0
 	var lives_log := []
 	var last_wave := 0
 	var lives_at_wave := sim.lives
 	var safety := 0
+	var abilities := 0
 	while sim.state != "won" and sim.state != "lost" and safety < 30 * 60 * 60:
 		safety += 1
-		# try next intent
 		while step < plan.size():
 			var it: Array = plan[step]
 			var ok := false
 			if it[0] == "place":
-				if sim.gold >= int(defs.towers[it[1]].cost):
-					var spot := _best_spot(sim, it[1])
-					var id := sim.place_tower(it[1], spot)
+				var type := _t(it[1])
+				if sim.gold >= int(defs.towers[type].cost):
+					var spot := _best_spot(sim, type)
+					var id := sim.place_tower(type, spot)
 					if id != -1:
 						placed.append(id)
 						ok = true
@@ -178,23 +200,33 @@ func _run(name: String, plan: Array, keep_spending := false) -> void:
 		if keep_spending and step >= mini(plan.size(), 12) and sim.tick % 15 == 0:
 			step = plan.size()
 			_spend_greedy(sim, placed)
+		if sim.ability_ready():
+			var boss := false
+			for e in sim.enemies:
+				boss = boss or e.boss
+			if boss or sim.enemies.size() >= 8:
+				sim.use_ability()
+				abilities += 1
 		if sim.can_start_wave() and sim.enemies.is_empty():
 			if sim.wave > last_wave:
 				lives_log.append(lives_at_wave - sim.lives)
 			last_wave = sim.wave
 			lives_at_wave = sim.lives
-			if sim.wave >= sim.total_waves:
-				break
 			if sim.wave + 1 == sim.total_waves and keep_spending:
 				for t in sim.towers:
 					t.target = "strong"   # a competent player retargets for the boss
+				if sim.hero != null:
+					sim.hero.target = "strong"
 			sim.start_wave()
 		sim.step()
 		for ev in sim.events:
-			if ev.e == "leak" and ev.type == "prime_walker":
+			if ev.e == "leak" and defs.enemies[ev.type].get("boss", false):
 				print("    BOSS LEAKED wave %d with %d/%d hp left" % [sim.wave, int(ev.hp), int(ev.max_hp)])
 		sim.events.clear()
 	lives_log.append(lives_at_wave - sim.lives)
-	print("%-32s result=%-5s wave=%2d lives=%3d kills=%4d towers=%d spent_plan=%d/%d gold_left=%d" % [
-		name, sim.state, sim.wave, sim.lives, sim.stats.kills, sim.towers.size(), step, plan.size(), sim.gold])
+	var hero_txt := ""
+	if sim.hero != null:
+		hero_txt = " hero_lvl=%d abilities=%d" % [sim.hero.level, abilities]
+	print("%-30s result=%-5s wave=%2d lives=%3d kills=%4d towers=%d gold_left=%d%s" % [
+		name, sim.state, sim.wave, sim.lives, sim.stats.kills, sim.towers.size(), sim.gold, hero_txt])
 	print("    lives lost per wave: ", lives_log)

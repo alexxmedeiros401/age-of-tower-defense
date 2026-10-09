@@ -175,3 +175,76 @@ def shoot(cam, path, target, scale, res=512, pos_dir=(1, -1.15, 0.95), dist=20):
     sc.render.resolution_x = sc.render.resolution_y = res
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
+
+
+def person(parent, loc, skin, top, bottom, hair, scale=1.0, burly=1.0, beard=None, helmet=None,
+           hair_style="short", belt=None, crest=None, eye=None, sandal=None):
+    """Chunky low-poly human facing -Y. Returns (body, arm) where arm is an empty at the right
+    shoulder ("Arm") that the caller hangs a forearm and weapon on (+Z up, -Y forward)."""
+    body = empty("Body", loc, parent)
+    body.scale = (scale * burly, scale, scale)
+    eye = eye or mat("Eye", (0.02, 0.02, 0.02), 0.3)
+    sandal = sandal or mat("Sandal", (0.38, 0.24, 0.13), 0.8)
+    for s in (-1, 1):
+        cyl(0.085, 0.42, (s * 0.13, 0, 0.21), skin, body, verts=6)
+        ico(0.1, (s * 0.13, -0.05, 0.03), sandal, body, sub=1, scale=(1, 1.4, 0.5))
+    cyl(0.33, 0.42, (0, 0, 0.5), bottom, body, verts=8, r2=0.25)
+    ico(0.27, (0, 0, 0.8), top, body, sub=2, scale=(1.0, 0.78, 1.05))
+    if belt is not None:
+        cyl(0.3, 0.07, (0, 0, 0.6), belt, body, verts=8)
+    cyl(0.08, 0.12, (0, -0.01, 1.03), skin, body, verts=6)
+    ico(0.21, (0, -0.02, 1.16), skin, body, sub=2, scale=(1, 0.95, 1.05))
+    ico(0.055, (0, -0.22, 1.13), skin, body, sub=1, scale=(0.8, 1, 1))
+    for s in (-1, 1):
+        ico(0.03, (s * 0.08, -0.195, 1.19), eye, body, sub=1)
+    if helmet is None:
+        if hair_style in ("short", "long", "pony"):
+            ico(0.225, (0, 0.03, 1.22), hair, body, sub=2, scale=(1.05, 1.0, 0.78))
+        if hair_style == "long":
+            box((0.36, 0.12, 0.42), (0, 0.13, 1.02), hair, body, bevel=0.04)
+        if hair_style == "pony":
+            cyl(0.07, 0.45, (0, 0.24, 1.08), hair, body, verts=6, rot=(math.radians(-25), 0, 0))
+    else:
+        cyl(0.235, 0.2, (0, 0.0, 1.27), helmet, body, verts=10, r2=0.2)
+        ico(0.2, (0, 0.0, 1.33), helmet, body, sub=2, scale=(1.08, 1.08, 0.7))
+        box((0.04, 0.09, 0.14), (0, -0.2, 1.19), helmet, body)  # nose guard
+        if crest is not None:
+            box((0.06, 0.42, 0.16), (0, 0.04, 1.5), crest, body, bevel=0.03)
+    if beard is not None:
+        ico(0.15, (0, -0.15, 1.03), beard, body, sub=1, scale=(1.1, 0.7, 1.0))
+    # left arm hangs; hand position is returned for props
+    cyl(0.07, 0.45, (0.34, 0, 0.76), skin, body, verts=6, rot=(0, math.radians(-10), 0))
+    ico(0.08, (0.37, -0.02, 0.52), skin, body, sub=1)
+    arm = empty("Arm", (-0.31, 0, 0.96), body)
+    return body, arm
+
+
+def stone_base(parent, top_mat, side_mat, r=1.5, h=0.32):
+    """Square-ish cut-stone platform used by Bronze Age towers."""
+    cyl(r + 0.05, h, (0, 0, h / 2 - 0.12), side_mat, parent, verts=8)
+    cyl(r - 0.05, 0.08, (0, 0, h - 0.08), top_mat, parent, verts=8)
+    for k in range(8):
+        a = k * math.pi / 4 + math.pi / 8
+        box((0.05, 0.42, 0.09), (math.cos(a) * (r - 0.35), math.sin(a) * (r - 0.35), h - 0.05), side_mat, parent,
+            rot=(0, 0, a))
+
+
+def arc(parent, material, center, radius, thick, a0, a1, segs=8, plane="yz", verts=6):
+    """Curved rod built from short cylinders (bows, sickle blades). Angle 0 points toward -Y
+    (plane yz, bulging forward) or +X (plane xz); angles in degrees."""
+    c = Vector(center)
+    pts = []
+    for i in range(segs + 1):
+        a = math.radians(a0 + (a1 - a0) * i / segs)
+        if plane == "yz":
+            pts.append(c + Vector((0, -radius * math.cos(a), radius * math.sin(a))))
+        else:
+            pts.append(c + Vector((radius * math.cos(a), 0, radius * math.sin(a))))
+    parts = []
+    for i in range(segs):
+        p0, p1 = pts[i], pts[i + 1]
+        d = p1 - p0
+        o = cyl(thick, d.length * 1.08, tuple((p0 + p1) / 2), material, parent, verts=verts)
+        o.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
+        parts.append(o)
+    return parts

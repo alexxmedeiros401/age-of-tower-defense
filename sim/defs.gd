@@ -15,6 +15,7 @@ static func load_all(map: Dictionary = {}) -> Dictionary:
 		"towers": _load("res://data/towers.json"),
 		"enemies": _load("res://data/enemies.json"),
 		"waves": _load("res://data/" + str(map.get("waves_file", "waves.json"))).waves,
+		"heroes": _load("res://data/heroes.json"),
 	}
 
 

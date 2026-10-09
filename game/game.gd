@@ -3,54 +3,41 @@
 extends Node3D
 
 const TICK := Sim.TICK
-const TOWER_ORDER := ["rock_slinger", "club_warrior", "boulder_catapult", "tar_shaman"]
 const SIDEBAR_W := 380.0
 const MAX_STEPS_PER_FRAME := 12
 const PITCH := 54.0
 const GROUND_RECT := Rect2(-21.0, -13.0, 40.0, 26.0)   # must match tools/gen_ground.py
+const HERO_PLACING := "__hero__"
 
-const TOWER_SCENES := {
-	"rock_slinger": preload("res://assets/towers/rock_slinger.glb"),
-	"club_warrior": preload("res://assets/towers/club_warrior.glb"),
-	"boulder_catapult": preload("res://assets/towers/boulder_catapult.glb"),
-	"tar_shaman": preload("res://assets/towers/tar_shaman.glb"),
-}
-const TOWER_SCALE := {"rock_slinger": 0.56, "club_warrior": 0.56, "boulder_catapult": 0.58, "tar_shaman": 0.56}
-## attack swing per tower: [wind-up offset, strike offset] in radians on the Arm pivot (+ = forward)
-const SWING := {"rock_slinger": [-1.4, 0.9], "club_warrior": [-0.7, 1.6], "boulder_catapult": [-0.15, 2.0], "tar_shaman": [-0.5, 0.35]}
-const ROBOT_SCENES := {
-	"scout": preload("res://assets/robots/scout.glb"),
-	"walker": preload("res://assets/robots/walker.glb"),
-	"brute": preload("res://assets/robots/brute.glb"),
-	"carrier": preload("res://assets/robots/carrier.glb"),
-	"prime_walker": preload("res://assets/robots/prime_walker.glb"),
-}
-const ROBOT_SCALE := {"scout": 0.9, "walker": 0.9, "brute": 0.9, "carrier": 0.9, "prime_walker": 1.0}
-const ROBOT_BAR_H := {"scout": 1.2, "walker": 1.45, "brute": 1.65, "carrier": 1.2, "prime_walker": 4.4}
-const ICONS := {
-	"rock_slinger": preload("res://assets/ui/icon_rock_slinger.png"),
-	"club_warrior": preload("res://assets/ui/icon_club_warrior.png"),
-	"boulder_catapult": preload("res://assets/ui/icon_boulder_catapult.png"),
-	"tar_shaman": preload("res://assets/ui/icon_tar_shaman.png"),
-}
 const ICON_STAR := preload("res://assets/ui/icon_star.png")
 const ICON_STAR_EMPTY := preload("res://assets/ui/icon_star_empty.png")
 const ICON_LOCK := preload("res://assets/ui/icon_lock.png")
-const THEMES := {
-	"meadow": {"bg": Color(0.12, 0.3, 0.1), "far": Color(0.13, 0.32, 0.1), "ambient": Color(0.82, 0.88, 1.0), "ambient_e": 0.36,
-		"sun": Color(1.0, 0.95, 0.86), "sun_e": 0.74, "rock": Color(0.52, 0.5, 0.47), "cave": Color(0.46, 0.43, 0.4)},
-	"snow": {"bg": Color(0.64, 0.72, 0.82), "far": Color(0.6, 0.68, 0.78), "ambient": Color(0.78, 0.86, 1.0), "ambient_e": 0.4,
-		"sun": Color(0.9, 0.95, 1.05), "sun_e": 0.6, "rock": Color(0.5, 0.54, 0.6), "cave": Color(0.55, 0.58, 0.64)},
-	"volcano": {"bg": Color(0.07, 0.05, 0.05), "far": Color(0.09, 0.07, 0.07), "ambient": Color(0.86, 0.8, 0.78), "ambient_e": 0.34,
-		"sun": Color(1.0, 0.86, 0.72), "sun_e": 0.78, "rock": Color(0.16, 0.14, 0.14), "cave": Color(0.22, 0.19, 0.18)},
-}
 const ICON_GOLD := preload("res://assets/ui/icon_gold.png")
 const ICON_LIVES := preload("res://assets/ui/icon_lives.png")
 const ICON_WAVE := preload("res://assets/ui/icon_wave.png")
 const ICON_PLAY := preload("res://assets/ui/icon_play.png")
 const FONT := preload("res://assets/fonts/LilitaOne.woff2")
+
+const THEMES := {
+	"meadow": {"bg": Color(0.12, 0.3, 0.1), "far": Color(0.13, 0.32, 0.1), "ambient": Color(0.82, 0.88, 1.0), "ambient_e": 0.36,
+		"sun": Color(1.0, 0.95, 0.86), "sun_e": 0.74, "rock": Color(0.52, 0.5, 0.47), "cave": Color(0.46, 0.43, 0.4), "base": ""},
+	"snow": {"bg": Color(0.64, 0.72, 0.82), "far": Color(0.6, 0.68, 0.78), "ambient": Color(0.78, 0.86, 1.0), "ambient_e": 0.4,
+		"sun": Color(0.9, 0.95, 1.05), "sun_e": 0.6, "rock": Color(0.5, 0.54, 0.6), "cave": Color(0.55, 0.58, 0.64), "base": "snow"},
+	"volcano": {"bg": Color(0.07, 0.05, 0.05), "far": Color(0.09, 0.07, 0.07), "ambient": Color(0.86, 0.8, 0.78), "ambient_e": 0.34,
+		"sun": Color(1.0, 0.86, 0.72), "sun_e": 0.78, "rock": Color(0.16, 0.14, 0.14), "cave": Color(0.22, 0.19, 0.18), "base": "volcano"},
+	"delta": {"bg": Color(0.2, 0.36, 0.14), "far": Color(0.24, 0.42, 0.15), "ambient": Color(0.85, 0.9, 1.0), "ambient_e": 0.36,
+		"sun": Color(1.0, 0.96, 0.86), "sun_e": 0.74, "rock": Color(0.66, 0.58, 0.44), "cave": Color(0.7, 0.5, 0.33), "base": ""},
+	"desert": {"bg": Color(0.7, 0.53, 0.32), "far": Color(0.72, 0.55, 0.33), "ambient": Color(1.0, 0.92, 0.82), "ambient_e": 0.34,
+		"sun": Color(1.0, 0.94, 0.8), "sun_e": 0.66, "rock": Color(0.78, 0.62, 0.42), "cave": Color(0.72, 0.55, 0.36), "base": "desert"},
+	"canyon": {"bg": Color(0.36, 0.19, 0.13), "far": Color(0.4, 0.21, 0.14), "ambient": Color(1.0, 0.86, 0.76), "ambient_e": 0.34,
+		"sun": Color(1.0, 0.9, 0.76), "sun_e": 0.76, "rock": Color(0.56, 0.3, 0.2), "cave": Color(0.62, 0.42, 0.28), "base": "canyon"},
+}
+const BASE_RECOLOR := {"snow": Color(0.9, 0.93, 0.98), "volcano": Color(0.3, 0.26, 0.24), "desert": Color(0.86, 0.7, 0.46),
+	"canyon": Color(0.62, 0.36, 0.23)}
 const SFX_NAMES := ["throw", "rock_hit", "club", "catapult", "boulder_land", "pulse", "robot_death", "boss_death", "coin",
-	"place", "upgrade", "wave_horn", "life_lost", "boss_roar", "summon", "click", "error", "victory", "defeat"]
+	"place", "upgrade", "wave_horn", "life_lost", "boss_roar", "summon", "click", "error", "victory", "defeat",
+	"arrow", "spear", "shield_up", "shield_break", "heal", "level_up", "hero_place", "ab_stone_rain", "ab_earthquake",
+	"ab_solar_flare", "ab_forge_fury", "boss_roar_bronze"]
 
 # palette
 const C_PANEL := Color(0.17, 0.11, 0.07, 0.94)
@@ -74,6 +61,7 @@ var tower_nodes := {}
 var proj_nodes := {}
 var effects: Array = []
 var mats := {}
+var _res_cache := {}
 
 var placing := ""
 var selected := -1
@@ -81,6 +69,7 @@ var ghost: Node3D
 var ghost_range: MeshInstance3D
 var ghost_foot: MeshInstance3D
 var sel_range: MeshInstance3D
+var aura_range: MeshInstance3D
 
 # audio
 var sfx := {}
@@ -104,6 +93,7 @@ var lbl_t_name: Label
 var lbl_t_info: Label
 var up_box: VBoxContainer
 var btn_sell: Button
+var btn_target: Button
 var toast: Label
 var toast_t := 0.0
 var banner: Label
@@ -113,19 +103,24 @@ var lbl_overlay: Label
 var lbl_overlay_sub: Label
 var btn_endless: Button
 var title_screen: Control
+var map_select: Control
+var hero_card: PanelContainer
+var lbl_hero_name: Label
+var lbl_hero_level: Label
+var hero_xp_fill: ColorRect
+var btn_hero: Button
 var demo := false
 var map_id := "mammoth_valley"
 var map_order: Array = []
 var theme: Dictionary
-var map_select: Control
-var btn_target: Button
-var lbl_stars: Label
 
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--map="):
 			Progress.current_map = a.trim_prefix("--map=")
+		if a.begins_with("--hero="):
+			Progress.data.hero = a.trim_prefix("--hero=")
 	map_order = []
 	for m in Defs.map_list():
 		map_order.append(m.id)
@@ -136,6 +131,8 @@ func _ready() -> void:
 	theme = THEMES[map.get("theme", "meadow")]
 	sim = Sim.new()
 	sim.setup(defs, map)
+	if not sim.set_hero(Progress.hero()):
+		sim.set_hero("ugo")
 	_build_world()
 	_build_audio()
 	_build_hud()
@@ -154,6 +151,16 @@ func _ready() -> void:
 
 
 # =================================================================== helpers
+func _res(path: String) -> Resource:
+	if not _res_cache.has(path):
+		_res_cache[path] = load(path)
+	return _res_cache[path]
+
+
+func _icon_tex(id: String) -> Texture2D:
+	return _res("res://assets/ui/icon_%s.png" % id)
+
+
 func _mat(key: String, color: Color, opts: Dictionary = {}) -> StandardMaterial3D:
 	if mats.has(key):
 		return mats[key]
@@ -223,6 +230,10 @@ func _yaw(dir: Vector2) -> float:
 	return atan2(dir.x, dir.y)
 
 
+func _era() -> String:
+	return str(map.get("era", "Stone Age"))
+
+
 # =================================================================== world
 func _build_world() -> void:
 	var env := Environment.new()
@@ -276,12 +287,18 @@ func _build_world() -> void:
 	for P in sim.paths:
 		var pts: PackedVector2Array = P.pts
 		_build_portal(pts[0], (pts[1] - pts[0]).normalized())
-	_build_cave(sim.path[sim.path.size() - 1])
+	var end_pt := sim.path[sim.path.size() - 1]
+	if str(map.get("base", "cave")) == "city":
+		_build_city(end_pt)
+	else:
+		_build_cave(end_pt)
 	_build_decor()
 	_build_blockers()
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
+	aura_range = _mi(_cyl(1, 1, 0.02, 48), _mat("aura_range", Color(1, 0.8, 0.25, 0.14), {"unshaded": true}), self, Vector3(0, 0.11, 0))
+	aura_range.visible = false
 	ghost = Node3D.new()
 	add_child(ghost)
 	ghost.visible = false
@@ -324,6 +341,22 @@ func _build_portal(p: Vector2, dir: Vector2) -> void:
 	effects.append({"node": n, "life": INF, "t": 0.0, "kind": "portal"})
 
 
+func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> void:
+	var fire := Node3D.new()
+	fire.position = pos
+	fire.scale = Vector3.ONE * scale_k
+	parent.add_child(fire)
+	var flame := _mi(_cyl(0.0, 0.32, 0.7, 6), _mat("flame", Color(1.0, 0.55, 0.1), {"emit": Color(1.0, 0.45, 0.05), "emit_e": 2.5}), fire, Vector3(0, 0.45, 0))
+	var flame2 := _mi(_cyl(0.0, 0.18, 0.45, 5), _mat("flame2", Color(1.0, 0.9, 0.4), {"emit": Color(1.0, 0.8, 0.3), "emit_e": 2.5}), fire, Vector3(0, 0.35, 0))
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.25)
+	light.light_energy = light_e
+	light.omni_range = 4.0
+	light.position = Vector3(0, 0.8, 0)
+	fire.add_child(light)
+	effects.append({"node": fire, "life": INF, "t": 0.0, "kind": "fire", "f1": flame, "f2": flame2, "light": light, "base_e": light_e})
+
+
 func _build_cave(p: Vector2) -> void:
 	var n := Node3D.new()
 	n.position = _v3(p, 0)
@@ -335,23 +368,67 @@ func _build_cave(p: Vector2) -> void:
 	_mi(_sph(1.7, 9), rock, n, Vector3(0.8, 0.2, 0), Vector3(0, 0.4, 0), Vector3(1, 0.95, 1.35))
 	_mi(_sph(1.0, 8), rock2, n, Vector3(1.0, 0.9, -1.1), Vector3.ZERO, Vector3(1.1, 1.0, 1))
 	_mi(_sph(0.95, 8), _mat("cave_mouth", Color(0.04, 0.03, 0.03)), n, Vector3(-0.6, 0.45, 0), Vector3.ZERO, Vector3(0.45, 0.85, 0.9))
-	var fire := Node3D.new()
-	fire.position = Vector3(-1.5, 0, 1.6)
-	n.add_child(fire)
+	var fire_pos := Vector3(-1.5, 0, 1.6)
 	for k in 3:
-		_mi(_cyl(0.07, 0.07, 0.8, 5), _mat("wood", Color(0.45, 0.27, 0.12)), fire, Vector3(0, 0.1, 0), Vector3(PI * 0.5, k * 1.05, 0))
-	var flame := _mi(_cyl(0.0, 0.32, 0.7, 6), _mat("flame", Color(1.0, 0.55, 0.1), {"emit": Color(1.0, 0.45, 0.05), "emit_e": 2.5}), fire, Vector3(0, 0.45, 0))
-	var flame2 := _mi(_cyl(0.0, 0.18, 0.45, 5), _mat("flame2", Color(1.0, 0.9, 0.4), {"emit": Color(1.0, 0.8, 0.3), "emit_e": 2.5}), fire, Vector3(0, 0.35, 0))
+		_mi(_cyl(0.07, 0.07, 0.8, 5), _mat("wood", Color(0.45, 0.27, 0.12)), n, fire_pos + Vector3(0, 0.1, 0), Vector3(PI * 0.5, k * 1.05, 0))
 	for k in 6:
 		var a := TAU * k / 6.0
-		_mi(_sph(0.12, 6), rock2, fire, Vector3(cos(a) * 0.45, 0.05, sin(a) * 0.45), Vector3.ZERO, Vector3(1, 0.6, 1))
-	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.6, 0.25)
-	light.light_energy = 2.0
-	light.omni_range = 4.0
-	light.position = Vector3(0, 0.8, 0)
-	fire.add_child(light)
-	effects.append({"node": fire, "life": INF, "t": 0.0, "kind": "fire", "f1": flame, "f2": flame2, "light": light})
+		_mi(_sph(0.12, 6), rock2, n, fire_pos + Vector3(cos(a) * 0.45, 0.05, sin(a) * 0.45), Vector3.ZERO, Vector3(1, 0.6, 1))
+	_campfire(n, fire_pos)
+
+
+## Bronze Age: the humans defend a walled mud-brick city instead of a cave.
+func _build_city(p: Vector2) -> void:
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var brick := _mat("mudbrick", Color(0.72, 0.52, 0.34))
+	var brick_d := _mat("mudbrick_d", Color(0.56, 0.38, 0.24))
+	var red := _mat("banner_red", Color(0.72, 0.14, 0.1))
+	var lapis := _mat("lapis", Color(0.16, 0.28, 0.72), {"rough": 0.5})
+	var wood := _mat("wood_dark", Color(0.3, 0.17, 0.08))
+	for s in [-1, 1]:
+		var tw := Vector3(0.7, 0, s * 1.55)
+		_mi(_box(1.3, 2.3, 1.3), brick, n, tw + Vector3(0, 1.15, 0))
+		for cx in [-0.45, 0.0, 0.45]:
+			for cz in [-0.45, 0.45]:
+				_mi(_box(0.26, 0.28, 0.26), brick, n, tw + Vector3(cx, 2.42, cz))
+		_mi(_box(1.34, 0.12, 1.34), lapis, n, tw + Vector3(0, 1.85, 0))
+		_mi(_box(0.04, 0.8, 0.5), red, n, tw + Vector3(-0.67, 1.3, 0))
+		_mi(_box(0.9, 1.5, 4.2), brick_d, n, Vector3(1.0, 0.75, s * 4.3))           # wall
+		for k in 7:
+			_mi(_box(0.3, 0.25, 0.3), brick_d, n, Vector3(1.0, 1.62, s * (2.5 + k * 0.6)))
+		_campfire(n, Vector3(-0.15, 0.0, s * 1.55), 1.4, 0.55)
+		_mi(_cyl(0.07, 0.1, 0.5, 6), wood, n, Vector3(-0.15, 0.0, s * 1.55))
+	_mi(_box(1.0, 0.45, 2.0), brick, n, Vector3(0.7, 2.05, 0))                      # gate lintel
+	_mi(_box(0.12, 1.8, 1.8), wood, n, Vector3(1.0, 0.9, 0))                         # gate doors
+	_mi(_box(0.14, 0.1, 1.8), _mat("bronze_band", Color(0.66, 0.38, 0.13), {"metal": 0.55, "rough": 0.4}), n, Vector3(0.95, 1.2, 0))
+	# ziggurat and houses behind the walls
+	for k in 4:
+		var w := 3.2 - k * 0.7
+		_mi(_box(w, 0.55, w), brick if k % 2 == 0 else brick_d, n, Vector3(4.0, 0.28 + k * 0.55, -2.5))
+	_mi(_box(0.5, 0.5, 0.5), _mat("gold_top", Color(0.95, 0.7, 0.18), {"metal": 0.6, "rough": 0.3}), n, Vector3(4.0, 2.45, -2.5))
+	for hp in [Vector3(3.0, 0, 2.2), Vector3(4.6, 0, 1.0), Vector3(2.6, 0, -5.2)]:
+		_mi(_box(1.2, 0.9, 1.0), brick, n, hp + Vector3(0, 0.45, 0))
+		_mi(_box(1.3, 0.1, 1.1), brick_d, n, hp + Vector3(0, 0.95, 0))
+
+
+func _palm(parent: Node3D, pos: Vector3, s: float, r: RandomNumberGenerator) -> void:
+	var t := Node3D.new()
+	t.position = pos
+	t.scale = Vector3.ONE * s
+	t.rotation.y = r.randf() * TAU
+	parent.add_child(t)
+	var trunk := _mat("palm_trunk", Color(0.5, 0.36, 0.2))
+	var lean := r.randf_range(-0.15, 0.15)
+	for k in 5:
+		_mi(_cyl(0.09, 0.11, 0.42, 6), trunk, t, Vector3(lean * k * 0.4, 0.21 + k * 0.4, 0), Vector3(0, 0, -lean))
+	var top := Vector3(lean * 2.0, 2.05, 0)
+	var leaf := [_mat("palm_leaf", Color(0.2, 0.5, 0.16)), _mat("palm_leaf2", Color(0.28, 0.58, 0.2))]
+	for k in 7:
+		var a := TAU * k / 7.0
+		var fr := _mi(_box(0.22, 0.04, 1.1), leaf[k % 2], t, top + Vector3(sin(a) * 0.5, -0.12, cos(a) * 0.5), Vector3(0.45, a, 0))
+	_mi(_sph(0.14, 6), _mat("coconut", Color(0.32, 0.22, 0.12)), t, top + Vector3(0, -0.1, 0))
 
 
 func _build_decor() -> void:
@@ -368,21 +445,52 @@ func _build_decor() -> void:
 	var rockm := _mat("decor_rock", theme.rock)
 	var placed := 0
 	var tries := 0
-	while placed < 95 and tries < 2000:
+	var target_count: int = {"desert": 55, "canyon": 60}.get(th, 95)
+	while placed < target_count and tries < 2000:
 		tries += 1
 		var x := r.randf_range(-19.5, 17.5)
 		var z := r.randf_range(-12.0, 12.0)
 		var inside: bool = x > b[0] - 0.8 and x < b[2] + 0.8 and z > b[1] - 0.8 and z < b[3] + 0.8
 		if inside or sim.dist_to_path(Vector2(x, z)) < 2.2:
 			continue
+		if x > 13.0 and absf(z - sim.path[sim.path.size() - 1].y) < 6.5 and map.get("base", "cave") == "city":
+			continue   # keep the city clear
 		placed += 1
+		var roll := r.randf()
+		var pos := Vector3(x, 0, z)
+		match th:
+			"delta":
+				if roll < 0.55:
+					_palm(self, pos, r.randf_range(0.8, 1.25), r)
+				else:
+					_mi(_sph(0.55, 8), bush[r.randi() % 2], self, pos + Vector3(0, 0.3, 0), Vector3.ZERO, Vector3(1.2, 0.75, 1.1))
+				continue
+			"desert":
+				if roll < 0.3:
+					_palm(self, pos, r.randf_range(0.75, 1.1), r)
+				elif roll < 0.55:   # broken column
+					_mi(_cyl(0.28, 0.3, r.randf_range(0.6, 1.8), 10), _mat("column", Color(0.88, 0.8, 0.64)), self, pos + Vector3(0, 0.5, 0))
+				else:
+					_mi(_sph(r.randf_range(0.4, 0.8), 6), rockm, self, pos + Vector3(0, 0.15, 0), Vector3(0, r.randf() * 3, 0), Vector3(1.3, 0.6, 1))
+				continue
+			"canyon":
+				if roll < 0.45:   # mesa
+					var h := r.randf_range(1.2, 3.2)
+					_mi(_cyl(r.randf_range(0.7, 1.4), r.randf_range(1.0, 1.8), h, 7), rockm, self, pos + Vector3(0, h * 0.5, 0), Vector3(0, r.randf() * 3, 0))
+					_mi(_cyl(0.9, 0.9, 0.08, 7), _mat("strata", Color(0.78, 0.5, 0.32)), self, pos + Vector3(0, h * 0.62, 0))
+				elif roll < 0.6:  # mine timber frame
+					for sx in [-0.5, 0.5]:
+						_mi(_box(0.16, 1.4, 0.16), trunk, self, pos + Vector3(sx, 0.7, 0))
+					_mi(_box(1.2, 0.16, 0.2), trunk, self, pos + Vector3(0, 1.45, 0))
+				else:
+					_mi(_sph(r.randf_range(0.3, 0.7), 6), rockm, self, pos + Vector3(0, 0.15, 0), Vector3(0, r.randf() * 3, 0), Vector3(1.2, 0.7, 1))
+				continue
 		var t := Node3D.new()
-		t.position = Vector3(x, 0, z)
+		t.position = pos
 		var s := r.randf_range(0.75, 1.35)
 		t.scale = Vector3(s, s * r.randf_range(0.9, 1.2), s)
 		t.rotation.y = r.randf() * TAU
 		add_child(t)
-		var roll := r.randf()
 		if th == "volcano":
 			if roll < 0.55:   # charred dead tree
 				_mi(_cyl(0.08, 0.14, 1.6, 5), dead, t, Vector3(0, 0.8, 0))
@@ -407,15 +515,15 @@ func _build_decor() -> void:
 			var bm: Material = bush[r.randi() % 2]
 			_mi(_sph(0.55, 8), bm, t, Vector3(0, 0.35, 0), Vector3.ZERO, Vector3(1.2, 0.8, 1.1))
 			_mi(_sph(0.4, 7), bush[(r.randi() + 1) % 2], t, Vector3(0.4, 0.3, 0.2), Vector3.ZERO, Vector3(1, 0.8, 1))
-	for i in 22:
-		var x2 := r.randf_range(-19.0, 17.0)
-		var z2 := r.randf_range(-12.0, 12.0)
-		var inside2: bool = x2 > b[0] and x2 < b[2] and z2 > b[1] and z2 < b[3]
-		if inside2 or sim.dist_to_path(Vector2(x2, z2)) < 1.5:
-			continue
-		_mi(_sph(r.randf_range(0.3, 0.7), 7), rockm, self, Vector3(x2, 0.12, z2), Vector3(0, r.randf() * 3, 0), Vector3(1.25, 0.7, 1))
+	if th in ["meadow", "snow", "volcano", "delta"]:
+		for i in 22:
+			var x2 := r.randf_range(-19.0, 17.0)
+			var z2 := r.randf_range(-12.0, 12.0)
+			var inside2: bool = x2 > b[0] and x2 < b[2] and z2 > b[1] and z2 < b[3]
+			if inside2 or sim.dist_to_path(Vector2(x2, z2)) < 1.5:
+				continue
+			_mi(_sph(r.randf_range(0.3, 0.7), 7), rockm, self, Vector3(x2, 0.12, z2), Vector3(0, r.randf() * 3, 0), Vector3(1.25, 0.7, 1))
 	if th == "volcano":
-		# the volcano itself, smoking on the horizon
 		var v := Node3D.new()
 		v.position = Vector3(-3.0, 0, -13.5)
 		add_child(v)
@@ -430,12 +538,21 @@ func _build_decor() -> void:
 		vl.omni_range = 9.0
 		vl.position = Vector3(0, 5.0, 0)
 		v.add_child(vl)
+	if th == "desert":   # the citadel's step pyramid on the horizon
+		var pyr := Node3D.new()
+		pyr.position = Vector3(-2.0, 0, -14.0)
+		add_child(pyr)
+		for k in 5:
+			var w := 9.0 - k * 1.7
+			_mi(_box(w, 0.9, w * 0.7), _mat("pyr_%d" % (k % 2), Color(0.86, 0.72, 0.48) if k % 2 == 0 else Color(0.78, 0.62, 0.4)), pyr, Vector3(0, 0.45 + k * 0.9, 0))
+		_mi(_box(1.2, 0.6, 0.9), _mat("gold_top", Color(0.95, 0.7, 0.18), {"metal": 0.6, "rough": 0.3}), pyr, Vector3(0, 4.8, 0))
 
 
-## No-build zones: frozen lakes, lava pools, rock outcrops. The ground texture paints them; these add depth and glow.
+## No-build zones: the ground texture paints them; these add depth and glow.
 func _build_blockers() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 5
+	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
 		var rad := float(bl[2])
@@ -445,31 +562,70 @@ func _build_blockers() -> void:
 		add_child(n)
 		match kind:
 			"lake":
-				_mi(_cyl(rad * 0.95, rad * 0.95, 0.02, 32), _mat("ice", Color(0.75, 0.9, 1.0, 0.3), {"rough": 0.05, "metal": 0.3}), n, Vector3(0, 0.03, 0))
-				for k in 7:
-					var a := TAU * k / 7.0 + r.randf() * 0.4
-					var h := r.randf_range(0.3, 0.7)
-					_mi(_cyl(0.0, r.randf_range(0.12, 0.22), h, 5), _mat("shard", Color(0.7, 0.88, 1.0), {"emit": Color(0.4, 0.7, 1.0), "emit_e": 0.6, "rough": 0.1}), n,
-						Vector3(cos(a) * rad, h * 0.5, sin(a) * rad), Vector3(r.randf_range(-0.3, 0.3), 0, r.randf_range(-0.3, 0.3)))
-			"lava":
-				var pool := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("lava", Color(1, 0.55, 0.15, 0.45), {"emit": Color(1, 0.42, 0.05), "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
+				if th == "snow":
+					_mi(_cyl(rad * 0.95, rad * 0.95, 0.02, 32), _mat("ice", Color(0.75, 0.9, 1.0, 0.3), {"rough": 0.05, "metal": 0.3}), n, Vector3(0, 0.03, 0))
+					for k in 7:
+						var a := TAU * k / 7.0 + r.randf() * 0.4
+						var h := r.randf_range(0.3, 0.7)
+						_mi(_cyl(0.0, r.randf_range(0.12, 0.22), h, 5), _mat("shard", Color(0.7, 0.88, 1.0), {"emit": Color(0.4, 0.7, 1.0), "emit_e": 0.6, "rough": 0.1}), n,
+							Vector3(cos(a) * rad, h * 0.5, sin(a) * rad), Vector3(r.randf_range(-0.3, 0.3), 0, r.randf_range(-0.3, 0.3)))
+				else:
+					_mi(_cyl(rad * 0.92, rad * 0.92, 0.02, 28), _mat("pond", Color(0.3, 0.6, 0.7, 0.35), {"rough": 0.05, "metal": 0.2}), n, Vector3(0, 0.03, 0))
+					for k in 10:
+						var a2 := TAU * k / 10.0 + r.randf() * 0.3
+						_mi(_cyl(0.015, 0.03, r.randf_range(0.4, 0.7), 4), _mat("reed", Color(0.32, 0.5, 0.18)), n,
+							Vector3(cos(a2) * rad, 0.25, sin(a2) * rad), Vector3(r.randf_range(-0.2, 0.2), 0, r.randf_range(-0.2, 0.2)))
+			"lava", "ore":
+				var lava := kind == "lava"
+				var col := Color(1, 0.55, 0.15, 0.45) if lava else Color(0.3, 1.0, 0.8, 0.45)
+				var emit := Color(1, 0.42, 0.05) if lava else Color(0.15, 0.9, 0.65)
+				var pool := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("pool_" + kind, col, {"emit": emit, "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
 				for k in 9:
-					var a2 := TAU * k / 9.0 + r.randf() * 0.3
-					_mi(_sph(r.randf_range(0.18, 0.32), 6), _mat("crust", Color(0.08, 0.06, 0.06)), n,
-						Vector3(cos(a2) * rad, 0.08, sin(a2) * rad), Vector3.ZERO, Vector3(1.3, 0.6, 1))
+					var a3 := TAU * k / 9.0 + r.randf() * 0.3
+					_mi(_sph(r.randf_range(0.18, 0.32), 6), (_mat("crust", Color(0.08, 0.06, 0.06)) if lava else _mat("ore_rock", Color(0.42, 0.24, 0.16))), n,
+						Vector3(cos(a3) * rad, 0.08, sin(a3) * rad), Vector3.ZERO, Vector3(1.3, 0.6, 1))
+				if not lava:
+					for k in 5:
+						var a4 := TAU * k / 5.0 + 0.3
+						_mi(_cyl(0.0, 0.14, r.randf_range(0.4, 0.8), 5), _mat("crystal", Color(0.3, 1.0, 0.75), {"emit": Color(0.2, 0.9, 0.6), "emit_e": 1.2}), n,
+							Vector3(cos(a4) * rad * 0.55, 0.25, sin(a4) * rad * 0.55), Vector3(r.randf_range(-0.4, 0.4), 0, r.randf_range(-0.4, 0.4)))
 				var ll := OmniLight3D.new()
-				ll.light_color = Color(1, 0.45, 0.15)
+				ll.light_color = Color(1, 0.45, 0.15) if lava else Color(0.3, 1.0, 0.7)
 				ll.light_energy = 0.9
 				ll.omni_range = rad * 2.2
 				ll.position = Vector3(0, 0.8, 0)
 				n.add_child(ll)
 				effects.append({"node": n, "life": INF, "t": r.randf() * 5.0, "kind": "lava", "pool": pool, "light": ll})
+			"dune":
+				var dm := _mat("dune", Color(0.86, 0.66, 0.38))
+				var dm2 := _mat("dune_crest", Color(0.93, 0.76, 0.48))
+				var ry := r.randf() * 3
+				_mi(_sph(rad, 14), dm, n, Vector3.ZERO, Vector3(0, ry, 0), Vector3(1.0, 0.42, 0.8))
+				_mi(_sph(rad * 0.6, 12), dm2, n, Vector3(cos(ry) * rad * 0.25, rad * 0.18, -sin(ry) * rad * 0.25), Vector3(0, ry, 0), Vector3(1.2, 0.55, 0.7))
+				for k in 3:
+					var a7 := r.randf() * TAU
+					_mi(_cyl(0.0, 0.05, 0.35, 4), _mat("dry_grass", Color(0.6, 0.5, 0.25)), n, Vector3(cos(a7) * rad * 0.85, 0.12, sin(a7) * rad * 0.7))
+			"ruins":
+				for k in 4:
+					var a5 := TAU * k / 4.0 + 0.4
+					var h2 := r.randf_range(0.5, 1.9)
+					_mi(_cyl(0.24, 0.27, h2, 10), _mat("column", Color(0.88, 0.8, 0.64)), n, Vector3(cos(a5) * rad * 0.6, h2 * 0.5, sin(a5) * rad * 0.6))
+					_mi(_box(0.62, 0.16, 0.62), _mat("column_cap", Color(0.78, 0.7, 0.55)), n, Vector3(cos(a5) * rad * 0.6, h2 + 0.08, sin(a5) * rad * 0.6))
+				_mi(_box(1.1, 0.4, 0.55), _mat("column", Color(0.88, 0.8, 0.64)), n, Vector3(0.2, 0.2, -0.1), Vector3(0, 0.6, 0))
+			"pillar":
+				var h3 := r.randf_range(2.4, 3.4)
+				_mi(_cyl(rad * 0.55, rad * 0.8, h3, 7), _mat("decor_rock", theme.rock), n, Vector3(0, h3 * 0.5, 0), Vector3(0, r.randf() * 3, 0))
+				_mi(_cyl(rad * 0.6, rad * 0.6, 0.12, 7), _mat("strata", Color(0.78, 0.5, 0.32)), n, Vector3(0, h3 * 0.7, 0))
+			"palms":
+				for k in 3:
+					var a6 := TAU * k / 3.0
+					_palm(n, Vector3(cos(a6) * rad * 0.45, 0, sin(a6) * rad * 0.45), r.randf_range(0.8, 1.1), r)
 			_:
 				for k in 5:
 					var off := Vector2(r.randf_range(-0.6, 0.6), r.randf_range(-0.6, 0.6)) * rad
 					var sz := r.randf_range(0.35, 0.7) * rad
 					var rock := _mi(_sph(sz, 6), _mat("outcrop", theme.rock), n, Vector3(off.x, sz * 0.4, off.y), Vector3(0, r.randf() * 3, 0), Vector3(1.1, 0.8, 1))
-					if map.get("theme", "") == "snow":
+					if th == "snow":
 						_mi(_sph(sz * 0.7, 6), _mat("snow", Color(0.96, 0.98, 1.0)), rock, Vector3(0, sz * 0.55, 0), Vector3.ZERO, Vector3(1, 0.45, 1))
 
 
@@ -482,7 +638,7 @@ func _build_audio() -> void:
 		add_child(p)
 		sfx_players.append(p)
 	music = AudioStreamPlayer.new()
-	music.stream = load("res://assets/audio/music_stone_age.wav")
+	music.stream = load("res://assets/audio/music_bronze_age.wav" if _era() == "Bronze Age" else "res://assets/audio/music_stone_age.wav")
 	music.volume_db = -9.0
 	add_child(music)
 	music.finished.connect(func(): music.play())
@@ -504,12 +660,14 @@ func _sfx(name: String, vol_db := 0.0, pitch_var := 0.08, min_gap := 0.04) -> vo
 			return
 
 
-# =================================================================== towers
-func _make_tower_visual(type: String) -> Node3D:
-	var root := Node3D.new()
-	var model: Node3D = TOWER_SCENES[type].instantiate()
-	model.scale = Vector3.ONE * float(TOWER_SCALE[type])
-	root.add_child(model)
+# =================================================================== towers and hero
+func _unit_def(u: Dictionary) -> Dictionary:
+	if u.get("is_hero", false):
+		return sim.hero_def
+	return defs.towers[u.type]
+
+
+func _rig_model(root: Node3D, model: Node3D) -> void:
 	var yaw := model.find_child("Yaw", true, false)
 	if yaw == null:
 		yaw = model.find_child("Caveman", true, false)
@@ -524,17 +682,34 @@ func _make_tower_visual(type: String) -> Node3D:
 	var orb := model.find_child("Orb", true, false)
 	if orb != null:
 		root.set_meta("orb", orb)
+
+
+func _make_tower_visual(type: String) -> Node3D:
+	var root := Node3D.new()
+	var model: Node3D = (_res("res://assets/towers/%s.glb" % type) as PackedScene).instantiate()
+	model.scale = Vector3.ONE * float(defs.towers[type].get("model_scale", 0.56))
+	root.add_child(model)
+	_rig_model(root, model)
 	_retheme_base(model)
 	return root
 
 
-## Tower bases are modelled as grass; on snow/volcano maps repaint them to match the ground.
+func _make_hero_visual(id: String) -> Node3D:
+	var root := Node3D.new()
+	var hd: Dictionary = defs.heroes.heroes[id]
+	var model: Node3D = (_res("res://assets/heroes/%s.glb" % id) as PackedScene).instantiate()
+	model.scale = Vector3.ONE * float(hd.get("model_scale", 0.55))
+	root.add_child(model)
+	_rig_model(root, model)
+	return root
+
+
+## Tower bases are modelled as grass; on other ground types repaint them to match.
 func _retheme_base(model: Node) -> void:
-	var th: String = map.get("theme", "meadow")
-	if th == "meadow":
+	var key: String = theme.get("base", "")
+	if key == "":
 		return
-	var col := Color(0.9, 0.93, 0.98) if th == "snow" else Color(0.3, 0.26, 0.24)
-	var m := _mat("base_" + th, col, {"rough": 0.9})
+	var m := _mat("base_" + key, BASE_RECOLOR[key], {"rough": 0.9})
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh: Mesh = mi.mesh
 		if mesh == null:
@@ -545,22 +720,62 @@ func _retheme_base(model: Node) -> void:
 				mi.set_surface_override_material(si, m)
 
 
+func _add_unit_deco(n: Node3D) -> void:
+	var deco := Node3D.new()
+	deco.name = "Deco"
+	n.add_child(deco)
+	var buff := _mi(_sph(0.12, 4), _mat("buff", Color(1, 0.85, 0.3), {"emit": Color(1, 0.75, 0.2), "emit_e": 2.0, "unshaded": true}), n, Vector3(0, 2.15, 0))
+	buff.name = "Buff"
+	buff.visible = false
+
+
 func _spawn_tower_node(t: Dictionary) -> void:
 	var n := _make_tower_visual(t.type)
 	n.position = _v3(t.pos)
 	add_child(n)
-	var deco := Node3D.new()
-	deco.name = "Deco"
-	n.add_child(deco)
+	_add_unit_deco(n)
 	tower_nodes[t.id] = n
 	_refresh_tower_node(t)
 	_ring_fx(_v3(t.pos, 0.2), 1.1, Color(1, 0.9, 0.5), 0.4)
 	_dust_fx(_v3(t.pos, 0.2), 8, 0.9)
 	_sfx("place")
-	# drop-in pop
 	n.scale = Vector3(0.6, 1.4, 0.6)
 	var tw := create_tween()
 	tw.tween_property(n, "scale", Vector3.ONE * (1.0 + 0.04 * t.level), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _spawn_hero_node() -> void:
+	var h: Dictionary = sim.hero
+	var n := _make_hero_visual(h.type)
+	n.position = _v3(h.pos)
+	add_child(n)
+	_add_unit_deco(n)
+	var tag := Label3D.new()
+	tag.name = "Tag"
+	tag.font = FONT
+	tag.font_size = 54
+	tag.outline_size = 14
+	tag.pixel_size = 0.01
+	tag.modulate = C_GOLD
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	tag.position = Vector3(0, 2.0, 0)
+	n.add_child(tag)
+	tower_nodes[h.id] = n
+	_refresh_hero_tag()
+	_ring_fx(_v3(h.pos, 0.2), 1.6, C_GOLD, 0.6)
+	_dust_fx(_v3(h.pos, 0.2), 10, 1.0)
+	_sfx("hero_place", -2.0, 0.0)
+	n.scale = Vector3(0.5, 1.6, 0.5)
+	var tw := create_tween()
+	tw.tween_property(n, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _refresh_hero_tag() -> void:
+	if sim.hero == null or not tower_nodes.has(sim.hero.id):
+		return
+	var tag: Label3D = tower_nodes[sim.hero.id].get_node("Tag")
+	tag.text = "LV %d" % sim.hero.level
 
 
 func _refresh_tower_node(t: Dictionary) -> void:
@@ -575,7 +790,7 @@ func _refresh_tower_node(t: Dictionary) -> void:
 		col = Color(1.0, 0.45, 0.15)
 	elif t.branch == "B":
 		col = Color(0.25, 0.8, 1.0)
-	var r: float = float(TOWER_SCALE[t.type]) * 1.62
+	var r: float = float(defs.towers[t.type].get("model_scale", 0.56)) * 1.62
 	if t.level >= 3:
 		var tor := TorusMesh.new()
 		tor.inner_radius = r - 0.06
@@ -591,19 +806,20 @@ func _refresh_tower_node(t: Dictionary) -> void:
 
 # =================================================================== robots
 func _make_robot(type: String) -> Node3D:
+	var d: Dictionary = defs.enemies[type]
 	var root := Node3D.new()
-	var model: Node3D = ROBOT_SCENES[type].instantiate()
-	model.scale = Vector3.ONE * float(ROBOT_SCALE[type])
+	var model: Node3D = (_res("res://assets/robots/%s.glb" % type) as PackedScene).instantiate()
+	model.scale = Vector3.ONE * float(d.get("model_scale", 0.9))
 	model.name = "Model"
 	root.add_child(model)
 	root.set_meta("legsA", model.find_children("LegA*", "", true, false))
 	root.set_meta("legsB", model.find_children("LegB*", "", true, false))
 	root.set_meta("body", model.find_child("Body", true, false))
 	root.set_meta("punch", 0.0)
-	var h: float = ROBOT_BAR_H[type]
-	if type == "prime_walker":
+	var h: float = float(d.get("bar_h", 1.4))
+	if d.get("boss", false):
 		var tag := Label3D.new()
-		tag.text = "PRIME WALKER"
+		tag.text = str(d.name)
 		tag.font = FONT
 		tag.font_size = 80
 		tag.outline_size = 18
@@ -613,13 +829,33 @@ func _make_robot(type: String) -> Node3D:
 		tag.no_depth_test = true
 		tag.position = Vector3(0, h + 0.6, 0)
 		root.add_child(tag)
+	if d.has("shield"):
+		var bm := StandardMaterial3D.new()
+		bm.albedo_color = Color(0.4, 0.85, 1.0, 0.22)
+		bm.emission_enabled = true
+		bm.emission = Color(0.2, 0.7, 1.0)
+		bm.emission_energy_multiplier = 0.8
+		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var br: float = 0.75 if not d.get("boss", false) else 2.2
+		var bubble := _mi(_sph(br, 16), bm, root, Vector3(0, br * 0.85, 0))
+		bubble.name = "Bubble"
+	var mark := TorusMesh.new()
+	mark.inner_radius = 0.28
+	mark.outer_radius = 0.36
+	mark.rings = 16
+	mark.ring_segments = 4
+	var mk := _mi(mark, _mat("expose_mark", Color(1, 0.8, 0.2), {"emit": Color(1, 0.7, 0.1), "emit_e": 2.0, "unshaded": true}), root, Vector3(0, h + 0.25, 0))
+	mk.name = "Mark"
+	mk.visible = false
 	var bar := Node3D.new()
 	bar.name = "Bar"
 	bar.position = Vector3(0, h, 0)
 	root.add_child(bar)
-	var bw := 2.0 if type == "prime_walker" else 0.8
+	var bw := 2.0 if d.get("boss", false) else 0.8
 	var q := QuadMesh.new()
-	q.size = Vector2(bw, 0.22 if type == "prime_walker" else 0.12)
+	q.size = Vector2(bw, 0.22 if d.get("boss", false) else 0.12)
 	_mi(q, _mat("bar_bg", Color(0.08, 0.04, 0.04), {"unshaded": true, "billboard": true, "nodepth": true}), bar)
 	var fg := _mi(q, _mat("bar_fg", Color(0.4, 1.0, 0.3), {"unshaded": true, "billboard": true, "nodepth": true}), bar, Vector3(0, 0, 0.01))
 	fg.name = "Fg"
@@ -686,8 +922,15 @@ func _dust_fx(pos: Vector3, count: int, spread := 0.6) -> void:
 			"v": Vector3(cos(a), 0.6, sin(a)) * spread * randf_range(1.2, 2.2)})
 
 
+func _boulder_drop_fx(target: Vector3, delay: float) -> void:
+	var b := _mi(_sph(0.35, 6), _mat("drop_rock", Color(0.5, 0.48, 0.45)), self, target + Vector3(0, 9, 0))
+	b.visible = false
+	effects.append({"node": b, "t": -delay, "life": 0.45, "kind": "fall", "from": target + Vector3(0.6, 9, -0.4), "to": target + Vector3(0, 0.3, 0)})
+
+
 func _update_effects(dt: float) -> void:
 	var keep := []
+	var landed := []
 	for fx in effects:
 		fx.t += dt
 		var n: Node3D = fx.node
@@ -698,16 +941,16 @@ func _update_effects(dt: float) -> void:
 				ring.scale = Vector3.ONE * (1.0 + 0.05 * sin(time_s * 4.0))
 				var core: Node3D = n.get_meta("core")
 				core.rotation.y += dt * 2.0
+			"fire":
+				fx.f1.scale = Vector3(1, 1.0 + 0.15 * sin(time_s * 13.0), 1)
+				fx.f2.scale = Vector3(1, 1.0 + 0.2 * sin(time_s * 17.0 + 1.0), 1)
+				fx.light.light_energy = float(fx.base_e) * (0.9 + 0.2 * sin(time_s * 11.0))
 			"lava":
 				var pulse := 0.5 + 0.5 * sin((time_s + fx.t) * 2.2)
 				fx.light.light_energy = 0.6 + 0.5 * pulse
 				var pm: StandardMaterial3D = fx.pool.material_override
 				pm.emission_energy_multiplier = 0.7 + 0.6 * pulse
 				fx.t -= dt
-			"fire":
-				fx.f1.scale = Vector3(1, 1.0 + 0.15 * sin(time_s * 13.0), 1)
-				fx.f2.scale = Vector3(1, 1.0 + 0.2 * sin(time_s * 17.0 + 1.0), 1)
-				fx.light.light_energy = 1.8 + 0.4 * sin(time_s * 11.0)
 			"ring":
 				var r: float = fx.r * (0.3 + 0.7 * sqrt(k))
 				n.scale = Vector3(r, 0.05, r)
@@ -736,11 +979,20 @@ func _update_effects(dt: float) -> void:
 				fx.v *= 0.9
 				n.scale = Vector3.ONE * (0.6 + k * 1.6)
 				n.transparency = k
+			"fall":
+				n.visible = fx.t >= 0.0
+				n.position = fx.from.lerp(fx.to, k * k)
+				n.rotation += Vector3(5, 3, 2) * dt
+				if fx.t >= fx.life:
+					landed.append(fx.to)
 		if fx.t >= fx.life:
 			n.queue_free()
 		else:
 			keep.append(fx)
 	effects = keep
+	for p in landed:
+		_dust_fx(p, 7, 1.0)
+		shake = maxf(shake, 0.35)
 
 
 # =================================================================== loop
@@ -763,11 +1015,34 @@ func _process(delta: float) -> void:
 	cam.position = cam_base + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * shake * shake * 0.6
 
 
+func _fire_sfx(u: Dictionary) -> void:
+	var t: String = u.type
+	if t in ["boulder_catapult", "torsion_catapult"]:
+		_sfx("catapult", -8.0, 0.15, 0.05)
+	elif t == "bronze_archer":
+		_sfx("arrow", -6.0, 0.15, 0.05)
+	else:
+		_sfx("throw", -8.0, 0.15, 0.05)
+
+
 func _handle_events() -> void:
 	for ev in sim.events:
 		match ev.e:
 			"place":
 				_spawn_tower_node(sim.get_tower(ev.id))
+			"hero_place":
+				_spawn_hero_node()
+			"hero_level":
+				_refresh_hero_tag()
+				if sim.hero != null:
+					_float_text(_v3(sim.hero.pos, 2.5), "LEVEL %d!" % ev.level, C_GOLD, 60)
+					_ring_fx(_v3(sim.hero.pos, 0.3), 1.6, C_GOLD, 0.6)
+					if sim.ability_unlocked() and ev.level == int(sim.hero_def.ability.get("unlock", 3)):
+						_toast("%s unlocked!  Press the hero button to use it." % sim.hero_def.ability.name, C_GOLD)
+						toast_t = 3.5
+				_sfx("level_up", -4.0, 0.0, 0.3)
+			"ability":
+				_ability_fx(ev)
 			"upgrade":
 				var t = sim.get_tower(ev.id)
 				_refresh_tower_node(t)
@@ -789,17 +1064,27 @@ func _handle_events() -> void:
 					n.position = _v3(e.pos)
 					add_child(n)
 					enemy_nodes[ev.id] = n
-					if e.type == "prime_walker":
+					if e.boss:
 						shake = 1.0
-						_sfx("boss_roar", -6.0, 0.0)
-						_banner("THE PRIME WALKER HAS ARRIVED", Color(1, 0.35, 0.3))
+						_sfx("boss_roar_bronze" if e.type == "siege_crawler" else "boss_roar", -6.0, 0.0, 2.0)
+						_banner("THE %s HAS ARRIVED" % str(defs.enemies[e.type].name), Color(1, 0.35, 0.3))
 			"hit":
 				if enemy_nodes.has(ev.id):
 					enemy_nodes[ev.id].set_meta("punch", 1.0)
+			"shield_break":
+				if enemy_nodes.has(ev.id):
+					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.7, 0), 1.0, Color(0.4, 0.9, 1.0), 0.3)
+				_sfx("shield_break", -10.0, 0.1, 0.15)
+			"shield_up":
+				_sfx("shield_up", -16.0, 0.1, 0.5)
+			"heal":
+				if enemy_nodes.has(ev.id):
+					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.3, 0), ev.radius, Color(0.3, 1.0, 0.4), 0.5)
+				_sfx("heal", -12.0, 0.05, 0.4)
 			"kill":
 				if enemy_nodes.has(ev.id):
 					var n2: Node3D = enemy_nodes[ev.id]
-					var big: bool = ev.type == "prime_walker"
+					var big: bool = defs.enemies[ev.type].get("boss", false)
 					_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
 					_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_GOLD, 46 if not big else 90)
 					n2.queue_free()
@@ -819,37 +1104,36 @@ func _handle_events() -> void:
 				shake = maxf(shake, 0.45)
 			"fire":
 				_animate_fire(ev.id)
-				var tf = sim.get_tower(ev.id)
-				_sfx("catapult" if tf.type == "boulder_catapult" else "throw", -8.0, 0.15, 0.05)
+				var u = sim.get_unit(ev.id)
+				if u != null:
+					_fire_sfx(u)
 			"slam":
 				_animate_fire(ev.id)
-				var t2 = sim.get_tower(ev.id)
-				_ring_fx(_v3(t2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45), 0.35)
-				_dust_fx(_v3(t2.pos + t2.facing * 0.8, 0.2), 5, 0.7)
-				_sfx("club", -4.0, 0.12, 0.05)
+				var u2 = sim.get_unit(ev.id)
+				if u2 != null:
+					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45), 0.35)
+					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
+					_sfx("spear" if u2.type in ["spear_guard", "kira"] else "club", -4.0, 0.12, 0.05)
 			"pulse":
 				_animate_fire(ev.id)
-				var t3 = sim.get_tower(ev.id)
-				_ring_fx(_v3(t3.pos, 0.25), ev.radius, Color(1, 0.5, 0.1) if t3.branch == "B" else Color(0.4, 1.0, 0.5), 0.6)
-				if tower_nodes[ev.id].has_meta("orb"):
-					var orb: Node3D = tower_nodes[ev.id].get_meta("orb")
-					orb.scale = Vector3.ONE * 2.2
+				var u3 = sim.get_unit(ev.id)
+				if u3 != null:
+					var pcol := Color(0.4, 1.0, 0.5)
+					if u3.type == "sun_priest":
+						pcol = Color(1.0, 0.85, 0.3)
+					elif u3.type == "mara":
+						pcol = Color(0.75, 0.5, 1.0)
+					if u3.get("branch", "") == "B":
+						pcol = Color(1, 0.5, 0.1)
+					_ring_fx(_v3(u3.pos, 0.25), ev.radius, pcol, 0.6)
+					if tower_nodes.has(ev.id) and tower_nodes[ev.id].has_meta("orb"):
+						var orb: Node3D = tower_nodes[ev.id].get_meta("orb")
+						orb.scale = Vector3.ONE * 2.2
 				_sfx("pulse", -7.0, 0.1, 0.08)
 			"proj":
 				var p = _proj_by_id(ev.id)
 				if p != null:
-					var size := 0.11
-					var col2 := Color(0.6, 0.58, 0.55)
-					var opts := {}
-					if p.kind == "lob":
-						size = 0.26
-					if p.src.dtype == "fire":
-						col2 = Color(1, 0.5, 0.1)
-						opts = {"emit": Color(1, 0.4, 0.05), "emit_e": 2.5}
-					elif p.src.dtype == "blunt" and p.kind == "homing":
-						size = 0.17
-					var pn := _mi(_sph(size, 6), _mat("proj_%s" % col2.to_html(), col2, opts), self, _v3(p.pos, 1.3))
-					proj_nodes[ev.id] = pn
+					proj_nodes[ev.id] = _make_projectile(p)
 			"impact":
 				if proj_nodes.has(ev.pid):
 					proj_nodes[ev.pid].queue_free()
@@ -881,6 +1165,74 @@ func _handle_events() -> void:
 	sim.events.clear()
 
 
+func _make_projectile(p: Dictionary) -> Node3D:
+	var src: Dictionary = p.src
+	var u = sim.get_unit(int(src.get("tower_id", -1)))
+	var utype: String = u.type if u != null else ""
+	var dt: String = str(src.get("dtype", ""))
+	var root := Node3D.new()
+	root.position = _v3(p.pos, 1.3)
+	add_child(root)
+	if utype == "bronze_archer":
+		var shaft := _mat("arrow_fire" if dt == "fire" else "arrow", Color(1, 0.5, 0.1) if dt == "fire" else Color(0.45, 0.3, 0.15),
+			{"emit": Color(1, 0.4, 0.05), "emit_e": 2.0} if dt == "fire" else {})
+		_mi(_box(0.05, 0.05, 0.6), shaft, root)
+		_mi(_cyl(0.0, 0.06, 0.14, 4), _mat("arrow_tip", Color(0.7, 0.45, 0.18), {"metal": 0.5}), root, Vector3(0, 0, -0.34), Vector3(-PI * 0.5, 0, 0))
+		root.set_meta("arrow", true)
+		return root
+	if utype == "tarek":
+		_mi(_box(0.26, 0.16, 0.16), _mat("hot_hammer", Color(0.9, 0.45, 0.15), {"emit": Color(1, 0.4, 0.1), "emit_e": 1.2}), root)
+		_mi(_box(0.05, 0.05, 0.3), _mat("wood_dark", Color(0.3, 0.17, 0.08)), root, Vector3(0, 0, 0.15))
+		root.set_meta("spin", true)
+		return root
+	var size := 0.11
+	var col := Color(0.6, 0.58, 0.55)
+	var opts := {}
+	if p.kind == "lob":
+		size = 0.26
+	if dt == "fire":
+		col = Color(1, 0.5, 0.1)
+		opts = {"emit": Color(1, 0.4, 0.05), "emit_e": 2.5}
+	elif dt == "blunt" and p.kind == "homing":
+		size = 0.17
+	_mi(_sph(size, 6), _mat("proj_%s" % col.to_html(), col, opts), root)
+	root.set_meta("spin", true)
+	return root
+
+
+func _ability_fx(ev: Dictionary) -> void:
+	var hp := _v3(ev.pos, 0.3)
+	match str(ev.ability):
+		"stone_rain":
+			var i := 0
+			for p in ev.hits:
+				_boulder_drop_fx(_v3(p), i * 0.06)
+				i += 1
+			_banner("STONE RAIN!", Color(0.9, 0.8, 0.6))
+			_sfx("ab_stone_rain", 0.0, 0.0, 0.5)
+		"earthquake":
+			_ring_fx(hp, 26.0, Color(0.75, 0.55, 0.3), 1.0)
+			_ring_fx(hp, 14.0, Color(0.85, 0.65, 0.35), 0.7)
+			for e in sim.enemies:
+				_dust_fx(_v3(e.pos, 0.2), 3, 0.6)
+			shake = 1.4
+			_banner("EARTHQUAKE!", Color(0.85, 0.6, 1.0))
+			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
+		"solar_flare":
+			_ring_fx(hp, float(ev.radius), Color(1, 0.85, 0.3), 0.7)
+			_ring_fx(hp, float(ev.radius) * 0.6, Color(1, 0.95, 0.6), 0.5)
+			var f := _mi(_sph(1.0, 12), _mat("flare", Color(1, 0.85, 0.4, 0.6), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), self, hp + Vector3(0, 1.0, 0))
+			effects.append({"node": f, "t": 0.0, "life": 0.35, "kind": "flash", "s": 2.5})
+			shake = 0.7
+			_banner("SOLAR FLARE!", C_GOLD)
+			_sfx("ab_solar_flare", 0.0, 0.0, 0.5)
+		"forge_fury":
+			for t in sim.towers:
+				_ring_fx(_v3(t.pos, 0.3), 1.3, Color(1, 0.5, 0.15), 0.6)
+			_banner("FORGE FURY!", Color(1, 0.6, 0.2))
+			_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
+
+
 func _proj_by_id(id: int):
 	for p in sim.projectiles:
 		if p.id == id:
@@ -894,14 +1246,16 @@ func _animate_fire(id: int) -> void:
 	var n: Node3D = tower_nodes[id]
 	if not n.has_meta("arm"):
 		return
-	var t = sim.get_tower(id)
+	var u = sim.get_unit(id)
+	if u == null:
+		return
 	var arm: Node3D = n.get_meta("arm")
 	var rest: float = arm.get_meta("rest")
-	var sw: Array = SWING[t.type]
-	var dur: float = clampf(float(t.stats.cooldown) * 0.7, 0.18, 0.6) / float(speed)
+	var sw: Array = _unit_def(u).get("swing", [-0.6, 1.0])
+	var dur: float = clampf(float(u.stats.cooldown) * 0.7, 0.18, 0.6) / float(speed)
 	var tw := create_tween()
-	tw.tween_property(arm, "rotation:x", rest + sw[0], dur * 0.35).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(arm, "rotation:x", rest + sw[1], dur * 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(arm, "rotation:x", rest + float(sw[0]), dur * 0.35).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(arm, "rotation:x", rest + float(sw[1]), dur * 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(arm, "rotation:x", rest, dur * 0.45).set_trans(Tween.TRANS_SINE)
 
 
@@ -926,7 +1280,7 @@ func _sync_visuals(alpha: float) -> void:
 		var body = n.get_meta("body")
 		if body != null:
 			var bob: float = absf(sin(ph)) * 0.05
-			if e.type == "scout" or e.type == "carrier":
+			if e.type in ["scout", "carrier", "repair_drone"]:
 				bob = sin(time_s * 5.0 + e.id) * 0.08
 			body.position.y = bob
 			body.rotation.z = sin(time_s * 40.0) * 0.12 if stunned else 0.0
@@ -934,8 +1288,18 @@ func _sync_visuals(alpha: float) -> void:
 		if punch > 0.0:
 			n.set_meta("punch", maxf(0.0, punch - 0.18))
 			var model: Node3D = n.get_node("Model")
-			var sc: float = float(ROBOT_SCALE[e.type]) * (1.0 + punch * 0.12)
+			var sc: float = float(defs.enemies[e.type].get("model_scale", 0.9)) * (1.0 + punch * 0.12)
 			model.scale = Vector3(sc, sc * (1.0 - punch * 0.08), sc)
+		var bubble: MeshInstance3D = n.get_node_or_null("Bubble")
+		if bubble != null:
+			bubble.visible = e.shield > 0.0
+			if bubble.visible:
+				var bmat: StandardMaterial3D = bubble.material_override
+				bmat.albedo_color.a = 0.1 + 0.2 * clampf(e.shield / maxf(e.max_shield, 1.0), 0.0, 1.0)
+		var mark: Node3D = n.get_node("Mark")
+		mark.visible = sim.tick < e.expose_until
+		if mark.visible:
+			mark.rotation.y = time_s * 3.0
 		var bar: Node3D = n.get_node("Bar")
 		if e.hp < e.max_hp:
 			bar.visible = true
@@ -943,17 +1307,29 @@ func _sync_visuals(alpha: float) -> void:
 			var f: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 			fg.scale.x = maxf(f, 0.001)
 			fg.position.x = -(1.0 - f) * (fg.mesh as QuadMesh).size.x * 0.5
+	var pdt := get_process_delta_time()
 	for p in sim.projectiles:
 		if not proj_nodes.has(p.id):
 			continue
 		var pn: Node3D = proj_nodes[p.id]
-		pn.rotation += Vector3(8, 5, 0) * get_process_delta_time()
+		var newp: Vector3
 		if p.kind == "lob":
 			var k: float = clampf((p.t + alpha * TICK) / p.flight, 0.0, 1.0)
-			pn.position = _v3(p.start.lerp(p.aim, k), 1.0 + 3.4 * 4.0 * k * (1.0 - k))
+			newp = _v3(p.start.lerp(p.aim, k), 1.0 + 3.4 * 4.0 * k * (1.0 - k))
 		else:
-			pn.position = pn.position.lerp(_v3(p.pos, 1.1), 0.6)
-	for t in sim.towers:
+			newp = pn.position.lerp(_v3(p.pos, 1.1), 0.6)
+		var dv := newp - pn.position
+		pn.position = newp
+		if pn.has_meta("arrow"):
+			var dn := dv.normalized()
+			if dv.length_squared() > 0.000001 and absf(dn.y) < 0.98:
+				pn.look_at(newp + dv, Vector3.UP)
+		elif pn.has_meta("spin"):
+			pn.rotation += Vector3(8, 5, 0) * pdt
+	var units: Array = sim.towers.duplicate()
+	if sim.hero != null:
+		units.append(sim.hero)
+	for t in units:
 		if not tower_nodes.has(t.id):
 			continue
 		var tn: Node3D = tower_nodes[t.id]
@@ -963,6 +1339,11 @@ func _sync_visuals(alpha: float) -> void:
 		if tn.has_meta("orb"):
 			var orb: Node3D = tn.get_meta("orb")
 			orb.scale = orb.scale.lerp(Vector3.ONE * (1.0 + 0.1 * sin(time_s * 4.0)), 0.1)
+		var buff: Node3D = tn.get_node("Buff")
+		buff.visible = t.get("buffed", false) and not t.get("is_hero", false)
+		if buff.visible:
+			buff.rotation.y = time_s * 2.5
+			buff.position.y = 2.15 + 0.08 * sin(time_s * 3.0 + t.id)
 
 
 # =================================================================== input
@@ -989,6 +1370,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index != MOUSE_BUTTON_LEFT:
 			return
 		var gp := _ground_point(event.position)
+		if placing == HERO_PLACING:
+			_move_ghost(gp)
+			var herr := sim.hero_placement_error(gp)
+			if herr == "":
+				sim.place_hero(gp)
+				_cancel_placing()
+				_handle_events()
+				_select(sim.hero.id)
+			else:
+				_toast(herr, Color(1, 0.45, 0.4))
+				_sfx("error", -4.0, 0.0)
+			return
 		if placing != "":
 			_move_ghost(gp)
 			var err := sim.placement_error(placing, gp)
@@ -1001,6 +1394,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_toast(err, Color(1, 0.45, 0.4))
 				_sfx("error", -4.0, 0.0)
 			return
+		if sim.hero != null and sim.hero.pos.distance_to(gp) <= 0.8:
+			_select(sim.hero.id)
+			_sfx("click", -6.0)
+			return
 		var t = sim.tower_at(gp)
 		if t != null:
 			_select(t.id)
@@ -1008,14 +1405,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_deselect()
 	elif event is InputEventKey and event.pressed:
+		var types := sim.tower_types()
 		match event.keycode:
 			KEY_ESCAPE:
 				_cancel_placing()
 				_deselect()
 			KEY_SPACE:
 				_on_start_pressed()
+			KEY_Q:
+				_on_hero_button()
 			KEY_1, KEY_2, KEY_3, KEY_4:
-				_begin_placing(TOWER_ORDER[event.keycode - KEY_1])
+				var i: int = event.keycode - KEY_1
+				if i < types.size():
+					_begin_placing(types[i])
 
 
 func _begin_placing(type: String) -> void:
@@ -1024,30 +1426,36 @@ func _begin_placing(type: String) -> void:
 	if placing == type:
 		_cancel_placing()
 		return
-	if sim.gold < int(defs.towers[type].cost):
-		_toast("Not enough gold", Color(1, 0.45, 0.4))
-		_sfx("error", -4.0, 0.0)
-		return
+	var r := 0.0
+	var foot := 0.0
+	if type == HERO_PLACING:
+		r = float(sim.hero_def.base.range)
+		foot = Sim.HERO_RADIUS
+	else:
+		if sim.gold < int(defs.towers[type].cost):
+			_toast("Not enough gold", Color(1, 0.45, 0.4))
+			_sfx("error", -4.0, 0.0)
+			return
+		r = float(defs.towers[type].base.range)
+		foot = float(defs.towers[type].radius)
 	placing = type
 	for c in ghost.get_children():
 		if c != ghost_range and c != ghost_foot:
 			c.queue_free()
-	ghost.add_child(_make_tower_visual(type))
-	var def: Dictionary = defs.towers[type]
-	var r := float(def.base.range)
+	ghost.add_child(_make_hero_visual(sim.hero_id) if type == HERO_PLACING else _make_tower_visual(type))
 	ghost_range.scale = Vector3(r, 1, r)
-	ghost_foot.scale = Vector3(float(def.radius), 1, float(def.radius))
+	ghost_foot.scale = Vector3(foot, 1, foot)
 	ghost.visible = true
 	_move_ghost(Vector2(-1.0, 0.0))
 	_update_shop_highlight()
-	_toast("Tap the map to place %s" % def.name, C_TEXT)
+	_toast("Tap the map to place %s" % (str(sim.hero_def.name) if type == HERO_PLACING else str(defs.towers[type].name)), C_TEXT)
 
 
 func _move_ghost(p: Vector2) -> void:
 	if p == Vector2.INF or placing == "":
 		return
 	ghost.position = _v3(p)
-	var err := sim.placement_error(placing, p)
+	var err := sim.hero_placement_error(p) if placing == HERO_PLACING else sim.placement_error(placing, p)
 	ghost_foot.material_override = _mat("foot_ok", Color(0.2, 1, 0.3, 0.45), {"unshaded": true}) if err == "" \
 		else _mat("foot_bad", Color(1, 0.2, 0.2, 0.55), {"unshaded": true})
 	ghost_range.material_override = _mat("range_g", Color(1, 1, 1, 0.18), {"unshaded": true}) if err == "" \
@@ -1069,6 +1477,7 @@ func _select(id: int) -> void:
 func _deselect() -> void:
 	selected = -1
 	sel_range.visible = false
+	aura_range.visible = false
 	tower_box.visible = false
 	shop_box.visible = true
 
@@ -1078,6 +1487,20 @@ func _on_start_pressed() -> void:
 		return
 	if sim.start_wave():
 		_sfx("click", -6.0)
+
+
+func _on_hero_button() -> void:
+	if not started:
+		return
+	if sim.hero == null:
+		_begin_placing(HERO_PLACING)
+	elif sim.ability_ready():
+		sim.use_ability()
+		_handle_events()
+	elif not sim.ability_unlocked():
+		_toast("%s unlocks at hero level %d" % [sim.hero_def.ability.name, int(sim.hero_def.ability.get("unlock", 3))], C_TEXT)
+	else:
+		_toast("%s is recharging" % sim.hero_def.ability.name, C_TEXT)
 
 
 # =================================================================== HUD
@@ -1144,13 +1567,13 @@ func _icon(tex: Texture2D, size := 52) -> TextureRect:
 
 
 func _build_hud() -> void:
-	var theme := Theme.new()
-	theme.default_font = FONT
-	theme.default_font_size = 28
+	var ui_theme := Theme.new()
+	ui_theme.default_font = FONT
+	ui_theme.default_font_size = 28
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var root := Control.new()
-	root.theme = theme
+	root.theme = ui_theme
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
@@ -1191,27 +1614,55 @@ func _build_hud() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	side.add_child(col)
-	var era := _label(str(map.get("era", "Stone Age")).to_upper(), 30, Color(1, 0.78, 0.45))
+	var era := _label(_era().to_upper() + "  -  " + str(map.name), 24, Color(1, 0.78, 0.45))
 	era.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(era)
-	var sub := _label(str(map.name), 20, Color(0.85, 0.75, 0.6), 6)
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(sub)
+
+	# hero card
+	hero_card = PanelContainer.new()
+	hero_card.add_theme_stylebox_override("panel", _style(Color(0.26, 0.18, 0.1), 16, C_GOLD.darkened(0.3), 3))
+	col.add_child(hero_card)
+	var hrow := HBoxContainer.new()
+	hrow.add_theme_constant_override("separation", 10)
+	hero_card.add_child(hrow)
+	hrow.add_child(_icon(_icon_tex(sim.hero_id), 72))
+	var hcol := VBoxContainer.new()
+	hcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hcol.add_theme_constant_override("separation", 2)
+	hrow.add_child(hcol)
+	lbl_hero_name = _label(str(sim.hero_def.name).get_slice(" ", 0), 22, C_GOLD, 6)
+	lbl_hero_name.clip_text = true
+	hcol.add_child(lbl_hero_name)
+	lbl_hero_level = _label("", 18, C_TEXT, 5)
+	hcol.add_child(lbl_hero_level)
+	var xp_bg := ColorRect.new()
+	xp_bg.color = Color(0.1, 0.06, 0.03)
+	xp_bg.custom_minimum_size = Vector2(130, 10)
+	hcol.add_child(xp_bg)
+	hero_xp_fill = ColorRect.new()
+	hero_xp_fill.color = C_GOLD
+	hero_xp_fill.size = Vector2(0, 10)
+	xp_bg.add_child(hero_xp_fill)
+	btn_hero = _button("", Color(0.2, 0.55, 0.2), 20)
+	btn_hero.custom_minimum_size = Vector2(118, 72)
+	btn_hero.pressed.connect(_on_hero_button)
+	hrow.add_child(btn_hero)
 
 	shop_box = VBoxContainer.new()
 	shop_box.add_theme_constant_override("separation", 10)
 	shop_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(shop_box)
-	for i in TOWER_ORDER.size():
-		var type: String = TOWER_ORDER[i]
+	var types := sim.tower_types()
+	for i in types.size():
+		var type: String = types[i]
 		var def: Dictionary = defs.towers[type]
 		var c := Color(def.color[0], def.color[1], def.color[2])
 		var b := _button("%s\n%d gold" % [def.name, int(def.cost)], c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
-		b.icon = ICONS[type]
+		b.icon = _icon_tex(type)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 92)
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.custom_minimum_size = Vector2(0, 118)
+		b.custom_minimum_size = Vector2(0, 112)
 		b.tooltip_text = "%s  [%d]\n%s" % [def.lineage, i + 1, def.desc]
 		b.pressed.connect(_begin_placing.bind(type))
 		shop_box.add_child(b)
@@ -1224,7 +1675,7 @@ func _build_hud() -> void:
 	col.add_child(tower_box)
 	var head := HBoxContainer.new()
 	tower_box.add_child(head)
-	tower_icon = _icon(ICONS["rock_slinger"], 84)
+	tower_icon = _icon(_icon_tex(types[0]), 84)
 	head.add_child(tower_icon)
 	lbl_t_name = _label("", 30, Color(1, 0.88, 0.55))
 	lbl_t_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1248,7 +1699,7 @@ func _build_hud() -> void:
 	tower_box.add_child(spacer)
 	btn_target = _button("", Color(0.3, 0.3, 0.42), 22)
 	btn_target.custom_minimum_size = Vector2(0, 56)
-	btn_target.tooltip_text = "First: closest to the cave. Strong: toughest robot (use for bosses). Close: nearest. Last: furthest back."
+	btn_target.tooltip_text = "First: closest to your base. Strong: toughest robot (use for bosses). Close: nearest. Last: furthest back."
 	btn_target.pressed.connect(func():
 		if selected != -1:
 			sim.cycle_target(selected)
@@ -1258,7 +1709,7 @@ func _build_hud() -> void:
 	btn_sell = _button("", Color(0.62, 0.22, 0.16), 24)
 	btn_sell.custom_minimum_size = Vector2(0, 64)
 	btn_sell.pressed.connect(func():
-		if selected != -1:
+		if selected != -1 and sim.get_tower(selected) != null:
 			sim.sell_tower(selected)
 			_handle_events()
 			_deselect())
@@ -1342,7 +1793,7 @@ func _build_hud() -> void:
 		sim.state = "ready"
 		overlay.visible = false
 		_banner("ENDLESS", Color(0.85, 0.6, 1))
-		_toast("How long can you hold the cave?", Color(0.85, 0.6, 1)))
+		_toast("How long can you hold out?", Color(0.85, 0.6, 1)))
 	ob.add_child(btn_endless)
 	var ob2 := HBoxContainer.new()
 	ob2.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1358,14 +1809,12 @@ func _build_hud() -> void:
 	var nm := Progress.next_map(map_id, map_order)
 	var btn_next := _button("NEXT MAP", Color(0.2, 0.58, 0.18), 28)
 	btn_next.custom_minimum_size = Vector2(300, 80)
-	btn_next.name = "NextMap"
 	btn_next.pressed.connect(func():
 		Progress.current_map = nm
 		get_tree().reload_current_scene())
 	btn_next.visible = false
 	ob2.add_child(btn_next)
 	overlay.set_meta("next", btn_next)
-	lbl_stars = _label("", 1, C_GOLD)
 	overlay.visible = false
 
 	# --- title screen
@@ -1377,12 +1826,9 @@ func _build_hud() -> void:
 	var t2 := _label("TOWER DEFENSE", 104, C_GOLD, 22)
 	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tb.add_child(t2)
-	var t3 := _label("The machines came back through time to erase humanity.\nHold the cave.", 28, C_TEXT, 8)
+	var t3 := _label("The machines came back through time to erase humanity.\nHold the line in every age.", 28, C_TEXT, 8)
 	t3.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tb.add_child(t3)
-	var t4 := _label("STONE AGE  -  MAMMOTH VALLEY", 26, Color(0.95, 0.7, 0.45), 8)
-	t4.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tb.add_child(t4)
 	var play := _button("PLAY", Color(0.2, 0.58, 0.18), 52)
 	play.custom_minimum_size = Vector2(380, 120)
 	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1394,70 +1840,166 @@ func _build_hud() -> void:
 	tb.add_child(play)
 
 
+func _eras() -> Array:
+	var out := []
+	for m in Defs.map_list():
+		if not str(m.era) in out:
+			out.append(str(m.era))
+	return out
+
+
 func _build_map_select(root: Control) -> void:
 	map_select = _modal(root, 0.6)
 	var box: VBoxContainer = map_select.get_meta("box")
 	box.custom_minimum_size = Vector2(1300, 0)
-	var head := _label("STONE AGE", 64, C_GOLD, 16)
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(head)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 26)
-	box.add_child(row)
-	for m in Defs.map_list():
-		var mid: String = m.id
-		var unlocked := Progress.is_unlocked(mid)
-		var card := PanelContainer.new()
-		var sb := _style(Color(0.24, 0.16, 0.1) if unlocked else Color(0.16, 0.13, 0.11), 20, C_PANEL_EDGE if unlocked else Color(0.3, 0.25, 0.2), 4)
-		card.add_theme_stylebox_override("panel", sb)
-		card.custom_minimum_size = Vector2(390, 0)
-		row.add_child(card)
-		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 10)
-		card.add_child(v)
-		var thumb_holder := Control.new()
-		thumb_holder.custom_minimum_size = Vector2(362, 205)
-		v.add_child(thumb_holder)
-		var at := AtlasTexture.new()
-		at.atlas = load("res://assets/textures/ground_%s.png" % mid)
-		at.region = Rect2(312, 234, 1560, 884)
-		var thumb := TextureRect.new()
-		thumb.texture = at
-		thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		thumb.stretch_mode = TextureRect.STRETCH_SCALE
-		thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
-		thumb.modulate = Color.WHITE if unlocked else Color(0.35, 0.35, 0.35)
-		thumb_holder.add_child(thumb)
-		if not unlocked:
-			var cc := CenterContainer.new()
-			cc.set_anchors_preset(Control.PRESET_FULL_RECT)
-			thumb_holder.add_child(cc)
-			cc.add_child(_icon(ICON_LOCK, 96))
-		var nl := _label(str(m.name), 34, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8)
-		v.add_child(nl)
-		var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
-		v.add_child(_label(str(m.difficulty).to_upper(), 22, dc.get(m.difficulty, C_TEXT), 6))
-		var bl := _label(str(m.blurb), 18, Color(0.9, 0.85, 0.78), 5)
-		bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		bl.custom_minimum_size = Vector2(362, 70)
-		v.add_child(bl)
-		var stars := HBoxContainer.new()
-		for k in 3:
-			stars.add_child(_icon(ICON_STAR if k < Progress.stars(mid) else ICON_STAR_EMPTY, 40))
-		v.add_child(stars)
-		var go := _button("PLAY" if unlocked else "LOCKED", Color(0.2, 0.58, 0.18) if unlocked else Color(0.3, 0.27, 0.24), 30)
-		go.disabled = not unlocked
-		go.custom_minimum_size = Vector2(0, 76)
-		go.pressed.connect(func():
+	box.add_theme_constant_override("separation", 14)
+	# era tabs
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 16)
+	box.add_child(tabs)
+	var rows := {}
+	var tab_buttons := {}
+	var default_tab := str(Progress.data.get("tab", ""))
+	for era_name in _eras():
+		var row := HBoxContainer.new()
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 26)
+		box.add_child(row)
+		rows[era_name] = row
+		var era_open := false
+		for m in Defs.map_list():
+			if str(m.era) != era_name:
+				continue
+			era_open = era_open or Progress.is_unlocked(m.id)
+			_map_card(row, m)
+		if era_open and default_tab == "":
+			pass
+		var tbtn := _button(era_name.to_upper() if era_open else era_name.to_upper() + "  (LOCKED)", Color(0.45, 0.32, 0.2), 30)
+		tbtn.custom_minimum_size = Vector2(320, 70)
+		tabs.add_child(tbtn)
+		tab_buttons[era_name] = tbtn
+		if era_open:
+			if default_tab == "" or not Progress.is_unlocked(_first_map_of(default_tab)):
+				default_tab = era_name
+	var show_tab := func(era_name: String) -> void:
+		for k in rows:
+			rows[k].visible = k == era_name
+			var b: Button = tab_buttons[k]
+			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else Color(0.7, 0.7, 0.7)
+		Progress.data.tab = era_name
+	for era_name in tab_buttons:
+		tab_buttons[era_name].pressed.connect(func():
 			_sfx("click")
-			Progress.current_map = mid
-			get_tree().reload_current_scene())
-		v.add_child(go)
-	var hint := _label("Beat a map to unlock the next one.  Stars: 1 = win, 2 = win with 50+ lives, 3 = win with 90+ lives.", 20, Color(0.85, 0.78, 0.68), 5)
+			show_tab.call(era_name))
+	if default_tab == "":
+		default_tab = _eras()[0]
+	show_tab.call(default_tab)
+	# hero select
+	var hhead := _label("CHOOSE YOUR HERO", 30, C_GOLD, 8)
+	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(hhead)
+	var hrow := HBoxContainer.new()
+	hrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	hrow.add_theme_constant_override("separation", 14)
+	box.add_child(hrow)
+	var hblurb := _label("", 20, Color(0.92, 0.86, 0.76), 5)
+	hblurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hblurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hblurb.custom_minimum_size = Vector2(1200, 56)
+	var hero_buttons := {}
+	var pick := func(hid: String) -> void:
+		Progress.set_hero(hid)
+		for k in hero_buttons:
+			hero_buttons[k].modulate = Color(1.2, 1.15, 0.9) if k == hid else Color(0.62, 0.62, 0.62)
+		var hd: Dictionary = defs.heroes.heroes[hid]
+		hblurb.text = "%s, %s (%s).  %s\nAbility: %s. %s" % [hd.name, hd.title, hd.era, hd.blurb, hd.ability.name, hd.ability.desc]
+	for hid in defs.heroes.heroes:
+		var hd2: Dictionary = defs.heroes.heroes[hid]
+		var hb := _button(str(hd2.name).split(" ")[0], Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45), 24)
+		hb.icon = _icon_tex(hid)
+		hb.expand_icon = true
+		hb.add_theme_constant_override("icon_max_width", 64)
+		hb.custom_minimum_size = Vector2(250, 84)
+		hb.pressed.connect(func():
+			_sfx("click")
+			pick.call(hid))
+		hrow.add_child(hb)
+		hero_buttons[hid] = hb
+	box.add_child(hblurb)
+	pick.call(Progress.hero() if defs.heroes.heroes.has(Progress.hero()) else "ugo")
+	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = 50+ lives, 3 = 90+ lives.  Your hero joins every match for free.", 18, Color(0.85, 0.78, 0.68), 5)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
+	if OS.is_debug_build():
+		var dev := _button("UNLOCK ALL MAPS (test build)", Color(0.35, 0.3, 0.45), 18)
+		dev.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		dev.custom_minimum_size = Vector2(380, 44)
+		dev.pressed.connect(func():
+			Progress.unlock_all(map_order)
+			Progress.current_map = ""
+			Progress.open_map_select = true
+			get_tree().reload_current_scene())
+		box.add_child(dev)
 	map_select.visible = false
+
+
+func _first_map_of(era_name: String) -> String:
+	for m in Defs.map_list():
+		if str(m.era) == era_name:
+			return m.id
+	return ""
+
+
+func _map_card(row: HBoxContainer, m: Dictionary) -> void:
+	var mid: String = m.id
+	var unlocked := Progress.is_unlocked(mid)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _style(Color(0.24, 0.16, 0.1) if unlocked else Color(0.16, 0.13, 0.11), 20,
+		C_PANEL_EDGE if unlocked else Color(0.3, 0.25, 0.2), 4))
+	card.custom_minimum_size = Vector2(390, 0)
+	row.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 8)
+	card.add_child(v)
+	var thumb_holder := Control.new()
+	thumb_holder.custom_minimum_size = Vector2(362, 180)
+	v.add_child(thumb_holder)
+	var at := AtlasTexture.new()
+	at.atlas = load("res://assets/textures/ground_%s.png" % mid)
+	at.region = Rect2(312, 234, 1560, 884)
+	var thumb := TextureRect.new()
+	thumb.texture = at
+	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	thumb.stretch_mode = TextureRect.STRETCH_SCALE
+	thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	thumb.modulate = Color.WHITE if unlocked else Color(0.35, 0.35, 0.35)
+	thumb_holder.add_child(thumb)
+	if not unlocked:
+		var cc := CenterContainer.new()
+		cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+		thumb_holder.add_child(cc)
+		cc.add_child(_icon(ICON_LOCK, 90))
+	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8))
+	var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
+	v.add_child(_label(str(m.difficulty).to_upper(), 20, dc.get(m.difficulty, C_TEXT), 6))
+	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
+	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	bl.custom_minimum_size = Vector2(362, 60)
+	v.add_child(bl)
+	var stars := HBoxContainer.new()
+	for k in 3:
+		stars.add_child(_icon(ICON_STAR if k < Progress.stars(mid) else ICON_STAR_EMPTY, 36))
+	v.add_child(stars)
+	var go := _button("PLAY" if unlocked else "LOCKED", Color(0.2, 0.58, 0.18) if unlocked else Color(0.3, 0.27, 0.24), 28)
+	go.disabled = not unlocked
+	go.custom_minimum_size = Vector2(0, 66)
+	go.pressed.connect(func():
+		_sfx("click")
+		Progress.save()
+		Progress.current_map = mid
+		get_tree().reload_current_scene())
+	v.add_child(go)
 
 
 func _modal(root: Control, dim := 0.45) -> Control:
@@ -1470,7 +2012,7 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	shade.add_child(center)
 	var panel := PanelContainer.new()
 	var sb := _style(Color(0.16, 0.1, 0.06, 0.95), 30, C_PANEL_EDGE, 6)
-	sb.set_content_margin_all(44)
+	sb.set_content_margin_all(36)
 	sb.shadow_size = 24
 	panel.add_theme_stylebox_override("panel", sb)
 	center.add_child(panel)
@@ -1486,55 +2028,83 @@ func _modal(root: Control, dim := 0.45) -> Control:
 func _start_game() -> void:
 	started = true
 	title_screen.visible = false
+	map_select.visible = false
 	if not muted and not demo:
 		music.play()
 	_sfx("click")
-	_toast("Pick a tower on the right, then tap the map to place it", C_TEXT)
+	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 	toast_t = 4.5
 
 
 func _show_tower_panel(id: int) -> void:
-	var t = sim.get_tower(id)
+	var t = sim.get_unit(id)
 	if t == null:
 		_deselect()
 		return
 	shop_box.visible = false
 	tower_box.visible = true
-	var def: Dictionary = defs.towers[t.type]
-	tower_icon.texture = ICONS[t.type]
-	lbl_t_name.text = sim.tower_display_name(t)
-	var s: Dictionary = t.stats
-	var rate := 1.0 / float(s.cooldown)
-	var lines := "%s  -  Tier %d/5\n" % [def.lineage, t.level]
-	lines += "Damage %s (%s)  Range %.1f\nAttacks %.1f/sec   Kills %d" % [str(snappedf(float(s.damage), 0.1)), s.dtype, float(s.range), rate, t.kills]
-	if s.has("splash") and float(s.splash) > 0:
-		lines += "\nSplash %.1f" % float(s.splash)
-	if s.has("slow"):
-		lines += "   Slow %d%%" % int(float(s.slow) * 100)
-	if t.branch != "":
-		lines += "\nPath %s: %s" % [t.branch, def.branches[t.branch].name]
-	lbl_t_info.text = lines
 	for c in up_box.get_children():
 		c.queue_free()
-	var opts := sim.upgrade_options(t)
-	if opts.is_empty():
-		up_box.add_child(_label("MAX TIER", 34, C_GOLD))
-	for o in opts:
-		var title: String = ("PATH %s: " % o.key) if o.get("branch_pick", false) else ""
-		var bcol := Color(0.7, 0.36, 0.12) if o.key == "A" else (Color(0.14, 0.42, 0.62) if o.key == "B" else Color(0.26, 0.5, 0.2))
-		var b := _button("%s%s  -  %d gold\n%s" % [title, o.name, o.cost, o.desc], bcol, 21)
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.custom_minimum_size = Vector2(0, 104)
-		b.set_meta("cost", o.cost)
-		b.pressed.connect(func():
-			if not sim.upgrade_tower(id, o.key):
-				_toast("Not enough gold", Color(1, 0.45, 0.4))
-				_sfx("error", -4.0, 0.0)
-			_handle_events())
-		up_box.add_child(b)
-	if opts.size() == 2:
-		up_box.add_child(_label("Choose one. The other path locks.", 20, Color(1, 0.72, 0.45), 6))
-	btn_sell.text = "SELL  +%d gold" % sim.sell_value(t)
+	var s: Dictionary = sim._effective_stats(t)
+	var rate := 1.0 / float(s.cooldown)
+	var lines := ""
+	if t.get("is_hero", false):
+		var hd: Dictionary = sim.hero_def
+		tower_icon.texture = _icon_tex(sim.hero_id)
+		lbl_t_name.text = str(hd.name)
+		var nxt := "MAX" if t.level >= sim.hero_levels.size() else "%d/%d XP" % [int(t.xp), int(sim.hero_levels[t.level])]
+		lines = "%s  -  Level %d  (%s)\n" % [hd.title, t.level, nxt]
+		lines += "Damage %s  Range %.1f  Attacks %.1f/sec\nKills %d\n" % [str(snappedf(float(s.damage), 0.1)), float(s.range), rate, t.kills]
+		var au: Dictionary = hd.get("aura", {})
+		lines += "Aura: %s\nAbility (level %d): %s. %s" % [hd.blurb, int(hd.ability.get("unlock", 3)), hd.ability.name, hd.ability.desc]
+		btn_sell.visible = false
+		aura_range.position = _v3(t.pos, 0.11)
+		aura_range.scale = Vector3(float(au.get("radius", 0.0)), 1, float(au.get("radius", 0.0)))
+		aura_range.visible = not au.is_empty()
+	else:
+		var def: Dictionary = defs.towers[t.type]
+		tower_icon.texture = _icon_tex(t.type)
+		lbl_t_name.text = sim.tower_display_name(t)
+		lines = "%s  -  Tier %d/5\n" % [def.lineage, t.level]
+		lines += "Damage %s (%s)  Range %.1f\nAttacks %.1f/sec   Kills %d" % [str(snappedf(float(s.damage), 0.1)), s.dtype, float(s.range), rate, t.kills]
+		if s.has("shots") and int(s.shots) > 1:
+			lines += "\nArrows per volley %d" % int(s.shots)
+		if s.has("splash") and float(s.splash) > 0:
+			lines += "\nSplash %.1f" % float(s.splash)
+		if s.has("slow"):
+			lines += "   Slow %d%%" % int(float(s.slow) * 100)
+		if s.has("armor_pierce"):
+			lines += "\nPierces %d armor" % int(s.armor_pierce)
+		if s.has("shred"):
+			lines += "\nStrips %d armor per hit" % int(s.shred)
+		if s.has("expose"):
+			lines += "\nMarked robots take +%d%% damage" % int(float(s.expose) * 100)
+		if t.buffed:
+			lines += "\nBoosted by your hero!"
+		if t.branch != "":
+			lines += "\nPath %s: %s" % [t.branch, def.branches[t.branch].name]
+		var opts := sim.upgrade_options(t)
+		if opts.is_empty():
+			up_box.add_child(_label("MAX TIER", 34, C_GOLD))
+		for o in opts:
+			var title: String = ("PATH %s: " % o.key) if o.get("branch_pick", false) else ""
+			var bcol := Color(0.7, 0.36, 0.12) if o.key == "A" else (Color(0.14, 0.42, 0.62) if o.key == "B" else Color(0.26, 0.5, 0.2))
+			var b := _button("%s%s  -  %d gold\n%s" % [title, o.name, o.cost, o.desc], bcol, 21)
+			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			b.custom_minimum_size = Vector2(0, 104)
+			b.set_meta("cost", o.cost)
+			b.pressed.connect(func():
+				if not sim.upgrade_tower(id, o.key):
+					_toast("Not enough gold", Color(1, 0.45, 0.4))
+					_sfx("error", -4.0, 0.0)
+				_handle_events())
+			up_box.add_child(b)
+		if opts.size() == 2:
+			up_box.add_child(_label("Choose one. The other path locks.", 20, Color(1, 0.72, 0.45), 6))
+		btn_sell.visible = true
+		btn_sell.text = "SELL  +%d gold" % sim.sell_value(t)
+		aura_range.visible = false
+	lbl_t_info.text = lines
 	btn_target.visible = s.kind != "pulse"
 	btn_target.text = "TARGET: %s" % str(t.target).to_upper()
 	sel_range.position = _v3(t.pos, 0.12)
@@ -1560,6 +2130,30 @@ func _banner(text: String, col: Color) -> void:
 	banner_t = 1.6
 
 
+func _update_hero_card() -> void:
+	var ab: Dictionary = sim.hero_def.ability
+	if sim.hero == null:
+		lbl_hero_level.text = "Ready to deploy"
+		hero_xp_fill.size.x = 0
+		btn_hero.text = "PLACE\nFREE"
+		btn_hero.disabled = false
+		btn_hero.modulate = Color(1.15, 1.15, 1.0) if placing == HERO_PLACING else Color.WHITE
+		return
+	btn_hero.modulate = Color.WHITE
+	lbl_hero_level.text = "Level %d" % sim.hero.level
+	hero_xp_fill.size.x = 130.0 * sim.hero_xp_progress()
+	if not sim.ability_unlocked():
+		btn_hero.text = "%s\nLVL %d" % [str(ab.name).to_upper(), int(ab.get("unlock", 3))]
+		btn_hero.disabled = true
+	elif sim.hero.ability_cd > 0.0:
+		btn_hero.text = "%s\n%ds" % [str(ab.name).to_upper(), int(ceil(sim.hero.ability_cd))]
+		btn_hero.disabled = true
+	else:
+		btn_hero.text = "%s\nREADY!" % str(ab.name).to_upper()
+		btn_hero.disabled = false
+		btn_hero.modulate = Color(1.0, 1.0, 1.0).lerp(Color(1.35, 1.25, 0.9), 0.5 + 0.5 * sin(time_s * 6.0))
+
+
 func _update_hud(delta: float) -> void:
 	lbl_gold.text = str(sim.gold)
 	lbl_lives.text = str(sim.lives)
@@ -1575,6 +2169,7 @@ func _update_hud(delta: float) -> void:
 	else:
 		btn_start.disabled = true
 		btn_start.text = "WAVE %d" % sim.wave
+	_update_hero_card()
 	if toast_t > 0.0:
 		toast_t -= delta
 		toast.modulate.a = clampf(toast_t / 0.4, 0.0, 1.0)
@@ -1593,25 +2188,44 @@ func _show_overlay(won: bool) -> void:
 	if won:
 		_sfx("victory")
 		var earned := 0
+		var newly := ""
 		if not demo:
-			earned = Progress.record_win(map_id, sim.lives, map_order)
+			var res: Array = Progress.record_win(map_id, sim.lives, map_order)
+			earned = res[0]
+			newly = res[1]
+			if newly != "":
+				for m in Defs.map_list():
+					if str(m.id) == newly:
+						Progress.data.tab = str(m.era)
+				Progress.save()
 		var nb: Button = overlay.get_meta("next")
 		nb.visible = Progress.next_map(map_id, map_order) != ""
 		lbl_overlay.text = "VICTORY!"
 		if earned > 0:
 			lbl_overlay.text = "VICTORY!  %d/3 STARS" % earned
 		lbl_overlay.add_theme_color_override("font_color", C_GOLD)
-		lbl_overlay_sub.text = "The Prime Walker is scrap metal. The cave stands.\n%d robots destroyed  -  %d lives left" % [sim.stats.kills, sim.lives]
+		var boss_name := str(defs.enemies[str(map.get("boss", "prime_walker"))].name).capitalize()
+		lbl_overlay_sub.text = "The %s is scrap metal.\n%d robots destroyed  -  %d lives left" % [boss_name, sim.stats.kills, sim.lives]
+		if newly != "":
+			var nm_era := ""
+			for m in Defs.map_list():
+				if m.id == newly:
+					nm_era = str(m.era)
+			if nm_era != _era():
+				lbl_overlay_sub.text += "\nNEW ERA UNLOCKED: %s!" % nm_era.to_upper()
+				nb.text = "ENTER THE %s" % nm_era.to_upper()
+		if not nb.visible:
+			lbl_overlay_sub.text += "\nYou beat every map! The Iron Age arrives in the next update."
 		btn_endless.visible = true
 	else:
 		_sfx("defeat")
-		lbl_overlay.text = "THE CAVE HAS FALLEN"
+		lbl_overlay.text = "THE CITY HAS FALLEN" if str(map.get("base", "cave")) == "city" else "THE CAVE HAS FALLEN"
 		lbl_overlay.add_theme_color_override("font_color", Color(1, 0.45, 0.4))
 		lbl_overlay_sub.text = "You held out until wave %d.\n%d robots destroyed." % [sim.wave, sim.stats.kills]
 		btn_endless.visible = false
 
 
-# =================================================================== demo/screenshots
+# =================================================================== test harness (screenshots, win-flow test)
 func _shot(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
@@ -1625,38 +2239,8 @@ func _wait_ticks(n: int) -> void:
 		await get_tree().process_frame
 
 
-## Test harness: plays the current map like an impatient player (spams Start Wave) and reports the win flow.
-func _run_autowin() -> void:
-	await get_tree().process_frame
-	_start_game()
-	sim.gold += 20000
-	for type in ["boulder_catapult", "rock_slinger", "club_warrior", "rock_slinger", "boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]:
-		var spot := _demo_spot(type)
-		if spot != Vector2.INF:
-			var id := sim.place_tower(type, spot)
-			for k in 5:
-				var t = sim.get_tower(id)
-				if t != null and t.level < 5:
-					var key: String = t.branch if t.branch != "" else ("" if t.level < 2 else "A")
-					sim.upgrade_tower(id, key)
-			sim.cycle_target(id)   # strong
-	_handle_events()
-	speed = 10
-	var frames := 0
-	while not overlay.visible and frames < 60000:
-		if btn_start.disabled == false and sim.enemies.is_empty():
-			btn_start.emit_signal("pressed")
-		await get_tree().process_frame
-		frames += 1
-	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s title=%s next_visible=%s" % [map_id, sim.state, sim.wave, sim.lives,
-		overlay.visible, lbl_overlay.text, (overlay.get_meta("next") as Button).visible])
-	print("AUTOWIN save=", JSON.stringify(Progress.data))
-	print("AUTOWIN start_button_disabled_after_win=", btn_start.disabled)
-	get_tree().quit()
-
-
-func _demo_spot(type: String) -> Vector2:
-	var r := float(defs.towers[type].base.range)
+func _demo_spot(type: String, hero_spot := false) -> Vector2:
+	var r: float = float(sim.hero_def.base.range) if hero_spot else float(defs.towers[type].base.range)
 	var best := Vector2.INF
 	var best_score := -1
 	var x := -14.0
@@ -1664,13 +2248,13 @@ func _demo_spot(type: String) -> Vector2:
 		var z := -7.5
 		while z <= 7.5:
 			var p := Vector2(x, z)
-			var err := sim.placement_error(type, p)
+			var err := sim.hero_placement_error(p) if hero_spot else sim.placement_error(type, p)
 			if err == "" or err == "Not enough gold":
 				var sc := 0
-				for P in sim.paths:
+				for pi in sim.paths.size():
 					var d := 0.0
-					while d < P.length:
-						if sim.pos_at(d, sim.paths.find(P)).distance_to(p) <= r:
+					while d < sim.paths[pi].length:
+						if sim.pos_at(d, pi).distance_to(p) <= r:
 							sc += 1
 						d += 0.5
 				if sc > best_score:
@@ -1681,12 +2265,61 @@ func _demo_spot(type: String) -> Vector2:
 	return best
 
 
+func _demo_build(gold: int) -> Array:
+	sim.gold += gold
+	sim.place_hero(_demo_spot("", true))
+	var types := sim.tower_types()
+	var ids := []
+	for i in [2, 0, 1, 3, 0, 0, 1, 2]:
+		var type: String = types[i]
+		var spot := _demo_spot(type)
+		if spot != Vector2.INF:
+			var id := sim.place_tower(type, spot)
+			if id != -1:
+				ids.append(id)
+	for k in 3:
+		for i in ids.size():
+			var t = sim.get_tower(ids[i])
+			sim.upgrade_tower(ids[i], "" if t.level < 2 else ("A" if i % 2 == 0 else "B"))
+	_handle_events()
+	return ids
+
+
+## Plays the current map like a real player (one wave at a time) and reports the win flow.
+func _run_autowin() -> void:
+	await get_tree().process_frame
+	_start_game()
+	var ids := _demo_build(20000)
+	for id in ids:
+		for k in 3:
+			var t = sim.get_tower(id)
+			if t != null and t.level < 5:
+				sim.upgrade_tower(id, t.branch if t.branch != "" else "A")
+		sim.cycle_target(id)
+	_handle_events()
+	speed = 10
+	var frames := 0
+	while not overlay.visible and frames < 80000:
+		if btn_start.disabled == false and sim.enemies.is_empty():
+			btn_start.emit_signal("pressed")
+		if sim.ability_ready() and sim.enemies.size() > 6:
+			_on_hero_button()
+		await get_tree().process_frame
+		frames += 1
+	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s title=%s sub=%s next_visible=%s hero_lvl=%d" % [map_id, sim.state, sim.wave, sim.lives,
+		overlay.visible, lbl_overlay.text, lbl_overlay_sub.text.replace("\n", " | "), (overlay.get_meta("next") as Button).visible, sim.hero.level if sim.hero != null else 0])
+	print("AUTOWIN save=", JSON.stringify(Progress.data))
+	get_tree().quit()
+
+
 func _run_demo() -> void:
 	var tag := map_id
+	var args := OS.get_cmdline_user_args()
 	for i in 3:
 		await get_tree().process_frame
-	if "--shoot-select" in OS.get_cmdline_user_args():
-		Progress.data = {"unlocked": ["mammoth_valley", "glacier_pass"], "stars": {"mammoth_valley": 3}}
+	if "--shoot-select" in args:
+		Progress.data = {"unlocked": ["mammoth_valley", "glacier_pass", "volcano_ridge", "river_delta"], "stars": {"mammoth_valley": 3, "glacier_pass": 2, "volcano_ridge": 1},
+			"hero": "kira", "tab": "Bronze Age"}
 		map_select.queue_free()
 		_build_map_select(title_screen.get_parent())
 		title_screen.visible = false
@@ -1697,31 +2330,30 @@ func _run_demo() -> void:
 		get_tree().quit()
 		return
 	_start_game()
-	sim.gold += 6000
-	var ids := []
-	for type in ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman", "rock_slinger", "rock_slinger", "club_warrior", "boulder_catapult"]:
-		var spot := _demo_spot(type)
-		if spot != Vector2.INF:
-			var id := sim.place_tower(type, spot)
-			if id != -1:
-				ids.append(id)
-	for k in 3:
-		for i in ids.size():
-			var t = sim.get_tower(ids[i])
-			sim.upgrade_tower(ids[i], "A" if i % 2 == 0 else "B")
-			if t.level < 2:
-				sim.upgrade_tower(ids[i], "")
-	_handle_events()
+	var ids := _demo_build(6000)
 	speed = 3
 	for w in 7:
 		sim.start_wave()
 		while not sim.can_start_wave() or not sim.enemies.is_empty():
+			if sim.ability_ready() and sim.enemies.size() > 10:
+				sim.use_ability()
 			await get_tree().process_frame
 	speed = 1
 	sim.start_wave()   # wave 8
-	await _wait_ticks(int(11.0 / TICK))
+	await _wait_ticks(int(9.0 / TICK))
+	_select(ids[1])
+	await _wait_ticks(int(2.0 / TICK))
 	await _shot("demo_%s_battle.png" % tag)
-	if "--boss" in OS.get_cmdline_user_args():
+	_deselect()
+	if "--ability" in args:
+		sim.hero.ability_cd = 0.0
+		sim.hero.level = maxi(sim.hero.level, 3)
+		_select(sim.hero.id)
+		sim.use_ability()
+		await _wait_ticks(8)
+		await _shot("demo_%s_ability.png" % tag)
+		_deselect()
+	if "--boss" in args:
 		speed = 3
 		while not sim.can_start_wave() or not sim.enemies.is_empty():
 			await get_tree().process_frame

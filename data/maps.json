@@ -20,6 +20,27 @@
    "era": "Stone Age",
    "difficulty": "Brutal",
    "blurb": "Two portals. Lava everywhere. Two Prime Walkers at once."
+  },
+  {
+   "id": "river_delta",
+   "name": "River Delta",
+   "era": "Bronze Age",
+   "difficulty": "Normal",
+   "blurb": "The river splits the valley. Only one bridge crosses it, and you can't build on water."
+  },
+  {
+   "id": "desert_citadel",
+   "name": "Desert Citadel",
+   "era": "Bronze Age",
+   "difficulty": "Hard",
+   "blurb": "Dunes and ruins crowd a short road. Shield Bots arrive early."
+  },
+  {
+   "id": "copper_canyon",
+   "name": "Copper Canyon",
+   "era": "Bronze Age",
+   "difficulty": "Brutal",
+   "blurb": "Two portals in the mines. Two Siege Crawlers at the end."
   }
  ]
 }
