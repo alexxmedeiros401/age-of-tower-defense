@@ -1,0 +1,272 @@
+{
+ "waves": [
+  [
+   {
+    "type": "walker",
+    "count": 10,
+    "interval": 1.1,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 16,
+    "interval": 0.8,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 10,
+    "interval": 0.8,
+    "delay": 0
+   },
+   {
+    "type": "scout",
+    "count": 8,
+    "interval": 0.6,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 24,
+    "interval": 0.5,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 18,
+    "interval": 0.35,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 10,
+    "interval": 0.7,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 20,
+    "interval": 0.5,
+    "delay": 0
+   },
+   {
+    "type": "brute",
+    "count": 2,
+    "interval": 3.0,
+    "delay": 5
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 32,
+    "interval": 0.22,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 4,
+    "interval": 2.2,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 24,
+    "interval": 0.45,
+    "delay": 2
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 3,
+    "interval": 3.0,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 18,
+    "interval": 0.5,
+    "delay": 1
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 7,
+    "interval": 1.6,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 30,
+    "interval": 0.35,
+    "delay": 2
+   },
+   {
+    "type": "scout",
+    "count": 12,
+    "interval": 0.3,
+    "delay": 8
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 45,
+    "interval": 0.16,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 6,
+    "interval": 1.8,
+    "delay": 0
+   },
+   {
+    "type": "brute",
+    "count": 4,
+    "interval": 2.0,
+    "delay": 4
+   }
+  ],
+  [
+   {
+    "type": "walker",
+    "count": 60,
+    "interval": 0.2,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 12,
+    "interval": 1.0,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 4,
+    "interval": 2.0,
+    "delay": 3
+   }
+  ],
+  [
+   {
+    "type": "scout",
+    "count": 40,
+    "interval": 0.15,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 6,
+    "interval": 1.2,
+    "delay": 2
+   },
+   {
+    "type": "walker",
+    "count": 30,
+    "interval": 0.25,
+    "delay": 5
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 18,
+    "interval": 0.8,
+    "delay": 0
+   }
+  ],
+  [
+   {
+    "type": "carrier",
+    "count": 12,
+    "interval": 0.9,
+    "delay": 0
+   },
+   {
+    "type": "scout",
+    "count": 40,
+    "interval": 0.12,
+    "delay": 6
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 16,
+    "interval": 0.7,
+    "delay": 0
+   },
+   {
+    "type": "walker",
+    "count": 60,
+    "interval": 0.15,
+    "delay": 1
+   },
+   {
+    "type": "carrier",
+    "count": 8,
+    "interval": 1.0,
+    "delay": 6
+   }
+  ],
+  [
+   {
+    "type": "brute",
+    "count": 26,
+    "interval": 0.5,
+    "delay": 0
+   },
+   {
+    "type": "carrier",
+    "count": 12,
+    "interval": 0.7,
+    "delay": 4
+   },
+   {
+    "type": "scout",
+    "count": 50,
+    "interval": 0.1,
+    "delay": 8
+   }
+  ],
+  [
+   {
+    "type": "prime_walker",
+    "count": 1,
+    "interval": 1.0,
+    "delay": 0
+   },
+   {
+    "type": "brute",
+    "count": 10,
+    "interval": 1.2,
+    "delay": 6
+   },
+   {
+    "type": "walker",
+    "count": 40,
+    "interval": 0.3,
+    "delay": 10
+   }
+  ]
+ ]
+}

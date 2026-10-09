@@ -1,0 +1,438 @@
+{
+  "rock_slinger": {
+    "name": "Rock Slinger",
+    "lineage": "Ranged",
+    "desc": "Hurls stones at the lead robot.",
+    "cost": 200,
+    "radius": 0.7,
+    "color": [
+      0.72,
+      0.38,
+      0.1
+    ],
+    "base": {
+      "kind": "projectile",
+      "range": 5.0,
+      "cooldown": 0.85,
+      "damage": 3,
+      "dtype": "pierce",
+      "proj_speed": 16,
+      "splash": 0
+    },
+    "tiers": [
+      {
+        "name": "Long Sling",
+        "cost": 110,
+        "desc": "+1.2 range",
+        "mods": {
+          "range": 1.2
+        }
+      },
+      {
+        "name": "Quick Hands",
+        "cost": 180,
+        "desc": "Throws 25% faster",
+        "mods": {
+          "cooldown_mult": 0.75
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Boulder Hurler",
+        "desc": "Heavy blunt stones that smash armor and knock robots back.",
+        "tiers": [
+          {
+            "name": "Boulder Hurler",
+            "cost": 420,
+            "desc": "Blunt hits, small splash, knockback",
+            "mods": {
+              "damage": 4,
+              "dtype": "blunt",
+              "splash": 0.9,
+              "knockback": 0.35
+            }
+          },
+          {
+            "name": "Bone Breaker",
+            "cost": 850,
+            "desc": "Bigger boulders, stuns",
+            "mods": {
+              "damage": 7,
+              "splash": 0.4,
+              "stun": 0.35
+            }
+          },
+          {
+            "name": "Avalanche",
+            "cost": 2400,
+            "desc": "Massive boulders that flatten groups",
+            "mods": {
+              "damage": 22,
+              "splash": 0.8,
+              "stun": 0.4,
+              "knockback": 0.4
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Sling Ace",
+        "desc": "Lightning-fast throws with critical hits.",
+        "tiers": [
+          {
+            "name": "Sling Ace",
+            "cost": 380,
+            "desc": "Throws twice as fast",
+            "mods": {
+              "cooldown_mult": 0.5
+            }
+          },
+          {
+            "name": "Eagle Eye",
+            "cost": 780,
+            "desc": "25% chance to crit for 4x",
+            "mods": {
+              "crit_chance": 0.25,
+              "crit_mult": 4.0,
+              "range": 1.0
+            }
+          },
+          {
+            "name": "Hailstorm",
+            "cost": 2200,
+            "desc": "A blur of stones",
+            "mods": {
+              "cooldown_mult": 0.45,
+              "damage": 3,
+              "crit_chance": 0.1
+            }
+          }
+        ]
+      }
+    }
+  },
+  "club_warrior": {
+    "name": "Club Warrior",
+    "lineage": "Brute",
+    "desc": "Smashes every robot within reach. Blunt damage cracks armor.",
+    "cost": 300,
+    "radius": 0.7,
+    "color": [
+      0.55,
+      0.3,
+      0.14
+    ],
+    "base": {
+      "kind": "melee",
+      "range": 2.1,
+      "cooldown": 1.1,
+      "damage": 5,
+      "dtype": "blunt",
+      "max_targets": 4
+    },
+    "tiers": [
+      {
+        "name": "Heavier Club",
+        "cost": 160,
+        "desc": "+3 damage",
+        "mods": {
+          "damage": 3
+        }
+      },
+      {
+        "name": "Wide Swing",
+        "cost": 220,
+        "desc": "+0.5 reach, hits 6",
+        "mods": {
+          "range": 0.5,
+          "max_targets": 2
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Mammoth Rider",
+        "desc": "Tramples groups and stuns them.",
+        "tiers": [
+          {
+            "name": "Mammoth Rider",
+            "cost": 600,
+            "desc": "Bigger reach, stuns",
+            "mods": {
+              "range": 0.7,
+              "stun": 0.4,
+              "max_targets": 4
+            }
+          },
+          {
+            "name": "Stampede",
+            "cost": 1300,
+            "desc": "+10 damage",
+            "mods": {
+              "damage": 10,
+              "max_targets": 6
+            }
+          },
+          {
+            "name": "Earthshaker",
+            "cost": 3000,
+            "desc": "Quakes hit everything nearby",
+            "mods": {
+              "damage": 25,
+              "range": 0.8,
+              "max_targets": 40,
+              "stun": 0.3
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Berserker",
+        "desc": "Single-minded fury against big robots.",
+        "tiers": [
+          {
+            "name": "Berserker",
+            "cost": 520,
+            "desc": "Swings much faster",
+            "mods": {
+              "cooldown_mult": 0.55
+            }
+          },
+          {
+            "name": "Bone Club",
+            "cost": 1100,
+            "desc": "+12 damage",
+            "mods": {
+              "damage": 12
+            }
+          },
+          {
+            "name": "Titan Slayer",
+            "cost": 2800,
+            "desc": "Triple damage to bosses",
+            "mods": {
+              "damage": 18,
+              "boss_mult": 3.0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "boulder_catapult": {
+    "name": "Boulder Catapult",
+    "lineage": "Siege",
+    "desc": "Long-range boulders that crush groups.",
+    "cost": 450,
+    "radius": 0.8,
+    "color": [
+      0.45,
+      0.45,
+      0.45
+    ],
+    "base": {
+      "kind": "lob",
+      "range": 9.0,
+      "cooldown": 2.4,
+      "damage": 6,
+      "dtype": "blunt",
+      "splash": 1.6,
+      "flight": 0.9
+    },
+    "tiers": [
+      {
+        "name": "Bigger Rocks",
+        "cost": 220,
+        "desc": "+0.5 splash",
+        "mods": {
+          "splash": 0.5
+        }
+      },
+      {
+        "name": "Tighter Rope",
+        "cost": 300,
+        "desc": "Fires 25% faster",
+        "mods": {
+          "cooldown_mult": 0.75
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Fire Pot",
+        "desc": "Burning pitch scorches whole waves.",
+        "tiers": [
+          {
+            "name": "Fire Pot",
+            "cost": 650,
+            "desc": "Fire damage ignores most armor",
+            "mods": {
+              "dtype": "fire",
+              "damage": 4,
+              "splash": 0.4
+            }
+          },
+          {
+            "name": "Inferno",
+            "cost": 1400,
+            "desc": "+8 damage, bigger blast",
+            "mods": {
+              "damage": 8,
+              "splash": 0.6
+            }
+          },
+          {
+            "name": "Meteor",
+            "cost": 3500,
+            "desc": "Rains destruction",
+            "mods": {
+              "damage": 40,
+              "splash": 1.0,
+              "stun": 0.3
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Rapid Sling-Arm",
+        "desc": "Many small rocks, fast.",
+        "tiers": [
+          {
+            "name": "Rapid Arm",
+            "cost": 600,
+            "desc": "Fires twice as fast",
+            "mods": {
+              "cooldown_mult": 0.5
+            }
+          },
+          {
+            "name": "Scatter Shot",
+            "cost": 1250,
+            "desc": "+5 damage, +2 range",
+            "mods": {
+              "damage": 5,
+              "range": 2.0
+            }
+          },
+          {
+            "name": "Rockfall",
+            "cost": 3200,
+            "desc": "Relentless barrage",
+            "mods": {
+              "cooldown_mult": 0.5,
+              "damage": 10
+            }
+          }
+        ]
+      }
+    }
+  },
+  "tar_shaman": {
+    "name": "Tar Pit Shaman",
+    "lineage": "Control",
+    "desc": "Pulses sticky tar that slows every robot nearby.",
+    "cost": 350,
+    "radius": 0.7,
+    "color": [
+      0.3,
+      0.18,
+      0.45
+    ],
+    "base": {
+      "kind": "pulse",
+      "range": 3.4,
+      "cooldown": 1.4,
+      "damage": 1,
+      "dtype": "fire",
+      "slow": 0.4,
+      "slow_time": 1.6
+    },
+    "tiers": [
+      {
+        "name": "Thicker Tar",
+        "cost": 180,
+        "desc": "Slows harder",
+        "mods": {
+          "slow": 0.1
+        }
+      },
+      {
+        "name": "Spirit Reach",
+        "cost": 240,
+        "desc": "+0.8 range",
+        "mods": {
+          "range": 0.8
+        }
+      }
+    ],
+    "branches": {
+      "A": {
+        "name": "Bog Witch",
+        "desc": "Robots get stuck solid.",
+        "tiers": [
+          {
+            "name": "Bog Witch",
+            "cost": 550,
+            "desc": "Pulses stun briefly",
+            "mods": {
+              "stun": 0.3,
+              "slow_time": 0.6
+            }
+          },
+          {
+            "name": "Quagmire",
+            "cost": 1200,
+            "desc": "Near-total slow",
+            "mods": {
+              "slow": 0.15,
+              "range": 0.6
+            }
+          },
+          {
+            "name": "Primal Swamp",
+            "cost": 2600,
+            "desc": "Long stuns, huge area",
+            "mods": {
+              "stun": 0.5,
+              "range": 1.2,
+              "damage": 4
+            }
+          }
+        ]
+      },
+      "B": {
+        "name": "Burning Tar",
+        "desc": "Ignited tar melts robots.",
+        "tiers": [
+          {
+            "name": "Burning Tar",
+            "cost": 500,
+            "desc": "+4 fire damage",
+            "mods": {
+              "damage": 4
+            }
+          },
+          {
+            "name": "Pitch Fire",
+            "cost": 1100,
+            "desc": "+8 damage, faster",
+            "mods": {
+              "damage": 8,
+              "cooldown_mult": 0.7
+            }
+          },
+          {
+            "name": "Sea of Flame",
+            "cost": 2900,
+            "desc": "Devastating fire",
+            "mods": {
+              "damage": 24,
+              "range": 0.8
+            }
+          }
+        ]
+      }
+    }
+  }
+}

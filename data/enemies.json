@@ -1,0 +1,9 @@
+{
+  "scout":   {"name": "Scout Drone", "hp": 5,  "speed": 3.0, "armor": 0, "bounty": 2,  "leak": 1, "size": 0.35, "flying_look": true},
+  "walker":  {"name": "Walker",      "hp": 12, "speed": 1.8, "armor": 0, "bounty": 3,  "leak": 1, "size": 0.45},
+  "brute":   {"name": "Brute Bot",   "hp": 70, "speed": 1.1, "armor": 4, "bounty": 12, "leak": 3, "size": 0.7},
+  "carrier": {"name": "Carrier",     "hp": 45, "speed": 1.35, "armor": 1, "bounty": 10, "leak": 4, "size": 0.65,
+              "on_death": {"type": "scout", "count": 3}},
+  "prime_walker": {"name": "PRIME WALKER", "hp": 1800, "speed": 0.55, "armor": 3, "bounty": 400, "leak": 999, "size": 1.4, "boss": true,
+              "summon": {"type": "walker", "count": 2, "every": 5.0}}
+}
