@@ -13,7 +13,7 @@
  ],
  "heroes": {
   "ugo": {
-   "evo_unlock": 1,
+   "legacy_unlock": 1,
    "name": "Ugo the Firstborn",
    "title": "Sling Champion",
    "era": "Stone Age",
@@ -60,7 +60,7 @@
    "model_scale": 0.55
   },
   "mara": {
-   "evo_unlock": 3,
+   "legacy_unlock": 3,
    "name": "Mara Stonecaller",
    "title": "Earth Shaman",
    "era": "Stone Age",
@@ -107,7 +107,7 @@
    "model_scale": 0.55
   },
   "kira": {
-   "evo_unlock": 5,
+   "legacy_unlock": 5,
    "name": "Kira Sunblade",
    "title": "Bronze Duelist",
    "era": "Bronze Age",
@@ -155,7 +155,7 @@
    "model_scale": 0.55
   },
   "tarek": {
-   "evo_unlock": 7,
+   "legacy_unlock": 7,
    "name": "Tarek the Smith",
    "title": "Forge Master",
    "era": "Bronze Age",

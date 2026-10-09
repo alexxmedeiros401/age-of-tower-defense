@@ -9,6 +9,12 @@
     "level_step": 40,
     "level_max_cost": 600
   },
+  "timeline": {
+    "bonus_points_per": 2,
+    "max_rank_per": 1,
+    "xp_per": 0.25,
+    "robot_hp_per": 0.2
+  },
   "branches": [
     {
       "name": "ECONOMY",

@@ -3,7 +3,7 @@
 extends Node3D
 
 const TICK := Sim.TICK
-const SIDEBAR_W := 380.0
+const SIDEBAR_W := 420.0
 const MAX_STEPS_PER_FRAME := 12
 const PITCH := 54.0
 const GROUND_RECT := Rect2(-21.0, -13.0, 40.0, 26.0)   # must match tools/gen_ground.py
@@ -90,13 +90,16 @@ var btn_pause: Button
 var ui_root: Control
 var pause_menu: Control
 var settings_panel: Control
-var evo_panel: Control
+var legacy_panel: Control
 var paused := false
 var auto_t := -1.0              # countdown to the next auto-started wave (-1 = idle)
 var waves_cleared := 0
 var xp_waves_awarded := 0
 var xp_win_awarded := false
 var first_clear := false
+var modals: Array = []
+var side_scroll: ScrollContainer
+var tower_actions: VBoxContainer
 var shop_box: VBoxContainer
 var shop_buttons := {}
 var tower_box: VBoxContainer
@@ -133,6 +136,8 @@ func _ready() -> void:
 			Progress.current_map = a.trim_prefix("--map=")
 		if a.begins_with("--hero="):
 			Progress.data.hero = a.trim_prefix("--hero=")
+		if a.begins_with("--ui="):
+			Progress.data.settings.ui_scale = float(a.trim_prefix("--ui="))
 	map_order = []
 	for m in Defs.map_list():
 		map_order.append(m.id)
@@ -149,6 +154,7 @@ func _ready() -> void:
 	sim.set_hero(hid)
 	if not "--noperks" in OS.get_cmdline_user_args():
 		sim.apply_perks(Progress.sim_perks())
+		sim.hp_mult *= Progress.timeline_hp_mult()
 	_build_world()
 	_build_audio()
 	_build_hud()
@@ -158,11 +164,11 @@ func _ready() -> void:
 		_run_autowin()
 	elif demo:
 		_run_demo()
-	elif Progress.open_evolution:
-		Progress.open_evolution = false
+	elif Progress.open_legacy:
+		Progress.open_legacy = false
 		title_screen.visible = false
 		map_select.visible = true
-		_open_evolution()
+		_open_legacy()
 	elif Progress.open_map_select:
 		Progress.open_map_select = false
 		title_screen.visible = false
@@ -1037,6 +1043,7 @@ func _update_effects(dt: float) -> void:
 # =================================================================== loop
 func _process(delta: float) -> void:
 	time_s += delta
+	_fit_modals()
 	if paused:
 		_update_hud(0.0)
 		return
@@ -1549,6 +1556,7 @@ func _cancel_placing() -> void:
 func _select(id: int) -> void:
 	_cancel_placing()
 	selected = id
+	side_scroll.scroll_vertical = 0
 	_show_tower_panel(id)
 
 
@@ -1557,6 +1565,7 @@ func _deselect() -> void:
 	sel_range.visible = false
 	aura_range.visible = false
 	tower_box.visible = false
+	tower_actions.visible = false
 	shop_box.visible = true
 
 
@@ -1596,7 +1605,17 @@ func _style(col: Color, radius := 16, border := Color(0, 0, 0, 0), bw := 4) -> S
 	return sb
 
 
+## Small text is bumped up so it stays readable on phones.
+func _fs(size: int) -> int:
+	if size <= 22:
+		return size + 4
+	if size <= 26:
+		return size + 3
+	return size
+
+
 func _button(text: String, col: Color, font := 28) -> Button:
+	font = _fs(font)
 	var b := Button.new()
 	b.text = text
 	b.add_theme_font_size_override("font_size", font)
@@ -1626,6 +1645,7 @@ func _button(text: String, col: Color, font := 28) -> Button:
 
 
 func _label(text: String, size := 28, col := C_TEXT, outline := 9) -> Label:
+	size = _fs(size)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
@@ -1648,6 +1668,21 @@ func _build_hud() -> void:
 	var ui_theme := Theme.new()
 	ui_theme.default_font = FONT
 	ui_theme.default_font_size = 28
+	for sbn in ["VScrollBar", "HScrollBar"]:
+		var track := _style(Color(0.08, 0.05, 0.03, 0.9), 10)
+		track.set_content_margin_all(11)
+		track.shadow_size = 0
+		var grab := _style(Color(0.78, 0.6, 0.3), 10)
+		grab.set_content_margin_all(11)
+		grab.shadow_size = 0
+		var grab_h := _style(Color(0.95, 0.75, 0.38), 10)
+		grab_h.set_content_margin_all(11)
+		grab_h.shadow_size = 0
+		ui_theme.set_stylebox("scroll", sbn, track)
+		ui_theme.set_stylebox("scroll_focus", sbn, track)
+		ui_theme.set_stylebox("grabber", sbn, grab)
+		ui_theme.set_stylebox("grabber_highlight", sbn, grab_h)
+		ui_theme.set_stylebox("grabber_pressed", sbn, grab_h)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var root := Control.new()
@@ -1707,7 +1742,7 @@ func _build_hud() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	side.add_child(col)
-	var era := _label(_era().to_upper() + "  -  " + str(map.name), 24, Color(1, 0.78, 0.45))
+	var era := _label(_era().to_upper() + "  -  " + str(map.name) + ("   T%d" % Progress.timeline() if Progress.timeline() > 1 else ""), 26, Color(1, 0.78, 0.45))
 	era.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(era)
 
@@ -1741,10 +1776,20 @@ func _build_hud() -> void:
 	btn_hero.pressed.connect(_on_hero_button)
 	hrow.add_child(btn_hero)
 
+	# the middle of the sidebar scrolls (shop, or the selected tower's stats and upgrades)
+	side_scroll = ScrollContainer.new()
+	side_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	side_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side_scroll.scroll_deadzone = 12
+	col.add_child(side_scroll)
+	var mid := VBoxContainer.new()
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_theme_constant_override("separation", 10)
+	side_scroll.add_child(mid)
 	shop_box = VBoxContainer.new()
 	shop_box.add_theme_constant_override("separation", 10)
-	shop_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(shop_box)
+	shop_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_child(shop_box)
 	var types := sim.tower_types()
 	for i in types.size():
 		var type: String = types[i]
@@ -1763,9 +1808,9 @@ func _build_hud() -> void:
 
 	tower_box = VBoxContainer.new()
 	tower_box.add_theme_constant_override("separation", 8)
-	tower_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tower_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tower_box.visible = false
-	col.add_child(tower_box)
+	mid.add_child(tower_box)
 	var head := HBoxContainer.new()
 	tower_box.add_child(head)
 	tower_icon = _icon(_icon_tex(types[0]), 84)
@@ -1787,9 +1832,10 @@ func _build_hud() -> void:
 	up_box = VBoxContainer.new()
 	up_box.add_theme_constant_override("separation", 10)
 	tower_box.add_child(up_box)
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tower_box.add_child(spacer)
+	tower_actions = VBoxContainer.new()
+	tower_actions.add_theme_constant_override("separation", 8)
+	tower_actions.visible = false
+	col.add_child(tower_actions)
 	btn_target = _button("", Color(0.3, 0.3, 0.42), 22)
 	btn_target.custom_minimum_size = Vector2(0, 56)
 	btn_target.tooltip_text = "First: closest to your base. Strong: toughest robot (use for bosses). Close: nearest. Last: furthest back."
@@ -1798,7 +1844,7 @@ func _build_hud() -> void:
 			sim.cycle_target(selected)
 			_sfx("click", -6.0)
 			_show_tower_panel(selected))
-	tower_box.add_child(btn_target)
+	tower_actions.add_child(btn_target)
 	btn_sell = _button("", Color(0.62, 0.22, 0.16), 24)
 	btn_sell.custom_minimum_size = Vector2(0, 64)
 	btn_sell.pressed.connect(func():
@@ -1806,7 +1852,7 @@ func _build_hud() -> void:
 			sim.sell_tower(selected)
 			_handle_events()
 			_deselect())
-	tower_box.add_child(btn_sell)
+	tower_actions.add_child(btn_sell)
 
 	var ctrl := HBoxContainer.new()
 	ctrl.add_theme_constant_override("separation", 8)
@@ -1906,6 +1952,15 @@ func _build_hud() -> void:
 	btn_next.visible = false
 	ob2.add_child(btn_next)
 	overlay.set_meta("next", btn_next)
+	var btn_tl := _button("BEGIN A NEW TIMELINE", Color(0.5, 0.2, 0.62), 30)
+	btn_tl.custom_minimum_size = Vector2(624, 90)
+	btn_tl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn_tl.pressed.connect(func():
+		_sfx("click")
+		_confirm_new_timeline())
+	btn_tl.visible = false
+	ov.add_child(btn_tl)
+	overlay.set_meta("timeline", btn_tl)
 	overlay.visible = false
 
 	# --- title screen
@@ -1929,20 +1984,20 @@ func _build_hud() -> void:
 		title_screen.visible = false
 		map_select.visible = true)
 	tb.add_child(play)
-	var evo_badge := _label("", 30, Color(0.6, 0.9, 1.0), 8)
-	evo_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	evo_badge.text = _evo_badge_text()
-	tb.add_child(evo_badge)
+	var legacy_badge := _label("", 30, Color(0.6, 0.9, 1.0), 8)
+	legacy_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	legacy_badge.text = _legacy_badge_text()
+	tb.add_child(legacy_badge)
 	var trow := HBoxContainer.new()
 	trow.alignment = BoxContainer.ALIGNMENT_CENTER
 	trow.add_theme_constant_override("separation", 20)
 	tb.add_child(trow)
-	var t_evo := _button("EVOLUTION", Color(0.18, 0.42, 0.6), 30)
-	t_evo.custom_minimum_size = Vector2(280, 80)
-	t_evo.pressed.connect(func():
+	var t_legacy := _button("LEGACY", Color(0.18, 0.42, 0.6), 30)
+	t_legacy.custom_minimum_size = Vector2(280, 80)
+	t_legacy.pressed.connect(func():
 		_sfx("click")
-		_open_evolution())
-	trow.add_child(t_evo)
+		_open_legacy())
+	trow.add_child(t_legacy)
 	var t_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 30)
 	t_set.custom_minimum_size = Vector2(280, 80)
 	t_set.pressed.connect(func():
@@ -1953,8 +2008,8 @@ func _build_hud() -> void:
 	_build_pause_menu(root)
 	settings_panel = _modal(root, 0.5)
 	settings_panel.visible = false
-	evo_panel = _modal(root, 0.6)
-	evo_panel.visible = false
+	legacy_panel = _modal(root, 0.6)
+	legacy_panel.visible = false
 
 
 func _eras() -> Array:
@@ -1968,8 +2023,13 @@ func _eras() -> Array:
 func _build_map_select(root: Control) -> void:
 	map_select = _modal(root, 0.6)
 	var box: VBoxContainer = map_select.get_meta("box")
-	box.custom_minimum_size = Vector2(1300, 0)
+	box.set_meta("want_w", 1300.0)
 	box.add_theme_constant_override("separation", 14)
+	if Progress.timeline() > 1:
+		var tl := _label("TIMELINE %d   -   robots +%d%% tougher   -   +%d%% Legacy XP" % [Progress.timeline(),
+			int(round((Progress.timeline_hp_mult() - 1.0) * 100)), int(round((Progress.timeline_xp_mult() - 1.0) * 100))], 26, Color(0.85, 0.6, 1.0), 7)
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(tl)
 	# era tabs
 	var tabs := HBoxContainer.new()
 	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2016,14 +2076,15 @@ func _build_map_select(root: Control) -> void:
 	var hhead := _label("CHOOSE YOUR HERO", 30, C_GOLD, 8)
 	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hhead)
-	var hrow := HBoxContainer.new()
-	hrow.alignment = BoxContainer.ALIGNMENT_CENTER
-	hrow.add_theme_constant_override("separation", 14)
+	var hrow := HFlowContainer.new()
+	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
+	hrow.add_theme_constant_override("h_separation", 14)
+	hrow.add_theme_constant_override("v_separation", 14)
 	box.add_child(hrow)
 	var hblurb := _label("", 20, Color(0.92, 0.86, 0.76), 5)
 	hblurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hblurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hblurb.custom_minimum_size = Vector2(1200, 56)
+	hblurb.custom_minimum_size = Vector2(0, 60)
 	var hero_buttons := {}
 	var pick := func(hid: String) -> void:
 		Progress.set_hero(hid)
@@ -2035,7 +2096,7 @@ func _build_map_select(root: Control) -> void:
 		var hd2: Dictionary = defs.heroes.heroes[hid]
 		var open := Progress.hero_unlocked(hd2)
 		var hname := str(hd2.name).split(" ")[0]
-		var hb := _button(hname if open else "%s\nEVO LV %d" % [hname, int(hd2.get("evo_unlock", 1))],
+		var hb := _button(hname if open else "%s\nLEGACY LV %d" % [hname, int(hd2.get("legacy_unlock", 1))],
 			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
 		hb.icon = _icon_tex(hid)
 		hb.expand_icon = true
@@ -2046,7 +2107,7 @@ func _build_map_select(root: Control) -> void:
 			if Progress.hero_unlocked(hd2):
 				pick.call(hid)
 			else:
-				hblurb.text = "%s, %s.  Reach Evolution level %d to unlock.\nEarn Evolution XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("evo_unlock", 1))])
+				hblurb.text = "%s, %s.  Reach Legacy level %d to unlock.\nEarn Legacy XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("legacy_unlock", 1))])
 		hrow.add_child(hb)
 		hero_buttons[hid] = hb
 	box.add_child(hblurb)
@@ -2062,21 +2123,28 @@ func _build_map_select(root: Control) -> void:
 	brow.add_theme_constant_override("separation", 18)
 	box.add_child(brow)
 	var pts := Progress.points_free()
-	var m_evo := _button("EVOLUTION  LV %d%s" % [Progress.evo_level(), ("   (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""],
+	var m_legacy := _button("LEGACY  LV %d%s" % [Progress.legacy_level(), ("   (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""],
 		Color(0.18, 0.42, 0.6), 22)
-	m_evo.custom_minimum_size = Vector2(420, 60)
+	m_legacy.custom_minimum_size = Vector2(420, 60)
 	if pts > 0:
-		m_evo.set_meta("pulse", true)
-	m_evo.pressed.connect(func():
+		m_legacy.set_meta("pulse", true)
+	m_legacy.pressed.connect(func():
 		_sfx("click")
-		_open_evolution())
-	brow.add_child(m_evo)
+		_open_legacy())
+	brow.add_child(m_legacy)
 	var m_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 22)
 	m_set.custom_minimum_size = Vector2(220, 60)
 	m_set.pressed.connect(func():
 		_sfx("click")
 		_open_settings())
 	brow.add_child(m_set)
+	if Progress.can_new_timeline(map_order):
+		var m_tl := _button("NEW TIMELINE", Color(0.5, 0.2, 0.62), 22)
+		m_tl.custom_minimum_size = Vector2(260, 60)
+		m_tl.pressed.connect(func():
+			_sfx("click")
+			_confirm_new_timeline())
+		brow.add_child(m_tl)
 	if OS.is_debug_build():
 		var dev := _button("UNLOCK ALL MAPS (test)", Color(0.35, 0.3, 0.45), 18)
 		dev.custom_minimum_size = Vector2(320, 60)
@@ -2086,6 +2154,7 @@ func _build_map_select(root: Control) -> void:
 			Progress.open_map_select = true
 			get_tree().reload_current_scene())
 		brow.add_child(dev)
+	box.move_child(brow, 0)   # keep Legacy / Settings / New Timeline visible without scrolling
 	map_select.visible = false
 
 
@@ -2157,17 +2226,41 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	shade.add_child(center)
 	var panel := PanelContainer.new()
 	var sb := _style(Color(0.16, 0.1, 0.06, 0.95), 30, C_PANEL_EDGE, 6)
-	sb.set_content_margin_all(36)
+	sb.set_content_margin_all(30)
 	sb.shadow_size = 24
 	panel.add_theme_stylebox_override("panel", sb)
 	center.add_child(panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 12
+	panel.add_child(scroll)
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 22)
-	box.custom_minimum_size = Vector2(900, 0)
-	panel.add_child(box)
+	box.set_meta("want_w", 900.0)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	shade.set_meta("box", box)
+	shade.set_meta("scroll", scroll)
+	modals.append(shade)
 	return shade
+
+
+## Keeps every open dialog inside the screen: narrower when the UI is scaled up, scrollable when too tall.
+func _fit_modals() -> void:
+	if ui_root == null:
+		return
+	var vp := ui_root.size
+	for m in modals:
+		if not is_instance_valid(m) or not m.visible:
+			continue
+		var box: VBoxContainer = m.get_meta("box")
+		var scroll: ScrollContainer = m.get_meta("scroll")
+		var w := minf(float(box.get_meta("want_w", 900.0)), vp.x - 120.0)
+		box.custom_minimum_size.x = w
+		var need := box.get_combined_minimum_size().y
+		var bar := 26.0 if need > vp.y - 110.0 else 0.0
+		scroll.custom_minimum_size = Vector2(w + bar, minf(need, vp.y - 110.0))
 
 
 func _start_game() -> void:
@@ -2188,6 +2281,7 @@ func _show_tower_panel(id: int) -> void:
 		return
 	shop_box.visible = false
 	tower_box.visible = true
+	tower_actions.visible = true
 	for c in up_box.get_children():
 		c.queue_free()
 	var s: Dictionary = sim._effective_stats(t)
@@ -2234,9 +2328,9 @@ func _show_tower_panel(id: int) -> void:
 		for o in opts:
 			var title: String = ("PATH %s: " % o.key) if o.get("branch_pick", false) else ""
 			var bcol := Color(0.7, 0.36, 0.12) if o.key == "A" else (Color(0.14, 0.42, 0.62) if o.key == "B" else Color(0.26, 0.5, 0.2))
-			var b := _button("%s%s  -  %d gold\n%s" % [title, o.name, o.cost, o.desc], bcol, 21)
+			var b := _button("%s%s\n%d gold  -  %s" % [title, o.name, o.cost, o.desc], bcol, 21)
 			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			b.custom_minimum_size = Vector2(0, 104)
+			b.custom_minimum_size = Vector2(0, 110)
 			b.set_meta("cost", o.cost)
 			b.pressed.connect(func():
 				if not sim.upgrade_tower(id, o.key):
@@ -2363,7 +2457,8 @@ func _show_overlay(won: bool) -> void:
 				lbl_overlay_sub.text += "\nNEW ERA UNLOCKED: %s!" % nm_era.to_upper()
 				nb.text = "ENTER THE %s" % nm_era.to_upper()
 		if not nb.visible:
-			lbl_overlay_sub.text += "\nYou beat every map! The Iron Age arrives in the next update."
+			lbl_overlay_sub.text += "\nYou beat every map in this timeline! More ages are coming in future updates."
+		(overlay.get_meta("timeline") as Button).visible = not demo and Progress.can_new_timeline(map_order)
 		lbl_overlay_sub.text += _award_xp(true)
 		btn_endless.visible = true
 	else:
@@ -2375,7 +2470,7 @@ func _show_overlay(won: bool) -> void:
 		btn_endless.visible = false
 
 
-# =================================================================== pause, settings, evolution
+# =================================================================== pause, settings, legacy
 func _set_paused(on: bool) -> void:
 	paused = on
 	pause_menu.visible = on
@@ -2390,7 +2485,7 @@ func _set_paused(on: bool) -> void:
 func _build_pause_menu(root: Control) -> void:
 	pause_menu = _modal(root, 0.55)
 	var box: VBoxContainer = pause_menu.get_meta("box")
-	box.custom_minimum_size = Vector2(620, 0)
+	box.set_meta("want_w", 620.0)
 	box.add_theme_constant_override("separation", 16)
 	var t := _label("PAUSED", 84, C_GOLD, 16)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2420,7 +2515,7 @@ func _build_pause_menu(root: Control) -> void:
 			_sfx("click")
 			cb.call())
 		box.add_child(b)
-	var note := _label("Waves you cleared still earn Evolution XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
+	var note := _label("Waves you cleared still earn Legacy XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
@@ -2435,6 +2530,11 @@ func _apply_settings() -> void:
 		AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.01)))
 	if world_env != null:
 		world_env.glow_enabled = bool(Progress.setting("glow"))
+	var sc := clampf(float(Progress.setting("ui_scale")), 0.8, 1.6)
+	if not is_equal_approx(get_tree().root.content_scale_factor, sc):
+		get_tree().root.content_scale_factor = sc
+		if cam != null:
+			_frame_camera()
 	_refresh_auto_button()
 
 
@@ -2460,6 +2560,28 @@ func _toggle_button(key: String) -> Button:
 		paint.call()
 		_apply_settings())
 	return b
+
+
+func _scale_picker() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var names := ["NORMAL", "LARGE", "HUGE"]
+	var btns := []
+	for i in Progress.UI_SCALES.size():
+		var v: float = Progress.UI_SCALES[i]
+		var b := _button(names[i], Color(0.3, 0.3, 0.36), 20)
+		b.custom_minimum_size = Vector2(120, 60)
+		btns.append(b)
+		row.add_child(b)
+		b.pressed.connect(func():
+			_sfx("click", -6.0)
+			Progress.data.settings.ui_scale = v
+			_apply_settings()
+			for j in btns.size():
+				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+	for j in btns.size():
+		btns[j].modulate = Color(0.7, 1.5, 0.7) if is_equal_approx(float(Progress.setting("ui_scale")), Progress.UI_SCALES[j]) else Color.WHITE
+	return row
 
 
 func _slider(key: String) -> HSlider:
@@ -2489,12 +2611,13 @@ func _open_settings() -> void:
 	var box: VBoxContainer = settings_panel.get_meta("box")
 	for c in box.get_children():
 		c.queue_free()
-	box.custom_minimum_size = Vector2(760, 0)
+	box.set_meta("want_w", 760.0)
 	box.add_theme_constant_override("separation", 16)
 	var t := _label("SETTINGS", 64, C_GOLD, 14)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(t)
 	var rows := [
+		["Text and button size", _scale_picker()],
 		["Music volume", _slider("music")],
 		["Sound effects", _slider("sfx")],
 		["Auto-start waves", _toggle_button("auto_start")],
@@ -2525,9 +2648,56 @@ func _open_settings() -> void:
 	settings_panel.visible = true
 
 
-func _evo_badge_text() -> String:
-	var pr := Progress.evo_progress()
-	var t := "Evolution Level %d   -   %d / %d XP" % [Progress.evo_level(), pr[0], pr[1]]
+func _confirm_new_timeline() -> void:
+	var dlg := _modal(ui_root, 0.7)
+	var box: VBoxContainer = dlg.get_meta("box")
+	box.set_meta("want_w", 1000.0)
+	box.add_theme_constant_override("separation", 18)
+	var nxt := Progress.timeline() + 1
+	var lt: Dictionary = Progress.legacy.timeline
+	var t := _label("BEGIN TIMELINE %d?" % nxt, 64, Color(0.85, 0.6, 1.0), 14)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	var story := _label("You won. But the machine you built to destroy the Data Center has already gone back in time to hunt humanity again. The war starts over in the Stone Age.", 26, C_TEXT, 6)
+	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(story)
+	var keep := _label("YOU KEEP:  your Legacy level, every perk you bought, and all unlocked heroes.", 26, Color(0.6, 1.0, 0.6), 6)
+	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(keep)
+	var gain := _label("YOU GAIN:  +%d Legacy points, every perk can go %d rank higher, and +%d%% Legacy XP from every match." % [
+		int(lt.bonus_points_per), int(lt.max_rank_per), int(round(float(lt.xp_per) * 100))], 26, C_GOLD, 6)
+	gain.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(gain)
+	var lose := _label("RESETS:  map unlocks and stars. Robots in the new timeline are %d%% tougher." % int(round(float(lt.robot_hp_per) * 100)), 26, Color(1, 0.6, 0.55), 6)
+	lose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(lose)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 24)
+	box.add_child(row)
+	var no := _button("NOT YET", Color(0.42, 0.3, 0.2), 32)
+	no.custom_minimum_size = Vector2(300, 90)
+	no.pressed.connect(func():
+		_sfx("click")
+		dlg.queue_free())
+	row.add_child(no)
+	var yes := _button("BEGIN TIMELINE %d" % nxt, Color(0.5, 0.2, 0.62), 32)
+	yes.custom_minimum_size = Vector2(420, 90)
+	yes.pressed.connect(func():
+		_sfx("level_up")
+		Progress.start_new_timeline(map_order)
+		Progress.current_map = ""
+		Progress.open_map_select = true
+		get_tree().reload_current_scene())
+	row.add_child(yes)
+
+
+func _legacy_badge_text() -> String:
+	var pr := Progress.legacy_progress()
+	var t := "Legacy Level %d   -   %d / %d XP" % [Progress.legacy_level(), pr[0], pr[1]]
+	if Progress.timeline() > 1:
+		t = "Timeline %d   -   " % Progress.timeline() + t
 	if Progress.points_free() > 0:
 		t += "   -   %d point%s to spend!" % [Progress.points_free(), "" if Progress.points_free() == 1 else "s"]
 	return t
@@ -2540,7 +2710,7 @@ func _map_meta() -> Dictionary:
 	return {}
 
 
-## Grants Evolution XP for waves cleared since the last award (and the win bonus once). Returns text for the result screen.
+## Grants Legacy XP for waves cleared since the last award (and the win bonus once). Returns text for the result screen.
 func _award_xp(won: bool) -> String:
 	if demo:
 		return ""
@@ -2556,42 +2726,42 @@ func _award_xp(won: bool) -> String:
 	if xp <= 0:
 		return ""
 	var lv: Array = Progress.add_xp(xp)
-	var txt := "\n+%d EVOLUTION XP" % xp
+	var txt := "\n+%d LEGACY XP" % xp
 	if first_clear and won:
 		txt += " (first clear bonus!)"
 	if lv[1] > lv[0]:
-		txt += "\nEVOLUTION LEVEL %d!  +%d point%s for the Evolution tree" % [lv[1], lv[1] - lv[0], "" if lv[1] - lv[0] == 1 else "s"]
+		txt += "\nLEGACY LEVEL %d!  +%d point%s for the Legacy tree" % [lv[1], lv[1] - lv[0], "" if lv[1] - lv[0] == 1 else "s"]
 		for hid in defs.heroes.heroes:
-			var u := int(defs.heroes.heroes[hid].get("evo_unlock", 1))
+			var u := int(defs.heroes.heroes[hid].get("legacy_unlock", 1))
 			if u > lv[0] and u <= lv[1]:
 				txt += "\nNEW HERO UNLOCKED: %s!" % str(defs.heroes.heroes[hid].name)
 		_sfx("level_up", 0.0, 0.0, 0.0)
 	return txt
 
 
-func _open_evolution() -> void:
-	_build_evo_contents()
-	evo_panel.get_parent().move_child(evo_panel, -1)
-	evo_panel.visible = true
+func _open_legacy() -> void:
+	_build_legacy_contents()
+	legacy_panel.get_parent().move_child(legacy_panel, -1)
+	legacy_panel.visible = true
 
 
-func _build_evo_contents() -> void:
-	var box: VBoxContainer = evo_panel.get_meta("box")
+func _build_legacy_contents() -> void:
+	var box: VBoxContainer = legacy_panel.get_meta("box")
 	for c in box.get_children():
 		c.queue_free()
-	box.custom_minimum_size = Vector2(1560, 0)
+	box.set_meta("want_w", 1560.0)
 	box.add_theme_constant_override("separation", 12)
 	# header
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 30)
 	box.add_child(head)
-	head.add_child(_label("EVOLUTION", 64, C_GOLD, 14))
+	head.add_child(_label("LEGACY", 64, C_GOLD, 14))
 	var lvbox := VBoxContainer.new()
 	lvbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lvbox.add_theme_constant_override("separation", 4)
 	head.add_child(lvbox)
-	var pr := Progress.evo_progress()
-	lvbox.add_child(_label("LEVEL %d" % Progress.evo_level(), 36, Color(0.6, 0.9, 1.0), 8))
+	var pr := Progress.legacy_progress()
+	lvbox.add_child(_label("LEVEL %d" % Progress.legacy_level(), 36, Color(0.6, 0.9, 1.0), 8))
 	var bar := ColorRect.new()
 	bar.color = Color(0.08, 0.05, 0.03)
 	bar.custom_minimum_size = Vector2(460, 18)
@@ -2605,13 +2775,20 @@ func _build_evo_contents() -> void:
 	var plbl := _label("%d POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
-	var intro := _label("Humanity grows stronger with every battle. Each Evolution level gives 1 point. Bonuses apply on every map, forever.", 20, Color(0.92, 0.86, 0.76), 5)
+	var intro_t := "Every battle adds to humanity's legacy. Each Legacy level gives 1 point. Bonuses carry into every map, every age and every new timeline."
+	if Progress.timeline() > 1:
+		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
+			Progress.timeline() - 1, "" if Progress.timeline() == 2 else "s"]
+	var intro := _label(intro_t, 22, Color(0.92, 0.86, 0.76), 5)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	# branches
-	var cols := HBoxContainer.new()
-	cols.add_theme_constant_override("separation", 20)
+	var cols := HFlowContainer.new()
+	cols.alignment = FlowContainer.ALIGNMENT_CENTER
+	cols.add_theme_constant_override("h_separation", 20)
+	cols.add_theme_constant_override("v_separation", 20)
 	box.add_child(cols)
-	for br in Progress.evo.branches:
+	for br in Progress.legacy.branches:
 		var bc := Color(br.color[0], br.color[1], br.color[2])
 		var col := VBoxContainer.new()
 		col.add_theme_constant_override("separation", 8)
@@ -2623,16 +2800,16 @@ func _build_evo_contents() -> void:
 		for p in br.perks:
 			col.add_child(_perk_card(p, bc))
 	# hero unlocks
-	var hrow := HBoxContainer.new()
-	hrow.alignment = BoxContainer.ALIGNMENT_CENTER
-	hrow.add_theme_constant_override("separation", 26)
+	var hrow := HFlowContainer.new()
+	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
+	hrow.add_theme_constant_override("h_separation", 22)
 	box.add_child(hrow)
 	hrow.add_child(_label("HERO UNLOCKS:", 22, C_GOLD, 6))
 	for hid in defs.heroes.heroes:
 		var hd: Dictionary = defs.heroes.heroes[hid]
 		var open := Progress.hero_unlocked(hd)
 		hrow.add_child(_icon(_icon_tex(hid), 44))
-		hrow.add_child(_label("%s  LV %d%s" % [str(hd.name).split(" ")[0], int(hd.get("evo_unlock", 1)), "  - READY" if open else ""], 20,
+		hrow.add_child(_label("%s  LV %d%s" % [str(hd.name).split(" ")[0], int(hd.get("legacy_unlock", 1)), "  - READY" if open else ""], 20,
 			Color(0.6, 1.0, 0.6) if open else Color(0.7, 0.66, 0.6), 5))
 	# footer
 	var foot := HBoxContainer.new()
@@ -2645,7 +2822,7 @@ func _build_evo_contents() -> void:
 	reset.pressed.connect(func():
 		_sfx("coin")
 		Progress.reset_perks()
-		_build_evo_contents())
+		_build_legacy_contents())
 	foot.add_child(reset)
 	if OS.is_debug_build():
 		var cheat := _button("+1000 XP (test)", Color(0.35, 0.3, 0.45), 20)
@@ -2653,25 +2830,26 @@ func _build_evo_contents() -> void:
 		cheat.pressed.connect(func():
 			Progress.add_xp(1000)
 			_sfx("level_up")
-			_build_evo_contents())
+			_build_legacy_contents())
 		foot.add_child(cheat)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
 	done.custom_minimum_size = Vector2(320, 70)
 	done.pressed.connect(func():
 		_sfx("click")
-		evo_panel.visible = false
+		legacy_panel.visible = false
 		if not started:
 			# rebuild menus so hero locks and point counts refresh
 			Progress.current_map = ""
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	foot.add_child(done)
+	box.move_child(foot, 1)   # buttons right under the header so DONE never needs scrolling
 
 
 func _perk_card(p: Dictionary, bc: Color) -> Control:
 	var id: String = p.id
 	var rank := Progress.perk_rank(id)
-	var mx := int(p.max)
+	var mx := Progress.perk_max(id)
 	var card := PanelContainer.new()
 	var sb := _style(Color(0.22, 0.15, 0.09) if rank == 0 else bc.darkened(0.62), 14, bc.darkened(0.2) if rank > 0 else Color(0.36, 0.27, 0.18), 3)
 	sb.set_content_margin_all(10)
@@ -2701,7 +2879,7 @@ func _perk_card(p: Dictionary, bc: Color) -> Control:
 	plus.pressed.connect(func():
 		if Progress.buy_perk(id):
 			_sfx("upgrade")
-			_build_evo_contents())
+			_build_legacy_contents())
 	hb.add_child(plus)
 	return card
 
@@ -2798,15 +2976,15 @@ func _run_demo() -> void:
 	var args := OS.get_cmdline_user_args()
 	for i in 3:
 		await get_tree().process_frame
-	if "--shoot-evo" in args or "--shoot-settings" in args or "--shoot-title" in args:
-		Progress.data.evo_xp = 2650
+	if "--shoot-legacy" in args or "--shoot-settings" in args or "--shoot-title" in args:
+		Progress.data.legacy_xp = 2650
 		Progress.data.perks = {"start_gold": 2, "bounty": 1, "damage": 2, "hero_level": 1}
 		map_select.queue_free()
 		_build_map_select(title_screen.get_parent())
-		if "--shoot-evo" in args:
+		if "--shoot-legacy" in args:
 			title_screen.visible = false
 			map_select.visible = true
-			_open_evolution()
+			_open_legacy()
 		elif "--shoot-settings" in args:
 			_open_settings()
 		for i in 3:
@@ -2834,9 +3012,21 @@ func _run_demo() -> void:
 		print("AUTO after wait wave=", sim.wave)
 		get_tree().quit()
 		return
+	if "--shoot-timeline" in args:
+		Progress.data.cleared = map_order.duplicate()
+		map_select.queue_free()
+		_build_map_select(title_screen.get_parent())
+		title_screen.visible = false
+		map_select.visible = true
+		_confirm_new_timeline()
+		for i in 3:
+			await get_tree().process_frame
+		await _shot("demo_menu.png")
+		get_tree().quit()
+		return
 	if "--shoot-select" in args:
-		Progress.data = {"unlocked": ["mammoth_valley", "glacier_pass", "volcano_ridge", "river_delta"], "stars": {"mammoth_valley": 3, "glacier_pass": 2, "volcano_ridge": 1},
-			"hero": "kira", "tab": "Bronze Age"}
+		Progress.data.merge({"unlocked": ["mammoth_valley", "glacier_pass", "volcano_ridge", "river_delta"], "stars": {"mammoth_valley": 3, "glacier_pass": 2, "volcano_ridge": 1},
+			"hero": "kira", "tab": "Bronze Age"}, true)
 		map_select.queue_free()
 		_build_map_select(title_screen.get_parent())
 		title_screen.visible = false

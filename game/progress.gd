@@ -1,45 +1,49 @@
 ## Autoload: which map to play next and the player's saved progress
-## (unlocks, best stars, chosen hero, settings and the persistent Evolution level + perk tree).
+## (unlocks, best stars, chosen hero, settings and the persistent Legacy level + perk tree).
 extends Node
 
 const SAVE_PATH := "user://save.json"
-const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true}
+const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true, "ui_scale": 1.15}
+const UI_SCALES := [1.0, 1.15, 1.3]
 
 var current_map := ""          # set before reloading the game scene; "" = show title
 var open_map_select := false   # jump straight to map select on the next load
-var open_evolution := false    # jump straight to the Evolution tree on the next load
-var data := {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "evo_xp": 0, "perks": {},
-	"settings": DEFAULT_SETTINGS.duplicate(), "cleared": []}
-var evo: Dictionary = {}       # data/evolution.json
+var open_legacy := false    # jump straight to the Legacy tree on the next load
+var data := {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
+	"settings": DEFAULT_SETTINGS.duplicate(), "cleared": [], "timeline": 1}
+var legacy: Dictionary = {}       # data/legacy.json
 var _perk_defs := {}           # perk id -> def
 
 
 func _ready() -> void:
-	evo = JSON.parse_string(FileAccess.get_file_as_string("res://data/evolution.json"))
-	for br in evo.branches:
+	legacy = JSON.parse_string(FileAccess.get_file_as_string("res://data/legacy.json"))
+	for br in legacy.branches:
 		for p in br.perks:
 			_perk_defs[p.id] = p
-	var had_evo := false
+	var had_legacy := false
 	if FileAccess.file_exists(SAVE_PATH):
 		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
 		var d = JSON.parse_string(f.get_as_text())
 		if d is Dictionary:
-			had_evo = d.has("evo_xp")
+			if d.has("evo_xp") and not d.has("legacy_xp"):   # v0.5.0 called it Evolution
+				d["legacy_xp"] = d["evo_xp"]
+			d.erase("evo_xp")
+			had_legacy = d.has("legacy_xp")
 			data.merge(d, true)
 	var st: Dictionary = data.settings
 	for k in DEFAULT_SETTINGS:
 		if not st.has(k):
 			st[k] = DEFAULT_SETTINGS[k]
-	if not had_evo:
+	if not had_legacy:
 		_migrate_old_save()
 
 
-## Saves from before v0.5 have stars but no Evolution XP: credit those wins so testers keep their heroes.
+## Saves from before v0.5 have stars but no Legacy XP: credit those wins so testers keep their heroes.
 func _migrate_old_save() -> void:
 	var meta := _map_meta()
 	for mid in data.stars:
 		if meta.has(mid) and not mid in data.cleared:
-			data.evo_xp = int(data.evo_xp) + match_xp(meta[mid], 20, true, true)
+			data.legacy_xp = int(data.get("legacy_xp", 0)) + match_xp(meta[mid], 20, true, true)
 			data.cleared.append(mid)
 	save()
 
@@ -106,7 +110,7 @@ func set_hero(id: String) -> void:
 
 
 func hero_unlocked(hero_def: Dictionary) -> bool:
-	return evo_level() >= int(hero_def.get("evo_unlock", 1))
+	return legacy_level() >= int(hero_def.get("legacy_unlock", 1))
 
 
 # ---------------------------------------------------------------- settings
@@ -119,15 +123,15 @@ func set_setting(key: String, value) -> void:
 	save()
 
 
-# ---------------------------------------------------------------- evolution
+# ---------------------------------------------------------------- legacy
 func xp_needed(level: int) -> int:
-	var x: Dictionary = evo.xp
+	var x: Dictionary = legacy.xp
 	return mini(int(x.level_base) + int(x.level_step) * level, int(x.level_max_cost))
 
 
-func evo_level() -> int:
+func legacy_level() -> int:
 	var lv := 1
-	var left := int(data.evo_xp)
+	var left := int(data.get("legacy_xp", 0))
 	while left >= xp_needed(lv):
 		left -= xp_needed(lv)
 		lv += 1
@@ -135,38 +139,38 @@ func evo_level() -> int:
 
 
 ## [xp into the current level, xp needed for the next level]
-func evo_progress() -> Array:
+func legacy_progress() -> Array:
 	var lv := 1
-	var left := int(data.evo_xp)
+	var left := int(data.get("legacy_xp", 0))
 	while left >= xp_needed(lv):
 		left -= xp_needed(lv)
 		lv += 1
 	return [left, xp_needed(lv)]
 
 
-## Evolution XP for one match. waves = waves cleared, won = beat the final wave, first = first ever win on this map.
+## Legacy XP for one match. waves = waves cleared, won = beat the final wave, first = first ever win on this map.
 func match_xp(map_meta: Dictionary, waves: int, won: bool, first: bool) -> int:
-	var x: Dictionary = evo.xp
-	var mult := float(x.difficulty.get(str(map_meta.get("difficulty", "Normal")), 1.0)) * float(x.era.get(str(map_meta.get("era", "Stone Age")), 1.0))
+	var x: Dictionary = legacy.xp
+	var mult := timeline_xp_mult() * float(x.difficulty.get(str(map_meta.get("difficulty", "Normal")), 1.0)) * float(x.era.get(str(map_meta.get("era", "Stone Age")), 1.0))
 	var total := float(x.per_wave) * waves
 	if won:
 		total += float(x.win)
 	total *= mult
 	if first:
-		total += float(x.first_clear)
+		total += float(x.first_clear) * timeline_xp_mult()
 	return int(round(total))
 
 
 ## Adds XP and returns [old level, new level].
 func add_xp(amount: int) -> Array:
-	var before := evo_level()
-	data.evo_xp = int(data.evo_xp) + amount
+	var before := legacy_level()
+	data.legacy_xp = int(data.get("legacy_xp", 0)) + amount
 	save()
-	return [before, evo_level()]
+	return [before, legacy_level()]
 
 
 func points_total() -> int:
-	return evo_level() - 1
+	return legacy_level() - 1 + timeline_bonus_points()
 
 
 func points_spent() -> int:
@@ -188,9 +192,14 @@ func perk_def(id: String) -> Dictionary:
 	return _perk_defs.get(id, {})
 
 
+## Max rank grows with each New Timeline.
+func perk_max(id: String) -> int:
+	return int(perk_def(id).max) + int(legacy.timeline.max_rank_per) * (timeline() - 1)
+
+
 func buy_perk(id: String) -> bool:
 	var d := perk_def(id)
-	if d.is_empty() or points_free() < 1 or perk_rank(id) >= int(d.max):
+	if d.is_empty() or points_free() < 1 or perk_rank(id) >= perk_max(id):
 		return false
 	data.perks[id] = perk_rank(id) + 1
 	save()
@@ -215,3 +224,39 @@ func sim_perks() -> Dictionary:
 	for id in _perk_defs:
 		out[id] = float(_perk_defs[id].per_rank) * perk_rank(id)
 	return out
+
+
+# ---------------------------------------------------------------- timelines (prestige)
+## Beating the final map lets the player start a New Timeline: map progress resets, Legacy is kept and grows.
+func timeline() -> int:
+	return int(data.get("timeline", 1))
+
+
+func timeline_bonus_points() -> int:
+	return int(legacy.timeline.bonus_points_per) * (timeline() - 1)
+
+
+func timeline_xp_mult() -> float:
+	return 1.0 + float(legacy.timeline.xp_per) * (timeline() - 1)
+
+
+func timeline_hp_mult() -> float:
+	return 1.0 + float(legacy.timeline.robot_hp_per) * (timeline() - 1)
+
+
+## True once every map of the current timeline has been beaten.
+func can_new_timeline(map_order: Array) -> bool:
+	for m in map_order:
+		if not m in data.cleared:
+			return false
+	return not map_order.is_empty()
+
+
+func start_new_timeline(map_order: Array) -> void:
+	data.timeline = timeline() + 1
+	data.best_timeline = maxi(int(data.get("best_timeline", 1)), timeline())
+	data.unlocked = [map_order[0]]
+	data.stars = {}
+	data.cleared = []
+	data.tab = ""
+	save()

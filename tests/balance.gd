@@ -10,7 +10,7 @@ var defs: Dictionary
 var map: Dictionary
 var samples := PackedVector2Array()
 var era_ids := {}   # lineage -> tower id for this map's era
-var max_perks := {}  # every Evolution perk at max rank
+var max_perks := {}  # every Legacy perk at max rank
 
 
 func _init() -> void:
@@ -45,23 +45,23 @@ func _init() -> void:
 		runs.append(["siege heavy + " + era_heroes[0], _siege(), true, era_heroes[0]])
 	for r in runs:
 		_run(r[0], r[1], r[2], r[3])
-	# a fully evolved player (every Evolution perk maxed) for comparison
-	var evo = JSON.parse_string(FileAccess.get_file_as_string("res://data/evolution.json"))
-	for br in evo.branches:
+	# a fully evolved player (every Legacy perk maxed) for comparison
+	var legacy = JSON.parse_string(FileAccess.get_file_as_string("res://data/legacy.json"))
+	for br in legacy.branches:
 		for pk in br.perks:
 			max_perks[pk.id] = float(pk.per_rank) * int(pk.max)
 	var mid := {}
 	for k in max_perks:
 		mid[k] = 0.0
 	for k in ["start_gold", "damage", "speed", "cost", "lives"]:
-		mid[k] = max_perks[k] * 0.6   # 3 ranks each = 15 points, about Evolution level 16
+		mid[k] = max_perks[k] * 0.6   # 3 ranks each = 15 points, about Legacy level 16
 	var keep := max_perks
 	max_perks = mid
-	_run("balanced + MID evolution", _balanced(), true, "")
+	_run("balanced + MID legacy", _balanced(), true, "")
 	max_perks = keep
-	_run("balanced + MAX evolution", _balanced(), true, "")
+	_run("balanced + MAX legacy", _balanced(), true, "")
 	if not era_heroes.is_empty():
-		_run("balanced + %s + MAX evolution" % era_heroes[0], _balanced(), true, era_heroes[0])
+		_run("balanced + %s + MAX legacy" % era_heroes[0], _balanced(), true, era_heroes[0])
 	quit()
 
 
@@ -164,7 +164,7 @@ func _best_spot(sim: Sim, type: String, hero_spot := false) -> Vector2:
 func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> void:
 	var sim := Sim.new()
 	sim.setup(defs, map)
-	if name.ends_with("MAX evolution") or name.ends_with("MID evolution"):
+	if name.ends_with("MAX legacy") or name.ends_with("MID legacy"):
 		sim.apply_perks(max_perks)
 	if hero_id != "":
 		sim.set_hero(hero_id)

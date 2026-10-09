@@ -47,7 +47,7 @@ var hero_levels: Array = []
 var fury_until := 0
 var fury_speed := 0.0
 
-# persistent Evolution perks (all neutral unless apply_perks() is called)
+# persistent Legacy perks (all neutral unless apply_perks() is called)
 var perks := {}
 var start_lives := 0
 var _bounty_frac := 0.0
@@ -84,7 +84,7 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 		rivers.append({"pts": _pts(rv.pts), "half": float(rv.width) * 0.5})
 
 
-## Evolution perks from the player's save. Keys match data/evolution.json perk ids; values are totals.
+## Legacy perks from the player's save. Keys match data/legacy.json perk ids; values are totals.
 func apply_perks(p: Dictionary) -> void:
 	perks = p.duplicate()
 	gold += int(perk("start_gold"))
