@@ -1,0 +1,74 @@
+# Builds Age of Tower Defense on every push: runs the balance bots, then exports
+# an installable Android APK and a Windows .exe as downloadable artifacts.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Godot and export templates
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          unzip -q Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip
+          sudo mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 /usr/local/bin/godot
+          wget -q $base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+
+      - name: Point Godot at the runner's Android SDK and make a debug keystore
+        run: |
+          mkdir -p ~/.config/godot
+          for f in editor_settings-4.tres editor_settings-4.7.tres; do
+          cat > ~/.config/godot/$f <<SETTINGS
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          SETTINGS
+          done
+          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore $RUNNER_TEMP/debug.keystore \
+            -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/debug.keystore" >> $GITHUB_ENV
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> $GITHUB_ENV
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> $GITHUB_ENV
+
+      - name: Import assets
+        run: godot --headless --path . --import || true
+
+      - name: Balance bots (all 20 waves)
+        run: godot --headless --path . --script res://tests/balance.gd
+
+      - name: Export Android APK and Windows build
+        run: |
+          mkdir -p build/android build/windows
+          godot --headless --path . --export-debug "Android" build/android/AgeOfTowerDefense.apk
+          godot --headless --path . --export-release "Windows Desktop" build/windows/AgeOfTowerDefense.exe
+          ls -la build/android build/windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AgeOfTowerDefense-Android
+          path: build/android/AgeOfTowerDefense.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AgeOfTowerDefense-Windows
+          path: build/windows/AgeOfTowerDefense.exe
