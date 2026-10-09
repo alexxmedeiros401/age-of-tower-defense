@@ -47,6 +47,11 @@ var hero_levels: Array = []
 var fury_until := 0
 var fury_speed := 0.0
 
+# persistent Evolution perks (all neutral unless apply_perks() is called)
+var perks := {}
+var start_lives := 0
+var _bounty_frac := 0.0
+
 
 func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> void:
 	defs = p_defs
@@ -54,6 +59,7 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 	rng.seed = seed_value
 	gold = int(map.start_gold)
 	lives = int(map.start_lives)
+	start_lives = lives
 	path_half_width = float(map.path_width) * 0.5
 	total_waves = defs.waves.size()
 	hp_mult = float(map.get("hp_mult", 1.0))
@@ -76,6 +82,34 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 	rivers.clear()
 	for rv in map.get("rivers", []):
 		rivers.append({"pts": _pts(rv.pts), "half": float(rv.width) * 0.5})
+
+
+## Evolution perks from the player's save. Keys match data/evolution.json perk ids; values are totals.
+func apply_perks(p: Dictionary) -> void:
+	perks = p.duplicate()
+	gold += int(perk("start_gold"))
+	lives += int(perk("lives"))
+	start_lives = lives
+
+
+func perk(id: String) -> float:
+	return float(perks.get(id, 0.0))
+
+
+func tower_cost(type: String) -> int:
+	return _discount(int(defs.towers[type].cost))
+
+
+func _discount(c: int) -> int:
+	return int(round(c * (1.0 - perk("cost"))))
+
+
+func ability_cooldown() -> float:
+	return float(hero_def.ability.cooldown) * (1.0 - perk("ability_cd"))
+
+
+func aura_radius() -> float:
+	return float(hero_def.get("aura", {}).get("radius", 0.0)) * (1.0 + perk("aura"))
 
 
 func _pts(raw: Array) -> PackedVector2Array:
@@ -174,7 +208,7 @@ func placement_error(type: String, p: Vector2) -> String:
 	var err := _spot_error(p, float(def.radius))
 	if err != "":
 		return err
-	if gold < int(def.cost):
+	if gold < tower_cost(type):
 		return "Not enough gold"
 	return ""
 
@@ -185,11 +219,11 @@ func place_tower(type: String, p: Vector2) -> int:
 	var def: Dictionary = defs.towers[type]
 	var t := {
 		"id": _id(), "type": type, "pos": p, "radius": float(def.radius),
-		"level": 0, "branch": "", "spent": int(def.cost), "cd": 0.0,
+		"level": 0, "branch": "", "spent": tower_cost(type), "cd": 0.0,
 		"facing": Vector2(0, 1), "kills": 0, "target": "first", "buffed": false,
 	}
 	t.stats = _compute_stats(t)
-	gold -= int(def.cost)
+	gold -= tower_cost(type)
 	towers.append(t)
 	events.append({"e": "place", "id": t.id})
 	return t.id
@@ -240,7 +274,16 @@ func _compute_stats(t: Dictionary) -> Dictionary:
 		var bt: Array = def.branches[t.branch].tiers
 		for i in range(t.level - 2):
 			_apply_mods(s, bt[i].mods)
+	_apply_perk_stats(s)
 	return s
+
+
+func _apply_perk_stats(s: Dictionary) -> void:
+	if perks.is_empty():
+		return
+	s.damage = float(s.damage) * (1.0 + perk("damage"))
+	s.range = float(s.range) * (1.0 + perk("range"))
+	s.cooldown = float(s.cooldown) / (1.0 + perk("speed"))
 
 
 ## Returns the upgrade choices available right now: [] when maxed,
@@ -249,16 +292,16 @@ func upgrade_options(t: Dictionary) -> Array:
 	var def: Dictionary = defs.towers[t.type]
 	if t.level < 2:
 		var tier: Dictionary = def.tiers[t.level]
-		return [{"key": "", "name": tier.name, "cost": int(tier.cost), "desc": tier.desc}]
+		return [{"key": "", "name": tier.name, "cost": _discount(int(tier.cost)), "desc": tier.desc}]
 	if t.level == 2:
 		var out := []
 		for k in ["A", "B"]:
 			var br: Dictionary = def.branches[k]
-			out.append({"key": k, "name": br.name, "cost": int(br.tiers[0].cost), "desc": br.desc, "branch_pick": true})
+			out.append({"key": k, "name": br.name, "cost": _discount(int(br.tiers[0].cost)), "desc": br.desc, "branch_pick": true})
 		return out
 	if t.level < 5:
 		var tier2: Dictionary = def.branches[t.branch].tiers[t.level - 2]
-		return [{"key": t.branch, "name": tier2.name, "cost": int(tier2.cost), "desc": tier2.desc}]
+		return [{"key": t.branch, "name": tier2.name, "cost": _discount(int(tier2.cost)), "desc": tier2.desc}]
 	return []
 
 
@@ -282,7 +325,7 @@ func upgrade_tower(id: int, key: String = "") -> bool:
 
 
 func sell_value(t: Dictionary) -> int:
-	return int(t.spent * SELL_RATE)
+	return int(t.spent * (SELL_RATE + perk("sell")))
 
 
 func sell_tower(id: int) -> bool:
@@ -335,9 +378,10 @@ func hero_placement_error(p: Vector2) -> String:
 func place_hero(p: Vector2) -> bool:
 	if hero_placement_error(p) != "":
 		return false
-	hero = {"id": _id(), "type": hero_id, "pos": p, "radius": HERO_RADIUS, "level": 1, "xp": 0.0, "cd": 0.0,
+	var lv0 := clampi(1 + int(perk("hero_level")), 1, hero_levels.size())
+	hero = {"id": _id(), "type": hero_id, "pos": p, "radius": HERO_RADIUS, "level": lv0, "xp": float(hero_levels[lv0 - 1]), "cd": 0.0,
 		"facing": Vector2(0, 1), "kills": 0, "target": "first", "ability_cd": 0.0, "is_hero": true, "buffed": false}
-	hero.stats = _hero_stats(1)
+	hero.stats = _hero_stats(lv0)
 	events.append({"e": "hero_place", "id": hero.id})
 	return true
 
@@ -354,7 +398,7 @@ func _hero_stats(level: int) -> Dictionary:
 func _hero_gain_xp(amount: float) -> void:
 	if hero == null:
 		return
-	hero.xp += amount
+	hero.xp += amount * (1.0 + perk("hero_xp"))
 	while hero.level < hero_levels.size() and hero.xp >= float(hero_levels[hero.level]):
 		hero.level += 1
 		hero.stats = _hero_stats(hero.level)
@@ -413,7 +457,7 @@ func use_ability() -> bool:
 		"forge_fury":
 			fury_until = tick + int(float(ab.duration) / TICK)
 			fury_speed = float(ab.speed)
-	hero.ability_cd = float(ab.cooldown)
+	hero.ability_cd = ability_cooldown()
 	events.append({"e": "ability", "ability": str(ab.id), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos})
 	return true
 
@@ -539,16 +583,19 @@ func _damage(e: Dictionary, amount: float, dtype: String, src: Dictionary) -> vo
 func _kill(e: Dictionary, src: Dictionary) -> void:
 	e.alive = false
 	var d: Dictionary = defs.enemies[e.type]
-	var bounty := int(d.bounty)
+	var base_bounty := int(d.bounty)
+	var exact := base_bounty * (1.0 + perk("bounty")) + _bounty_frac
+	var bounty := int(exact)
+	_bounty_frac = exact - bounty
 	gold += bounty
 	stats.kills += 1
 	stats.gold_earned += bounty
 	if src.get("hero", false):
 		if hero != null:
 			hero.kills += 1
-		_hero_gain_xp(bounty * 1.5)
+		_hero_gain_xp(base_bounty * 1.5)
 	else:
-		_hero_gain_xp(bounty * 0.6)   # heroes learn faster from their own kills
+		_hero_gain_xp(base_bounty * 0.6)   # heroes learn faster from their own kills
 		if src.has("tower_id"):
 			var t = get_tower(src.tower_id)
 			if t != null:
@@ -567,7 +614,7 @@ func _finish_enemy(e: Dictionary) -> void:
 	wave_remaining[e.wave] -= 1
 	if wave_remaining[e.wave] <= 0:
 		wave_remaining.erase(e.wave)
-		var bonus: int = 80 + 10 * int(e.wave)
+		var bonus: int = int(round((80 + 10 * int(e.wave)) * (1.0 + perk("wave_bonus"))))
 		gold += bonus
 		events.append({"e": "wave_clear", "wave": e.wave, "bonus": bonus})
 		if e.wave == total_waves and lives > 0 and not endless:
@@ -609,7 +656,7 @@ func _effective_stats(t: Dictionary) -> Dictionary:
 	t.buffed = false
 	if hero != null and not is_hero:
 		var au: Dictionary = hero_def.get("aura", {})
-		if not au.is_empty() and t.pos.distance_to(hero.pos) <= float(au.radius):
+		if not au.is_empty() and t.pos.distance_to(hero.pos) <= aura_radius():
 			var lin: String = str(au.get("lineage", ""))
 			if lin == "" or defs.towers[t.type].lineage == lin:
 				var lv := float(hero.level - 1)

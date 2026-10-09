@@ -10,6 +10,7 @@ var defs: Dictionary
 var map: Dictionary
 var samples := PackedVector2Array()
 var era_ids := {}   # lineage -> tower id for this map's era
+var max_perks := {}  # every Evolution perk at max rank
 
 
 func _init() -> void:
@@ -44,6 +45,23 @@ func _init() -> void:
 		runs.append(["siege heavy + " + era_heroes[0], _siege(), true, era_heroes[0]])
 	for r in runs:
 		_run(r[0], r[1], r[2], r[3])
+	# a fully evolved player (every Evolution perk maxed) for comparison
+	var evo = JSON.parse_string(FileAccess.get_file_as_string("res://data/evolution.json"))
+	for br in evo.branches:
+		for pk in br.perks:
+			max_perks[pk.id] = float(pk.per_rank) * int(pk.max)
+	var mid := {}
+	for k in max_perks:
+		mid[k] = 0.0
+	for k in ["start_gold", "damage", "speed", "cost", "lives"]:
+		mid[k] = max_perks[k] * 0.6   # 3 ranks each = 15 points, about Evolution level 16
+	var keep := max_perks
+	max_perks = mid
+	_run("balanced + MID evolution", _balanced(), true, "")
+	max_perks = keep
+	_run("balanced + MAX evolution", _balanced(), true, "")
+	if not era_heroes.is_empty():
+		_run("balanced + %s + MAX evolution" % era_heroes[0], _balanced(), true, era_heroes[0])
 	quit()
 
 
@@ -101,7 +119,7 @@ func _spend_greedy(sim: Sim, placed: Array) -> void:
 				best_key = o.key
 	var order := ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]
 	var type: String = _t(order[placed.size() % order.size()])
-	var tcost := int(defs.towers[type].cost)
+	var tcost := sim.tower_cost(type)
 	# upgrade when it's affordable and not wildly pricier than a fresh tower; otherwise expand
 	if best_id != -1 and sim.gold >= best_cost and (best_cost <= tcost * 6 or placed.size() >= 14):
 		sim.upgrade_tower(best_id, best_key)
@@ -146,6 +164,8 @@ func _best_spot(sim: Sim, type: String, hero_spot := false) -> Vector2:
 func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> void:
 	var sim := Sim.new()
 	sim.setup(defs, map)
+	if name.ends_with("MAX evolution") or name.ends_with("MID evolution"):
+		sim.apply_perks(max_perks)
 	if hero_id != "":
 		sim.set_hero(hero_id)
 		sim.place_hero(_best_spot(sim, "", true))
@@ -163,7 +183,7 @@ func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> vo
 			var ok := false
 			if it[0] == "place":
 				var type := _t(it[1])
-				if sim.gold >= int(defs.towers[type].cost):
+				if sim.gold >= sim.tower_cost(type):
 					var spot := _best_spot(sim, type)
 					var id := sim.place_tower(type, spot)
 					if id != -1:

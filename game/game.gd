@@ -77,6 +77,7 @@ var sfx_players: Array = []
 var sfx_last := {}
 var music: AudioStreamPlayer
 var muted := false
+var world_env: Environment
 
 # HUD
 var lbl_gold: Label
@@ -84,7 +85,18 @@ var lbl_lives: Label
 var lbl_wave: Label
 var btn_start: Button
 var btn_speed: Button
-var btn_mute: Button
+var btn_auto: Button
+var btn_pause: Button
+var ui_root: Control
+var pause_menu: Control
+var settings_panel: Control
+var evo_panel: Control
+var paused := false
+var auto_t := -1.0              # countdown to the next auto-started wave (-1 = idle)
+var waves_cleared := 0
+var xp_waves_awarded := 0
+var xp_win_awarded := false
+var first_clear := false
 var shop_box: VBoxContainer
 var shop_buttons := {}
 var tower_box: VBoxContainer
@@ -131,16 +143,26 @@ func _ready() -> void:
 	theme = THEMES[map.get("theme", "meadow")]
 	sim = Sim.new()
 	sim.setup(defs, map)
-	if not sim.set_hero(Progress.hero()):
-		sim.set_hero("ugo")
+	var hid := Progress.hero()
+	if not defs.heroes.heroes.has(hid) or not Progress.hero_unlocked(defs.heroes.heroes[hid]):
+		hid = "ugo"
+	sim.set_hero(hid)
+	if not "--noperks" in OS.get_cmdline_user_args():
+		sim.apply_perks(Progress.sim_perks())
 	_build_world()
 	_build_audio()
 	_build_hud()
+	_apply_settings()
 	demo = "--demo" in OS.get_cmdline_user_args()
 	if "--autowin" in OS.get_cmdline_user_args():
 		_run_autowin()
 	elif demo:
 		_run_demo()
+	elif Progress.open_evolution:
+		Progress.open_evolution = false
+		title_screen.visible = false
+		map_select.visible = true
+		_open_evolution()
 	elif Progress.open_map_select:
 		Progress.open_map_select = false
 		title_screen.visible = false
@@ -249,6 +271,7 @@ func _build_world() -> void:
 	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 1.25
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	world_env = env
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
@@ -630,16 +653,30 @@ func _build_blockers() -> void:
 
 
 # =================================================================== audio
+func _bus(name: String) -> int:
+	var i := AudioServer.get_bus_index(name)
+	if i == -1:
+		AudioServer.add_bus()
+		i = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, name)
+		AudioServer.set_bus_send(i, "Master")
+	return i
+
+
 func _build_audio() -> void:
+	_bus("Music")
+	_bus("SFX")
 	for n in SFX_NAMES:
 		sfx[n] = load("res://assets/audio/%s.wav" % n)
 	for i in 14:
 		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
 		add_child(p)
 		sfx_players.append(p)
 	music = AudioStreamPlayer.new()
 	music.stream = load("res://assets/audio/music_bronze_age.wav" if _era() == "Bronze Age" else "res://assets/audio/music_stone_age.wav")
 	music.volume_db = -9.0
+	music.bus = "Music"
 	add_child(music)
 	music.finished.connect(func(): music.play())
 
@@ -879,6 +916,8 @@ func _ring_fx(pos: Vector3, radius: float, col: Color, life := 0.4) -> void:
 
 
 func _float_text(pos: Vector3, text: String, col: Color, size := 56) -> void:
+	if not Progress.setting("popups") and text.begins_with("+"):
+		return
 	var l := Label3D.new()
 	l.text = text
 	l.font = FONT
@@ -998,6 +1037,10 @@ func _update_effects(dt: float) -> void:
 # =================================================================== loop
 func _process(delta: float) -> void:
 	time_s += delta
+	if paused:
+		_update_hud(0.0)
+		return
+	_auto_start(delta)
 	if started and sim.state != "lost":
 		accum += delta * speed
 		var steps := 0
@@ -1012,7 +1055,24 @@ func _process(delta: float) -> void:
 	_update_effects(delta)
 	_update_hud(delta)
 	shake = maxf(0.0, shake - delta * 2.5)
-	cam.position = cam_base + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * shake * shake * 0.6
+	var sk := shake if Progress.setting("shake") else 0.0
+	cam.position = cam_base + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * sk * sk * 0.6
+
+
+## Once the player has started wave 1, later waves start by themselves (if Auto-start is on).
+func _auto_start(delta: float) -> void:
+	if not started or demo or sim.wave < 1 or overlay.visible or not Progress.setting("auto_start"):
+		auto_t = -1.0
+		return
+	if sim.can_start_wave() and sim.enemies.is_empty() and (sim.wave < sim.total_waves or sim.endless):
+		if auto_t < 0.0:
+			auto_t = 2.0
+		auto_t -= delta * speed
+		if auto_t <= 0.0:
+			auto_t = -1.0
+			sim.start_wave()
+	else:
+		auto_t = -1.0
 
 
 func _fire_sfx(u: Dictionary) -> void:
@@ -1156,6 +1216,7 @@ func _handle_events() -> void:
 				_banner("WAVE %d" % ev.wave, C_TEXT)
 				_sfx("wave_horn", -3.0, 0.03, 0.5)
 			"wave_clear":
+				waves_cleared += 1
 				_toast("Wave %d cleared!  +%d gold" % [ev.wave, ev.bonus], C_GOLD)
 				_sfx("coin", -4.0, 0.0)
 			"victory":
@@ -1357,8 +1418,28 @@ func _ground_point(screen: Vector2) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST or what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if started and overlay != null and not overlay.visible and not paused and not demo:
+			_set_paused(true)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not started:
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_ESCAPE, KEY_P]:
+		if paused:
+			if settings_panel.visible:
+				settings_panel.visible = false
+			else:
+				_set_paused(false)
+		elif event.keycode == KEY_ESCAPE and (placing != "" or selected != -1):
+			_cancel_placing()
+			_deselect()
+		elif not overlay.visible:
+			_set_paused(true)
+		return
+	if paused:
 		return
 	if event is InputEventMouseMotion and placing != "":
 		_move_ghost(_ground_point(event.position))
@@ -1407,9 +1488,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey and event.pressed:
 		var types := sim.tower_types()
 		match event.keycode:
-			KEY_ESCAPE:
-				_cancel_placing()
-				_deselect()
 			KEY_SPACE:
 				_on_start_pressed()
 			KEY_Q:
@@ -1432,7 +1510,7 @@ func _begin_placing(type: String) -> void:
 		r = float(sim.hero_def.base.range)
 		foot = Sim.HERO_RADIUS
 	else:
-		if sim.gold < int(defs.towers[type].cost):
+		if sim.gold < sim.tower_cost(type):
 			_toast("Not enough gold", Color(1, 0.45, 0.4))
 			_sfx("error", -4.0, 0.0)
 			return
@@ -1577,6 +1655,7 @@ func _build_hud() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
+	ui_root = root
 
 	# --- top-left stat bar
 	var top := PanelContainer.new()
@@ -1597,6 +1676,20 @@ func _build_hud() -> void:
 	hb.add_child(_icon(ICON_WAVE))
 	lbl_wave = _label("", 40, Color(0.88, 0.94, 1))
 	hb.add_child(lbl_wave)
+
+	# --- pause button (top-right of the play area)
+	btn_pause = _button("II", Color(0.36, 0.28, 0.2), 34)
+	btn_pause.anchor_left = 1.0
+	btn_pause.anchor_right = 1.0
+	btn_pause.offset_left = -SIDEBAR_W - 108
+	btn_pause.offset_right = -SIDEBAR_W - 20
+	btn_pause.offset_top = 16
+	btn_pause.offset_bottom = 100
+	btn_pause.tooltip_text = "Pause (Esc)"
+	btn_pause.pressed.connect(func():
+		_sfx("click", -6.0)
+		_set_paused(true))
+	root.add_child(btn_pause)
 
 	# --- right sidebar
 	var side := PanelContainer.new()
@@ -1657,7 +1750,7 @@ func _build_hud() -> void:
 		var type: String = types[i]
 		var def: Dictionary = defs.towers[type]
 		var c := Color(def.color[0], def.color[1], def.color[2])
-		var b := _button("%s\n%d gold" % [def.name, int(def.cost)], c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
+		var b := _button("%s\n%d gold" % [def.name, sim.tower_cost(type)], c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
 		b.icon = _icon_tex(type)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 92)
@@ -1728,16 +1821,14 @@ func _build_hud() -> void:
 		speed = 1 if speed == 3 else speed + 1
 		btn_speed.text = "%dx" % speed)
 	small.add_child(btn_speed)
-	btn_mute = _button("Sound", Color(0.32, 0.3, 0.36), 20)
-	btn_mute.custom_minimum_size = Vector2(100, 46)
-	btn_mute.pressed.connect(func():
-		muted = not muted
-		btn_mute.text = "Muted" if muted else "Sound"
-		if muted:
-			music.stop()
-		else:
-			music.play())
-	small.add_child(btn_mute)
+	btn_auto = _button("", Color(0.32, 0.3, 0.36), 18)
+	btn_auto.custom_minimum_size = Vector2(100, 46)
+	btn_auto.tooltip_text = "Auto-start: after you start wave 1, the next waves start on their own."
+	btn_auto.pressed.connect(func():
+		_sfx("click", -6.0)
+		Progress.set_setting("auto_start", not Progress.setting("auto_start"))
+		_refresh_auto_button())
+	small.add_child(btn_auto)
 	btn_start = _button("START\nWAVE 1", Color(0.2, 0.58, 0.18), 30)
 	btn_start.icon = ICON_PLAY
 	btn_start.expand_icon = true
@@ -1838,6 +1929,32 @@ func _build_hud() -> void:
 		title_screen.visible = false
 		map_select.visible = true)
 	tb.add_child(play)
+	var evo_badge := _label("", 30, Color(0.6, 0.9, 1.0), 8)
+	evo_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	evo_badge.text = _evo_badge_text()
+	tb.add_child(evo_badge)
+	var trow := HBoxContainer.new()
+	trow.alignment = BoxContainer.ALIGNMENT_CENTER
+	trow.add_theme_constant_override("separation", 20)
+	tb.add_child(trow)
+	var t_evo := _button("EVOLUTION", Color(0.18, 0.42, 0.6), 30)
+	t_evo.custom_minimum_size = Vector2(280, 80)
+	t_evo.pressed.connect(func():
+		_sfx("click")
+		_open_evolution())
+	trow.add_child(t_evo)
+	var t_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 30)
+	t_set.custom_minimum_size = Vector2(280, 80)
+	t_set.pressed.connect(func():
+		_sfx("click")
+		_open_settings())
+	trow.add_child(t_set)
+
+	_build_pause_menu(root)
+	settings_panel = _modal(root, 0.5)
+	settings_panel.visible = false
+	evo_panel = _modal(root, 0.6)
+	evo_panel.visible = false
 
 
 func _eras() -> Array:
@@ -1916,31 +2033,59 @@ func _build_map_select(root: Control) -> void:
 		hblurb.text = "%s, %s (%s).  %s\nAbility: %s. %s" % [hd.name, hd.title, hd.era, hd.blurb, hd.ability.name, hd.ability.desc]
 	for hid in defs.heroes.heroes:
 		var hd2: Dictionary = defs.heroes.heroes[hid]
-		var hb := _button(str(hd2.name).split(" ")[0], Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45), 24)
+		var open := Progress.hero_unlocked(hd2)
+		var hname := str(hd2.name).split(" ")[0]
+		var hb := _button(hname if open else "%s\nEVO LV %d" % [hname, int(hd2.get("evo_unlock", 1))],
+			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
 		hb.icon = _icon_tex(hid)
 		hb.expand_icon = true
 		hb.add_theme_constant_override("icon_max_width", 64)
 		hb.custom_minimum_size = Vector2(250, 84)
 		hb.pressed.connect(func():
 			_sfx("click")
-			pick.call(hid))
+			if Progress.hero_unlocked(hd2):
+				pick.call(hid)
+			else:
+				hblurb.text = "%s, %s.  Reach Evolution level %d to unlock.\nEarn Evolution XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("evo_unlock", 1))])
 		hrow.add_child(hb)
 		hero_buttons[hid] = hb
 	box.add_child(hblurb)
-	pick.call(Progress.hero() if defs.heroes.heroes.has(Progress.hero()) else "ugo")
-	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = 50+ lives, 3 = 90+ lives.  Your hero joins every match for free.", 18, Color(0.85, 0.78, 0.68), 5)
+	var start_hero := Progress.hero()
+	if not defs.heroes.heroes.has(start_hero) or not Progress.hero_unlocked(defs.heroes.heroes[start_hero]):
+		start_hero = "ugo"
+	pick.call(start_hero)
+	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = lose 50 lives or fewer, 3 = lose 10 or fewer.  Your hero joins every match for free.", 18, Color(0.85, 0.78, 0.68), 5)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
+	var brow := HBoxContainer.new()
+	brow.alignment = BoxContainer.ALIGNMENT_CENTER
+	brow.add_theme_constant_override("separation", 18)
+	box.add_child(brow)
+	var pts := Progress.points_free()
+	var m_evo := _button("EVOLUTION  LV %d%s" % [Progress.evo_level(), ("   (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""],
+		Color(0.18, 0.42, 0.6), 22)
+	m_evo.custom_minimum_size = Vector2(420, 60)
+	if pts > 0:
+		m_evo.set_meta("pulse", true)
+	m_evo.pressed.connect(func():
+		_sfx("click")
+		_open_evolution())
+	brow.add_child(m_evo)
+	var m_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 22)
+	m_set.custom_minimum_size = Vector2(220, 60)
+	m_set.pressed.connect(func():
+		_sfx("click")
+		_open_settings())
+	brow.add_child(m_set)
 	if OS.is_debug_build():
-		var dev := _button("UNLOCK ALL MAPS (test build)", Color(0.35, 0.3, 0.45), 18)
-		dev.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		dev.custom_minimum_size = Vector2(380, 44)
+		var dev := _button("UNLOCK ALL MAPS (test)", Color(0.35, 0.3, 0.45), 18)
+		dev.custom_minimum_size = Vector2(320, 60)
 		dev.pressed.connect(func():
 			Progress.unlock_all(map_order)
 			Progress.current_map = ""
 			Progress.open_map_select = true
 			get_tree().reload_current_scene())
-		box.add_child(dev)
+		brow.add_child(dev)
 	map_select.visible = false
 
 
@@ -2029,7 +2174,7 @@ func _start_game() -> void:
 	started = true
 	title_screen.visible = false
 	map_select.visible = false
-	if not muted and not demo:
+	if not demo:
 		music.play()
 	_sfx("click")
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
@@ -2059,7 +2204,7 @@ func _show_tower_panel(id: int) -> void:
 		lines += "Aura: %s\nAbility (level %d): %s. %s" % [hd.blurb, int(hd.ability.get("unlock", 3)), hd.ability.name, hd.ability.desc]
 		btn_sell.visible = false
 		aura_range.position = _v3(t.pos, 0.11)
-		aura_range.scale = Vector3(float(au.get("radius", 0.0)), 1, float(au.get("radius", 0.0)))
+		aura_range.scale = Vector3(sim.aura_radius(), 1, sim.aura_radius())
 		aura_range.visible = not au.is_empty()
 	else:
 		var def: Dictionary = defs.towers[t.type]
@@ -2159,13 +2304,15 @@ func _update_hud(delta: float) -> void:
 	lbl_lives.text = str(sim.lives)
 	lbl_wave.text = ("%d/%d" % [sim.wave, sim.total_waves]) if not (sim.endless or sim.wave > sim.total_waves) else ("%d  ENDLESS" % sim.wave)
 	for type in shop_buttons:
-		shop_buttons[type].disabled = sim.gold < int(defs.towers[type].cost)
+		shop_buttons[type].disabled = sim.gold < sim.tower_cost(type)
 	for b in up_box.get_children():
 		if b is Button:
 			b.disabled = sim.gold < int(b.get_meta("cost"))
 	if sim.can_start_wave():
 		btn_start.disabled = false
 		btn_start.text = ("START\nWAVE %d" if sim.enemies.is_empty() else "SEND\nWAVE %d") % (sim.wave + 1)
+		if auto_t >= 0.0:
+			btn_start.text = "WAVE %d\nIN %d..." % [sim.wave + 1, int(ceil(auto_t / float(speed)))]
 	else:
 		btn_start.disabled = true
 		btn_start.text = "WAVE %d" % sim.wave
@@ -2190,9 +2337,10 @@ func _show_overlay(won: bool) -> void:
 		var earned := 0
 		var newly := ""
 		if not demo:
-			var res: Array = Progress.record_win(map_id, sim.lives, map_order)
+			var res: Array = Progress.record_win(map_id, sim.start_lives - sim.lives, map_order)
 			earned = res[0]
 			newly = res[1]
+			first_clear = res[2]
 			if newly != "":
 				for m in Defs.map_list():
 					if str(m.id) == newly:
@@ -2216,13 +2364,346 @@ func _show_overlay(won: bool) -> void:
 				nb.text = "ENTER THE %s" % nm_era.to_upper()
 		if not nb.visible:
 			lbl_overlay_sub.text += "\nYou beat every map! The Iron Age arrives in the next update."
+		lbl_overlay_sub.text += _award_xp(true)
 		btn_endless.visible = true
 	else:
 		_sfx("defeat")
 		lbl_overlay.text = "THE CITY HAS FALLEN" if str(map.get("base", "cave")) == "city" else "THE CAVE HAS FALLEN"
 		lbl_overlay.add_theme_color_override("font_color", Color(1, 0.45, 0.4))
 		lbl_overlay_sub.text = "You held out until wave %d.\n%d robots destroyed." % [sim.wave, sim.stats.kills]
+		lbl_overlay_sub.text += _award_xp(false)
 		btn_endless.visible = false
+
+
+# =================================================================== pause, settings, evolution
+func _set_paused(on: bool) -> void:
+	paused = on
+	pause_menu.visible = on
+	if on:
+		_cancel_placing()
+		var lbl: Label = pause_menu.get_meta("sub")
+		lbl.text = "%s  -  %s\nWave %d of %d   -   %d lives" % [_era(), str(map.name), sim.wave, sim.total_waves, sim.lives]
+	else:
+		settings_panel.visible = false
+
+
+func _build_pause_menu(root: Control) -> void:
+	pause_menu = _modal(root, 0.55)
+	var box: VBoxContainer = pause_menu.get_meta("box")
+	box.custom_minimum_size = Vector2(620, 0)
+	box.add_theme_constant_override("separation", 16)
+	var t := _label("PAUSED", 84, C_GOLD, 16)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	var sub := _label("", 26, C_TEXT, 7)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	pause_menu.set_meta("sub", sub)
+	var items := [
+		["RESUME", Color(0.2, 0.58, 0.18), func(): _set_paused(false)],
+		["SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()],
+		["RESTART MAP", Color(0.24, 0.4, 0.62), func():
+			_award_xp(false)
+			Progress.current_map = map_id
+			get_tree().reload_current_scene()],
+		["QUIT TO MAP SELECT", Color(0.55, 0.26, 0.18), func():
+			_award_xp(false)
+			Progress.current_map = ""
+			Progress.open_map_select = true
+			get_tree().reload_current_scene()],
+	]
+	for it in items:
+		var b := _button(it[0], it[1], 34)
+		b.custom_minimum_size = Vector2(0, 92)
+		var cb: Callable = it[2]
+		b.pressed.connect(func():
+			_sfx("click")
+			cb.call())
+		box.add_child(b)
+	var note := _label("Waves you cleared still earn Evolution XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	pause_menu.visible = false
+
+
+func _apply_settings() -> void:
+	for pair in [["Music", "music"], ["SFX", "sfx"]]:
+		var i := _bus(pair[0])
+		var v := float(Progress.setting(pair[1]))
+		AudioServer.set_bus_mute(i, v <= 0.01)
+		AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.01)))
+	if world_env != null:
+		world_env.glow_enabled = bool(Progress.setting("glow"))
+	_refresh_auto_button()
+
+
+func _refresh_auto_button() -> void:
+	if btn_auto == null:
+		return
+	var on := bool(Progress.setting("auto_start"))
+	btn_auto.text = "AUTO ON" if on else "AUTO OFF"
+	btn_auto.modulate = Color(0.75, 1.35, 0.75) if on else Color.WHITE
+
+
+func _toggle_button(key: String) -> Button:
+	var b := _button("", Color(0.3, 0.3, 0.3), 24)
+	b.custom_minimum_size = Vector2(160, 60)
+	var paint := func():
+		var on := bool(Progress.setting(key))
+		b.text = "ON" if on else "OFF"
+		b.modulate = Color(0.7, 1.5, 0.7) if on else Color(1.0, 0.85, 0.85)
+	paint.call()
+	b.pressed.connect(func():
+		_sfx("click", -6.0)
+		Progress.data.settings[key] = not bool(Progress.setting(key))
+		paint.call()
+		_apply_settings())
+	return b
+
+
+func _slider(key: String) -> HSlider:
+	var sl := HSlider.new()
+	sl.min_value = 0.0
+	sl.max_value = 1.0
+	sl.step = 0.05
+	sl.value = float(Progress.setting(key))
+	sl.custom_minimum_size = Vector2(320, 48)
+	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var track := _style(Color(0.1, 0.06, 0.03), 8, C_PANEL_EDGE, 2)
+	track.set_content_margin_all(6)
+	track.shadow_size = 0
+	sl.add_theme_stylebox_override("slider", track)
+	var fill := _style(C_GOLD.darkened(0.15), 8)
+	fill.set_content_margin_all(6)
+	fill.shadow_size = 0
+	sl.add_theme_stylebox_override("grabber_area", fill)
+	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
+	sl.value_changed.connect(func(v: float):
+		Progress.data.settings[key] = v
+		_apply_settings())
+	return sl
+
+
+func _open_settings() -> void:
+	var box: VBoxContainer = settings_panel.get_meta("box")
+	for c in box.get_children():
+		c.queue_free()
+	box.custom_minimum_size = Vector2(760, 0)
+	box.add_theme_constant_override("separation", 16)
+	var t := _label("SETTINGS", 64, C_GOLD, 14)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(t)
+	var rows := [
+		["Music volume", _slider("music")],
+		["Sound effects", _slider("sfx")],
+		["Auto-start waves", _toggle_button("auto_start")],
+		["Screen shake", _toggle_button("shake")],
+		["Gold popups", _toggle_button("popups")],
+		["Glow effects (turn off on slow phones)", _toggle_button("glow")],
+	]
+	for r in rows:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 20)
+		var l := _label(r[0], 28, C_TEXT, 7)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hb.add_child(l)
+		hb.add_child(r[1])
+		box.add_child(hb)
+	var note := _label("Auto-start: after you start wave 1, each next wave starts 2 seconds after the last one is cleared.", 18, Color(0.85, 0.78, 0.68), 5)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	var done := _button("DONE", Color(0.2, 0.58, 0.18), 34)
+	done.custom_minimum_size = Vector2(0, 84)
+	done.pressed.connect(func():
+		_sfx("click")
+		Progress.save()
+		settings_panel.visible = false)
+	box.add_child(done)
+	settings_panel.get_parent().move_child(settings_panel, -1)
+	settings_panel.visible = true
+
+
+func _evo_badge_text() -> String:
+	var pr := Progress.evo_progress()
+	var t := "Evolution Level %d   -   %d / %d XP" % [Progress.evo_level(), pr[0], pr[1]]
+	if Progress.points_free() > 0:
+		t += "   -   %d point%s to spend!" % [Progress.points_free(), "" if Progress.points_free() == 1 else "s"]
+	return t
+
+
+func _map_meta() -> Dictionary:
+	for m in Defs.map_list():
+		if str(m.id) == map_id:
+			return m
+	return {}
+
+
+## Grants Evolution XP for waves cleared since the last award (and the win bonus once). Returns text for the result screen.
+func _award_xp(won: bool) -> String:
+	if demo:
+		return ""
+	var meta := _map_meta()
+	var xp := 0
+	var new_waves := waves_cleared - xp_waves_awarded
+	if new_waves > 0:
+		xp += Progress.match_xp(meta, new_waves, false, false)
+	xp_waves_awarded = waves_cleared
+	if won and not xp_win_awarded:
+		xp_win_awarded = true
+		xp += Progress.match_xp(meta, 0, true, first_clear)
+	if xp <= 0:
+		return ""
+	var lv: Array = Progress.add_xp(xp)
+	var txt := "\n+%d EVOLUTION XP" % xp
+	if first_clear and won:
+		txt += " (first clear bonus!)"
+	if lv[1] > lv[0]:
+		txt += "\nEVOLUTION LEVEL %d!  +%d point%s for the Evolution tree" % [lv[1], lv[1] - lv[0], "" if lv[1] - lv[0] == 1 else "s"]
+		for hid in defs.heroes.heroes:
+			var u := int(defs.heroes.heroes[hid].get("evo_unlock", 1))
+			if u > lv[0] and u <= lv[1]:
+				txt += "\nNEW HERO UNLOCKED: %s!" % str(defs.heroes.heroes[hid].name)
+		_sfx("level_up", 0.0, 0.0, 0.0)
+	return txt
+
+
+func _open_evolution() -> void:
+	_build_evo_contents()
+	evo_panel.get_parent().move_child(evo_panel, -1)
+	evo_panel.visible = true
+
+
+func _build_evo_contents() -> void:
+	var box: VBoxContainer = evo_panel.get_meta("box")
+	for c in box.get_children():
+		c.queue_free()
+	box.custom_minimum_size = Vector2(1560, 0)
+	box.add_theme_constant_override("separation", 12)
+	# header
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 30)
+	box.add_child(head)
+	head.add_child(_label("EVOLUTION", 64, C_GOLD, 14))
+	var lvbox := VBoxContainer.new()
+	lvbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lvbox.add_theme_constant_override("separation", 4)
+	head.add_child(lvbox)
+	var pr := Progress.evo_progress()
+	lvbox.add_child(_label("LEVEL %d" % Progress.evo_level(), 36, Color(0.6, 0.9, 1.0), 8))
+	var bar := ColorRect.new()
+	bar.color = Color(0.08, 0.05, 0.03)
+	bar.custom_minimum_size = Vector2(460, 18)
+	lvbox.add_child(bar)
+	var fill := ColorRect.new()
+	fill.color = Color(0.4, 0.8, 1.0)
+	fill.size = Vector2(460.0 * clampf(float(pr[0]) / maxf(float(pr[1]), 1.0), 0.0, 1.0), 18)
+	bar.add_child(fill)
+	lvbox.add_child(_label("%d / %d XP to the next level" % [pr[0], pr[1]], 19, Color(0.85, 0.85, 0.9), 5))
+	var pts := Progress.points_free()
+	var plbl := _label("%d POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
+	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(plbl)
+	var intro := _label("Humanity grows stronger with every battle. Each Evolution level gives 1 point. Bonuses apply on every map, forever.", 20, Color(0.92, 0.86, 0.76), 5)
+	box.add_child(intro)
+	# branches
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 20)
+	box.add_child(cols)
+	for br in Progress.evo.branches:
+		var bc := Color(br.color[0], br.color[1], br.color[2])
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 8)
+		col.custom_minimum_size = Vector2(500, 0)
+		cols.add_child(col)
+		var bl := _label(str(br.name), 32, bc.lightened(0.3), 8)
+		bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col.add_child(bl)
+		for p in br.perks:
+			col.add_child(_perk_card(p, bc))
+	# hero unlocks
+	var hrow := HBoxContainer.new()
+	hrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	hrow.add_theme_constant_override("separation", 26)
+	box.add_child(hrow)
+	hrow.add_child(_label("HERO UNLOCKS:", 22, C_GOLD, 6))
+	for hid in defs.heroes.heroes:
+		var hd: Dictionary = defs.heroes.heroes[hid]
+		var open := Progress.hero_unlocked(hd)
+		hrow.add_child(_icon(_icon_tex(hid), 44))
+		hrow.add_child(_label("%s  LV %d%s" % [str(hd.name).split(" ")[0], int(hd.get("evo_unlock", 1)), "  - READY" if open else ""], 20,
+			Color(0.6, 1.0, 0.6) if open else Color(0.7, 0.66, 0.6), 5))
+	# footer
+	var foot := HBoxContainer.new()
+	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	foot.add_theme_constant_override("separation", 20)
+	box.add_child(foot)
+	var reset := _button("RESET POINTS (free)", Color(0.5, 0.28, 0.2), 22)
+	reset.custom_minimum_size = Vector2(320, 70)
+	reset.disabled = Progress.points_spent() == 0
+	reset.pressed.connect(func():
+		_sfx("coin")
+		Progress.reset_perks()
+		_build_evo_contents())
+	foot.add_child(reset)
+	if OS.is_debug_build():
+		var cheat := _button("+1000 XP (test)", Color(0.35, 0.3, 0.45), 20)
+		cheat.custom_minimum_size = Vector2(240, 70)
+		cheat.pressed.connect(func():
+			Progress.add_xp(1000)
+			_sfx("level_up")
+			_build_evo_contents())
+		foot.add_child(cheat)
+	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
+	done.custom_minimum_size = Vector2(320, 70)
+	done.pressed.connect(func():
+		_sfx("click")
+		evo_panel.visible = false
+		if not started:
+			# rebuild menus so hero locks and point counts refresh
+			Progress.current_map = ""
+			Progress.open_map_select = map_select.visible
+			get_tree().reload_current_scene())
+	foot.add_child(done)
+
+
+func _perk_card(p: Dictionary, bc: Color) -> Control:
+	var id: String = p.id
+	var rank := Progress.perk_rank(id)
+	var mx := int(p.max)
+	var card := PanelContainer.new()
+	var sb := _style(Color(0.22, 0.15, 0.09) if rank == 0 else bc.darkened(0.62), 14, bc.darkened(0.2) if rank > 0 else Color(0.36, 0.27, 0.18), 3)
+	sb.set_content_margin_all(10)
+	sb.shadow_size = 0
+	card.add_theme_stylebox_override("panel", sb)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 10)
+	card.add_child(hb)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 0)
+	hb.add_child(info)
+	var top := HBoxContainer.new()
+	info.add_child(top)
+	var nm := _label(str(p.name), 24, C_TEXT, 6)
+	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(nm)
+	top.add_child(_label("%d/%d" % [rank, mx], 22, C_GOLD if rank > 0 else Color(0.7, 0.65, 0.6), 6))
+	var now_txt := ("Now: " + Progress.perk_text(id, rank)) if rank > 0 else str(p.desc)
+	info.add_child(_label(now_txt, 17, Color(0.95, 0.9, 0.8) if rank > 0 else Color(0.8, 0.75, 0.68), 4))
+	info.add_child(_label(("Next: " + Progress.perk_text(id, rank + 1)) if rank < mx else "MAXED", 17,
+		Color(0.6, 0.95, 0.6) if rank < mx else C_GOLD, 4))
+	var plus := _button("+", Color(0.2, 0.55, 0.2), 34)
+	plus.custom_minimum_size = Vector2(64, 64)
+	plus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	plus.disabled = rank >= mx or Progress.points_free() < 1
+	plus.pressed.connect(func():
+		if Progress.buy_perk(id):
+			_sfx("upgrade")
+			_build_evo_contents())
+	hb.add_child(plus)
+	return card
 
 
 # =================================================================== test harness (screenshots, win-flow test)
@@ -2317,6 +2798,42 @@ func _run_demo() -> void:
 	var args := OS.get_cmdline_user_args()
 	for i in 3:
 		await get_tree().process_frame
+	if "--shoot-evo" in args or "--shoot-settings" in args or "--shoot-title" in args:
+		Progress.data.evo_xp = 2650
+		Progress.data.perks = {"start_gold": 2, "bounty": 1, "damage": 2, "hero_level": 1}
+		map_select.queue_free()
+		_build_map_select(title_screen.get_parent())
+		if "--shoot-evo" in args:
+			title_screen.visible = false
+			map_select.visible = true
+			_open_evolution()
+		elif "--shoot-settings" in args:
+			_open_settings()
+		for i in 3:
+			await get_tree().process_frame
+		await _shot("demo_menu.png")
+		get_tree().quit()
+		return
+	if "--shoot-pause" in args:
+		_start_game()
+		_demo_build(3000)
+		sim.start_wave()
+		await _wait_ticks(int(6.0 / TICK))
+		_set_paused(true)
+		for i in 3:
+			await get_tree().process_frame
+		await _shot("demo_pause.png")
+		_set_paused(false)
+		demo = false   # let auto-start run like a real match
+		while not sim.can_start_wave() or not sim.enemies.is_empty():
+			await get_tree().process_frame
+		await _wait_ticks(int(0.6 / TICK))
+		await _shot("demo_autostart.png")
+		print("AUTO wave=", sim.wave, " auto_t=", auto_t)
+		await _wait_ticks(int(2.0 / TICK))
+		print("AUTO after wait wave=", sim.wave)
+		get_tree().quit()
+		return
 	if "--shoot-select" in args:
 		Progress.data = {"unlocked": ["mammoth_valley", "glacier_pass", "volcano_ridge", "river_delta"], "stars": {"mammoth_valley": 3, "glacier_pass": 2, "volcano_ridge": 1},
 			"hero": "kira", "tab": "Bronze Age"}
