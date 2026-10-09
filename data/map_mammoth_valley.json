@@ -51,5 +51,9 @@
    15.4,
    -2.0
   ]
- ]
+ ],
+ "id": "mammoth_valley",
+ "theme": "meadow",
+ "waves_file": "waves.json",
+ "hp_mult": 1.0
 }

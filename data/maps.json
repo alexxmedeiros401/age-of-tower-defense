@@ -1,0 +1,25 @@
+{
+ "maps": [
+  {
+   "id": "mammoth_valley",
+   "name": "Mammoth Valley",
+   "era": "Stone Age",
+   "difficulty": "Normal",
+   "blurb": "One long road through the meadow. Learn the robots."
+  },
+  {
+   "id": "glacier_pass",
+   "name": "Glacier Pass",
+   "era": "Stone Age",
+   "difficulty": "Hard",
+   "blurb": "A shorter road and a frozen lake where you can't build. Tougher robots."
+  },
+  {
+   "id": "volcano_ridge",
+   "name": "Volcano Ridge",
+   "era": "Stone Age",
+   "difficulty": "Brutal",
+   "blurb": "Two portals. Lava everywhere. Two Prime Walkers at once."
+  }
+ ]
+}

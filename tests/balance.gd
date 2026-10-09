@@ -8,14 +8,18 @@ var samples := PackedVector2Array()
 
 
 func _init() -> void:
-	defs = Defs.load_all()
-	map = Defs.load_map("mammoth_valley")
+	var args := OS.get_cmdline_user_args()
+	var map_id: String = args[0] if args.size() > 0 else "mammoth_valley"
+	map = Defs.load_map(map_id)
+	defs = Defs.load_all(map)
+	print("=== ", map.name, " (hp x", map.get("hp_mult", 1.0), ", start gold ", map.start_gold, ")")
 	var s := Sim.new()
 	s.setup(defs, map)
-	var d := 0.0
-	while d < s.path_length:
-		samples.append(s.pos_at(d))
-		d += 0.25
+	for pi in s.paths.size():
+		var d := 0.0
+		while d < s.paths[pi].length:
+			samples.append(s.pos_at(d, pi))
+			d += 0.25
 
 	var strategies := {
 		"lazy (2 slingers, no upgrades)": [["place", "rock_slinger"], ["place", "rock_slinger"]],
@@ -24,7 +28,7 @@ func _init() -> void:
 		"siege heavy": _siege(),
 	}
 	for name in strategies:
-		_run(name, strategies[name])
+		_run(name, strategies[name], name == "balanced" or name == "siege heavy")
 	quit()
 
 
@@ -59,6 +63,39 @@ func _siege() -> Array:
 	]
 
 
+## After the opening plan: buy the cheapest affordable upgrade, otherwise add another tower.
+func _spend_greedy(sim: Sim, placed: Array) -> void:
+	var best_id := -1
+	var best_key := ""
+	var best_cost := 1 << 30
+	for i in placed.size():
+		var t = sim.get_tower(placed[i])
+		if t == null:
+			continue
+		for o in sim.upgrade_options(t):
+			var want: String = "A" if i % 2 == 0 else "B"
+			if o.get("branch_pick", false) and o.key != want:
+				continue
+			if o.cost < best_cost:
+				best_cost = o.cost
+				best_id = t.id
+				best_key = o.key
+	var order := ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]
+	var type: String = order[placed.size() % order.size()]
+	var tcost := int(defs.towers[type].cost)
+	# upgrade when it's affordable and not wildly pricier than a fresh tower; otherwise expand
+	if best_id != -1 and sim.gold >= best_cost and (best_cost <= tcost * 6 or placed.size() >= 14):
+		sim.upgrade_tower(best_id, best_key)
+		return
+	if placed.size() < 14:
+		if sim.gold >= tcost:
+			var spot := _best_spot(sim, type)
+			if spot != Vector2.INF:
+				var id := sim.place_tower(type, spot)
+				if id != -1:
+					placed.append(id)
+
+
 func _coverage(p: Vector2, r: float) -> int:
 	var c := 0
 	for s in samples:
@@ -88,7 +125,7 @@ func _best_spot(sim: Sim, type: String) -> Vector2:
 	return best
 
 
-func _run(name: String, plan: Array) -> void:
+func _run(name: String, plan: Array, keep_spending := false) -> void:
 	var sim := Sim.new()
 	sim.setup(defs, map)
 	var placed := []
@@ -138,6 +175,9 @@ func _run(name: String, plan: Array) -> void:
 				step += 1
 			else:
 				break
+		if keep_spending and step >= mini(plan.size(), 12) and sim.tick % 15 == 0:
+			step = plan.size()
+			_spend_greedy(sim, placed)
 		if sim.can_start_wave() and sim.enemies.is_empty():
 			if sim.wave > last_wave:
 				lives_log.append(lives_at_wave - sim.lives)
@@ -145,8 +185,14 @@ func _run(name: String, plan: Array) -> void:
 			lives_at_wave = sim.lives
 			if sim.wave >= sim.total_waves:
 				break
+			if sim.wave + 1 == sim.total_waves and keep_spending:
+				for t in sim.towers:
+					t.target = "strong"   # a competent player retargets for the boss
 			sim.start_wave()
 		sim.step()
+		for ev in sim.events:
+			if ev.e == "leak" and ev.type == "prime_walker":
+				print("    BOSS LEAKED wave %d with %d/%d hp left" % [sim.wave, int(ev.hp), int(ev.max_hp)])
 		sim.events.clear()
 	lives_log.append(lives_at_wave - sim.lives)
 	print("%-32s result=%-5s wave=%2d lives=%3d kills=%4d towers=%d spent_plan=%d/%d gold_left=%d" % [

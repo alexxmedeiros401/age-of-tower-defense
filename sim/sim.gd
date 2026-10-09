@@ -9,9 +9,12 @@ const SELL_RATE := 0.7
 
 var defs: Dictionary
 var map: Dictionary
-var path := PackedVector2Array()
+var path := PackedVector2Array()       # first path (kept for visuals that only need one)
 var cum_len := PackedFloat32Array()
 var path_length := 0.0
+var paths: Array = []                    # [{pts, cum, length}] one per portal
+var blockers: Array = []                 # [Vector3(x, z, r)] no-build zones (lakes, lava)
+var hp_mult := 1.0
 var path_half_width := 0.85
 
 var tick := 0
@@ -41,14 +44,25 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 	lives = int(map.start_lives)
 	path_half_width = float(map.path_width) * 0.5
 	total_waves = defs.waves.size()
-	path.clear()
-	for p in map.path:
-		path.append(Vector2(p[0], p[1]))
-	cum_len = PackedFloat32Array([0.0])
-	path_length = 0.0
-	for i in range(1, path.size()):
-		path_length += path[i].distance_to(path[i - 1])
-		cum_len.append(path_length)
+	hp_mult = float(map.get("hp_mult", 1.0))
+	var raw_paths: Array = map.paths if map.has("paths") else [map.path]
+	paths.clear()
+	for rp in raw_paths:
+		var pts := PackedVector2Array()
+		for p in rp:
+			pts.append(Vector2(p[0], p[1]))
+		var cum := PackedFloat32Array([0.0])
+		var total := 0.0
+		for i in range(1, pts.size()):
+			total += pts[i].distance_to(pts[i - 1])
+			cum.append(total)
+		paths.append({"pts": pts, "cum": cum, "length": total})
+	path = paths[0].pts
+	cum_len = paths[0].cum
+	path_length = paths[0].length
+	blockers.clear()
+	for bl in map.get("blockers", []):
+		blockers.append(Vector3(bl[0], bl[1], bl[2]))
 
 
 func _id() -> int:
@@ -57,29 +71,41 @@ func _id() -> int:
 
 
 # ---------------------------------------------------------------- path helpers
-func pos_at(d: float) -> Vector2:
-	d = clampf(d, 0.0, path_length)
-	for i in range(1, path.size()):
-		if d <= cum_len[i]:
-			var seg := cum_len[i] - cum_len[i - 1]
-			return path[i - 1].lerp(path[i], (d - cum_len[i - 1]) / maxf(seg, 0.0001))
-	return path[path.size() - 1]
+func pos_at(d: float, pi: int = 0) -> Vector2:
+	var P: Dictionary = paths[pi]
+	var pts: PackedVector2Array = P.pts
+	var cum: PackedFloat32Array = P.cum
+	d = clampf(d, 0.0, P.length)
+	for i in range(1, pts.size()):
+		if d <= cum[i]:
+			var seg := cum[i] - cum[i - 1]
+			return pts[i - 1].lerp(pts[i], (d - cum[i - 1]) / maxf(seg, 0.0001))
+	return pts[pts.size() - 1]
 
 
-func dir_at(d: float) -> Vector2:
-	d = clampf(d, 0.0, path_length)
-	for i in range(1, path.size()):
-		if d <= cum_len[i]:
-			return (path[i] - path[i - 1]).normalized()
-	return (path[path.size() - 1] - path[path.size() - 2]).normalized()
+func dir_at(d: float, pi: int = 0) -> Vector2:
+	var P: Dictionary = paths[pi]
+	var pts: PackedVector2Array = P.pts
+	var cum: PackedFloat32Array = P.cum
+	d = clampf(d, 0.0, P.length)
+	for i in range(1, pts.size()):
+		if d <= cum[i]:
+			return (pts[i] - pts[i - 1]).normalized()
+	return (pts[pts.size() - 1] - pts[pts.size() - 2]).normalized()
 
 
 func dist_to_path(p: Vector2) -> float:
 	var best := INF
-	for i in range(1, path.size()):
-		var c := Geometry2D.get_closest_point_to_segment(p, path[i - 1], path[i])
-		best = minf(best, c.distance_to(p))
+	for P in paths:
+		var pts: PackedVector2Array = P.pts
+		for i in range(1, pts.size()):
+			var c := Geometry2D.get_closest_point_to_segment(p, pts[i - 1], pts[i])
+			best = minf(best, c.distance_to(p))
 	return best
+
+
+func remaining(e: Dictionary) -> float:
+	return float(paths[e.pi].length) - float(e.dist)
 
 
 # ---------------------------------------------------------------- towers
@@ -91,6 +117,9 @@ func placement_error(type: String, p: Vector2) -> String:
 		return "Can't build off the map"
 	if dist_to_path(p) < path_half_width + r * 0.8:
 		return "Can't build on the path"
+	for bl in blockers:
+		if Vector2(bl.x, bl.y).distance_to(p) < bl.z + r * 1.3:
+			return "Can't build there"
 	for t in towers:
 		if t.pos.distance_to(p) < float(t.radius) + r:
 			return "Too close to another tower"
@@ -193,6 +222,14 @@ func upgrade_tower(id: int, key: String = "") -> bool:
 	return false
 
 
+func cycle_target(id: int) -> String:
+	var t = get_tower(id)
+	if t == null:
+		return ""
+	t.target = TARGET_MODES[(TARGET_MODES.find(t.target) + 1) % TARGET_MODES.size()]
+	return t.target
+
+
 func sell_value(t: Dictionary) -> int:
 	return int(t.spent * SELL_RATE)
 
@@ -220,6 +257,8 @@ func can_start_wave() -> bool:
 		return false
 	if state == "won" and not endless:
 		return false
+	if wave >= total_waves and not endless:
+		return false   # the boss wave was the last one; no extra waves until Endless is chosen
 	return spawn_queue.is_empty()
 
 
@@ -231,9 +270,11 @@ func start_wave() -> bool:
 	var groups: Array = defs.waves[wave - 1] if wave <= total_waves else _endless_wave(wave)
 	var count := 0
 	for g in groups:
+		var fixed_path := int(g.get("path", -1))
 		for i in range(int(g.count)):
 			var at := tick + int(round((float(g.delay) + float(g.interval) * i) / TICK)) + 1
-			spawn_queue.append({"t": at, "type": g.type, "wave": wave})
+			var pi: int = fixed_path if fixed_path >= 0 else i % paths.size()
+			spawn_queue.append({"t": at, "type": g.type, "wave": wave, "pi": mini(pi, paths.size() - 1)})
 			count += 1
 	spawn_queue.sort_custom(func(a, b): return a.t < b.t)
 	wave_remaining[wave] = count
@@ -262,11 +303,13 @@ func _hp_scale(w: int) -> float:
 
 
 # ---------------------------------------------------------------- enemies
-func _spawn_enemy(type: String, w: int, dist: float = 0.0) -> Dictionary:
+func _spawn_enemy(type: String, w: int, dist: float = 0.0, pi: int = 0) -> Dictionary:
 	var d: Dictionary = defs.enemies[type]
-	var hp := float(d.hp) * _hp_scale(w)
+	var hp := float(d.hp) * _hp_scale(w) * hp_mult
+	if d.get("boss", false):
+		hp *= float(map.get("boss_hp_mult", 1.0))
 	var e := {
-		"id": _id(), "type": type, "wave": w, "dist": dist, "pos": pos_at(dist), "prev_pos": pos_at(dist),
+		"id": _id(), "type": type, "wave": w, "pi": pi, "dist": dist, "pos": pos_at(dist, pi), "prev_pos": pos_at(dist, pi),
 		"hp": hp, "max_hp": hp, "speed": float(d.speed), "armor": float(d.armor),
 		"boss": d.get("boss", false), "alive": true,
 		"slow_amt": 0.0, "slow_until": 0, "stun_until": 0, "summon_cd": 0.0,
@@ -318,7 +361,7 @@ func _kill(e: Dictionary, src: Dictionary) -> void:
 	if d.has("on_death"):
 		var od: Dictionary = d.on_death
 		for i in range(int(od.count)):
-			var child := _spawn_enemy(od.type, e.wave, maxf(0.0, e.dist - 0.35 * i))
+			var child := _spawn_enemy(od.type, e.wave, maxf(0.0, e.dist - 0.35 * i), e.pi)
 			wave_remaining[e.wave] += 1
 			child.stun_until = tick + 6
 	_finish_enemy(e)
@@ -339,13 +382,25 @@ func _finish_enemy(e: Dictionary) -> void:
 
 
 # ---------------------------------------------------------------- targeting
-func _find_targets(center: Vector2, rng_radius: float, limit: int = 1) -> Array:
+const TARGET_MODES := ["first", "strong", "close", "last"]
+
+
+## mode: first = closest to the cave, strong = toughest (bosses first), close = nearest the tower, last = furthest back
+func _find_targets(center: Vector2, rng_radius: float, limit: int = 1, mode: String = "first") -> Array:
 	var found := []
 	var r2 := rng_radius * rng_radius
 	for e in enemies:
 		if e.alive and e.pos.distance_squared_to(center) <= r2:
 			found.append(e)
-	found.sort_custom(func(a, b): return a.dist > b.dist)   # "first": furthest along the path
+	match mode:
+		"strong":
+			found.sort_custom(func(a, b): return a.max_hp > b.max_hp or (a.max_hp == b.max_hp and remaining(a) < remaining(b)))
+		"close":
+			found.sort_custom(func(a, b): return a.pos.distance_squared_to(center) < b.pos.distance_squared_to(center))
+		"last":
+			found.sort_custom(func(a, b): return remaining(a) > remaining(b))
+		_:
+			found.sort_custom(func(a, b): return remaining(a) < remaining(b))
 	if limit > 0 and found.size() > limit:
 		found.resize(limit)
 	return found
@@ -360,7 +415,7 @@ func step() -> void:
 	# spawns
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= tick:
 		var s: Dictionary = spawn_queue.pop_front()
-		_spawn_enemy(s.type, s.wave)
+		_spawn_enemy(s.type, s.wave, 0.0, int(s.get("pi", 0)))
 
 	# movement, boss summons, leaks
 	for e in enemies:
@@ -378,21 +433,21 @@ func step() -> void:
 			if e.summon_cd <= 0.0:
 				e.summon_cd = float(d.summon.every)
 				for i in range(int(d.summon.count)):
-					_spawn_enemy(d.summon.type, e.wave, e.dist + 0.6 + 0.4 * i)
+					_spawn_enemy(d.summon.type, e.wave, e.dist + 0.6 + 0.4 * i, e.pi)
 					wave_remaining[e.wave] += 1
 				events.append({"e": "summon", "id": e.id})
-		if e.dist >= path_length:
+		if e.dist >= float(paths[e.pi].length):
 			e.alive = false
 			var loss: int = mini(int(d.leak), lives)
 			lives -= loss
 			stats.leaked += 1
-			events.append({"e": "leak", "id": e.id, "lives": loss})
+			events.append({"e": "leak", "id": e.id, "lives": loss, "type": e.type, "hp": e.hp, "max_hp": e.max_hp})
 			_finish_enemy(e)
 			if lives <= 0:
 				state = "lost"
 				events.append({"e": "defeat"})
 				return
-		e.pos = pos_at(e.dist)
+		e.pos = pos_at(e.dist, e.pi)
 
 	# towers
 	for t in towers:
@@ -404,7 +459,7 @@ func step() -> void:
 		src.tower_id = t.id
 		match s.kind:
 			"projectile":
-				var tg := _find_targets(t.pos, s.range)
+				var tg := _find_targets(t.pos, s.range, 1, t.target)
 				if tg.is_empty():
 					continue
 				var e: Dictionary = tg[0]
@@ -419,19 +474,19 @@ func step() -> void:
 				t.cd = float(s.cooldown)
 				events.append({"e": "fire", "id": t.id})
 			"lob":
-				var tg2 := _find_targets(t.pos, s.range)
+				var tg2 := _find_targets(t.pos, s.range, 1, t.target)
 				if tg2.is_empty():
 					continue
 				var e2: Dictionary = tg2[0]
 				var flight := float(s.flight)
-				var lead := pos_at(e2.dist + e2.speed * flight * 0.85)
+				var lead := pos_at(e2.dist + e2.speed * flight * 0.85, e2.pi)
 				t.facing = (lead - t.pos).normalized()
 				_add_projectile({"kind": "lob", "pos": t.pos, "start": t.pos, "aim": lead,
 					"t": 0.0, "flight": flight, "damage": float(s.damage), "src": src})
 				t.cd = float(s.cooldown)
 				events.append({"e": "fire", "id": t.id})
 			"melee":
-				var tg3 := _find_targets(t.pos, s.range, int(s.max_targets))
+				var tg3 := _find_targets(t.pos, s.range, int(s.max_targets), t.target)
 				if tg3.is_empty():
 					continue
 				t.facing = (tg3[0].pos - t.pos).normalized()

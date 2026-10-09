@@ -33,7 +33,17 @@ const ICONS := {
 	"boulder_catapult": preload("res://assets/ui/icon_boulder_catapult.png"),
 	"tar_shaman": preload("res://assets/ui/icon_tar_shaman.png"),
 }
-const TEX_GROUND := preload("res://assets/textures/ground_mammoth_valley.png")
+const ICON_STAR := preload("res://assets/ui/icon_star.png")
+const ICON_STAR_EMPTY := preload("res://assets/ui/icon_star_empty.png")
+const ICON_LOCK := preload("res://assets/ui/icon_lock.png")
+const THEMES := {
+	"meadow": {"bg": Color(0.12, 0.3, 0.1), "far": Color(0.13, 0.32, 0.1), "ambient": Color(0.82, 0.88, 1.0), "ambient_e": 0.36,
+		"sun": Color(1.0, 0.95, 0.86), "sun_e": 0.74, "rock": Color(0.52, 0.5, 0.47), "cave": Color(0.46, 0.43, 0.4)},
+	"snow": {"bg": Color(0.64, 0.72, 0.82), "far": Color(0.6, 0.68, 0.78), "ambient": Color(0.78, 0.86, 1.0), "ambient_e": 0.4,
+		"sun": Color(0.9, 0.95, 1.05), "sun_e": 0.6, "rock": Color(0.5, 0.54, 0.6), "cave": Color(0.55, 0.58, 0.64)},
+	"volcano": {"bg": Color(0.07, 0.05, 0.05), "far": Color(0.09, 0.07, 0.07), "ambient": Color(0.86, 0.8, 0.78), "ambient_e": 0.34,
+		"sun": Color(1.0, 0.86, 0.72), "sun_e": 0.78, "rock": Color(0.16, 0.14, 0.14), "cave": Color(0.22, 0.19, 0.18)},
+}
 const ICON_GOLD := preload("res://assets/ui/icon_gold.png")
 const ICON_LIVES := preload("res://assets/ui/icon_lives.png")
 const ICON_WAVE := preload("res://assets/ui/icon_wave.png")
@@ -104,19 +114,43 @@ var lbl_overlay_sub: Label
 var btn_endless: Button
 var title_screen: Control
 var demo := false
+var map_id := "mammoth_valley"
+var map_order: Array = []
+var theme: Dictionary
+var map_select: Control
+var btn_target: Button
+var lbl_stars: Label
 
 
 func _ready() -> void:
-	defs = Defs.load_all()
-	map = Defs.load_map("mammoth_valley")
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--map="):
+			Progress.current_map = a.trim_prefix("--map=")
+	map_order = []
+	for m in Defs.map_list():
+		map_order.append(m.id)
+	if Progress.current_map != "":
+		map_id = Progress.current_map
+	map = Defs.load_map(map_id)
+	defs = Defs.load_all(map)
+	theme = THEMES[map.get("theme", "meadow")]
 	sim = Sim.new()
 	sim.setup(defs, map)
 	_build_world()
 	_build_audio()
 	_build_hud()
 	demo = "--demo" in OS.get_cmdline_user_args()
-	if demo:
+	if "--autowin" in OS.get_cmdline_user_args():
+		_run_autowin()
+	elif demo:
 		_run_demo()
+	elif Progress.open_map_select:
+		Progress.open_map_select = false
+		title_screen.visible = false
+		map_select.visible = true
+	elif Progress.current_map != "":
+		title_screen.visible = false
+		_start_game()
 
 
 # =================================================================== helpers
@@ -193,10 +227,10 @@ func _yaw(dir: Vector2) -> float:
 func _build_world() -> void:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.12, 0.3, 0.1)
+	env.background_color = theme.bg
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.82, 0.88, 1.0)
-	env.ambient_light_energy = 0.36
+	env.ambient_light_color = theme.ambient
+	env.ambient_light_energy = theme.ambient_e
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.glow_enabled = true
 	env.glow_intensity = 0.32
@@ -210,8 +244,8 @@ func _build_world() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, -40, 0)
-	sun.light_color = Color(1.0, 0.95, 0.86)
-	sun.light_energy = 0.74
+	sun.light_color = theme.sun
+	sun.light_energy = theme.sun_e
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.5
 	sun.directional_shadow_max_distance = 80.0
@@ -230,18 +264,21 @@ func _build_world() -> void:
 	var pm := PlaneMesh.new()
 	pm.size = GROUND_RECT.size
 	var gm := StandardMaterial3D.new()
-	gm.albedo_texture = TEX_GROUND
+	gm.albedo_texture = load("res://assets/textures/ground_%s.png" % map_id)
 	gm.albedo_color = Color(0.9, 0.9, 0.88)
 	gm.roughness = 1.0
 	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_mi(pm, gm, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
 	var far := PlaneMesh.new()
 	far.size = Vector2(160, 120)
-	_mi(far, _mat("far_ground", Color(0.13, 0.32, 0.1)), self, Vector3(0, -0.02, 0))
+	_mi(far, _mat("far_ground", theme.far), self, Vector3(0, -0.02, 0))
 
-	_build_portal(sim.path[0])
+	for P in sim.paths:
+		var pts: PackedVector2Array = P.pts
+		_build_portal(pts[0], (pts[1] - pts[0]).normalized())
 	_build_cave(sim.path[sim.path.size() - 1])
 	_build_decor()
+	_build_blockers()
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -267,10 +304,10 @@ func _frame_camera() -> void:
 	cam_base = cam.position
 
 
-func _build_portal(p: Vector2) -> void:
+func _build_portal(p: Vector2, dir: Vector2) -> void:
 	var n := Node3D.new()
-	n.position = _v3(p + Vector2(1.3, 0), 0)
-	n.rotation.y = PI * 0.5 - 0.65
+	n.position = _v3(p + dir * 1.3, 0)
+	n.rotation.y = _yaw(dir) - 0.65
 	add_child(n)
 	var tor := TorusMesh.new()
 	tor.inner_radius = 0.95
@@ -291,8 +328,10 @@ func _build_cave(p: Vector2) -> void:
 	var n := Node3D.new()
 	n.position = _v3(p, 0)
 	add_child(n)
-	var rock := _mat("cave_rock", Color(0.46, 0.43, 0.4))
-	var rock2 := _mat("cave_rock2", Color(0.36, 0.34, 0.32))
+	var rock := _mat("cave_rock", theme.cave)
+	var rock2 := _mat("cave_rock2", theme.cave.darkened(0.22))
+	if map.get("theme", "") == "snow":
+		_mi(_sph(1.5, 9), _mat("snowcap", Color(0.95, 0.97, 1.0)), n, Vector3(0.9, 0.75, 0), Vector3(0, 0.4, 0), Vector3(1, 0.6, 1.3))
 	_mi(_sph(1.7, 9), rock, n, Vector3(0.8, 0.2, 0), Vector3(0, 0.4, 0), Vector3(1, 0.95, 1.35))
 	_mi(_sph(1.0, 8), rock2, n, Vector3(1.0, 0.9, -1.1), Vector3.ZERO, Vector3(1.1, 1.0, 1))
 	_mi(_sph(0.95, 8), _mat("cave_mouth", Color(0.04, 0.03, 0.03)), n, Vector3(-0.6, 0.45, 0), Vector3.ZERO, Vector3(0.45, 0.85, 0.9))
@@ -318,10 +357,15 @@ func _build_cave(p: Vector2) -> void:
 func _build_decor() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
+	var th: String = map.get("theme", "meadow")
 	var b: Array = map.bounds
 	var trunk := _mat("trunk", Color(0.36, 0.22, 0.1))
 	var pines := [_mat("pine1", Color(0.11, 0.36, 0.14)), _mat("pine2", Color(0.16, 0.44, 0.15))]
 	var bush := [_mat("bush1", Color(0.22, 0.5, 0.15)), _mat("bush2", Color(0.3, 0.56, 0.18))]
+	var snow := _mat("snow", Color(0.96, 0.98, 1.0))
+	var dead := _mat("deadwood", Color(0.12, 0.1, 0.09))
+	var ember := _mat("ember", Color(1, 0.4, 0.1), {"emit": Color(1, 0.35, 0.05), "emit_e": 2.0})
+	var rockm := _mat("decor_rock", theme.rock)
 	var placed := 0
 	var tries := 0
 	while placed < 95 and tries < 2000:
@@ -338,12 +382,27 @@ func _build_decor() -> void:
 		t.scale = Vector3(s, s * r.randf_range(0.9, 1.2), s)
 		t.rotation.y = r.randf() * TAU
 		add_child(t)
-		if r.randf() < 0.72:
+		var roll := r.randf()
+		if th == "volcano":
+			if roll < 0.55:   # charred dead tree
+				_mi(_cyl(0.08, 0.14, 1.6, 5), dead, t, Vector3(0, 0.8, 0))
+				for k in 3:
+					_mi(_cyl(0.03, 0.06, 0.7, 4), dead, t, Vector3(0, 0.9 + k * 0.25, 0), Vector3(0.9, k * 2.1, 0.0))
+			else:             # basalt boulder with a glowing seam
+				_mi(_sph(r.randf_range(0.4, 0.8), 6), rockm, t, Vector3(0, 0.2, 0), Vector3.ZERO, Vector3(1.2, 0.75, 1))
+				if roll > 0.85:
+					_mi(_box(0.5, 0.05, 0.06), ember, t, Vector3(0, 0.55, 0.3))
+			continue
+		if roll < 0.72:
 			_mi(_cyl(0.12, 0.16, 0.6, 6), trunk, t, Vector3(0, 0.3, 0))
 			var pm: Material = pines[r.randi() % 2]
 			_mi(_cyl(0.0, 0.85, 1.3, 7), pm, t, Vector3(0, 1.05, 0))
 			_mi(_cyl(0.0, 0.62, 1.0, 7), pines[(r.randi() + 1) % 2], t, Vector3(0, 1.65, 0))
-			_mi(_cyl(0.0, 0.38, 0.7, 7), pm, t, Vector3(0, 2.15, 0))
+			_mi(_cyl(0.0, 0.38, 0.7, 7), snow if th == "snow" else pm, t, Vector3(0, 2.15, 0))
+			if th == "snow":
+				_mi(_cyl(0.3, 0.7, 0.18, 7), snow, t, Vector3(0, 1.25, 0))
+		elif th == "snow":
+			_mi(_sph(0.6, 8), snow, t, Vector3(0, 0.15, 0), Vector3.ZERO, Vector3(1.4, 0.55, 1.1))
 		else:
 			var bm: Material = bush[r.randi() % 2]
 			_mi(_sph(0.55, 8), bm, t, Vector3(0, 0.35, 0), Vector3.ZERO, Vector3(1.2, 0.8, 1.1))
@@ -354,7 +413,64 @@ func _build_decor() -> void:
 		var inside2: bool = x2 > b[0] and x2 < b[2] and z2 > b[1] and z2 < b[3]
 		if inside2 or sim.dist_to_path(Vector2(x2, z2)) < 1.5:
 			continue
-		_mi(_sph(r.randf_range(0.3, 0.7), 7), _mat("boulder", Color(0.52, 0.5, 0.47)), self, Vector3(x2, 0.12, z2), Vector3(0, r.randf() * 3, 0), Vector3(1.25, 0.7, 1))
+		_mi(_sph(r.randf_range(0.3, 0.7), 7), rockm, self, Vector3(x2, 0.12, z2), Vector3(0, r.randf() * 3, 0), Vector3(1.25, 0.7, 1))
+	if th == "volcano":
+		# the volcano itself, smoking on the horizon
+		var v := Node3D.new()
+		v.position = Vector3(-3.0, 0, -13.5)
+		add_child(v)
+		_mi(_cyl(1.6, 6.5, 4.2, 10), _mat("volcano", Color(0.15, 0.12, 0.12)), v, Vector3(0, 2.1, 0))
+		_mi(_cyl(1.5, 1.5, 0.1, 10), _mat("crater", Color(1, 0.5, 0.1), {"emit": Color(1, 0.4, 0.05), "emit_e": 3.0, "unshaded": true}), v, Vector3(0, 4.22, 0))
+		for k in 3:
+			_mi(_box(0.35, 0.05, 2.8), _mat("lavaflow", Color(1, 0.45, 0.08), {"emit": Color(1, 0.35, 0.05), "emit_e": 2.0}), v,
+				Vector3(-1.2 + k * 1.2, 2.3, 2.6 - k * 0.3), Vector3(-0.75, 0.3 - k * 0.3, 0))
+		var vl := OmniLight3D.new()
+		vl.light_color = Color(1, 0.5, 0.2)
+		vl.light_energy = 3.0
+		vl.omni_range = 9.0
+		vl.position = Vector3(0, 5.0, 0)
+		v.add_child(vl)
+
+
+## No-build zones: frozen lakes, lava pools, rock outcrops. The ground texture paints them; these add depth and glow.
+func _build_blockers() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 5
+	for bl in map.get("blockers", []):
+		var pos := Vector3(bl[0], 0, bl[1])
+		var rad := float(bl[2])
+		var kind: String = bl[3] if bl.size() > 3 else "rocks"
+		var n := Node3D.new()
+		n.position = pos
+		add_child(n)
+		match kind:
+			"lake":
+				_mi(_cyl(rad * 0.95, rad * 0.95, 0.02, 32), _mat("ice", Color(0.75, 0.9, 1.0, 0.3), {"rough": 0.05, "metal": 0.3}), n, Vector3(0, 0.03, 0))
+				for k in 7:
+					var a := TAU * k / 7.0 + r.randf() * 0.4
+					var h := r.randf_range(0.3, 0.7)
+					_mi(_cyl(0.0, r.randf_range(0.12, 0.22), h, 5), _mat("shard", Color(0.7, 0.88, 1.0), {"emit": Color(0.4, 0.7, 1.0), "emit_e": 0.6, "rough": 0.1}), n,
+						Vector3(cos(a) * rad, h * 0.5, sin(a) * rad), Vector3(r.randf_range(-0.3, 0.3), 0, r.randf_range(-0.3, 0.3)))
+			"lava":
+				var pool := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("lava", Color(1, 0.55, 0.15, 0.45), {"emit": Color(1, 0.42, 0.05), "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
+				for k in 9:
+					var a2 := TAU * k / 9.0 + r.randf() * 0.3
+					_mi(_sph(r.randf_range(0.18, 0.32), 6), _mat("crust", Color(0.08, 0.06, 0.06)), n,
+						Vector3(cos(a2) * rad, 0.08, sin(a2) * rad), Vector3.ZERO, Vector3(1.3, 0.6, 1))
+				var ll := OmniLight3D.new()
+				ll.light_color = Color(1, 0.45, 0.15)
+				ll.light_energy = 0.9
+				ll.omni_range = rad * 2.2
+				ll.position = Vector3(0, 0.8, 0)
+				n.add_child(ll)
+				effects.append({"node": n, "life": INF, "t": r.randf() * 5.0, "kind": "lava", "pool": pool, "light": ll})
+			_:
+				for k in 5:
+					var off := Vector2(r.randf_range(-0.6, 0.6), r.randf_range(-0.6, 0.6)) * rad
+					var sz := r.randf_range(0.35, 0.7) * rad
+					var rock := _mi(_sph(sz, 6), _mat("outcrop", theme.rock), n, Vector3(off.x, sz * 0.4, off.y), Vector3(0, r.randf() * 3, 0), Vector3(1.1, 0.8, 1))
+					if map.get("theme", "") == "snow":
+						_mi(_sph(sz * 0.7, 6), _mat("snow", Color(0.96, 0.98, 1.0)), rock, Vector3(0, sz * 0.55, 0), Vector3.ZERO, Vector3(1, 0.45, 1))
 
 
 # =================================================================== audio
@@ -408,7 +524,25 @@ func _make_tower_visual(type: String) -> Node3D:
 	var orb := model.find_child("Orb", true, false)
 	if orb != null:
 		root.set_meta("orb", orb)
+	_retheme_base(model)
 	return root
+
+
+## Tower bases are modelled as grass; on snow/volcano maps repaint them to match the ground.
+func _retheme_base(model: Node) -> void:
+	var th: String = map.get("theme", "meadow")
+	if th == "meadow":
+		return
+	var col := Color(0.9, 0.93, 0.98) if th == "snow" else Color(0.3, 0.26, 0.24)
+	var m := _mat("base_" + th, col, {"rough": 0.9})
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		for si in mesh.get_surface_count():
+			var sm := mesh.surface_get_material(si)
+			if sm != null and sm.resource_name == "Grass":
+				mi.set_surface_override_material(si, m)
 
 
 func _spawn_tower_node(t: Dictionary) -> void:
@@ -564,6 +698,12 @@ func _update_effects(dt: float) -> void:
 				ring.scale = Vector3.ONE * (1.0 + 0.05 * sin(time_s * 4.0))
 				var core: Node3D = n.get_meta("core")
 				core.rotation.y += dt * 2.0
+			"lava":
+				var pulse := 0.5 + 0.5 * sin((time_s + fx.t) * 2.2)
+				fx.light.light_energy = 0.6 + 0.5 * pulse
+				var pm: StandardMaterial3D = fx.pool.material_override
+				pm.emission_energy_multiplier = 0.7 + 0.6 * pulse
+				fx.t -= dt
 			"fire":
 				fx.f1.scale = Vector3(1, 1.0 + 0.15 * sin(time_s * 13.0), 1)
 				fx.f2.scale = Vector3(1, 1.0 + 0.2 * sin(time_s * 17.0 + 1.0), 1)
@@ -772,7 +912,7 @@ func _sync_visuals(alpha: float) -> void:
 		var n: Node3D = enemy_nodes[e.id]
 		var p: Vector2 = e.prev_pos.lerp(e.pos, alpha)
 		n.position = _v3(p)
-		var dir := sim.dir_at(e.dist)
+		var dir := sim.dir_at(e.dist, e.pi)
 		n.rotation.y = lerp_angle(n.rotation.y, _yaw(dir), 0.25)
 		var stunned: bool = sim.tick < e.stun_until
 		var slowed: bool = sim.tick < e.slow_until
@@ -1051,10 +1191,10 @@ func _build_hud() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	side.add_child(col)
-	var era := _label("STONE AGE", 30, Color(1, 0.78, 0.45))
+	var era := _label(str(map.get("era", "Stone Age")).to_upper(), 30, Color(1, 0.78, 0.45))
 	era.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(era)
-	var sub := _label("Mammoth Valley", 20, Color(0.85, 0.75, 0.6), 6)
+	var sub := _label(str(map.name), 20, Color(0.85, 0.75, 0.6), 6)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
@@ -1106,6 +1246,15 @@ func _build_hud() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tower_box.add_child(spacer)
+	btn_target = _button("", Color(0.3, 0.3, 0.42), 22)
+	btn_target.custom_minimum_size = Vector2(0, 56)
+	btn_target.tooltip_text = "First: closest to the cave. Strong: toughest robot (use for bosses). Close: nearest. Last: furthest back."
+	btn_target.pressed.connect(func():
+		if selected != -1:
+			sim.cycle_target(selected)
+			_sfx("click", -6.0)
+			_show_tower_panel(selected))
+	tower_box.add_child(btn_target)
 	btn_sell = _button("", Color(0.62, 0.22, 0.16), 24)
 	btn_sell.custom_minimum_size = Vector2(0, 64)
 	btn_sell.pressed.connect(func():
@@ -1182,7 +1331,9 @@ func _build_hud() -> void:
 	ov.add_child(ob)
 	var again := _button("PLAY AGAIN", Color(0.24, 0.4, 0.62), 32)
 	again.custom_minimum_size = Vector2(300, 96)
-	again.pressed.connect(func(): get_tree().reload_current_scene())
+	again.pressed.connect(func():
+		Progress.current_map = map_id
+		get_tree().reload_current_scene())
 	ob.add_child(again)
 	btn_endless = _button("ENDLESS MODE", Color(0.5, 0.28, 0.6), 32)
 	btn_endless.custom_minimum_size = Vector2(300, 96)
@@ -1193,6 +1344,28 @@ func _build_hud() -> void:
 		_banner("ENDLESS", Color(0.85, 0.6, 1))
 		_toast("How long can you hold the cave?", Color(0.85, 0.6, 1)))
 	ob.add_child(btn_endless)
+	var ob2 := HBoxContainer.new()
+	ob2.alignment = BoxContainer.ALIGNMENT_CENTER
+	ob2.add_theme_constant_override("separation", 24)
+	ov.add_child(ob2)
+	var to_select := _button("MAP SELECT", Color(0.42, 0.3, 0.2), 28)
+	to_select.custom_minimum_size = Vector2(300, 80)
+	to_select.pressed.connect(func():
+		Progress.current_map = ""
+		Progress.open_map_select = true
+		get_tree().reload_current_scene())
+	ob2.add_child(to_select)
+	var nm := Progress.next_map(map_id, map_order)
+	var btn_next := _button("NEXT MAP", Color(0.2, 0.58, 0.18), 28)
+	btn_next.custom_minimum_size = Vector2(300, 80)
+	btn_next.name = "NextMap"
+	btn_next.pressed.connect(func():
+		Progress.current_map = nm
+		get_tree().reload_current_scene())
+	btn_next.visible = false
+	ob2.add_child(btn_next)
+	overlay.set_meta("next", btn_next)
+	lbl_stars = _label("", 1, C_GOLD)
 	overlay.visible = false
 
 	# --- title screen
@@ -1213,8 +1386,78 @@ func _build_hud() -> void:
 	var play := _button("PLAY", Color(0.2, 0.58, 0.18), 52)
 	play.custom_minimum_size = Vector2(380, 120)
 	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	play.pressed.connect(_start_game)
+	_build_map_select(root)
+	play.pressed.connect(func():
+		_sfx("click")
+		title_screen.visible = false
+		map_select.visible = true)
 	tb.add_child(play)
+
+
+func _build_map_select(root: Control) -> void:
+	map_select = _modal(root, 0.6)
+	var box: VBoxContainer = map_select.get_meta("box")
+	box.custom_minimum_size = Vector2(1300, 0)
+	var head := _label("STONE AGE", 64, C_GOLD, 16)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(head)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 26)
+	box.add_child(row)
+	for m in Defs.map_list():
+		var mid: String = m.id
+		var unlocked := Progress.is_unlocked(mid)
+		var card := PanelContainer.new()
+		var sb := _style(Color(0.24, 0.16, 0.1) if unlocked else Color(0.16, 0.13, 0.11), 20, C_PANEL_EDGE if unlocked else Color(0.3, 0.25, 0.2), 4)
+		card.add_theme_stylebox_override("panel", sb)
+		card.custom_minimum_size = Vector2(390, 0)
+		row.add_child(card)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 10)
+		card.add_child(v)
+		var thumb_holder := Control.new()
+		thumb_holder.custom_minimum_size = Vector2(362, 205)
+		v.add_child(thumb_holder)
+		var at := AtlasTexture.new()
+		at.atlas = load("res://assets/textures/ground_%s.png" % mid)
+		at.region = Rect2(312, 234, 1560, 884)
+		var thumb := TextureRect.new()
+		thumb.texture = at
+		thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		thumb.stretch_mode = TextureRect.STRETCH_SCALE
+		thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
+		thumb.modulate = Color.WHITE if unlocked else Color(0.35, 0.35, 0.35)
+		thumb_holder.add_child(thumb)
+		if not unlocked:
+			var cc := CenterContainer.new()
+			cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+			thumb_holder.add_child(cc)
+			cc.add_child(_icon(ICON_LOCK, 96))
+		var nl := _label(str(m.name), 34, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8)
+		v.add_child(nl)
+		var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
+		v.add_child(_label(str(m.difficulty).to_upper(), 22, dc.get(m.difficulty, C_TEXT), 6))
+		var bl := _label(str(m.blurb), 18, Color(0.9, 0.85, 0.78), 5)
+		bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bl.custom_minimum_size = Vector2(362, 70)
+		v.add_child(bl)
+		var stars := HBoxContainer.new()
+		for k in 3:
+			stars.add_child(_icon(ICON_STAR if k < Progress.stars(mid) else ICON_STAR_EMPTY, 40))
+		v.add_child(stars)
+		var go := _button("PLAY" if unlocked else "LOCKED", Color(0.2, 0.58, 0.18) if unlocked else Color(0.3, 0.27, 0.24), 30)
+		go.disabled = not unlocked
+		go.custom_minimum_size = Vector2(0, 76)
+		go.pressed.connect(func():
+			_sfx("click")
+			Progress.current_map = mid
+			get_tree().reload_current_scene())
+		v.add_child(go)
+	var hint := _label("Beat a map to unlock the next one.  Stars: 1 = win, 2 = win with 50+ lives, 3 = win with 90+ lives.", 20, Color(0.85, 0.78, 0.68), 5)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(hint)
+	map_select.visible = false
 
 
 func _modal(root: Control, dim := 0.45) -> Control:
@@ -1292,6 +1535,8 @@ func _show_tower_panel(id: int) -> void:
 	if opts.size() == 2:
 		up_box.add_child(_label("Choose one. The other path locks.", 20, Color(1, 0.72, 0.45), 6))
 	btn_sell.text = "SELL  +%d gold" % sim.sell_value(t)
+	btn_target.visible = s.kind != "pulse"
+	btn_target.text = "TARGET: %s" % str(t.target).to_upper()
 	sel_range.position = _v3(t.pos, 0.12)
 	sel_range.scale = Vector3(float(s.range), 1, float(s.range))
 	sel_range.visible = true
@@ -1347,7 +1592,14 @@ func _show_overlay(won: bool) -> void:
 	_cancel_placing()
 	if won:
 		_sfx("victory")
+		var earned := 0
+		if not demo:
+			earned = Progress.record_win(map_id, sim.lives, map_order)
+		var nb: Button = overlay.get_meta("next")
+		nb.visible = Progress.next_map(map_id, map_order) != ""
 		lbl_overlay.text = "VICTORY!"
+		if earned > 0:
+			lbl_overlay.text = "VICTORY!  %d/3 STARS" % earned
 		lbl_overlay.add_theme_color_override("font_color", C_GOLD)
 		lbl_overlay_sub.text = "The Prime Walker is scrap metal. The cave stands.\n%d robots destroyed  -  %d lives left" % [sim.stats.kills, sim.lives]
 		btn_endless.visible = true
@@ -1373,30 +1625,92 @@ func _wait_ticks(n: int) -> void:
 		await get_tree().process_frame
 
 
+## Test harness: plays the current map like an impatient player (spams Start Wave) and reports the win flow.
+func _run_autowin() -> void:
+	await get_tree().process_frame
+	_start_game()
+	sim.gold += 20000
+	for type in ["boulder_catapult", "rock_slinger", "club_warrior", "rock_slinger", "boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]:
+		var spot := _demo_spot(type)
+		if spot != Vector2.INF:
+			var id := sim.place_tower(type, spot)
+			for k in 5:
+				var t = sim.get_tower(id)
+				if t != null and t.level < 5:
+					var key: String = t.branch if t.branch != "" else ("" if t.level < 2 else "A")
+					sim.upgrade_tower(id, key)
+			sim.cycle_target(id)   # strong
+	_handle_events()
+	speed = 10
+	var frames := 0
+	while not overlay.visible and frames < 60000:
+		if btn_start.disabled == false and sim.enemies.is_empty():
+			btn_start.emit_signal("pressed")
+		await get_tree().process_frame
+		frames += 1
+	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s title=%s next_visible=%s" % [map_id, sim.state, sim.wave, sim.lives,
+		overlay.visible, lbl_overlay.text, (overlay.get_meta("next") as Button).visible])
+	print("AUTOWIN save=", JSON.stringify(Progress.data))
+	print("AUTOWIN start_button_disabled_after_win=", btn_start.disabled)
+	get_tree().quit()
+
+
+func _demo_spot(type: String) -> Vector2:
+	var r := float(defs.towers[type].base.range)
+	var best := Vector2.INF
+	var best_score := -1
+	var x := -14.0
+	while x <= 14.0:
+		var z := -7.5
+		while z <= 7.5:
+			var p := Vector2(x, z)
+			var err := sim.placement_error(type, p)
+			if err == "" or err == "Not enough gold":
+				var sc := 0
+				for P in sim.paths:
+					var d := 0.0
+					while d < P.length:
+						if sim.pos_at(d, sim.paths.find(P)).distance_to(p) <= r:
+							sc += 1
+						d += 0.5
+				if sc > best_score:
+					best_score = sc
+					best = p
+			z += 0.75
+		x += 0.75
+	return best
+
+
 func _run_demo() -> void:
+	var tag := map_id
 	for i in 3:
 		await get_tree().process_frame
-	await _shot("demo_0_title.png")
+	if "--shoot-select" in OS.get_cmdline_user_args():
+		Progress.data = {"unlocked": ["mammoth_valley", "glacier_pass"], "stars": {"mammoth_valley": 3}}
+		map_select.queue_free()
+		_build_map_select(title_screen.get_parent())
+		title_screen.visible = false
+		map_select.visible = true
+		for i in 3:
+			await get_tree().process_frame
+		await _shot("demo_select.png")
+		get_tree().quit()
+		return
 	_start_game()
-	sim.gold += 5200
-	var spots := {
-		"rock_slinger": [Vector2(-6.0, 0.0), Vector2(0.5, 1.0), Vector2(7.3, 1.0), Vector2(13.0, 1.5)],
-		"club_warrior": [Vector2(-6.0, 6.7), Vector2(0.5, -7.6)],
-		"boulder_catapult": [Vector2(0.5, 6.8)],
-		"tar_shaman": [Vector2(7.3, 7.0)],
-	}
+	sim.gold += 6000
 	var ids := []
-	for type in spots:
-		for p in spots[type]:
-			ids.append(sim.place_tower(type, p))
-	_handle_events()
-	for k in 2:
-		for id in ids:
-			sim.upgrade_tower(id, "")
-	sim.upgrade_tower(ids[1], "B")
-	sim.upgrade_tower(ids[1], "B")
-	sim.upgrade_tower(ids[6], "A")
-	sim.upgrade_tower(ids[4], "A")
+	for type in ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman", "rock_slinger", "rock_slinger", "club_warrior", "boulder_catapult"]:
+		var spot := _demo_spot(type)
+		if spot != Vector2.INF:
+			var id := sim.place_tower(type, spot)
+			if id != -1:
+				ids.append(id)
+	for k in 3:
+		for i in ids.size():
+			var t = sim.get_tower(ids[i])
+			sim.upgrade_tower(ids[i], "A" if i % 2 == 0 else "B")
+			if t.level < 2:
+				sim.upgrade_tower(ids[i], "")
 	_handle_events()
 	speed = 3
 	for w in 7:
@@ -1405,26 +1719,16 @@ func _run_demo() -> void:
 			await get_tree().process_frame
 	speed = 1
 	sim.start_wave()   # wave 8
-	await _wait_ticks(int(13.0 / TICK))
-	await _shot("demo_1_battle.png")
-	_select(ids[2])
-	await _wait_ticks(8)
-	await _shot("demo_2_branch_choice.png")
-	_deselect()
-	speed = 3
-	while not sim.can_start_wave() or not sim.enemies.is_empty():
-		await get_tree().process_frame
-	sim.gold += 9000
-	for id in ids:
-		for k in 3:
-			var t = sim.get_tower(id)
-			if t != null and t.level < 5:
-				sim.upgrade_tower(id, t.branch if t.branch != "" else "A")
-	_handle_events()
-	sim.wave = 19
-	speed = 1
-	sim.start_wave()   # wave 20: the boss
-	await _wait_ticks(int(15.0 / TICK))
-	await _shot("demo_3_boss.png")
+	await _wait_ticks(int(11.0 / TICK))
+	await _shot("demo_%s_battle.png" % tag)
+	if "--boss" in OS.get_cmdline_user_args():
+		speed = 3
+		while not sim.can_start_wave() or not sim.enemies.is_empty():
+			await get_tree().process_frame
+		sim.wave = sim.total_waves - 1
+		speed = 1
+		sim.start_wave()
+		await _wait_ticks(int(14.0 / TICK))
+		await _shot("demo_%s_boss.png" % tag)
 	print("DEMO_DONE")
 	get_tree().quit()

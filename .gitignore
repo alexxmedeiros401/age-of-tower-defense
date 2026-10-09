@@ -1,0 +1,5 @@
+.godot/
+build/
+*.tmp
+demo.log
+__pycache__/

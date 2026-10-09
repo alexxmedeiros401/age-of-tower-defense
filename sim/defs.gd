@@ -9,12 +9,17 @@ static func _load(path: String) -> Variant:
 		return {}
 	return JSON.parse_string(f.get_as_text())
 
-static func load_all() -> Dictionary:
+## Loads towers, enemies and the wave list for a map (each map can name its own wave file).
+static func load_all(map: Dictionary = {}) -> Dictionary:
 	return {
 		"towers": _load("res://data/towers.json"),
 		"enemies": _load("res://data/enemies.json"),
-		"waves": _load("res://data/waves.json").waves,
+		"waves": _load("res://data/" + str(map.get("waves_file", "waves.json"))).waves,
 	}
+
+
+static func map_list() -> Array:
+	return _load("res://data/maps.json").maps
 
 static func load_map(name: String) -> Dictionary:
 	return _load("res://data/map_%s.json" % name)

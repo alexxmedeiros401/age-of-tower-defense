@@ -1,5 +1,8 @@
-# Builds Age of Tower Defense on every push: runs the balance bots, then exports
-# an installable Android APK and a Windows .exe as downloadable artifacts.
+# Builds Age of Tower Defense on every push: balance bots, then an Android APK and a Windows .exe.
+#
+# Easy updates: upload a file named game.zip (the project zip Claude sends) to the repo root.
+# This workflow unpacks it over the repo before building, so folder structure never gets lost
+# in the browser uploader.
 name: Build
 
 on:
@@ -16,6 +19,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Unpack game.zip if one was uploaded
+        run: |
+          if [ -f game.zip ]; then
+            # remove loose files left by earlier flattened uploads (the real project has no root-level .png/.py)
+            rm -f ./*.png ./*.py
+            rm -rf /tmp/game && mkdir -p /tmp/game
+            unzip -q -o game.zip -d /tmp/game
+            src=/tmp/game
+            [ -d /tmp/game/age-of-tower-defense ] && src=/tmp/game/age-of-tower-defense
+            cp -a "$src"/. .
+            rm -f game.zip
+            echo "Unpacked game.zip"
+          fi
+          echo "GAME_VERSION=$(grep -oP 'config/version="\K[^"]+' project.godot || echo dev)" >> $GITHUB_ENV
+          grep config/version project.godot || true
+          ls data
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -31,8 +51,9 @@ jobs:
           unzip -q Godot_v${GODOT_VERSION}-stable_export_templates.tpz
           mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
           mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+          rm -f Godot_v*.zip Godot_v*.tpz
 
-      - name: Point Godot at the runner's Android SDK and make a debug keystore
+      - name: Android SDK path and signing key
         run: |
           mkdir -p ~/.config/godot
           for f in editor_settings-4.tres editor_settings-4.7.tres; do
@@ -44,31 +65,40 @@ jobs:
           export/android/java_sdk_path = "$JAVA_HOME"
           SETTINGS
           done
-          keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore $RUNNER_TEMP/debug.keystore \
-            -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999
-          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/debug.keystore" >> $GITHUB_ENV
+          # Same key every build, so each new APK installs as an update over the previous one.
+          KS="$GITHUB_WORKSPACE/android/debug.keystore"
+          if [ ! -f "$KS" ]; then
+            KS="$RUNNER_TEMP/debug.keystore"
+            keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore "$KS" \
+              -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999
+          fi
+          echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$KS" >> $GITHUB_ENV
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey" >> $GITHUB_ENV
           echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android" >> $GITHUB_ENV
 
       - name: Import assets
         run: godot --headless --path . --import || true
 
-      - name: Balance bots (all 20 waves)
-        run: godot --headless --path . --script res://tests/balance.gd
+      - name: Balance bots (all maps)
+        run: |
+          for m in $(ls data/map_*.json | sed 's#data/map_##; s#\.json##'); do
+            godot --headless --path . --script res://tests/balance.gd -- $m | grep -E "^===|result" || true
+          done
 
       - name: Export Android APK and Windows build
         run: |
           mkdir -p build/android build/windows
-          godot --headless --path . --export-debug "Android" build/android/AgeOfTowerDefense.apk
-          godot --headless --path . --export-release "Windows Desktop" build/windows/AgeOfTowerDefense.exe
+          godot --headless --path . --export-debug "Android" build/android/AgeOfTowerDefense-v${GAME_VERSION}.apk
+          godot --headless --path . --export-release "Windows Desktop" build/windows/AgeOfTowerDefense-v${GAME_VERSION}.exe
           ls -la build/android build/windows
+          test -s build/android/AgeOfTowerDefense-v${GAME_VERSION}.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AgeOfTowerDefense-Android
-          path: build/android/AgeOfTowerDefense.apk
+          name: AgeOfTowerDefense-Android-v${{ env.GAME_VERSION }}
+          path: build/android/*.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: AgeOfTowerDefense-Windows
-          path: build/windows/AgeOfTowerDefense.exe
+          name: AgeOfTowerDefense-Windows-v${{ env.GAME_VERSION }}
+          path: build/windows/*.exe

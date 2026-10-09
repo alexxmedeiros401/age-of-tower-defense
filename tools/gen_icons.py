@@ -48,3 +48,23 @@ save(im, "icon_wave")
 im, d = canvas()
 d.polygon([(150, 90), (430, 256), (150, 422)], fill=(255, 255, 255))
 save(im, "icon_play", 96)
+
+# stars (earned / empty) and lock for the map select screen
+def star(d, fill, outline):
+    pts = []
+    for k in range(10):
+        r = 230 if k % 2 == 0 else 100
+        a = -math.pi / 2 + k * math.pi / 5
+        pts.append((256 + r * math.cos(a), 270 + r * math.sin(a)))
+    d.polygon(pts, fill=outline)
+    inner = [(256 + (x - 256) * 0.8, 270 + (y - 270) * 0.8) for x, y in pts]
+    d.polygon(inner, fill=fill)
+
+im, d = canvas(); star(d, (255, 205, 40), (150, 90, 10)); d.ellipse((190, 130, 250, 180), fill=(255, 245, 190)); save(im, "icon_star")
+im, d = canvas(); star(d, (70, 52, 38), (40, 28, 20)); save(im, "icon_star_empty")
+im, d = canvas()
+d.rounded_rectangle((150, 60, 362, 300), 100, outline=(170, 170, 180), width=46)
+d.rounded_rectangle((100, 230, 412, 470), 40, fill=(120, 120, 130))
+d.rounded_rectangle((100, 210, 412, 450), 40, fill=(200, 200, 210))
+d.ellipse((226, 290, 286, 350), fill=(70, 70, 80)); d.rectangle((246, 330, 266, 400), fill=(70, 70, 80))
+save(im, "icon_lock")
