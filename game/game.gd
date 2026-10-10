@@ -40,7 +40,7 @@ const PULSE_COLORS := {"druid": Color(0.5, 1.0, 0.4), "oracle": Color(1.0, 0.9, 
 const PULSE_SFX := {"tesla_coil": "zap", "emp_tower": "emp", "cryo_field": "freeze", "war_drummer": "drum", "firewall": "zap", "ken": "zap"}
 const PROJ_SFX := {"javelin": "javelin", "bolt": "bolt", "bullet": "rifle", "cannonball": "cannon", "shell": "shell", "missile": "missile",
 	"laser": "laser", "plasma": "plasma", "arc": "zap", "arrow": "arrow"}
-const SFX_NAMES := ["throw", "rock_hit", "club", "catapult", "boulder_land", "pulse", "robot_death", "boss_death", "coin",
+const SFX_NAMES := ["portal_warp", "throw", "rock_hit", "club", "catapult", "boulder_land", "pulse", "robot_death", "boss_death", "coin",
 	"place", "upgrade", "wave_horn", "life_lost", "boss_roar", "summon", "click", "error", "victory", "defeat",
 	"arrow", "spear", "shield_up", "shield_break", "heal", "level_up", "hero_place", "ab_stone_rain", "ab_earthquake",
 	"ab_solar_flare", "ab_forge_fury", "boss_roar_bronze", "airstrike", "bolt", "boss_roar_mech", "cannon", "cloak", "drum",
@@ -349,7 +349,7 @@ func _build_world() -> void:
 
 	for P in sim.paths:
 		var pts: PackedVector2Array = P.pts
-		_build_portal(pts[0], (pts[1] - pts[0]).normalized())
+		_build_portal(pts[0], (pts[1] - pts[0]).normalized(), sim.paths.find(P))
 	var end_pt := sim.path[sim.path.size() - 1]
 	var base_id := str(map.get("base", "cave"))
 	if base_id == "city":
@@ -372,7 +372,24 @@ func _build_world() -> void:
 	ghost_foot = _mi(_cyl(1, 1, 0.03, 24), _mat("foot_ok", Color(0.2, 1, 0.3, 0.45), {"unshaded": true}), ghost, Vector3(0, 0.15, 0))
 
 
+## Main-menu hub: a low perspective shot in front of the time portal, robots marching out at you.
+func _hub_camera() -> void:
+	var pn: Node3D = portal_nodes[0]
+	var pp := pn.global_position
+	var fwd := -pn.global_transform.basis.z
+	var side := pn.global_transform.basis.x
+	var sway := sin(time_s * 0.16) * 0.22
+	var off := (fwd * cos(sway) + side * sin(sway)).normalized()
+	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+	cam.fov = 46
+	cam.position = pp + off * 10.5 + side * 1.2 + Vector3(0, 4.6 + 0.4 * sin(time_s * 0.23), 0)
+	cam.look_at(pp + fwd * 3.2 + Vector3(0, 1.0, 0), Vector3.UP)
+
+
 func _frame_camera() -> void:
+	if attract and portal_nodes.has(0):
+		_hub_camera()
+		return
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.x / maxf(vp.y, 1.0)
 	var side_frac := SIDEBAR_W / maxf(vp.x, 1.0)
@@ -413,24 +430,177 @@ func _edge_color(tex: Texture2D, fallback: Color) -> Color:
 	return Color(acc.x, acc.y, acc.z)
 
 
-func _build_portal(p: Vector2, dir: Vector2) -> void:
+var portal_nodes := {}      # path index -> portal root
+var _swirl: ImageTexture = null
+
+
+## Spiral "time vortex" texture, drawn once.
+func _swirl_tex() -> ImageTexture:
+	if _swirl != null:
+		return _swirl
+	var sz := 160
+	var img := Image.create(sz, sz, false, Image.FORMAT_RGBA8)
+	for y in sz:
+		for x in sz:
+			var u := (x + 0.5) / sz * 2.0 - 1.0
+			var v := (y + 0.5) / sz * 2.0 - 1.0
+			var r := sqrt(u * u + v * v)
+			if r >= 1.0:
+				img.set_pixel(x, y, Color(1, 1, 1, 0))
+				continue
+			var ang := atan2(v, u)
+			var arms := pow(0.5 + 0.5 * sin(ang * 4.0 + r * 11.0), 2.2)
+			var core := pow(1.0 - r, 3.0)
+			var edge := clampf((1.0 - r) / 0.18, 0.0, 1.0)
+			var it := clampf(arms * (0.25 + 0.75 * r) * edge + core * 1.2, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, it))
+	img.generate_mipmaps()
+	_swirl = ImageTexture.create_from_image(img)
+	return _swirl
+
+
+func _glow_mat(key: String, col: Color, tex: Texture2D = null) -> StandardMaterial3D:
+	if mats.has(key):
+		return mats[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_color = col
+	m.albedo_texture = tex
+	m.disable_receive_shadows = true
+	mats[key] = m
+	return m
+
+
+## The time machine portal the robots step out of. It stands right on the start of the path,
+## facing down it, so every robot visibly emerges from the vortex.
+const PORTAL_IN := 1.7     # how far down the path the portal stands; robots appear there
+
+func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	var n := Node3D.new()
-	n.position = _v3(p + dir * 1.3, 0)
-	n.rotation.y = _yaw(dir) - 0.65
+	n.position = _v3(p + dir * PORTAL_IN)
 	add_child(n)
+	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))   # -Z points down the path
+	var steel := _mat("portal_steel", Color(0.22, 0.24, 0.3), {"metal": 0.8, "rough": 0.35})
+	var dark := _mat("portal_dark", Color(0.1, 0.1, 0.13), {"metal": 0.5, "rough": 0.5})
+	var cyan := _mat("portal_cyan", Color(0.4, 0.95, 1.0), {"emit": Color(0.25, 0.85, 1.0), "emit_e": 3.0})
+	var mag := _mat("portal_mag", Color(1.0, 0.3, 0.9), {"emit": Color(1.0, 0.2, 0.85), "emit_e": 3.0})
+	var hz := 1.55          # ring centre height
+	# scorched launch pad with hazard ring
+	_mi(_cyl(2.3, 2.5, 0.12, 24), dark, n, Vector3(0, 0.06, 0))
+	_mi(_cyl(2.05, 2.05, 0.03, 24), _mat("portal_pad_glow", Color(0.3, 0.8, 1.0, 0.55), {"emit": Color(0.2, 0.7, 1.0), "emit_e": 1.6, "unshaded": true}), n, Vector3(0, 0.13, 0))
+	_mi(_cyl(1.8, 1.8, 0.04, 24), steel, n, Vector3(0, 0.14, 0))
+	# swirl on the pad too, so the portal reads from the top-down game camera
+	var gq := QuadMesh.new()
+	gq.size = Vector2(3.5, 3.5)
+	var gsw := _mi(gq, _glow_mat("vortex_ground", Color(0.45, 0.3, 1.0, 0.9), _swirl_tex()), n, Vector3(0, 0.17, 0), Vector3(-PI * 0.5, 0, 0))
+	var gsw2 := _mi(gq, _glow_mat("vortex_ground2", Color(0.2, 0.9, 1.0, 0.6), _swirl_tex()), n, Vector3(0, 0.18, 0), Vector3(-PI * 0.5, 0, 0), Vector3.ONE * 0.7)
+	for k in 8:
+		var aa := TAU * k / 8.0
+		_mi(_box(0.5, 0.05, 0.16), _mat("portal_hazard", Color(1.0, 0.75, 0.1), {"emit": Color(1.0, 0.6, 0.05), "emit_e": 0.8}), n,
+			Vector3(cos(aa) * 2.15, 0.14, sin(aa) * 2.15), Vector3(0, -aa, 0))
+	# the frame: a thick torus with armoured segments and running lights
+	var frame := Node3D.new()
+	frame.position = Vector3(0, hz, 0)
+	n.add_child(frame)
 	var tor := TorusMesh.new()
-	tor.inner_radius = 0.95
-	tor.outer_radius = 1.25
-	tor.rings = 32
-	tor.ring_segments = 8
-	var ring := _mi(tor, _mat("portal", Color(1.0, 0.25, 0.15), {"emit": Color(1.0, 0.12, 0.05), "emit_e": 2.2}), n, Vector3(0, 1.3, 0), Vector3(PI * 0.5, 0, 0))
-	var core := _mi(_cyl(0.95, 0.95, 0.04, 32), _mat("portal_core", Color(1.0, 0.45, 0.4, 0.5), {"emit": Color(1.0, 0.2, 0.1), "emit_e": 1.2, "unshaded": true}), n, Vector3(0, 1.3, 0), Vector3(PI * 0.5, 0, 0))
-	for s in [-1, 1]:
-		_mi(_box(0.4, 0.6, 0.4), _mat("steel", Color(0.45, 0.48, 0.55), {"metal": 0.6, "rough": 0.4}), n, Vector3(s * 1.2, 0.3, 0))
-		_mi(_box(0.18, 0.12, 0.42), _mat("red_glow", Color(1, 0.1, 0.05), {"emit": Color(1, 0.08, 0.03), "emit_e": 2.0}), n, Vector3(s * 1.2, 0.55, 0))
-	n.set_meta("spin", ring)
-	n.set_meta("core", core)
+	tor.inner_radius = 1.35
+	tor.outer_radius = 1.7
+	tor.rings = 40
+	tor.ring_segments = 10
+	_mi(tor, steel, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+	var inner := TorusMesh.new()
+	inner.inner_radius = 1.28
+	inner.outer_radius = 1.38
+	inner.rings = 40
+	inner.ring_segments = 6
+	_mi(inner, cyan, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+	var lights := Node3D.new()
+	frame.add_child(lights)
+	for k in 12:
+		var aa := TAU * k / 12.0
+		var seg_pos := Vector3(cos(aa) * 1.55, sin(aa) * 1.55, 0)
+		_mi(_box(0.34, 0.26, 0.5), dark, frame, seg_pos, Vector3(0, 0, aa))
+		_mi(_box(0.14, 0.1, 0.54), mag if k % 2 == 0 else cyan, lights, Vector3(cos(aa) * 1.72, sin(aa) * 1.72, 0), Vector3(0, 0, aa))
+	# legs / pylons holding the ring, with glowing coils
+	for sgn in [-1, 1]:
+		var lx := float(sgn) * 1.55
+		_mi(_box(0.5, 0.9, 0.7), steel, n, Vector3(lx, 0.45, 0))
+		_mi(_cyl(0.16, 0.2, 1.3, 8), dark, n, Vector3(lx * 1.18, 0.95, 0.0), Vector3(0, 0, float(sgn) * 0.25))
+		for c in 3:
+			_mi(_cyl(0.24, 0.24, 0.07, 10), cyan, n, Vector3(lx * 1.18 + float(sgn) * (0.06 + 0.1 * c), 0.6 + 0.28 * c, 0), Vector3(0, 0, float(sgn) * 0.25))
+		var tip := _mi(_sph(0.17, 10), mag, n, Vector3(lx * 1.33, 1.7, 0))
+		tip.set_meta("tip", true)
+	# the vortex: stacked additive spiral discs turning against each other
+	var vortex := Node3D.new()
+	vortex.position = Vector3(0, hz, 0)
+	n.add_child(vortex)
+	var q := QuadMesh.new()
+	q.size = Vector2(2.7, 2.7)
+	var layers := [gsw, gsw2]
+	var cols := [Color(0.35, 0.2, 1.0, 0.95), Color(0.2, 0.9, 1.0, 0.8), Color(1.0, 0.3, 0.9, 0.55), Color(1, 1, 1, 0.5)]
+	for i in 4:
+		var l := _mi(q, _glow_mat("vortex_%d" % i, cols[i], _swirl_tex()), vortex, Vector3(0, 0, -0.06 * i + 0.09), Vector3.ZERO, Vector3.ONE * (1.0 - 0.12 * i))
+		layers.append(l)
+	var back := _mi(_cyl(1.36, 1.36, 0.02, 32), _mat("vortex_back", Color(0.05, 0.02, 0.15)), vortex, Vector3(0, 0, 0.16), Vector3(PI * 0.5, 0, 0))
+	back.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# sparks being pulled into the vortex
+	var sp := CPUParticles3D.new()
+	sp.amount = 40
+	sp.lifetime = 1.1
+	sp.local_coords = true
+	sp.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	sp.emission_ring_axis = Vector3(0, 0, 1)
+	sp.emission_ring_radius = 1.9
+	sp.emission_ring_inner_radius = 1.5
+	sp.emission_ring_height = 0.2
+	sp.direction = Vector3.ZERO
+	sp.spread = 0.0
+	sp.gravity = Vector3.ZERO
+	sp.radial_accel_min = -6.0
+	sp.radial_accel_max = -3.5
+	sp.tangential_accel_min = 4.0
+	sp.tangential_accel_max = 6.0
+	sp.scale_amount_min = 0.5
+	sp.scale_amount_max = 1.0
+	var spm := _sph(0.05, 4)
+	spm.material = _glow_mat("portal_spark", Color(0.6, 0.95, 1.0, 1.0))
+	sp.mesh = spm
+	vortex.add_child(sp)
+	# light that washes the ground in time-energy colours
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.55, 0.6, 1.0)
+	light.light_energy = 2.2
+	light.omni_range = 6.0
+	light.position = Vector3(0, hz, -0.6)
+	n.add_child(light)
+	n.set_meta("lights", lights)
+	n.set_meta("vortex", vortex)
+	n.set_meta("layers", layers)
+	n.set_meta("light", light)
+	n.set_meta("flash", 0.0)
+	n.set_meta("arc_t", 0.0)
+	n.set_meta("hz", hz)
+	portal_nodes[pi] = n
 	effects.append({"node": n, "life": INF, "t": 0.0, "kind": "portal"})
+	return n
+
+
+## A robot comes through: the vortex flares and a shockwave rolls out.
+func _portal_flash(pi: int, big := false) -> void:
+	if not portal_nodes.has(pi):
+		return
+	var n: Node3D = portal_nodes[pi]
+	n.set_meta("flash", 1.6 if big else 1.0)
+	var wave := TorusMesh.new()
+	wave.inner_radius = 1.1
+	wave.outer_radius = 1.3
+	wave.rings = 32
+	wave.ring_segments = 6
+	var w := _mi(wave, _glow_mat("portal_wave", Color(0.6, 0.85, 1.0, 0.9)).duplicate(), n, Vector3(0, float(n.get_meta("hz")), 0), Vector3(PI * 0.5, 0, 0))
+	effects.append({"node": w, "life": 0.45, "t": 0.0, "kind": "portal_wave", "big": big})
 
 
 func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> void:
@@ -1040,6 +1210,8 @@ func _ring_fx(pos: Vector3, radius: float, col: Color, life := 0.4) -> void:
 
 
 func _float_text(pos: Vector3, text: String, col: Color, size := 56) -> void:
+	if attract:
+		return
 	if not Progress.setting("popups") and text.begins_with("+"):
 		return
 	var l := Label3D.new()
@@ -1100,10 +1272,35 @@ func _update_effects(dt: float) -> void:
 		var k: float = clampf(fx.t / fx.life, 0.0, 1.0) if fx.life != INF else 0.0
 		match fx.kind:
 			"portal":
-				var ring: Node3D = n.get_meta("spin")
-				ring.scale = Vector3.ONE * (1.0 + 0.05 * sin(time_s * 4.0))
-				var core: Node3D = n.get_meta("core")
-				core.rotation.y += dt * 2.0
+				var fl: float = n.get_meta("flash")
+				if fl > 0.0:
+					fl = maxf(0.0, fl - dt * 2.5)
+					n.set_meta("flash", fl)
+				var layers: Array = n.get_meta("layers")
+				for li in layers.size():
+					var lyr: Node3D = layers[li]
+					lyr.rotation.z += dt * (2.6 if li % 2 == 0 else -1.7) * (1.0 + fl * 2.0)
+				var vx: Node3D = n.get_meta("vortex")
+				vx.scale = Vector3.ONE * (1.0 + 0.04 * sin(time_s * 5.0) + 0.22 * fl)
+				(n.get_meta("lights") as Node3D).rotation.z -= dt * 0.8
+				var pl: OmniLight3D = n.get_meta("light")
+				pl.light_energy = 2.0 + 0.5 * sin(time_s * 7.0) + 5.0 * fl
+				var at: float = float(n.get_meta("arc_t")) - dt
+				if at <= 0.0:
+					at = randf_range(0.15, 0.6)
+					var a0 := randf() * TAU
+					var a1 := a0 + randf_range(0.6, 1.6)
+					var hz2: float = n.get_meta("hz")
+					var p0 := n.global_transform * Vector3(cos(a0) * 1.4, hz2 + sin(a0) * 1.4, 0)
+					var p1 := n.global_transform * Vector3(cos(a1) * 1.4, hz2 + sin(a1) * 1.4, 0)
+					_portal_arc(p0, p1)
+				n.set_meta("arc_t", at)
+			"portal_wave":
+				var sc := 1.0 + k * (2.4 if fx.get("big", false) else 1.6)
+				n.scale = Vector3(sc, sc, 1.0 + k)
+				(n.material_override as StandardMaterial3D).albedo_color.a = 0.9 * (1.0 - k)
+			"portal_arc":
+				n.visible = int(fx.t * 30.0) % 2 == 0
 			"fire":
 				fx.f1.scale = Vector3(1, 1.0 + 0.15 * sin(time_s * 13.0), 1)
 				fx.f2.scale = Vector3(1, 1.0 + 0.2 * sin(time_s * 17.0 + 1.0), 1)
@@ -1161,6 +1358,7 @@ func _update_effects(dt: float) -> void:
 # =================================================================== loop
 func _process(delta: float) -> void:
 	time_s += delta
+	_drag_scroll_tick(delta)
 	_fit_modals()
 	if paused:
 		_update_hud(0.0)
@@ -1183,7 +1381,10 @@ func _process(delta: float) -> void:
 	shake = maxf(0.0, shake - delta * 2.5)
 	var sk := shake if Progress.setting("shake") else 0.0
 	if attract:
-		cam.position = cam_base + Vector3(sin(time_s * 0.12) * 1.6, 0, cos(time_s * 0.09) * 0.8)
+		if portal_nodes.has(0):
+			_hub_camera()
+		else:
+			cam.position = cam_base + Vector3(sin(time_s * 0.12) * 1.6, 0, cos(time_s * 0.09) * 0.8)
 		return
 	cam.position = cam_base + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * sk * sk * 0.6
 
@@ -1258,6 +1459,10 @@ func _handle_events() -> void:
 					n.position = _v3(e.pos)
 					add_child(n)
 					enemy_nodes[ev.id] = n
+					if float(e.dist) < 0.05:
+						n.set_meta("emerge", true)
+						n.set_meta("need_flash", true)
+						n.scale = Vector3.ONE * 0.01
 					if e.boss:
 						shake = 1.0
 						var roar := "boss_roar"
@@ -1487,6 +1692,25 @@ func _proj_model(root: Node3D, pj: String, dt: String) -> void:
 
 
 ## A jagged lightning line through the chain-hit robots.
+## Crackling arc of energy jumping across the portal frame (world positions).
+func _portal_arc(a: Vector3, b: Vector3) -> void:
+	var m := _glow_mat("portal_arc", Color(0.75, 0.95, 1.0, 1.0))
+	var pts := [a]
+	for i in range(1, 4):
+		var t := float(i) / 4.0
+		pts.append(a.lerp(b, t) + Vector3(randf_range(-0.18, 0.18), randf_range(-0.18, 0.18), randf_range(-0.18, 0.18)))
+	pts.append(b)
+	for i in range(1, pts.size()):
+		var p0: Vector3 = pts[i - 1]
+		var p1: Vector3 = pts[i]
+		var L := p0.distance_to(p1)
+		if L < 0.01:
+			continue
+		var bolt := _mi(_box(0.05, 0.05, L), m, self, (p0 + p1) * 0.5)
+		bolt.look_at((p0 + p1) * 0.5 + (p1 - p0), Vector3.UP if absf((p1 - p0).normalized().y) < 0.95 else Vector3.RIGHT)
+		effects.append({"node": bolt, "t": 0.0, "life": 0.16, "kind": "portal_arc"})
+
+
 func _chain_fx(pts: Array) -> void:
 	var m := _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
 	for i in range(1, pts.size()):
@@ -1632,6 +1856,19 @@ func _sync_visuals(alpha: float) -> void:
 		var n: Node3D = enemy_nodes[e.id]
 		var p: Vector2 = e.prev_pos.lerp(e.pos, alpha)
 		n.position = _v3(p)
+		if n.has_meta("emerge"):
+			# grows out of the vortex over its first steps
+			var ek := clampf((float(e.dist) - PORTAL_IN + 0.3) / 1.2, 0.0, 1.0)
+			if n.has_meta("need_flash") and float(e.dist) >= PORTAL_IN - 0.3:
+				n.remove_meta("need_flash")
+				_portal_flash(int(e.pi), bool(e.boss))
+				_sfx("portal_warp", -10.0 if not e.boss else -2.0, 0.12)
+			ek = ek * ek * (3.0 - 2.0 * ek)
+			n.scale = Vector3.ONE * lerpf(0.01, 1.0, ek)
+			n.position.y += (1.0 - ek) * 0.9
+			if ek >= 1.0:
+				n.remove_meta("emerge")
+				n.scale = Vector3.ONE
 		var dir := sim.dir_at(e.dist, e.pi)
 		n.rotation.y = lerp_angle(n.rotation.y, _yaw(dir), 0.25)
 		var stunned: bool = sim.tick < e.stun_until
@@ -2132,7 +2369,7 @@ func _build_hud() -> void:
 	var hrow := HBoxContainer.new()
 	hrow.add_theme_constant_override("separation", 10)
 	hero_card.add_child(hrow)
-	hrow.add_child(_icon(_icon_tex(sim.hero_id), 72))
+	hrow.add_child(_icon(_face_tex(sim.hero_id), 72))
 	var hcol := VBoxContainer.new()
 	hcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hcol.add_theme_constant_override("separation", 2)
@@ -2290,6 +2527,11 @@ func _build_hud() -> void:
 
 	# --- victory/defeat overlay
 	overlay = _modal(root)
+	_on_close(overlay, func():
+		_sfx("click")
+		Progress.current_map = ""
+		Progress.open_map_select = false
+		get_tree().reload_current_scene())
 	var ov: VBoxContainer = overlay.get_meta("box")
 	lbl_overlay = _label("", 84, C_GOLD, 16)
 	lbl_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -2412,106 +2654,339 @@ func _menu_button(text: String, col: Color, cb: Callable, h := 78, font := 30) -
 	return b
 
 
+const MENU_GOLD := Color(0.98, 0.78, 0.32)
+
+
+## Big round menu button with an icon and a banner label underneath (and an optional "!" badge).
+func _round_button(icon: Texture2D, text: String, col: Color, size: float, cb: Callable, badge := false, icon_frac := 0.66) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_END
+	v.add_theme_constant_override("separation", -14)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(size, size)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.pivot_offset = Vector2(size, size) * 0.5
+	for st in ["normal", "hover", "pressed"]:
+		var c := col
+		if st == "hover":
+			c = col.lightened(0.15)
+		elif st == "pressed":
+			c = col.darkened(0.15)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = c
+		sb.set_corner_radius_all(int(size * 0.5))
+		sb.set_border_width_all(int(size * 0.06))
+		sb.border_color = MENU_GOLD.darkened(0.1)
+		sb.shadow_color = Color(0, 0, 0, 0.45)
+		sb.shadow_size = 10
+		sb.shadow_offset = Vector2(0, 6)
+		sb.anti_aliasing = true
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.icon = icon
+	b.expand_icon = true
+	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	b.add_theme_constant_override("icon_max_width", int(size * icon_frac))
+	b.mouse_entered.connect(func():
+		var tw := b.create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE * 1.08, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
+	b.mouse_exited.connect(func():
+		var tw := b.create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE, 0.12))
+	b.pressed.connect(func():
+		_sfx("click")
+		var tw := b.create_tween()
+		tw.tween_property(b, "scale", Vector2.ONE * 0.92, 0.05)
+		tw.tween_property(b, "scale", Vector2.ONE, 0.1)
+		cb.call())
+	v.add_child(b)
+	if badge:
+		var bd := Label.new()
+		bd.text = "!"
+		bd.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		bd.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		bd.add_theme_font_size_override("font_size", int(size * 0.26))
+		bd.add_theme_color_override("font_color", Color.WHITE)
+		var bsb := _style(Color(0.9, 0.15, 0.1), int(size * 0.17), Color.WHITE, 4)
+		bsb.set_content_margin_all(0)
+		bd.add_theme_stylebox_override("normal", bsb)
+		bd.size = Vector2(size * 0.34, size * 0.34)
+		bd.position = Vector2(size * 0.72, -size * 0.04)
+		bd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(bd)
+		var tw2 := bd.create_tween().set_loops()
+		tw2.tween_property(bd, "position:y", -size * 0.1, 0.45).set_trans(Tween.TRANS_SINE)
+		tw2.tween_property(bd, "position:y", -size * 0.04, 0.45).set_trans(Tween.TRANS_SINE)
+	if text != "":
+		var ban := PanelContainer.new()
+		var bsb2 := _style(Color(0.32, 0.18, 0.08), 14, MENU_GOLD.darkened(0.25), 4)
+		bsb2.content_margin_left = 16
+		bsb2.content_margin_right = 16
+		bsb2.content_margin_top = 2
+		bsb2.content_margin_bottom = 4
+		ban.add_theme_stylebox_override("panel", bsb2)
+		ban.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		ban.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var l := _label(text, 26 if size < 170 else 34, Color.WHITE, 8)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ban.add_child(l)
+		v.add_child(ban)
+	v.set_meta("button", b)
+	return v
+
+
+## Rounded "pill" showing a currency, with an optional + button.
+func _currency_pill(icon: Texture2D, text: String, col: Color, plus_cb := Callable()) -> PanelContainer:
+	var pill := PanelContainer.new()
+	var sb := _style(Color(0.1, 0.06, 0.03, 0.85), 30, MENU_GOLD.darkened(0.3), 4)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	pill.add_theme_stylebox_override("panel", sb)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 8)
+	pill.add_child(h)
+	h.add_child(_icon(icon, 54))
+	var l := _label(text, 32, col, 8)
+	l.custom_minimum_size = Vector2(110, 0)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	h.add_child(l)
+	if plus_cb.is_valid():
+		var pb := TextureButton.new()
+		pb.texture_normal = _res("res://assets/ui/menu_plus.png")
+		pb.ignore_texture_size = true
+		pb.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		pb.custom_minimum_size = Vector2(54, 54)
+		pb.pressed.connect(func():
+			_sfx("click")
+			plus_cb.call())
+		h.add_child(pb)
+	return pill
+
+
 func _build_main_menu(root: Control) -> void:
 	title_screen = Control.new()
 	title_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	title_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(title_screen)
-	# soft vignette so the 3D background reads as a backdrop
-	var shade := ColorRect.new()
-	shade.color = Color(0.05, 0.03, 0.02, 0.25)
-	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title_screen.add_child(shade)
-	# left column
-	var panel := PanelContainer.new()
-	var sb := _style(Color(0.12, 0.07, 0.04, 0.9), 0, C_PANEL_EDGE, 0)
-	sb.border_width_right = 6
-	sb.shadow_size = 18
-	sb.set_content_margin_all(28)
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.anchor_bottom = 1.0
-	panel.offset_right = 600
-	title_screen.add_child(panel)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.scroll_deadzone = 12
-	panel.add_child(scroll)
-	var col := VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	col.add_theme_constant_override("separation", 12)
-	scroll.add_child(col)
-	var t1 := _label("AGE OF", 44, Color(1, 0.8, 0.5), 12)
-	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(t1)
-	var t2 := _label("TOWER DEFENSE", 74, C_GOLD, 18)
-	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(t2)
-	var t3 := _label("The machines came back through time to erase humanity. Hold the line in every age.", 22, C_TEXT, 6)
-	t3.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t3.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(t3)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 8)
-	col.add_child(gap)
-	var cm := _continue_map()
-	var cme := _map_entry(cm)
-	col.add_child(_menu_button("CONTINUE\n%s  -  %s" % [str(cme.get("era", "")), str(cme.get("name", ""))], Color(0.2, 0.58, 0.18), func():
-		Progress.current_map = cm
-		get_tree().reload_current_scene(), 104, 30))
-	col.add_child(_menu_button("MAPS", Color(0.24, 0.4, 0.62), func():
-		title_screen.visible = false
-		map_select.visible = true))
-	col.add_child(_menu_button("WORKSHOP", Color(0.5, 0.36, 0.16), func(): _open_workshop("")))
-	col.add_child(_menu_button("HEROES", Color(0.55, 0.3, 0.5), func(): _open_heroes()))
-	var pts := Progress.points_free()
-	col.add_child(_menu_button("LEGACY%s" % (("  (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""), Color(0.18, 0.42, 0.6), func(): _open_legacy()))
-	col.add_child(_menu_button("SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()))
-	if OS.has_feature("pc"):
-		col.add_child(_menu_button("QUIT", Color(0.42, 0.3, 0.22), func(): get_tree().quit(), 64, 26))
-	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 18, Color(0.7, 0.62, 0.52), 4)
-	col.add_child(ver)
-	# profile card, bottom right
-	var card := PanelContainer.new()
-	var csb := _style(Color(0.12, 0.07, 0.04, 0.88), 18, C_PANEL_EDGE, 4)
-	csb.set_content_margin_all(18)
-	card.add_theme_stylebox_override("panel", csb)
-	card.anchor_left = 1.0
-	card.anchor_right = 1.0
-	card.anchor_top = 1.0
-	card.anchor_bottom = 1.0
-	card.offset_left = -460
-	card.offset_right = -24
-	card.offset_top = -250
-	card.offset_bottom = -24
-	title_screen.add_child(card)
-	var cv := VBoxContainer.new()
-	cv.add_theme_constant_override("separation", 6)
-	card.add_child(cv)
-	var lv_txt := "LEGACY LEVEL %d" % Progress.legacy_level()
-	if Progress.timeline() > 1:
-		lv_txt += "   -   TIMELINE %d" % Progress.timeline()
-	cv.add_child(_label(lv_txt, 26, Color(0.6, 0.9, 1.0), 7))
+	# dark bands top and bottom so the UI reads over the living 3D hub
+	for top in [true, false]:
+		var gt := GradientTexture2D.new()
+		var gr := Gradient.new()
+		gr.set_color(0, Color(0.04, 0.02, 0.06, 0.78))
+		gr.set_color(1, Color(0.04, 0.02, 0.06, 0.0))
+		gt.gradient = gr
+		gt.fill_from = Vector2(0, 0) if top else Vector2(0, 1)
+		gt.fill_to = Vector2(0, 1) if top else Vector2(0, 0)
+		var tr := TextureRect.new()
+		tr.texture = gt
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tr.anchor_right = 1.0
+		if top:
+			tr.offset_bottom = 230
+		else:
+			tr.anchor_top = 1.0
+			tr.anchor_bottom = 1.0
+			tr.offset_top = -330
+		title_screen.add_child(tr)
+	var era_now := str(_map_entry(_menu_map()).get("era", "Stone Age"))
+	# ---- top left: profile (hero face, level star, XP bar)
+	var prof := Control.new()
+	prof.position = Vector2(24, 18)
+	prof.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(prof)
+	var face_frame := PanelContainer.new()
+	var ffs := _style(Color(0.25, 0.45, 0.8), 18, MENU_GOLD, 6)
+	ffs.set_content_margin_all(4)
+	face_frame.add_theme_stylebox_override("panel", ffs)
+	face_frame.custom_minimum_size = Vector2(118, 118)
+	prof.add_child(face_frame)
+	var hid := Progress.hero()
+	if not defs.heroes.heroes.has(hid):
+		hid = "ugo"
+	var face := _icon(_face_tex(hid), 106)
+	face_frame.add_child(face)
+	var barbg := PanelContainer.new()
+	var bbs := _style(Color(0.18, 0.1, 0.05, 0.95), 14, MENU_GOLD.darkened(0.3), 4)
+	bbs.set_content_margin_all(5)
+	barbg.add_theme_stylebox_override("panel", bbs)
+	barbg.position = Vector2(150, 18)
+	barbg.custom_minimum_size = Vector2(330, 50)
+	prof.add_child(barbg)
 	var pr := Progress.legacy_progress()
-	var bar := ColorRect.new()
-	bar.color = Color(0.06, 0.04, 0.02)
-	bar.custom_minimum_size = Vector2(400, 14)
-	cv.add_child(bar)
-	var fill := ColorRect.new()
-	fill.color = Color(0.4, 0.8, 1.0)
-	fill.size = Vector2(400.0 * clampf(float(pr[0]) / maxf(float(pr[1]), 1.0), 0.0, 1.0), 14)
-	bar.add_child(fill)
+	var pb := ProgressBar.new()
+	pb.show_percentage = false
+	pb.max_value = maxf(float(pr[1]), 1.0)
+	pb.value = float(pr[0])
+	pb.custom_minimum_size = Vector2(320, 38)
+	var fill := _style(Color(0.3, 0.7, 1.0), 10)
+	fill.shadow_size = 0
+	var bgs := _style(Color(0.05, 0.08, 0.12), 10)
+	bgs.shadow_size = 0
+	pb.add_theme_stylebox_override("fill", fill)
+	pb.add_theme_stylebox_override("background", bgs)
+	barbg.add_child(pb)
+	var xpl := _label("%d / %d XP" % [pr[0], pr[1]], 22, Color.WHITE, 7)
+	xpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	xpl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	xpl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pb.add_child(xpl)
+	var star := _icon(_res("res://assets/ui/menu_star.png") as Texture2D, 104)
+	star.position = Vector2(110, -6)
+	prof.add_child(star)
+	var lvl := _label(str(Progress.legacy_level()), 38, Color(0.25, 0.12, 0.0), 0)
+	lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lvl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lvl.position = Vector2(110, 6)
+	lvl.size = Vector2(104, 92)
+	prof.add_child(lvl)
+	var who := "UPGRADE LEVEL" + ("   -   TIMELINE %d" % Progress.timeline() if Progress.timeline() > 1 else "")
+	var whol := _label(who, 24, MENU_GOLD, 8)
+	whol.position = Vector2(210, 74)
+	prof.add_child(whol)
+	# ---- top centre: title
+	var tbox := VBoxContainer.new()
+	tbox.anchor_left = 0.5
+	tbox.anchor_right = 0.5
+	tbox.offset_left = -330
+	tbox.offset_right = 330
+	tbox.offset_top = 8
+	tbox.add_theme_constant_override("separation", -18)
+	tbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(tbox)
+	var t1 := _label("AGE OF", 40, Color(1, 0.85, 0.6), 12)
+	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tbox.add_child(t1)
+	var t2 := _label("TOWER DEFENSE", 70, MENU_GOLD, 20)
+	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t2.add_theme_color_override("font_shadow_color", Color(0.5, 0.15, 0.0, 0.9))
+	t2.add_theme_constant_override("shadow_offset_y", 6)
+	tbox.add_child(t2)
+	var bob := tbox.create_tween().set_loops()
+	bob.tween_property(tbox, "offset_top", 16.0, 1.6).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(tbox, "offset_top", 8.0, 1.6).set_trans(Tween.TRANS_SINE)
+	# ---- top right: currencies
+	var cur := VBoxContainer.new()
+	cur.anchor_left = 1.0
+	cur.anchor_right = 1.0
+	cur.offset_left = -330
+	cur.offset_right = -24
+	cur.offset_top = 20
+	cur.add_theme_constant_override("separation", 10)
+	cur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(cur)
+	cur.add_child(_currency_pill(ICON_SHARD, str(Progress.shards()), Color(0.85, 0.78, 1.0), func(): _open_heroes()))
+	cur.add_child(_currency_pill(_icon_tex(str(Progress.era_towers(era_now)[0])) if not Progress.era_towers(era_now).is_empty() else ICON_GOLD,
+		str(Progress.scrap(era_now)), Color(0.8, 0.9, 1.0), func(): _open_workshop("")))
+	var sl := _label("%s SCRAP" % era_now.to_upper(), 16, Color(0.8, 0.75, 0.68), 5)
+	sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cur.add_child(sl)
+	# ---- left column: settings, quit
+	var lcol := VBoxContainer.new()
+	lcol.anchor_top = 0.5
+	lcol.anchor_bottom = 0.5
+	lcol.offset_left = 26
+	lcol.offset_top = -170
+	lcol.add_theme_constant_override("separation", 18)
+	lcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(lcol)
+	lcol.add_child(_round_button(_res("res://assets/ui/menu_gear.png"), "", Color(0.3, 0.42, 0.6), 108, func(): _open_settings()))
+	if OS.has_feature("pc"):
+		lcol.add_child(_round_button(_res("res://assets/ui/menu_door.png"), "", Color(0.45, 0.25, 0.15), 108, func(): get_tree().quit()))
+	# ---- right column: age badge, new timeline
+	var rcol := VBoxContainer.new()
+	rcol.anchor_left = 1.0
+	rcol.anchor_right = 1.0
+	rcol.anchor_top = 0.5
+	rcol.anchor_bottom = 0.5
+	rcol.offset_left = -250
+	rcol.offset_right = -26
+	rcol.offset_top = -170
+	rcol.alignment = BoxContainer.ALIGNMENT_BEGIN
+	rcol.add_theme_constant_override("separation", 18)
+	rcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(rcol)
 	var stars := 0
 	for mid in map_order:
 		stars += Progress.stars(mid)
-	var heroes_open := 0
-	for hid in defs.heroes.heroes:
-		if Progress.hero_unlocked(defs.heroes.heroes[hid]):
-			heroes_open += 1
-	var era_now := str(_map_entry(_menu_map()).get("era", "Stone Age"))
-	var info := _label("Current age: %s (%d of %d)\nStars: %d / %d     Heroes: %d / %d\n%s scrap: %d" % [era_now, _eras().find(era_now) + 1, _eras().size(),
-		stars, map_order.size() * 3, heroes_open, defs.heroes.heroes.size(), era_now, Progress.scrap(era_now)], 20, C_TEXT, 5)
-	cv.add_child(info)
+	var age := PanelContainer.new()
+	var asb := _style(Color(0.1, 0.06, 0.03, 0.85), 22, MENU_GOLD.darkened(0.3), 4)
+	asb.set_content_margin_all(12)
+	age.add_theme_stylebox_override("panel", asb)
+	var av := VBoxContainer.new()
+	av.add_theme_constant_override("separation", 2)
+	age.add_child(av)
+	var al1 := _label(era_now.to_upper(), 24, MENU_GOLD, 7)
+	al1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	av.add_child(al1)
+	var al2 := _label("Age %d of %d" % [_eras().find(era_now) + 1, _eras().size()], 20, C_TEXT, 5)
+	al2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	av.add_child(al2)
+	var srow := HBoxContainer.new()
+	srow.alignment = BoxContainer.ALIGNMENT_CENTER
+	srow.add_child(_icon(ICON_STAR, 34))
+	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 22, C_GOLD, 6))
+	av.add_child(srow)
+	rcol.add_child(age)
+	if Progress.can_new_timeline(map_order):
+		rcol.add_child(_round_button(_res("res://assets/ui/menu_portal.png"), "NEW TIMELINE", Color(0.42, 0.18, 0.6), 120, func(): _confirm_new_timeline(), true))
+	# ---- bottom row: the big buttons
+	var row := HBoxContainer.new()
+	row.anchor_left = 0.5
+	row.anchor_right = 0.5
+	row.anchor_top = 1.0
+	row.anchor_bottom = 1.0
+	row.offset_left = -560
+	row.offset_right = 560
+	row.offset_top = -290
+	row.offset_bottom = -18
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 30)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(row)
+	var et: Array = Progress.era_towers(era_now)
+	var nxt := Progress.next_unlock(era_now)
+	var tower_badge := nxt != "" and Progress.scrap(era_now) >= Progress.tower_scrap_cost(nxt)
+	var hero_badge := false
+	for h in defs.heroes.heroes:
+		var hdx: Dictionary = defs.heroes.heroes[h]
+		if not Progress.hero_owned(h) and Progress.hero_available(hdx) and Progress.shards() >= Progress.hero_cost(hdx, defs.heroes.heroes):
+			hero_badge = true
+	var cm := _continue_map()
+	var cme := _map_entry(cm)
+	var bot := [
+		_round_button(_icon_tex(str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.62, 0.38, 0.14), 150, func(): _open_workshop(""), tower_badge, 0.8),
+		_round_button(_face_tex(hid), "HEROS", Color(0.6, 0.25, 0.45), 150, func(): _open_heroes(), hero_badge, 0.78),
+		_round_button(ICON_PLAY, "PLAY", Color(0.25, 0.72, 0.18), 196, func():
+			Progress.current_map = cm
+			get_tree().reload_current_scene(), false, 0.5),
+		_round_button(_res("res://assets/ui/menu_upgrade.png"), "UPGRADES", Color(0.18, 0.42, 0.72), 150, func(): _open_legacy(), Progress.points_free() > 0),
+		_round_button(_res("res://assets/ui/menu_map.png"), "MAPS", Color(0.25, 0.5, 0.4), 150, func():
+			title_screen.visible = false
+			map_select.visible = true),
+	]
+	for c in bot:
+		c.size_flags_vertical = Control.SIZE_SHRINK_END
+		row.add_child(c)
+	# PLAY breathes, and says which map it starts
+	var play: Button = bot[2].get_meta("button")
+	var pulse := play.create_tween().set_loops()
+	pulse.tween_property(play, "scale", Vector2.ONE * 1.06, 0.7).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(play, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE)
+	var nm := _label("%s  -  %s" % [str(cme.get("name", "")), str(cme.get("difficulty", ""))], 20, Color(0.85, 1.0, 0.8), 7)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	(bot[2] as VBoxContainer).add_child(nm)
+	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 16, Color(0.75, 0.7, 0.62), 4)
+	ver.anchor_top = 1.0
+	ver.anchor_bottom = 1.0
+	ver.offset_left = 16
+	ver.offset_top = -34
+	title_screen.add_child(ver)
 
 
 ## Workshop: spend an era's Scrap to unlock that era's towers. Each era's Scrap starts at 0.
@@ -2527,7 +3002,7 @@ func _open_workshop(era: String) -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 24)
 	box.add_child(head)
-	var ttl := _label("WORKSHOP  -  %s" % era.to_upper(), 52, C_GOLD, 12)
+	var ttl := _label("TOWERS  -  %s" % era.to_upper(), 52, C_GOLD, 12)
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(ttl)
 	head.add_child(_label("SCRAP: %d" % Progress.scrap(era), 40, Color(0.75, 0.85, 0.95), 9))
@@ -2541,6 +3016,7 @@ func _open_workshop(era: String) -> void:
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	head.add_child(done)
+	_close_with(dlg, done)
 	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.92, 0.86, 0.76), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
@@ -2625,46 +3101,290 @@ func _open_workshop(era: String) -> void:
 
 
 ## Hero roster: pick the hero that joins every match.
-func _hero_picker(box: VBoxContainer) -> void:
+const ICON_SHARD := preload("res://assets/ui/icon_shard.png")
+
+
+func _face_tex(id: String) -> Texture2D:
+	return _res("res://assets/ui/face_%s.png" % id)
+
+
+## Grid of hero faces. Tapping one opens its detail card (play as / buy).
+func _hero_picker(parent: VBoxContainer) -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(box)
+	_fill_hero_picker(box)
+	return box
+
+
+func _fill_hero_picker(box: VBoxContainer) -> void:
+	var wallet := HBoxContainer.new()
+	wallet.alignment = BoxContainer.ALIGNMENT_CENTER
+	wallet.add_theme_constant_override("separation", 8)
+	wallet.add_child(_icon(ICON_SHARD, 40))
+	wallet.add_child(_label("%d TIME SHARDS" % Progress.shards(), 26, Color(0.82, 0.74, 1.0), 7))
+	box.add_child(wallet)
 	var hrow := HFlowContainer.new()
 	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
 	hrow.add_theme_constant_override("h_separation", 14)
 	hrow.add_theme_constant_override("v_separation", 14)
 	box.add_child(hrow)
-	var hblurb := _label("", 20, Color(0.92, 0.86, 0.76), 5)
-	hblurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hblurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hblurb.custom_minimum_size = Vector2(0, 60)
-	var hero_buttons := {}
-	var pick := func(hid: String) -> void:
-		Progress.set_hero(hid)
-		for k in hero_buttons:
-			hero_buttons[k].modulate = Color(1.2, 1.15, 0.9) if k == hid else Color(0.62, 0.62, 0.62)
-		var hd: Dictionary = defs.heroes.heroes[hid]
-		hblurb.text = "%s, %s (%s).  %s\nAbility: %s. %s" % [hd.name, hd.title, hd.era, hd.blurb, hd.ability.name, hd.ability.desc]
+	var cur := Progress.hero()
+	if not defs.heroes.heroes.has(cur) or not Progress.hero_owned(cur):
+		cur = "ugo"
+		Progress.set_hero(cur)
 	for hid in defs.heroes.heroes:
-		var hd2: Dictionary = defs.heroes.heroes[hid]
-		var open := Progress.hero_unlocked(hd2)
-		var hname := _short_name(str(hd2.name))
-		var hb := _button(hname if open else "%s\nLEGACY LV %d" % [hname, int(hd2.get("legacy_unlock", 1))],
-			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
-		hb.icon = _icon_tex(hid)
+		var hd: Dictionary = defs.heroes.heroes[hid]
+		var owned := Progress.hero_owned(hid)
+		var col := Color(hd.color[0], hd.color[1], hd.color[2])
+		var hb := _button(_short_name(str(hd.name)), col.lerp(Color(0.3, 0.2, 0.12), 0.35 if owned else 0.75), 20)
+		hb.icon = _face_tex(hid)
 		hb.expand_icon = true
-		hb.add_theme_constant_override("icon_max_width", 56)
-		hb.custom_minimum_size = Vector2(236, 76)
+		hb.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		hb.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hb.add_theme_constant_override("icon_max_width", 104)
+		hb.custom_minimum_size = Vector2(150, 168)
+		hb.clip_text = true
+		if hid == cur:
+			var sel := _style(col.lerp(Color(1, 0.85, 0.3), 0.35), 18, Color(1, 0.85, 0.3), 6)
+			sel.border_width_bottom = 9
+			hb.add_theme_stylebox_override("normal", sel)
+			hb.add_theme_stylebox_override("hover", sel)
+		if not owned:
+			hb.add_theme_color_override("icon_normal_color", Color(0.45, 0.45, 0.5))
+			hb.add_theme_color_override("icon_hover_color", Color(0.55, 0.55, 0.6))
+			var lk := _icon(ICON_LOCK, 40)
+			lk.position = Vector2(104, 6)
+			lk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			hb.add_child(lk)
 		hb.pressed.connect(func():
 			_sfx("click")
-			if Progress.hero_unlocked(hd2):
-				pick.call(hid)
-			else:
-				hblurb.text = "%s, %s.  Reach Legacy level %d to unlock.\nEarn Legacy XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("legacy_unlock", 1))])
+			_hero_detail(hid, box))
 		hrow.add_child(hb)
-		hero_buttons[hid] = hb
-	box.add_child(hblurb)
-	var start_hero := Progress.hero()
-	if not defs.heroes.heroes.has(start_hero) or not Progress.hero_unlocked(defs.heroes.heroes[start_hero]):
-		start_hero = "ugo"
-	pick.call(start_hero)
+	var hd2: Dictionary = defs.heroes.heroes[cur]
+	var now := _label("Playing as: %s, %s" % [hd2.name, hd2.title], 22, C_GOLD, 6)
+	now.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(now)
+	var tip := _label("Tap a hero to see what they do.", 18, Color(0.85, 0.78, 0.68), 5)
+	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(tip)
+
+
+## Rebuilds every open hero picker (after picking or buying).
+func _refresh_hero_pickers(box: VBoxContainer) -> void:
+	if not is_instance_valid(box):
+		return
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+	_fill_hero_picker(box)
+
+
+func _hero_pros_cons(hd: Dictionary) -> Array:
+	var pros := []
+	var cons := []
+	var b: Dictionary = hd.base
+	var a: Dictionary = hd.aura
+	var ab: Dictionary = hd.ability
+	match str(b.kind):
+		"projectile":
+			pros.append("Long reach: hits robots %.1f tiles away" % float(b.range))
+			if float(b.get("splash", 0.0)) > 0.0:
+				pros.append("Shots splash nearby robots")
+			else:
+				cons.append("Hits one robot per shot")
+		"melee":
+			pros.append("Huge hits that punch through armor")
+			if int(b.get("max_targets", 1)) > 1:
+				pros.append("Hits %d robots with every swing" % int(b.max_targets))
+			cons.append("Short range: place it right beside the path")
+		"pulse":
+			pros.append("Hits every robot around it and slows them")
+			cons.append("Short range and small hits")
+		"lob":
+			pros.append("Explosive shells blast whole groups")
+			pros.append("Longest range of any hero (%.1f tiles)" % float(b.range))
+			cons.append("Slow to fire; shells can miss fast robots")
+	if b.has("shred"):
+		pros.append("Strips armor off robots it hits")
+	var boost := ""
+	if a.has("speed"):
+		boost = "+%d%% attack speed" % int(round(float(a.speed) * 100))
+	elif a.has("damage"):
+		boost = "+%d%% damage" % int(round(float(a.damage) * 100))
+	elif a.has("range"):
+		boost = "+%d%% range" % int(round(float(a.range) * 100))
+	if str(a.lineage) == "":
+		pros.append("Aura: nearby towers get %s" % boost)
+	else:
+		pros.append("Aura: nearby %s towers get %s" % [a.lineage, boost])
+		cons.append("Aura only helps %s towers" % a.lineage)
+	pros.append("Spots cloaked robots and can hit flying ones")
+	if float(ab.cooldown) >= 60:
+		cons.append("Ability has a long cooldown (%ds)" % int(ab.cooldown))
+	if cons.size() < 2:
+		cons.append("Ability unlocks at hero level %d" % int(ab.get("unlock", 3)))
+	return [pros, cons]
+
+
+## A turning 3D model of a hero for menus.
+func _hero_viewer(hid: String, size: Vector2) -> SubViewportContainer:
+	var svc := SubViewportContainer.new()
+	svc.stretch = true
+	svc.custom_minimum_size = size
+	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X
+	svc.add_child(vp)
+	var pivot := Node3D.new()
+	vp.add_child(pivot)
+	var model: Node3D = (_res("res://assets/heroes/%s.glb" % hid) as PackedScene).instantiate()
+	pivot.add_child(model)
+	var box := AABB()
+	var first := true
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var m3 := mi as MeshInstance3D
+		var xf := Transform3D.IDENTITY
+		var n: Node = m3
+		while n != null and n != model:
+			if n is Node3D:
+				xf = (n as Node3D).transform * xf
+			n = n.get_parent()
+		var bb: AABB = xf * m3.get_aabb()
+		box = bb if first else box.merge(bb)
+		first = false
+	model.position = -Vector3(box.get_center().x, box.position.y, box.get_center().z)
+	var h := maxf(box.size.y, maxf(box.size.x, box.size.z) * 0.8)
+	var cam := Camera3D.new()
+	cam.fov = 30
+	vp.add_child(cam)
+	cam.transform = Transform3D(Basis(), Vector3(0, h * 0.62, h * 2.35)).looking_at(Vector3(0, h * 0.47, 0))
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-40, 30, 0)
+	sun.light_energy = 1.25
+	vp.add_child(sun)
+	var env := WorldEnvironment.new()
+	env.environment = Environment.new()
+	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.environment.ambient_light_color = Color(0.75, 0.72, 0.8)
+	env.environment.ambient_light_energy = 0.7
+	env.environment.background_mode = Environment.BG_CLEAR_COLOR
+	vp.add_child(env)
+	var tw := pivot.create_tween().set_loops()
+	tw.tween_property(pivot, "rotation:y", TAU, 9.0).from(0.0)
+	return svc
+
+
+## Hero card: model, story, pros and cons, then PLAY AS (owned) or LOCKED + BUY (not owned yet).
+func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
+	var hd: Dictionary = defs.heroes.heroes[hid]
+	var dlg := _modal(ui_root, 0.7)
+	var box: VBoxContainer = dlg.get_meta("box")
+	box.set_meta("want_w", 1250.0)
+	box.add_theme_constant_override("separation", 14)
+	_on_close(dlg, func():
+		_sfx("click")
+		dlg.queue_free())
+	var col := Color(hd.color[0], hd.color[1], hd.color[2])
+	var ttl := _label(str(hd.name).to_upper(), 52, col.lightened(0.35), 12)
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ttl)
+	var sub := _label("%s   -   %s" % [hd.title, hd.era], 26, C_GOLD, 7)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	var row := HFlowContainer.new()
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("h_separation", 28)
+	box.add_child(row)
+	var stage := PanelContainer.new()
+	var ssb := _style(col.darkened(0.55), 24, col.darkened(0.2), 5)
+	ssb.bg_color = Color(col.darkened(0.6), 0.85)
+	stage.add_theme_stylebox_override("panel", ssb)
+	row.add_child(stage)
+	stage.add_child(_hero_viewer(hid, Vector2(380, 430)))
+	var info := VBoxContainer.new()
+	info.custom_minimum_size = Vector2(700, 0)
+	info.add_theme_constant_override("separation", 8)
+	row.add_child(info)
+	var blurb := _label(str(hd.blurb), 24, C_TEXT, 6)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(blurb)
+	var ab: Dictionary = hd.ability
+	var abl := _label("ABILITY: %s  (every %ds, from hero level %d)\n%s" % [str(ab.name).to_upper(), int(ab.cooldown), int(ab.get("unlock", 3)), ab.desc], 21, Color(0.75, 0.88, 1.0), 6)
+	abl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(abl)
+	var pc := _hero_pros_cons(hd)
+	info.add_child(_label("PROS", 24, Color(0.55, 1.0, 0.5), 7))
+	for t in pc[0]:
+		var l := _label("+  " + str(t), 20, Color(0.8, 1.0, 0.78), 5)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(l)
+	info.add_child(_label("CONS", 24, Color(1.0, 0.5, 0.45), 7))
+	for t in pc[1]:
+		var l2 := _label("-  " + str(t), 20, Color(1.0, 0.82, 0.78), 5)
+		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		info.add_child(l2)
+	var note := _label("Every hero fights at full strength in any age.", 18, Color(0.85, 0.78, 0.68), 5)
+	info.add_child(note)
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 24)
+	box.add_child(btns)
+	var owned := Progress.hero_owned(hid)
+	if owned:
+		var is_cur := Progress.hero() == hid
+		var play := _button("PLAYING AS %s" % _short_name(str(hd.name)).to_upper() if is_cur else "PLAY AS %s" % _short_name(str(hd.name)).to_upper(), Color(0.2, 0.58, 0.18), 32)
+		play.custom_minimum_size = Vector2(460, 92)
+		play.disabled = is_cur
+		play.pressed.connect(func():
+			_sfx("level_up")
+			Progress.set_hero(hid)
+			dlg.queue_free()
+			_refresh_hero_pickers(picker_box))
+		btns.add_child(play)
+		var back := _button("BACK", Color(0.42, 0.3, 0.2), 30)
+		back.custom_minimum_size = Vector2(240, 92)
+		back.pressed.connect(func():
+			_sfx("click")
+			dlg.queue_free())
+		btns.add_child(back)
+	else:
+		var locked := _button("LOCKED", Color(0.3, 0.3, 0.3), 30)
+		locked.icon = ICON_LOCK
+		locked.expand_icon = false
+		locked.add_theme_constant_override("icon_max_width", 40)
+		locked.custom_minimum_size = Vector2(260, 92)
+		locked.disabled = true
+		btns.add_child(locked)
+		var cost := Progress.hero_cost(hd, defs.heroes.heroes)
+		var avail := Progress.hero_available(hd)
+		var have := Progress.shards()
+		var buy_txt := "BUY  %d" % cost
+		if not avail:
+			buy_txt = "REACH THE %s" % str(hd.era).to_upper()
+		var buy := _button(buy_txt, Color(0.45, 0.25, 0.75), 30)
+		if avail:
+			buy.icon = ICON_SHARD
+			buy.add_theme_constant_override("icon_max_width", 48)
+		buy.custom_minimum_size = Vector2(420, 92)
+		buy.disabled = not avail or have < cost
+		buy.pressed.connect(func():
+			if Progress.buy_hero(hd, defs.heroes.heroes):
+				_sfx("level_up")
+				Progress.set_hero(hid)
+				_toast("%s joins you!" % hd.name, C_GOLD)
+				dlg.queue_free()
+				_refresh_hero_pickers(picker_box)
+				_hero_detail(hid, picker_box))
+		btns.add_child(buy)
+		var wallet := _label("You have %d Time Shards.%s" % [have, ("  Need %d more: earn them by playing maps and gaining Upgrade levels." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
+		wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(wallet)
+	dlg.get_parent().move_child(dlg, -1)
 
 
 func _open_heroes() -> void:
@@ -2676,7 +3396,7 @@ func _open_heroes() -> void:
 	box.add_theme_constant_override("separation", 14)
 	var head := HBoxContainer.new()
 	box.add_child(head)
-	var ttl := _label("HEROES", 60, C_GOLD, 14)
+	var ttl := _label("HEROS", 60, C_GOLD, 14)
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(ttl)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
@@ -2689,10 +3409,19 @@ func _open_heroes() -> void:
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	head.add_child(done)
-	var intro := _label("Your hero joins every match for free. New heroes unlock as your Legacy level grows.", 22, Color(0.92, 0.86, 0.76), 5)
+	_close_with(heroes_panel, done)
+	var intro := _label("Your hero joins every match for free. Each age brings new heros to buy with Time Shards, which you earn from maps and Upgrade levels. They don't come cheap.", 22, Color(0.92, 0.86, 0.76), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
-	_hero_picker(box)
+	var picker := _hero_picker(box)
+	var grant := _button("+%d SHARDS (test)" % int(Progress.workshop.shards.test_grant), Color(0.36, 0.26, 0.5), 18)
+	grant.custom_minimum_size = Vector2(240, 60)
+	grant.pressed.connect(func():
+		_sfx("click")
+		Progress.add_shards(int(Progress.workshop.shards.test_grant))
+		_refresh_hero_pickers(picker))
+	head.add_child(grant)
+	head.move_child(grant, 1)
 	heroes_panel.get_parent().move_child(heroes_panel, -1)
 
 
@@ -2710,7 +3439,7 @@ func _build_map_select(root: Control) -> void:
 	box.set_meta("want_w", 1300.0)
 	box.add_theme_constant_override("separation", 14)
 	if Progress.timeline() > 1:
-		var tl := _label("TIMELINE %d   -   robots +%d%% tougher   -   +%d%% Legacy XP" % [Progress.timeline(),
+		var tl := _label("TIMELINE %d   -   robots +%d%% tougher   -   +%d%% Upgrade XP" % [Progress.timeline(),
 			int(round((Progress.timeline_hp_mult() - 1.0) * 100)), int(round((Progress.timeline_xp_mult() - 1.0) * 100))], 26, Color(0.85, 0.6, 1.0), 7)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(tl)
@@ -2778,14 +3507,15 @@ func _build_map_select(root: Control) -> void:
 		map_select.visible = false
 		title_screen.visible = true)
 	brow.add_child(m_back)
-	var m_work := _button("WORKSHOP", Color(0.5, 0.36, 0.16), 22)
+	_close_with(map_select, m_back)
+	var m_work := _button("TOWERS", Color(0.5, 0.36, 0.16), 22)
 	m_work.custom_minimum_size = Vector2(220, 60)
 	m_work.pressed.connect(func():
 		_sfx("click")
 		_open_workshop(""))
 	brow.add_child(m_work)
 	var pts := Progress.points_free()
-	var m_legacy := _button("LEGACY LV %d%s" % [Progress.legacy_level(), ("  (%d!)" % pts) if pts > 0 else ""],
+	var m_legacy := _button("UPGRADE LV %d%s" % [Progress.legacy_level(), ("  (%d!)" % pts) if pts > 0 else ""],
 		Color(0.18, 0.42, 0.6), 22)
 	m_legacy.custom_minimum_size = Vector2(300, 60)
 	if pts > 0:
@@ -2887,7 +3617,7 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.add_child(center)
 	var panel := PanelContainer.new()
-	var sb := _style(Color(0.16, 0.1, 0.06, 0.95), 30, C_PANEL_EDGE, 6)
+	var sb := _style(Color(0.16, 0.1, 0.06, 1.0), 30, C_PANEL_EDGE, 6)
 	sb.set_content_margin_all(30)
 	sb.shadow_size = 24
 	panel.add_theme_stylebox_override("panel", sb)
@@ -2904,8 +3634,30 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	scroll.add_child(box)
 	shade.set_meta("box", box)
 	shade.set_meta("scroll", scroll)
+	shade.set_meta("panel", panel)
+	# red X in the corner: every dialog can be closed (its action is set with _on_close)
+	var xb := _button("X", Color(0.8, 0.12, 0.1), 36)
+	xb.custom_minimum_size = Vector2(76, 76)
+	xb.size = Vector2(76, 76)
+	xb.visible = false
+	shade.add_child(xb)
+	xb.pressed.connect(func():
+		var cb: Callable = shade.get_meta("on_close", Callable())
+		if cb.is_valid():
+			cb.call())
+	shade.set_meta("x", xb)
 	modals.append(shade)
 	return shade
+
+
+## What the dialog's red X does (usually: the same as its DONE / BACK button).
+func _on_close(shade: Control, cb: Callable) -> void:
+	shade.set_meta("on_close", cb)
+	(shade.get_meta("x") as Button).visible = true
+
+
+func _close_with(shade: Control, b: Button) -> void:
+	_on_close(shade, func(): b.pressed.emit())
 
 
 ## Keeps every open dialog inside the screen: narrower when the UI is scaled up, scrollable when too tall.
@@ -2923,6 +3675,12 @@ func _fit_modals() -> void:
 		var need := box.get_combined_minimum_size().y
 		var bar := 26.0 if need > vp.y - 110.0 else 0.0
 		scroll.custom_minimum_size = Vector2(w + bar, minf(need, vp.y - 110.0))
+		var xb: Button = m.get_meta("x")
+		if xb.visible:
+			var pr := (m.get_meta("panel") as Control).get_rect()
+			var cc := (m.get_meta("panel") as Control).get_parent() as Control
+			pr.position += cc.position
+			xb.position = Vector2(pr.end.x - 56.0, pr.position.y - 20.0)
 
 
 func _start_game() -> void:
@@ -2951,7 +3709,7 @@ func _show_tower_panel(id: int) -> void:
 	var lines := ""
 	if t.get("is_hero", false):
 		var hd: Dictionary = sim.hero_def
-		tower_icon.texture = _icon_tex(sim.hero_id)
+		tower_icon.texture = _face_tex(sim.hero_id)
 		lbl_t_name.text = str(hd.name)
 		var nxt := "MAX" if t.level >= sim.hero_levels.size() else "%d/%d XP" % [int(t.xp), int(sim.hero_levels[t.level])]
 		lines = "%s  -  Level %d  (%s)\n" % [hd.title, t.level, nxt]
@@ -3168,6 +3926,9 @@ func _set_paused(on: bool) -> void:
 
 func _build_pause_menu(root: Control) -> void:
 	pause_menu = _modal(root, 0.55)
+	_on_close(pause_menu, func():
+		_sfx("click")
+		_set_paused(false))
 	var box: VBoxContainer = pause_menu.get_meta("box")
 	box.set_meta("want_w", 620.0)
 	box.add_theme_constant_override("separation", 16)
@@ -3185,10 +3946,10 @@ func _build_pause_menu(root: Control) -> void:
 			_award_xp(false)
 			Progress.current_map = map_id
 			get_tree().reload_current_scene()],
-		["QUIT TO MAP SELECT", Color(0.55, 0.26, 0.18), func():
+		["QUIT TO MAIN MENU", Color(0.55, 0.26, 0.18), func():
 			_award_xp(false)
 			Progress.current_map = ""
-			Progress.open_map_select = true
+			Progress.open_map_select = false
 			get_tree().reload_current_scene()],
 	]
 	for it in items:
@@ -3199,7 +3960,7 @@ func _build_pause_menu(root: Control) -> void:
 			_sfx("click")
 			cb.call())
 		box.add_child(b)
-	var note := _label("Waves you cleared still earn Legacy XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
+	var note := _label("Waves you cleared still earn Upgrade XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
@@ -3328,6 +4089,7 @@ func _open_settings() -> void:
 		Progress.save()
 		settings_panel.visible = false)
 	box.add_child(done)
+	_close_with(settings_panel, done)
 	settings_panel.get_parent().move_child(settings_panel, -1)
 	settings_panel.visible = true
 
@@ -3346,10 +4108,10 @@ func _confirm_new_timeline() -> void:
 	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(story)
-	var keep := _label("YOU KEEP:  your Legacy level, every perk you bought, and all unlocked heroes.", 26, Color(0.6, 1.0, 0.6), 6)
+	var keep := _label("YOU KEEP:  your Upgrade level, every perk you bought, and all unlocked heros.", 26, Color(0.6, 1.0, 0.6), 6)
 	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(keep)
-	var gain := _label("YOU GAIN:  +%d Legacy points, every perk can go %d rank higher, and +%d%% Legacy XP from every match." % [
+	var gain := _label("YOU GAIN:  +%d Upgrade Points, every perk can go %d rank higher, and +%d%% Upgrade XP from every match." % [
 		int(lt.bonus_points_per), int(lt.max_rank_per), int(round(float(lt.xp_per) * 100))], 26, C_GOLD, 6)
 	gain.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(gain)
@@ -3366,6 +4128,7 @@ func _confirm_new_timeline() -> void:
 		_sfx("click")
 		dlg.queue_free())
 	row.add_child(no)
+	_close_with(dlg, no)
 	var yes := _button("BEGIN TIMELINE %d" % nxt, Color(0.5, 0.2, 0.62), 32)
 	yes.custom_minimum_size = Vector2(420, 90)
 	yes.pressed.connect(func():
@@ -3379,7 +4142,7 @@ func _confirm_new_timeline() -> void:
 
 func _legacy_badge_text() -> String:
 	var pr := Progress.legacy_progress()
-	var t := "Legacy Level %d   -   %d / %d XP" % [Progress.legacy_level(), pr[0], pr[1]]
+	var t := "Upgrade Level %d   -   %d / %d XP" % [Progress.legacy_level(), pr[0], pr[1]]
 	if Progress.timeline() > 1:
 		t = "Timeline %d   -   " % Progress.timeline() + t
 	if Progress.points_free() > 0:
@@ -3401,10 +4164,12 @@ func _award_xp(won: bool) -> String:
 	var meta := _map_meta()
 	var xp := 0
 	var scrap := 0
+	var shards := 0
 	var new_waves := waves_cleared - xp_waves_awarded
 	if new_waves > 0 and not sim.endless:
 		xp += Progress.match_xp(meta, new_waves, false, false)
 		scrap += Progress.match_scrap(meta, new_waves, false, false)
+		shards += Progress.match_shards(meta, new_waves, false, false)
 	elif new_waves > 0:
 		xp += Progress.match_xp(meta, new_waves, false, false)
 	xp_waves_awarded = waves_cleared
@@ -3412,23 +4177,25 @@ func _award_xp(won: bool) -> String:
 		xp_win_awarded = true
 		xp += Progress.match_xp(meta, 0, true, first_clear)
 		scrap += Progress.match_scrap(meta, 0, true, first_clear)
+		shards += Progress.match_shards(meta, 0, true, first_clear)
 	if xp <= 0:
 		return ""
+	var sh0 := Progress.shards()
 	var lv: Array = Progress.add_xp(xp)
+	if shards > 0:
+		Progress.add_shards(shards)
 	var txt := ""
 	if scrap > 0:
 		Progress.add_scrap(_era(), scrap)
 		txt += "\n+%d SCRAP  (%s: %d)" % [scrap, _era(), Progress.scrap(_era())]
-	txt += "\n+%d LEGACY XP" % xp
+	txt += "\n+%d UPGRADE XP" % xp
 	if first_clear and won:
 		txt += " (first clear bonus!)"
 	if lv[1] > lv[0]:
-		txt += "\nLEGACY LEVEL %d!" % lv[1]
-		for hid in defs.heroes.heroes:
-			var u := int(defs.heroes.heroes[hid].get("legacy_unlock", 1))
-			if u > lv[0] and u <= lv[1]:
-				txt += "\nNEW HERO UNLOCKED: %s!" % str(defs.heroes.heroes[hid].name)
+		txt += "\nUPGRADE LEVEL %d!" % lv[1]
 		_sfx("level_up", 0.0, 0.0, 0.0)
+	if Progress.shards() > sh0:
+		txt += "\n+%d TIME SHARDS  (you have %d)" % [Progress.shards() - sh0, Progress.shards()]
 	return txt
 
 
@@ -3448,7 +4215,7 @@ func _build_legacy_contents() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 30)
 	box.add_child(head)
-	head.add_child(_label("LEGACY", 64, C_GOLD, 14))
+	head.add_child(_label("UPGRADES", 64, C_GOLD, 14))
 	var lvbox := VBoxContainer.new()
 	lvbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lvbox.add_theme_constant_override("separation", 4)
@@ -3465,10 +4232,10 @@ func _build_legacy_contents() -> void:
 	bar.add_child(fill)
 	lvbox.add_child(_label("%d / %d XP to the next level" % [pr[0], pr[1]], 19, Color(0.85, 0.85, 0.9), 5))
 	var pts := Progress.points_free()
-	var plbl := _label("%d POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
+	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
-	var intro_t := "Every battle raises your Legacy level, which unlocks new heroes. Legacy POINTS are earned only by starting a New Timeline, and the perks you buy carry into every map and every timeline after that."
+	var intro_t := "Every battle raises your Upgrade level, which unlocks new heros. Upgrade Points are earned only by starting a New Timeline, and the perks you buy carry into every map and every timeline after that."
 	if Progress.timeline() > 1:
 		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
 			Progress.timeline() - 1, "" if Progress.timeline() == 2 else "s"]
@@ -3492,18 +4259,10 @@ func _build_legacy_contents() -> void:
 		col.add_child(bl)
 		for p in br.perks:
 			col.add_child(_perk_card(p, bc))
-	# hero unlocks
-	var hrow := HFlowContainer.new()
-	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
-	hrow.add_theme_constant_override("h_separation", 22)
-	box.add_child(hrow)
-	hrow.add_child(_label("HERO UNLOCKS:", 22, C_GOLD, 6))
-	for hid in defs.heroes.heroes:
-		var hd: Dictionary = defs.heroes.heroes[hid]
-		var open := Progress.hero_unlocked(hd)
-		hrow.add_child(_icon(_icon_tex(hid), 44))
-		hrow.add_child(_label("%s  LV %d%s" % [_short_name(str(hd.name)), int(hd.get("legacy_unlock", 1)), "  - READY" if open else ""], 20,
-			Color(0.6, 1.0, 0.6) if open else Color(0.7, 0.66, 0.6), 5))
+	var shl := _label("Every Upgrade level pays +%d Time Shards (spend them on heros).   You have %d." % [int(Progress.workshop.shards.earn.level_up), Progress.shards()], 22, Color(0.8, 0.72, 1.0), 6)
+	shl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(shl)
 	# footer
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -3536,6 +4295,7 @@ func _build_legacy_contents() -> void:
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	foot.add_child(done)
+	_close_with(legacy_panel, done)
 	box.move_child(foot, 1)   # buttons right under the header so DONE never needs scrolling
 
 
@@ -3672,6 +4432,83 @@ func _shoot_menu() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	await _shot("menu_workshop.png")
+	if "--shoot-heroes" in OS.get_cmdline_user_args():
+		_open_heroes()
+		for i in 4:
+			await get_tree().process_frame
+		await _shot("menu_heroes.png")
+		_hero_detail("ugo", VBoxContainer.new())
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_hero_owned.png")
+		_hero_detail("nova", VBoxContainer.new())
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_hero_locked.png")
+		get_tree().quit()
+		return
+	if "--test-drag" in OS.get_cmdline_user_args():
+		_open_legacy()
+		for i in 4:
+			await get_tree().process_frame
+		await _test_drag()
+	get_tree().quit()
+
+
+## Drags the open dialog starting ON a button: it should scroll and the button must not fire.
+func _test_drag() -> void:
+	var sc := _scroll_under(ui_root.size * 0.5)
+	var fired := [0]
+	var btn: Button = null
+	for n in sc.find_children("*", "Button", true, false):
+		var b := n as Button
+		if b.is_visible_in_tree() and sc.get_global_rect().encloses(b.get_global_rect()):
+			btn = b
+			break
+	btn.pressed.connect(func(): fired[0] += 1)
+	var p0 := btn.get_global_rect().get_center()
+	print("DRAG before scroll=", sc.scroll_vertical, " max=", sc.get_v_scroll_bar().max_value, " page=", sc.get_v_scroll_bar().page, " btn=", btn.text)
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = p0
+	ev.global_position = p0
+	get_viewport().push_input(ev, true)
+	await get_tree().process_frame
+	for i in 12:
+		var mm := InputEventMouseMotion.new()
+		mm.position = p0 - Vector2(0, 25 * (i + 1))
+		mm.global_position = mm.position
+		mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+		get_viewport().push_input(mm, true)
+		await get_tree().process_frame
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = p0 - Vector2(0, 300)
+	up.global_position = up.position
+	get_viewport().push_input(up, true)
+	for i in 30:
+		await get_tree().process_frame
+	print("DRAG after scroll=", sc.scroll_vertical, " button_fired=", fired[0])
+	await _shot("menu_drag.png")
+	var w := InputEventMouseButton.new()
+	w.button_index = MOUSE_BUTTON_WHEEL_UP
+	w.pressed = true
+	w.position = p0
+	w.global_position = p0
+	get_viewport().push_input(w, true)
+	await get_tree().process_frame
+	print("WHEEL after scroll=", sc.scroll_vertical)
+	# a plain tap on a button still works
+	var tb := btn
+	var q := tb.get_global_rect().get_center()
+	for pr in [true, false]:
+		var e := InputEventMouseButton.new()
+		e.button_index = MOUSE_BUTTON_LEFT
+		e.pressed = pr
+		e.position = q
+		e.global_position = q
+		get_viewport().push_input(e, true)
+	print("TAP button_fired=", fired[0])
 	get_tree().quit()
 
 
@@ -3694,6 +4531,29 @@ func _run_demo() -> void:
 		for i in 3:
 			await get_tree().process_frame
 		await _shot("demo_menu.png")
+		get_tree().quit()
+		return
+	if "--shoot-portal" in args:
+		_start_game()
+		sim.start_wave()
+		await _wait_ticks(int(1.4 / TICK))
+		var pn: Node3D = portal_nodes[0]
+		var pp := pn.global_position
+		await _shot("demo_portal_wide.png")
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov = 40
+		var fwd := -pn.global_transform.basis.z
+		var side := pn.global_transform.basis.x
+		cam.global_position = pp + fwd * 7.5 + side * 2.5 + Vector3(0, 3.5, 0)
+		cam.look_at(pp + Vector3(0, 1.3, 0))
+		set_process(false)
+		for i in 40:
+			sim.step()
+			_handle_events()
+			_sync_visuals(1.0)
+			_update_effects(TICK)
+			await get_tree().process_frame
+		await _shot("demo_portal_close.png")
 		get_tree().quit()
 		return
 	if "--shoot-cloak" in args:
@@ -3790,3 +4650,110 @@ func _run_demo() -> void:
 		await _shot("demo_%s_boss.png" % tag)
 	print("DEMO_DONE")
 	get_tree().quit()
+
+
+# ---------------------------------------------------------------- drag scrolling
+# Every scroll area can be dragged (finger or mouse) or wheel-scrolled from anywhere inside it,
+# not just on the bar. A drag that starts on a button cancels that button's tap.
+const DRAG_SCROLL_START := 14.0
+var _ds_sc: ScrollContainer = null
+var _ds_start := Vector2.ZERO
+var _ds_scroll0 := 0.0
+var _ds_active := false
+var _ds_vel := 0.0
+var _ds_prev_y := 0.0
+var _ds_prev_t := 0.0
+var _ds_fling: ScrollContainer = null
+
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+func _scroll_under(pos: Vector2) -> ScrollContainer:
+	if ui_root == null:
+		return null
+	# the topmost open dialog wins; nothing underneath it can be scrolled
+	var root: Node = ui_root
+	for m in modals:
+		if is_instance_valid(m) and (m as Control).is_visible_in_tree():
+			if root == ui_root or (m as Node).is_greater_than(root):
+				root = m
+	var best: ScrollContainer = null
+	for n in root.find_children("*", "ScrollContainer", true, false):
+		var sc := n as ScrollContainer
+		if sc.is_visible_in_tree() and sc.get_global_rect().has_point(pos):
+			if best == null or sc.is_greater_than(best):
+				best = sc
+	return best
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var wsc := _scroll_under(mb.position)
+			if wsc != null:
+				_ds_fling = null
+				var dir := -1.0 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0
+				wsc.scroll_vertical = int(wsc.scroll_vertical + dir * 90.0 * maxf(1.0, mb.factor))
+				get_viewport().set_input_as_handled()
+			return
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_ds_fling = null
+			_ds_sc = _scroll_under(mb.position)
+			_ds_active = false
+			if _ds_sc != null:
+				_ds_start = mb.position
+				_ds_scroll0 = float(_ds_sc.scroll_vertical)
+				_ds_prev_y = mb.position.y
+				_ds_prev_t = _now()
+				_ds_vel = 0.0
+		else:
+			if _ds_active and is_instance_valid(_ds_sc) and absf(_ds_vel) > 120.0 and _now() - _ds_prev_t < 0.12:
+				_ds_fling = _ds_sc
+			_ds_sc = null
+			_ds_active = false
+	elif event is InputEventMouseMotion and _ds_sc != null:
+		var mm := event as InputEventMouseMotion
+		if not is_instance_valid(_ds_sc) or not (mm.button_mask & MOUSE_BUTTON_MASK_LEFT):
+			_ds_sc = null
+			_ds_active = false
+			return
+		var d := mm.position - _ds_start
+		if not _ds_active:
+			if absf(d.y) < DRAG_SCROLL_START or absf(d.y) < absf(d.x):
+				return
+			_ds_active = true
+			_ds_start = mm.position
+			_ds_scroll0 = float(_ds_sc.scroll_vertical)
+			d = Vector2.ZERO
+			# cancel the tap on whatever button the drag started on
+			for n in _ds_sc.find_children("*", "BaseButton", true, false):
+				var b := n as BaseButton
+				if not b.disabled and not b.toggle_mode and b.get_draw_mode() in [BaseButton.DRAW_PRESSED, BaseButton.DRAW_HOVER_PRESSED]:
+					b.disabled = true
+					b.disabled = false
+		_ds_sc.scroll_vertical = int(_ds_scroll0 - d.y)
+		var dt := maxf(0.016, _now() - _ds_prev_t)
+		var v := (_ds_prev_y - mm.position.y) / dt
+		_ds_vel = lerpf(_ds_vel, v, 0.6)
+		_ds_prev_y = mm.position.y
+		_ds_prev_t = _now()
+		get_viewport().set_input_as_handled()
+
+
+func _drag_scroll_tick(delta: float) -> void:
+	if _ds_fling == null:
+		return
+	if not is_instance_valid(_ds_fling) or not _ds_fling.is_visible_in_tree() or absf(_ds_vel) < 30.0:
+		_ds_fling = null
+		return
+	var before := _ds_fling.scroll_vertical
+	_ds_fling.scroll_vertical = int(_ds_fling.scroll_vertical + _ds_vel * delta)
+	if _ds_fling.scroll_vertical == before:
+		_ds_fling = null
+		return
+	_ds_vel *= pow(0.05, delta)

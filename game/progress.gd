@@ -42,6 +42,8 @@ func _ready() -> void:
 		_migrate_old_save()
 	if not data.has("towers"):
 		_migrate_towers()
+	if not data.has("owned_heroes"):
+		_migrate_heroes()
 	if points_spent() > points_total():
 		data.perks = {}      # v0.8: points no longer come from levels, so refund perks bought that way
 		save()
@@ -133,8 +135,83 @@ func set_hero(id: String) -> void:
 	save()
 
 
+## A hero can be picked once it's owned (bought with Time Shards, or free).
 func hero_unlocked(hero_def: Dictionary) -> bool:
-	return legacy_level() >= int(hero_def.get("legacy_unlock", 1))
+	return hero_owned(str(hero_def.get("id", "")))
+
+
+func hero_owned(id: String) -> bool:
+	return id in data.get("owned_heroes", []) or id in workshop.shards.free_heroes
+
+
+## Heroes go on sale once the player reaches their age (any map of that age unlocked).
+func hero_available(hero_def: Dictionary) -> bool:
+	var era := str(hero_def.get("era", ""))
+	for m in _map_meta().values():
+		if str(m.era) == era and is_unlocked(str(m.id)):
+			return true
+	return false
+
+
+## Time Shard price: rises every age, and the second hero of each age costs more than the first.
+func hero_cost(hero_def: Dictionary, heroes: Dictionary) -> int:
+	var c: Dictionary = workshop.shards.hero_cost
+	var era := str(hero_def.get("era", ""))
+	var eras := []
+	for m in _map_meta().values():
+		if not str(m.era) in eras:
+			eras.append(str(m.era))
+	var idx := maxi(0, eras.find(era))
+	var same := []
+	for h in heroes:
+		if str(heroes[h].era) == era:
+			same.append(h)
+	var second := same.find(str(hero_def.get("id", ""))) > 0
+	return int(c.base) + int(c.per_era) * idx + (int(c.second) if second else 0)
+
+
+func shards() -> int:
+	return int(data.get("shards", 0))
+
+
+func add_shards(n: int) -> void:
+	data.shards = maxi(0, shards() + n)
+	save()
+
+
+func buy_hero(hero_def: Dictionary, heroes: Dictionary) -> bool:
+	var id := str(hero_def.get("id", ""))
+	if hero_owned(id) or not hero_available(hero_def):
+		return false
+	var cost := hero_cost(hero_def, heroes)
+	if shards() < cost:
+		return false
+	data.shards = shards() - cost
+	(data.owned_heroes as Array).append(id)
+	save()
+	return true
+
+
+## Time Shards for one match (also paid on a loss for the waves you cleared).
+func match_shards(map_meta: Dictionary, waves: int, won: bool, first: bool) -> int:
+	var e: Dictionary = workshop.shards.earn
+	var total := float(e.per_wave) * waves
+	if won:
+		total += float(e.win) * float(workshop.difficulty.get(str(map_meta.get("difficulty", "Normal")), 1.0))
+	if first:
+		total += float(e.first_clear)
+	return int(floor(total))
+
+
+## v0.9.2: heroes are bought now. Keep every hero the old Legacy-level rule had already unlocked.
+func _migrate_heroes() -> void:
+	var owned := []
+	var hd = JSON.parse_string(FileAccess.get_file_as_string("res://data/heroes.json"))
+	for id in hd.heroes:
+		if legacy_level() >= int(hd.heroes[id].get("legacy_unlock", 1)):
+			owned.append(id)
+	data.owned_heroes = owned
+	save()
 
 
 # ---------------------------------------------------------------- settings
@@ -189,6 +266,9 @@ func match_xp(map_meta: Dictionary, waves: int, won: bool, first: bool) -> int:
 func add_xp(amount: int) -> Array:
 	var before := legacy_level()
 	data.legacy_xp = int(data.get("legacy_xp", 0)) + amount
+	var ups := legacy_level() - before
+	if ups > 0:     # every Upgrade level pays Time Shards
+		data.shards = shards() + ups * int(workshop.shards.earn.level_up)
 	save()
 	return [before, legacy_level()]
 

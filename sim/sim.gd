@@ -410,7 +410,16 @@ func _hero_stats(level: int) -> Dictionary:
 	for k in pl:
 		s[k] = float(s.get(k, 0.0)) + float(pl[k]) * float(level - 1)
 	s.cooldown = maxf(float(s.cooldown), 0.15)
+	var hs := hero_scale()
+	s.damage = float(s.damage) * hs
+	if s.has("armor_pierce"):
+		s.armor_pierce = float(s.armor_pierce) * hs
 	return s
+
+
+## Heroes fight at the strength of the age being played, whatever age they come from.
+func hero_scale() -> float:
+	return armor_mult / maxf(0.01, Defs.era_power(str(hero_def.get("era", ""))))
 
 
 func _hero_gain_xp(amount: float) -> void:
@@ -447,7 +456,7 @@ func use_ability() -> bool:
 	var lv := float(hero.level - 1)
 	var src := {"hero": true, "tower_id": -1}
 	var hit_pos := []
-	var dmg := float(ab.get("damage", 0.0)) + float(ab.get("damage_per_level", 0.0)) * lv
+	var dmg := (float(ab.get("damage", 0.0)) + float(ab.get("damage_per_level", 0.0)) * lv) * hero_scale()
 	match ability_type():
 		"rain":
 			var alive := _alive_enemies()
