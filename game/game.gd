@@ -2541,7 +2541,7 @@ func _open_workshop(era: String) -> void:
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	head.add_child(done)
-	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Each map needs one more unlock than the last, so expect a few runs per map. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.92, 0.86, 0.76), 5)
+	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.92, 0.86, 0.76), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	# era switcher (only ages the player has reached)
@@ -2859,14 +2859,6 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8))
 	var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
 	v.add_child(_label(str(m.difficulty).to_upper(), 20, dc.get(m.difficulty, C_TEXT), 6))
-	var era_maps := []
-	for mm in Defs.map_list():
-		if str(mm.era) == str(m.era):
-			era_maps.append(str(mm.id))
-	var need := mini(4, era_maps.find(mid) + 2)
-	var have := Progress.era_unlocked_count(str(m.era))
-	var nl := _label("Recommended: %d towers unlocked (you have %d)" % [need, have], 17, Color(0.6, 1.0, 0.6) if have >= need else Color(1, 0.7, 0.45), 5)
-	v.add_child(nl)
 	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bl.custom_minimum_size = Vector2(362, 60)
