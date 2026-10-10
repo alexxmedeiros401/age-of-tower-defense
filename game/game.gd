@@ -132,6 +132,12 @@ var lbl_hero_level: Label
 var hero_xp_fill: ColorRect
 var btn_hero: Button
 var demo := false
+var attract := false          # main-menu background: the newest era map plays itself
+var test_mode := false        # --demo / --autowin: every hero and tower available
+var lbl_scrap: Label
+var hud_top: Control
+var hud_side: Control
+var heroes_panel: Control
 var map_id := "mammoth_valley"
 var map_order: Array = []
 var theme: Dictionary
@@ -150,6 +156,8 @@ func _ready() -> void:
 		map_order.append(m.id)
 	if Progress.current_map != "":
 		map_id = Progress.current_map
+	else:
+		map_id = _menu_map()
 	map = Defs.load_map(map_id)
 	defs = Defs.load_all(map)
 	var th_id: String = map.get("theme", "meadow")
@@ -157,8 +165,8 @@ func _ready() -> void:
 	sim = Sim.new()
 	sim.setup(defs, map)
 	var hid := Progress.hero()
-	var testing := "--demo" in OS.get_cmdline_user_args() or "--autowin" in OS.get_cmdline_user_args()
-	if not defs.heroes.heroes.has(hid) or not (testing or Progress.hero_unlocked(defs.heroes.heroes[hid])):
+	test_mode = "--demo" in OS.get_cmdline_user_args() or "--autowin" in OS.get_cmdline_user_args()
+	if not defs.heroes.heroes.has(hid) or not (test_mode or Progress.hero_unlocked(defs.heroes.heroes[hid])):
 		hid = "ugo"
 	sim.set_hero(hid)
 	if not "--noperks" in OS.get_cmdline_user_args():
@@ -169,6 +177,10 @@ func _ready() -> void:
 	_build_hud()
 	_apply_settings()
 	demo = "--demo" in OS.get_cmdline_user_args()
+	if Progress.current_map == "" and not demo and not "--autowin" in OS.get_cmdline_user_args():
+		_start_attract()
+	if "--shoot-menu" in OS.get_cmdline_user_args():
+		_shoot_menu()
 	if "--autowin" in OS.get_cmdline_user_args():
 		_run_autowin()
 	elif demo:
@@ -363,11 +375,15 @@ func _frame_camera() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.x / maxf(vp.y, 1.0)
 	var side_frac := SIDEBAR_W / maxf(vp.x, 1.0)
+	if attract:
+		side_frac = 600.0 / maxf(vp.x, 1.0)    # the main-menu column sits on the left
 	var need_w := 33.4   # road start (-15.6) to just past the base gate (~17.8)
 	var need_h := 18.6 * sin(deg_to_rad(PITCH)) + 2.6
 	cam.size = maxf(need_h, need_w / (aspect * (1.0 - side_frac)))
 	var view_w := cam.size * aspect
 	var target := Vector3(view_w * side_frac * 0.5 + 1.1, 0, 0.6)
+	if attract:
+		target.x = -view_w * side_frac * 0.5 + 1.1
 	var back := Vector3(0, sin(deg_to_rad(PITCH)), cos(deg_to_rad(PITCH))) * 60.0
 	cam.position = target + back
 	cam.look_at(target, Vector3.UP)
@@ -756,6 +772,8 @@ func _build_audio() -> void:
 
 
 func _sfx(name: String, vol_db := 0.0, pitch_var := 0.08, min_gap := 0.04) -> void:
+	if attract and not name in ["click", "upgrade", "level_up", "coin"]:
+		return
 	if muted or demo or not sfx.has(name):
 		return
 	var now := Time.get_ticks_msec() / 1000.0
@@ -1147,7 +1165,8 @@ func _process(delta: float) -> void:
 		_update_hud(0.0)
 		return
 	_auto_start(delta)
-	if started and sim.state != "lost":
+	_attract_tick()
+	if (started or attract) and sim.state != "lost":
 		accum += delta * speed
 		var steps := 0
 		while accum >= TICK and steps < MAX_STEPS_PER_FRAME:
@@ -1162,6 +1181,9 @@ func _process(delta: float) -> void:
 	_update_hud(delta)
 	shake = maxf(0.0, shake - delta * 2.5)
 	var sk := shake if Progress.setting("shake") else 0.0
+	if attract:
+		cam.position = cam_base + Vector3(sin(time_s * 0.12) * 1.6, 0, cos(time_s * 0.09) * 0.8)
+		return
 	cam.position = cam_base + Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)) * sk * sk * 0.6
 
 
@@ -1376,9 +1398,11 @@ func _handle_events() -> void:
 				_toast("Wave %d cleared!  +%d gold" % [ev.wave, ev.bonus], C_GOLD)
 				_sfx("coin", -4.0, 0.0)
 			"victory":
-				_show_overlay(true)
+				if not attract:
+					_show_overlay(true)
 			"defeat":
-				_show_overlay(false)
+				if not attract:
+					_show_overlay(false)
 	sim.events.clear()
 
 
@@ -1802,7 +1826,42 @@ func _unhandled_input(event: InputEvent) -> void:
 					_begin_placing(types[i])
 
 
+func _tower_open(type: String) -> bool:
+	return test_mode or attract or Progress.tower_unlocked(type)
+
+
+## Shop buttons: price for unlocked towers, Scrap cost for locked ones.
+func _refresh_shop() -> void:
+	for type in shop_buttons:
+		var b: Button = shop_buttons[type]
+		var def: Dictionary = defs.towers[type]
+		if _tower_open(type):
+			b.text = "%s\n%d gold" % [def.name, sim.tower_cost(type)]
+			b.self_modulate = Color.WHITE
+		else:
+			b.text = "%s\nUNLOCK: %d scrap" % [def.name, Progress.tower_scrap_cost(type)]
+			b.self_modulate = Color(0.55, 0.55, 0.6)
+	if lbl_scrap != null:
+		lbl_scrap.text = "%s SCRAP: %d" % [_era().to_upper(), Progress.scrap(_era())]
+		lbl_scrap.visible = not test_mode
+
+
+func _try_unlock(type: String) -> void:
+	var cost := Progress.tower_scrap_cost(type)
+	if Progress.unlock_tower(type):
+		_sfx("upgrade")
+		_toast("%s unlocked for the %s!" % [str(defs.towers[type].name), _era()], C_GOLD)
+		_refresh_shop()
+	else:
+		_sfx("error", -4.0, 0.0)
+		_toast("Needs %d scrap (you have %d). Play %s maps to earn scrap." % [cost, Progress.scrap(_era()), _era()], Color(1, 0.6, 0.45))
+		toast_t = 3.5
+
+
 func _begin_placing(type: String) -> void:
+	if type != HERO_PLACING and not _tower_open(type):
+		_try_unlock(type)
+		return
 	_sfx("click", -6.0)
 	_deselect()
 	if placing == type:
@@ -1991,6 +2050,7 @@ func _build_hud() -> void:
 
 	# --- top-left stat bar
 	var top := PanelContainer.new()
+	hud_top = top
 	top.add_theme_stylebox_override("panel", _style(Color(0.14, 0.09, 0.05, 0.82), 22, C_PANEL_EDGE, 4))
 	top.position = Vector2(20, 16)
 	root.add_child(top)
@@ -2025,6 +2085,7 @@ func _build_hud() -> void:
 
 	# --- right sidebar
 	var side := PanelContainer.new()
+	hud_side = side
 	var side_sb := _style(C_PANEL, 0, C_PANEL_EDGE, 0)
 	side_sb.border_width_left = 6
 	side_sb.shadow_size = 12
@@ -2090,12 +2151,16 @@ func _build_hud() -> void:
 	shop_box.add_theme_constant_override("separation", 10)
 	shop_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mid.add_child(shop_box)
+	lbl_scrap = _label("", 22, Color(0.75, 0.85, 0.95), 6)
+	lbl_scrap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	shop_box.add_child(lbl_scrap)
 	var types := sim.tower_types()
 	for i in types.size():
 		var type: String = types[i]
 		var def: Dictionary = defs.towers[type]
 		var c := Color(def.color[0], def.color[1], def.color[2])
-		var b := _button("%s\n%d gold" % [def.name, sim.tower_cost(type)], c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
+		var b := _button("", c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
+		b.set_meta("col", c.lerp(Color(0.45, 0.3, 0.18), 0.35))
 		b.icon = _icon_tex(type)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 92)
@@ -2105,6 +2170,7 @@ func _build_hud() -> void:
 		b.pressed.connect(_begin_placing.bind(type))
 		shop_box.add_child(b)
 		shop_buttons[type] = b
+	_refresh_shop()
 
 	tower_box = VBoxContainer.new()
 	tower_box.add_theme_constant_override("separation", 8)
@@ -2263,53 +2329,345 @@ func _build_hud() -> void:
 	overlay.set_meta("timeline", btn_tl)
 	overlay.visible = false
 
-	# --- title screen
-	title_screen = _modal(root, 0.55)
-	var tb: VBoxContainer = title_screen.get_meta("box")
-	var t1 := _label("AGE OF", 54, Color(1, 0.8, 0.5), 12)
-	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tb.add_child(t1)
-	var t2 := _label("TOWER DEFENSE", 104, C_GOLD, 22)
-	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tb.add_child(t2)
-	var t3 := _label("The machines came back through time to erase humanity.\nHold the line in every age.", 28, C_TEXT, 8)
-	t3.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tb.add_child(t3)
-	var play := _button("PLAY", Color(0.2, 0.58, 0.18), 52)
-	play.custom_minimum_size = Vector2(380, 120)
-	play.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# --- main menu (title): the newest era plays itself in the background
 	_build_map_select(root)
-	play.pressed.connect(func():
-		_sfx("click")
-		title_screen.visible = false
-		map_select.visible = true)
-	tb.add_child(play)
-	var legacy_badge := _label("", 30, Color(0.6, 0.9, 1.0), 8)
-	legacy_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	legacy_badge.text = _legacy_badge_text()
-	tb.add_child(legacy_badge)
-	var trow := HBoxContainer.new()
-	trow.alignment = BoxContainer.ALIGNMENT_CENTER
-	trow.add_theme_constant_override("separation", 20)
-	tb.add_child(trow)
-	var t_legacy := _button("LEGACY", Color(0.18, 0.42, 0.6), 30)
-	t_legacy.custom_minimum_size = Vector2(280, 80)
-	t_legacy.pressed.connect(func():
-		_sfx("click")
-		_open_legacy())
-	trow.add_child(t_legacy)
-	var t_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 30)
-	t_set.custom_minimum_size = Vector2(280, 80)
-	t_set.pressed.connect(func():
-		_sfx("click")
-		_open_settings())
-	trow.add_child(t_set)
+	_build_main_menu(root)
 
 	_build_pause_menu(root)
 	settings_panel = _modal(root, 0.5)
 	settings_panel.visible = false
 	legacy_panel = _modal(root, 0.6)
 	legacy_panel.visible = false
+
+
+# =================================================================== main menu, workshop, heroes
+## The newest map the player has unlocked: it plays itself behind the main menu.
+func _menu_map() -> String:
+	var best := "mammoth_valley"
+	for mid in map_order:
+		if Progress.is_unlocked(mid):
+			best = mid
+	return best
+
+
+## Next map to play: the first unlocked map not beaten yet in this timeline, else the newest one.
+func _continue_map() -> String:
+	for mid in map_order:
+		if Progress.is_unlocked(mid) and not mid in Progress.data.get("cleared", []):
+			return mid
+	return _menu_map()
+
+
+func _map_entry(mid: String) -> Dictionary:
+	for m in Defs.map_list():
+		if str(m.id) == mid:
+			return m
+	return {}
+
+
+func _start_attract() -> void:
+	attract = true
+	sim.lives = 999999
+	_demo_build(30000)
+	_frame_camera()
+	if music != null:
+		music.play()
+
+
+func _attract_tick() -> void:
+	if not attract or started:
+		return
+	if sim.can_start_wave() and sim.enemies.is_empty():
+		if sim.wave >= sim.total_waves - 2:
+			sim.wave = 2       # loop the mid-game waves forever; never reach the victory screen
+		sim.start_wave()
+
+
+func _menu_button(text: String, col: Color, cb: Callable, h := 78, font := 30) -> Button:
+	var b := _button(text, col, font)
+	b.custom_minimum_size = Vector2(0, h)
+	b.pressed.connect(func():
+		_sfx("click")
+		cb.call())
+	return b
+
+
+func _build_main_menu(root: Control) -> void:
+	title_screen = Control.new()
+	title_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	title_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(title_screen)
+	# soft vignette so the 3D background reads as a backdrop
+	var shade := ColorRect.new()
+	shade.color = Color(0.05, 0.03, 0.02, 0.25)
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(shade)
+	# left column
+	var panel := PanelContainer.new()
+	var sb := _style(Color(0.12, 0.07, 0.04, 0.9), 0, C_PANEL_EDGE, 0)
+	sb.border_width_right = 6
+	sb.shadow_size = 18
+	sb.set_content_margin_all(28)
+	panel.add_theme_stylebox_override("panel", sb)
+	panel.anchor_bottom = 1.0
+	panel.offset_right = 600
+	title_screen.add_child(panel)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 12
+	panel.add_child(scroll)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 12)
+	scroll.add_child(col)
+	var t1 := _label("AGE OF", 44, Color(1, 0.8, 0.5), 12)
+	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(t1)
+	var t2 := _label("TOWER DEFENSE", 74, C_GOLD, 18)
+	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(t2)
+	var t3 := _label("The machines came back through time to erase humanity. Hold the line in every age.", 22, C_TEXT, 6)
+	t3.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t3.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(t3)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 8)
+	col.add_child(gap)
+	var cm := _continue_map()
+	var cme := _map_entry(cm)
+	col.add_child(_menu_button("CONTINUE\n%s  -  %s" % [str(cme.get("era", "")), str(cme.get("name", ""))], Color(0.2, 0.58, 0.18), func():
+		Progress.current_map = cm
+		get_tree().reload_current_scene(), 104, 30))
+	col.add_child(_menu_button("MAPS", Color(0.24, 0.4, 0.62), func():
+		title_screen.visible = false
+		map_select.visible = true))
+	col.add_child(_menu_button("WORKSHOP", Color(0.5, 0.36, 0.16), func(): _open_workshop("")))
+	col.add_child(_menu_button("HEROES", Color(0.55, 0.3, 0.5), func(): _open_heroes()))
+	var pts := Progress.points_free()
+	col.add_child(_menu_button("LEGACY%s" % (("  (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""), Color(0.18, 0.42, 0.6), func(): _open_legacy()))
+	col.add_child(_menu_button("SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()))
+	if OS.has_feature("pc"):
+		col.add_child(_menu_button("QUIT", Color(0.42, 0.3, 0.22), func(): get_tree().quit(), 64, 26))
+	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 18, Color(0.7, 0.62, 0.52), 4)
+	col.add_child(ver)
+	# profile card, bottom right
+	var card := PanelContainer.new()
+	var csb := _style(Color(0.12, 0.07, 0.04, 0.88), 18, C_PANEL_EDGE, 4)
+	csb.set_content_margin_all(18)
+	card.add_theme_stylebox_override("panel", csb)
+	card.anchor_left = 1.0
+	card.anchor_right = 1.0
+	card.anchor_top = 1.0
+	card.anchor_bottom = 1.0
+	card.offset_left = -460
+	card.offset_right = -24
+	card.offset_top = -250
+	card.offset_bottom = -24
+	title_screen.add_child(card)
+	var cv := VBoxContainer.new()
+	cv.add_theme_constant_override("separation", 6)
+	card.add_child(cv)
+	var lv_txt := "LEGACY LEVEL %d" % Progress.legacy_level()
+	if Progress.timeline() > 1:
+		lv_txt += "   -   TIMELINE %d" % Progress.timeline()
+	cv.add_child(_label(lv_txt, 26, Color(0.6, 0.9, 1.0), 7))
+	var pr := Progress.legacy_progress()
+	var bar := ColorRect.new()
+	bar.color = Color(0.06, 0.04, 0.02)
+	bar.custom_minimum_size = Vector2(400, 14)
+	cv.add_child(bar)
+	var fill := ColorRect.new()
+	fill.color = Color(0.4, 0.8, 1.0)
+	fill.size = Vector2(400.0 * clampf(float(pr[0]) / maxf(float(pr[1]), 1.0), 0.0, 1.0), 14)
+	bar.add_child(fill)
+	var stars := 0
+	for mid in map_order:
+		stars += Progress.stars(mid)
+	var heroes_open := 0
+	for hid in defs.heroes.heroes:
+		if Progress.hero_unlocked(defs.heroes.heroes[hid]):
+			heroes_open += 1
+	var era_now := str(_map_entry(_menu_map()).get("era", "Stone Age"))
+	var info := _label("Current age: %s (%d of %d)\nStars: %d / %d     Heroes: %d / %d\n%s scrap: %d" % [era_now, _eras().find(era_now) + 1, _eras().size(),
+		stars, map_order.size() * 3, heroes_open, defs.heroes.heroes.size(), era_now, Progress.scrap(era_now)], 20, C_TEXT, 5)
+	cv.add_child(info)
+
+
+## Workshop: spend an era's Scrap to unlock that era's towers. Each era's Scrap starts at 0.
+func _open_workshop(era: String) -> void:
+	if era == "":
+		era = str(Progress.data.get("tab", ""))
+		if era == "" or not Progress.is_unlocked(_first_map_of(era)):
+			era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
+	var dlg := _modal(ui_root, 0.6)
+	var box: VBoxContainer = dlg.get_meta("box")
+	box.set_meta("want_w", 1500.0)
+	box.add_theme_constant_override("separation", 14)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 24)
+	box.add_child(head)
+	var ttl := _label("WORKSHOP  -  %s" % era.to_upper(), 52, C_GOLD, 12)
+	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(ttl)
+	head.add_child(_label("SCRAP: %d" % Progress.scrap(era), 40, Color(0.75, 0.85, 0.95), 9))
+	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
+	done.custom_minimum_size = Vector2(200, 70)
+	done.pressed.connect(func():
+		_sfx("click")
+		dlg.queue_free()
+		if not started:
+			Progress.current_map = ""
+			Progress.open_map_select = map_select.visible
+			get_tree().reload_current_scene())
+	head.add_child(done)
+	var intro := _label("Each age has its own Scrap and its own towers. Ranged and Control towers are free; unlock the Brute and Siege towers with Scrap from this age's maps (every wave counts, wins and first clears pay more). Scrap doesn't carry into the next age.", 22, Color(0.92, 0.86, 0.76), 5)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(intro)
+	# era switcher (only ages the player has reached)
+	var tabs := HFlowContainer.new()
+	tabs.alignment = FlowContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("h_separation", 8)
+	tabs.add_theme_constant_override("v_separation", 8)
+	box.add_child(tabs)
+	for en in _eras():
+		if not Progress.is_unlocked(_first_map_of(en)):
+			continue
+		var tb := _button(en.to_upper(), Color(0.45, 0.32, 0.2), 18)
+		tb.custom_minimum_size = Vector2(210, 50)
+		tb.modulate = Color(1.25, 1.2, 0.95) if en == era else Color(0.75, 0.75, 0.75)
+		tb.pressed.connect(func():
+			_sfx("click")
+			dlg.queue_free()
+			_open_workshop(en))
+		tabs.add_child(tb)
+	var cards := HFlowContainer.new()
+	cards.alignment = FlowContainer.ALIGNMENT_CENTER
+	cards.add_theme_constant_override("h_separation", 18)
+	cards.add_theme_constant_override("v_separation", 18)
+	box.add_child(cards)
+	for tid in Progress.era_towers(era):
+		var def: Dictionary = defs.towers[tid]
+		var own := Progress.tower_unlocked(tid)
+		var cost := Progress.tower_scrap_cost(tid)
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", _style(Color(0.24, 0.16, 0.1) if own else Color(0.17, 0.13, 0.1), 18, C_GOLD.darkened(0.3) if own else C_PANEL_EDGE, 3))
+		card.custom_minimum_size = Vector2(330, 0)
+		cards.add_child(card)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 6)
+		card.add_child(v)
+		var ic := _icon(_icon_tex(tid), 150)
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		ic.modulate = Color.WHITE if own else Color(0.55, 0.55, 0.55)
+		v.add_child(ic)
+		var nm := _label(str(def.name), 30, C_TEXT, 7)
+		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(nm)
+		var ln := _label("%s  -  %d gold to build" % [str(def.lineage), int(def.cost)], 18, Color(1, 0.8, 0.5), 5)
+		ln.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(ln)
+		var ds := _label(str(def.desc), 18, Color(0.9, 0.85, 0.78), 4)
+		ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ds.custom_minimum_size = Vector2(290, 56)
+		v.add_child(ds)
+		if own:
+			var ok := _label("FREE" if cost == 0 else "UNLOCKED", 26, Color(0.6, 1.0, 0.6), 6)
+			ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(ok)
+		else:
+			var ub := _button("UNLOCK  -  %d SCRAP" % cost, Color(0.2, 0.55, 0.2), 22)
+			ub.custom_minimum_size = Vector2(0, 64)
+			ub.disabled = Progress.scrap(era) < cost
+			ub.pressed.connect(func():
+				if Progress.unlock_tower(tid):
+					_sfx("upgrade")
+					dlg.queue_free()
+					_open_workshop(era))
+			v.add_child(ub)
+	if OS.is_debug_build():
+		var cheat := _button("+300 SCRAP (test)", Color(0.35, 0.3, 0.45), 18)
+		cheat.custom_minimum_size = Vector2(260, 52)
+		cheat.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cheat.pressed.connect(func():
+			Progress.add_scrap(era, 300)
+			dlg.queue_free()
+			_open_workshop(era))
+		box.add_child(cheat)
+	dlg.get_parent().move_child(dlg, -1)
+
+
+## Hero roster: pick the hero that joins every match.
+func _hero_picker(box: VBoxContainer) -> void:
+	var hrow := HFlowContainer.new()
+	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
+	hrow.add_theme_constant_override("h_separation", 14)
+	hrow.add_theme_constant_override("v_separation", 14)
+	box.add_child(hrow)
+	var hblurb := _label("", 20, Color(0.92, 0.86, 0.76), 5)
+	hblurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hblurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hblurb.custom_minimum_size = Vector2(0, 60)
+	var hero_buttons := {}
+	var pick := func(hid: String) -> void:
+		Progress.set_hero(hid)
+		for k in hero_buttons:
+			hero_buttons[k].modulate = Color(1.2, 1.15, 0.9) if k == hid else Color(0.62, 0.62, 0.62)
+		var hd: Dictionary = defs.heroes.heroes[hid]
+		hblurb.text = "%s, %s (%s).  %s\nAbility: %s. %s" % [hd.name, hd.title, hd.era, hd.blurb, hd.ability.name, hd.ability.desc]
+	for hid in defs.heroes.heroes:
+		var hd2: Dictionary = defs.heroes.heroes[hid]
+		var open := Progress.hero_unlocked(hd2)
+		var hname := _short_name(str(hd2.name))
+		var hb := _button(hname if open else "%s\nLEGACY LV %d" % [hname, int(hd2.get("legacy_unlock", 1))],
+			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
+		hb.icon = _icon_tex(hid)
+		hb.expand_icon = true
+		hb.add_theme_constant_override("icon_max_width", 56)
+		hb.custom_minimum_size = Vector2(236, 76)
+		hb.pressed.connect(func():
+			_sfx("click")
+			if Progress.hero_unlocked(hd2):
+				pick.call(hid)
+			else:
+				hblurb.text = "%s, %s.  Reach Legacy level %d to unlock.\nEarn Legacy XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("legacy_unlock", 1))])
+		hrow.add_child(hb)
+		hero_buttons[hid] = hb
+	box.add_child(hblurb)
+	var start_hero := Progress.hero()
+	if not defs.heroes.heroes.has(start_hero) or not Progress.hero_unlocked(defs.heroes.heroes[start_hero]):
+		start_hero = "ugo"
+	pick.call(start_hero)
+
+
+func _open_heroes() -> void:
+	if heroes_panel != null and is_instance_valid(heroes_panel):
+		heroes_panel.queue_free()
+	heroes_panel = _modal(ui_root, 0.6)
+	var box: VBoxContainer = heroes_panel.get_meta("box")
+	box.set_meta("want_w", 1350.0)
+	box.add_theme_constant_override("separation", 14)
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	var ttl := _label("HEROES", 60, C_GOLD, 14)
+	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(ttl)
+	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
+	done.custom_minimum_size = Vector2(200, 70)
+	done.pressed.connect(func():
+		_sfx("click")
+		heroes_panel.queue_free()
+		if not started:
+			Progress.current_map = ""
+			Progress.open_map_select = map_select.visible
+			get_tree().reload_current_scene())
+	head.add_child(done)
+	var intro := _label("Your hero joins every match for free. New heroes unlock as your Legacy level grows.", 22, Color(0.92, 0.86, 0.76), 5)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(intro)
+	_hero_picker(box)
+	heroes_panel.get_parent().move_child(heroes_panel, -1)
 
 
 func _eras() -> Array:
@@ -2378,56 +2736,32 @@ func _build_map_select(root: Control) -> void:
 	var hhead := _label("CHOOSE YOUR HERO", 30, C_GOLD, 8)
 	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hhead)
-	var hrow := HFlowContainer.new()
-	hrow.alignment = FlowContainer.ALIGNMENT_CENTER
-	hrow.add_theme_constant_override("h_separation", 14)
-	hrow.add_theme_constant_override("v_separation", 14)
-	box.add_child(hrow)
-	var hblurb := _label("", 20, Color(0.92, 0.86, 0.76), 5)
-	hblurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hblurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hblurb.custom_minimum_size = Vector2(0, 60)
-	var hero_buttons := {}
-	var pick := func(hid: String) -> void:
-		Progress.set_hero(hid)
-		for k in hero_buttons:
-			hero_buttons[k].modulate = Color(1.2, 1.15, 0.9) if k == hid else Color(0.62, 0.62, 0.62)
-		var hd: Dictionary = defs.heroes.heroes[hid]
-		hblurb.text = "%s, %s (%s).  %s\nAbility: %s. %s" % [hd.name, hd.title, hd.era, hd.blurb, hd.ability.name, hd.ability.desc]
-	for hid in defs.heroes.heroes:
-		var hd2: Dictionary = defs.heroes.heroes[hid]
-		var open := Progress.hero_unlocked(hd2)
-		var hname := _short_name(str(hd2.name))
-		var hb := _button(hname if open else "%s\nLEGACY LV %d" % [hname, int(hd2.get("legacy_unlock", 1))],
-			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
-		hb.icon = _icon_tex(hid)
-		hb.expand_icon = true
-		hb.add_theme_constant_override("icon_max_width", 56)
-		hb.custom_minimum_size = Vector2(236, 76)
-		hb.pressed.connect(func():
-			_sfx("click")
-			if Progress.hero_unlocked(hd2):
-				pick.call(hid)
-			else:
-				hblurb.text = "%s, %s.  Reach Legacy level %d to unlock.\nEarn Legacy XP by playing any map: every wave you clear counts." % [hd2.name, hd2.title, int(hd2.get("legacy_unlock", 1))])
-		hrow.add_child(hb)
-		hero_buttons[hid] = hb
-	box.add_child(hblurb)
-	var start_hero := Progress.hero()
-	if not defs.heroes.heroes.has(start_hero) or not Progress.hero_unlocked(defs.heroes.heroes[start_hero]):
-		start_hero = "ugo"
-	pick.call(start_hero)
+	_hero_picker(box)
 	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = lose 50 lives or fewer, 3 = lose 10 or fewer.  Your hero joins every match for free.", 18, Color(0.85, 0.78, 0.68), 5)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
-	var brow := HBoxContainer.new()
-	brow.alignment = BoxContainer.ALIGNMENT_CENTER
-	brow.add_theme_constant_override("separation", 18)
+	var brow := HFlowContainer.new()
+	brow.alignment = FlowContainer.ALIGNMENT_CENTER
+	brow.add_theme_constant_override("h_separation", 14)
+	brow.add_theme_constant_override("v_separation", 10)
 	box.add_child(brow)
+	var m_back := _button("BACK", Color(0.42, 0.3, 0.22), 22)
+	m_back.custom_minimum_size = Vector2(160, 60)
+	m_back.pressed.connect(func():
+		_sfx("click")
+		map_select.visible = false
+		title_screen.visible = true)
+	brow.add_child(m_back)
+	var m_work := _button("WORKSHOP", Color(0.5, 0.36, 0.16), 22)
+	m_work.custom_minimum_size = Vector2(220, 60)
+	m_work.pressed.connect(func():
+		_sfx("click")
+		_open_workshop(""))
+	brow.add_child(m_work)
 	var pts := Progress.points_free()
-	var m_legacy := _button("LEGACY  LV %d%s" % [Progress.legacy_level(), ("   (%d POINT%s!)" % [pts, "" if pts == 1 else "S"]) if pts > 0 else ""],
+	var m_legacy := _button("LEGACY LV %d%s" % [Progress.legacy_level(), ("  (%d!)" % pts) if pts > 0 else ""],
 		Color(0.18, 0.42, 0.6), 22)
-	m_legacy.custom_minimum_size = Vector2(420, 60)
+	m_legacy.custom_minimum_size = Vector2(300, 60)
 	if pts > 0:
 		m_legacy.set_meta("pulse", true)
 	m_legacy.pressed.connect(func():
@@ -2672,12 +3006,16 @@ func _update_shop_highlight() -> void:
 
 
 func _toast(text: String, col: Color) -> void:
+	if attract:
+		return
 	toast.text = text
 	toast.add_theme_color_override("font_color", col)
 	toast_t = 2.4
 
 
 func _banner(text: String, col: Color) -> void:
+	if attract:
+		return
 	banner.text = text
 	banner.add_theme_color_override("font_color", col)
 	banner_t = 1.6
@@ -2708,11 +3046,14 @@ func _update_hero_card() -> void:
 
 
 func _update_hud(delta: float) -> void:
+	hud_top.visible = started
+	hud_side.visible = started
+	btn_pause.visible = started
 	lbl_gold.text = str(sim.gold)
 	lbl_lives.text = str(sim.lives)
 	lbl_wave.text = ("%d/%d" % [sim.wave, sim.total_waves]) if not (sim.endless or sim.wave > sim.total_waves) else ("%d  ENDLESS" % sim.wave)
 	for type in shop_buttons:
-		shop_buttons[type].disabled = sim.gold < sim.tower_cost(type)
+		shop_buttons[type].disabled = _tower_open(type) and sim.gold < sim.tower_cost(type)
 	for b in up_box.get_children():
 		if b is Button:
 			b.disabled = sim.gold < int(b.get_meta("cost"))
@@ -3033,21 +3374,30 @@ func _award_xp(won: bool) -> String:
 		return ""
 	var meta := _map_meta()
 	var xp := 0
+	var scrap := 0
 	var new_waves := waves_cleared - xp_waves_awarded
-	if new_waves > 0:
+	if new_waves > 0 and not sim.endless:
+		xp += Progress.match_xp(meta, new_waves, false, false)
+		scrap += Progress.match_scrap(meta, new_waves, false, false)
+	elif new_waves > 0:
 		xp += Progress.match_xp(meta, new_waves, false, false)
 	xp_waves_awarded = waves_cleared
 	if won and not xp_win_awarded:
 		xp_win_awarded = true
 		xp += Progress.match_xp(meta, 0, true, first_clear)
+		scrap += Progress.match_scrap(meta, 0, true, first_clear)
 	if xp <= 0:
 		return ""
 	var lv: Array = Progress.add_xp(xp)
-	var txt := "\n+%d LEGACY XP" % xp
+	var txt := ""
+	if scrap > 0:
+		Progress.add_scrap(_era(), scrap)
+		txt += "\n+%d SCRAP  (%s: %d)" % [scrap, _era(), Progress.scrap(_era())]
+	txt += "\n+%d LEGACY XP" % xp
 	if first_clear and won:
 		txt += " (first clear bonus!)"
 	if lv[1] > lv[0]:
-		txt += "\nLEGACY LEVEL %d!  +%d point%s for the Legacy tree" % [lv[1], lv[1] - lv[0], "" if lv[1] - lv[0] == 1 else "s"]
+		txt += "\nLEGACY LEVEL %d!" % lv[1]
 		for hid in defs.heroes.heroes:
 			var u := int(defs.heroes.heroes[hid].get("legacy_unlock", 1))
 			if u > lv[0] and u <= lv[1]:
@@ -3092,7 +3442,7 @@ func _build_legacy_contents() -> void:
 	var plbl := _label("%d POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
-	var intro_t := "Every battle adds to humanity's legacy. Each Legacy level gives 1 point. Bonuses carry into every map, every age and every new timeline."
+	var intro_t := "Every battle raises your Legacy level, which unlocks new heroes. Legacy POINTS are earned only by starting a New Timeline, and the perks you buy carry into every map and every timeline after that."
 	if Progress.timeline() > 1:
 		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
 			Progress.timeline() - 1, "" if Progress.timeline() == 2 else "s"]
@@ -3285,6 +3635,17 @@ func _run_autowin() -> void:
 	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s title=%s sub=%s next_visible=%s hero_lvl=%d" % [map_id, sim.state, sim.wave, sim.lives,
 		overlay.visible, lbl_overlay.text, lbl_overlay_sub.text.replace("\n", " | "), (overlay.get_meta("next") as Button).visible, sim.hero.level if sim.hero != null else 0])
 	print("AUTOWIN save=", JSON.stringify(Progress.data))
+	get_tree().quit()
+
+
+## Screenshot of the main menu with the attract-mode background (and the workshop / heroes screens).
+func _shoot_menu() -> void:
+	await get_tree().create_timer(8.0).timeout
+	await _shot("menu_main.png")
+	_open_workshop("")
+	for i in 4:
+		await get_tree().process_frame
+	await _shot("menu_workshop.png")
 	get_tree().quit()
 
 

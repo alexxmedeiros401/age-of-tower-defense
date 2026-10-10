@@ -86,6 +86,50 @@ def tune(entry):
     print("%-18s %-6s hp %.2f -> %.2f  boss x%.2f  %s" % (mid, diff, hp0, hp, boss, summary), flush=True)
 
 
+def tune_starter(mid):
+    """Normal maps open each era with only the free starter towers (Ranged + Control).
+    Lower robot HP until 'starter kit + era hero' keeps ~55 lives on average (never raises HP)."""
+    path = os.path.join(ROOT, "data", "map_%s.json" % mid)
+    m = json.load(open(path))
+    hp0 = float(m.get("hp_mult", 1.0))
+    boss = float(m.get("boss_hp_mult", 1.0))
+
+    def score(hp):
+        out = subprocess.run([G, "--headless", "--path", ROOT, "--script", "res://tests/balance.gd", "--", mid, "--quick", "--ranged",
+                              "--hp=%.4f" % hp, "--boss=%.4f" % boss], capture_output=True, text=True, timeout=900).stdout
+        vals = []
+        for line in out.splitlines():
+            if line.startswith("RUN|starter kit + "):
+                p = line.split("|")
+                vals.append(int(p[4]) if p[2] == "won" else -(20 - int(p[3])) * 5)
+        return sum(vals) / max(1, len(vals))
+
+    v0 = score(hp0)
+    if v0 >= 50:
+        print("%-18s starter ok at hp %.2f (%.0f)" % (mid, hp0, v0), flush=True)
+        return
+    lo, hi = math.log(hp0 * 0.45), math.log(hp0)
+    best = hp0 * 0.45
+    for i in range(6):
+        hp = math.exp((lo + hi) / 2)
+        v = score(hp)
+        if v >= 55:
+            best = max(best, hp)
+            lo = math.log(hp)
+        else:
+            hi = math.log(hp)
+    m = json.load(open(path))
+    m["hp_mult"] = round(best, 3)
+    json.dump(m, open(path, "w"), indent=1)
+    print("%-18s starter hp %.2f -> %.2f" % (mid, hp0, best), flush=True)
+
+
+if __name__ == "__main__" and "--starter" in sys.argv:
+    normals = ["mammoth_valley", "river_delta"] + [x[0] for x in S.MAPS if x[3] == "Normal"]
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        list(ex.map(tune_starter, normals))
+    sys.exit(0)
+
 if __name__ == "__main__":
     want = set(sys.argv[1:])
     todo = [(x[0], x[3]) for x in S.MAPS if not want or x[0] in want]

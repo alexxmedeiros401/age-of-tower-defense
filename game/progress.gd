@@ -12,11 +12,15 @@ var open_legacy := false    # jump straight to the Legacy tree on the next load
 var data := {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
 	"settings": DEFAULT_SETTINGS.duplicate(), "cleared": [], "timeline": 1}
 var legacy: Dictionary = {}       # data/legacy.json
+var workshop: Dictionary = {}     # data/workshop.json (Scrap + tower unlocks, per era)
+var _towers: Dictionary = {}      # data/towers.json
 var _perk_defs := {}           # perk id -> def
 
 
 func _ready() -> void:
 	legacy = JSON.parse_string(FileAccess.get_file_as_string("res://data/legacy.json"))
+	workshop = JSON.parse_string(FileAccess.get_file_as_string("res://data/workshop.json"))
+	_towers = JSON.parse_string(FileAccess.get_file_as_string("res://data/towers.json"))
 	for br in legacy.branches:
 		for p in br.perks:
 			_perk_defs[p.id] = p
@@ -36,6 +40,11 @@ func _ready() -> void:
 			st[k] = DEFAULT_SETTINGS[k]
 	if not had_legacy:
 		_migrate_old_save()
+	if not data.has("towers"):
+		_migrate_towers()
+	if points_spent() > points_total():
+		data.perks = {}      # v0.8: points no longer come from levels, so refund perks bought that way
+		save()
 
 
 ## Saves from before v0.5 have stars but no Legacy XP: credit those wins so testers keep their heroes.
@@ -45,6 +54,21 @@ func _migrate_old_save() -> void:
 		if meta.has(mid) and not mid in data.cleared:
 			data.legacy_xp = int(data.get("legacy_xp", 0)) + match_xp(meta[mid], 20, true, true)
 			data.cleared.append(mid)
+	save()
+
+
+## Saves from before v0.8 had every tower: keep the towers of every era the player has already played.
+func _migrate_towers() -> void:
+	data.towers = []
+	data.scrap = {}
+	var meta := _map_meta()
+	var eras := []
+	for mid in data.get("cleared", []):
+		if meta.has(mid):
+			eras.append(str(meta[mid].era))
+	for tid in _towers:
+		if str(_towers[tid].get("era", "Stone Age")) in eras:
+			data.towers.append(tid)
 	save()
 
 
@@ -169,8 +193,9 @@ func add_xp(amount: int) -> Array:
 	return [before, legacy_level()]
 
 
+## Legacy perk points come only from reaching a New Timeline (Legacy level itself unlocks heroes).
 func points_total() -> int:
-	return legacy_level() - 1 + timeline_bonus_points()
+	return timeline_bonus_points()
 
 
 func points_spent() -> int:
@@ -259,4 +284,68 @@ func start_new_timeline(map_order: Array) -> void:
 	data.stars = {}
 	data.cleared = []
 	data.tab = ""
+	data.towers = []
+	data.scrap = {}
 	save()
+
+
+# ---------------------------------------------------------------- workshop: Scrap and tower unlocks
+## Every era has its own Scrap wallet that starts at 0, and its own towers to unlock.
+## The Ranged tower of each era is free; the rest are bought with that era's Scrap.
+func scrap(era: String) -> int:
+	return int(data.get("scrap", {}).get(era, 0))
+
+
+func add_scrap(era: String, amount: int) -> void:
+	if not data.has("scrap"):
+		data.scrap = {}
+	data.scrap[era] = scrap(era) + amount
+	save()
+
+
+func tower_scrap_cost(tid: String) -> int:
+	var lin := str(_towers[tid].lineage)
+	if lin in workshop.free_lineages:
+		return 0
+	return int(workshop.cost.get(lin, 200))
+
+
+func tower_unlocked(tid: String) -> bool:
+	return tower_scrap_cost(tid) == 0 or tid in data.get("towers", [])
+
+
+func unlock_tower(tid: String) -> bool:
+	if tower_unlocked(tid):
+		return true
+	var era := str(_towers[tid].get("era", "Stone Age"))
+	var c := tower_scrap_cost(tid)
+	if scrap(era) < c:
+		return false
+	data.scrap[era] = scrap(era) - c
+	if not data.has("towers"):
+		data.towers = []
+	data.towers.append(tid)
+	save()
+	return true
+
+
+## Scrap for one match: waves cleared, a win bonus and a first-clear bonus, scaled by difficulty.
+func match_scrap(map_meta: Dictionary, waves: int, won: bool, first: bool) -> int:
+	var e: Dictionary = workshop.earn
+	var mult := float(workshop.difficulty.get(str(map_meta.get("difficulty", "Normal")), 1.0))
+	var total := float(e.per_wave) * waves
+	if won:
+		total += float(e.win)
+	total *= mult
+	if first:
+		total += float(e.first_clear)
+	return int(round(total))
+
+
+func era_towers(era: String) -> Array:
+	var out := []
+	for lin in ["Ranged", "Brute", "Siege", "Control"]:
+		for tid in _towers:
+			if str(_towers[tid].lineage) == lin and str(_towers[tid].get("era", "Stone Age")) == era:
+				out.append(tid)
+	return out

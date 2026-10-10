@@ -11,6 +11,7 @@ var map: Dictionary
 var samples := PackedVector2Array()
 var era_ids := {}   # lineage -> tower id for this map's era
 var max_perks := {}  # every Legacy perk at max rank
+var only_ranged := false   # the start of every era: only the free Ranged tower is unlocked
 
 
 func _init() -> void:
@@ -48,6 +49,12 @@ func _init() -> void:
 			_run("balanced + " + era_heroes[0], _balanced(), true, era_heroes[0])
 			if era_heroes.size() > 1:
 				_run("balanced + " + era_heroes[1], _balanced(), true, era_heroes[1])
+		if "--ranged" in args:
+			only_ranged = true
+			var rplan := [["place", "rock_slinger"], ["place", "rock_slinger"], ["up", 0, ""], ["place", "tar_shaman"], ["up", 1, ""], ["place", "rock_slinger"]]
+			_run("starter kit", rplan, true, "")
+			for h in era_heroes:
+				_run("starter kit + " + h, rplan, true, h)
 		quit()
 		return
 	var runs := [
@@ -135,6 +142,8 @@ func _spend_greedy(sim: Sim, placed: Array) -> void:
 				best_id = t.id
 				best_key = o.key
 	var order := ["boulder_catapult", "rock_slinger", "club_warrior", "tar_shaman"]
+	if only_ranged:
+		order = ["rock_slinger", "tar_shaman"]
 	var type: String = _t(order[placed.size() % order.size()])
 	var tcost := sim.tower_cost(type)
 	# upgrade when it's affordable and not wildly pricier than a fresh tower; otherwise expand
