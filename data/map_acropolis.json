@@ -1,0 +1,130 @@
+{
+ "id": "acropolis",
+ "name": "Acropolis",
+ "era": "Classical Age",
+ "theme": "acropolis",
+ "base": "temple",
+ "boss": "hydra_swarm",
+ "waves_file": "waves_acropolis.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 2.97,
+ "armor_mult": 1.8,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -5
+   ],
+   [
+    -9,
+    -5
+   ],
+   [
+    -9,
+    0
+   ],
+   [
+    2,
+    0
+   ],
+   [
+    2,
+    -6
+   ],
+   [
+    9,
+    -6
+   ],
+   [
+    9,
+    4
+   ],
+   [
+    15.4,
+    4
+   ]
+  ],
+  [
+   [
+    -15.6,
+    6
+   ],
+   [
+    -4,
+    6
+   ],
+   [
+    -4,
+    0
+   ],
+   [
+    2,
+    0
+   ],
+   [
+    2,
+    -6
+   ],
+   [
+    9,
+    -6
+   ],
+   [
+    9,
+    4
+   ],
+   [
+    15.4,
+    4
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   5.4,
+   5.1,
+   1.32,
+   "ruins"
+  ],
+  [
+   11.6,
+   -0.8,
+   1.26,
+   "statue"
+  ],
+  [
+   6.1,
+   -1.8,
+   1.48,
+   "ruins"
+  ],
+  [
+   1.6,
+   3.2,
+   1.28,
+   "ruins"
+  ],
+  [
+   -2.7,
+   -3.4,
+   1.31,
+   "statue"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "hydra_head",
+  "hover_drone",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

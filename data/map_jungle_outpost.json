@@ -1,0 +1,130 @@
+{
+ "id": "jungle_outpost",
+ "name": "Jungle Outpost",
+ "era": "Gunpowder Age",
+ "theme": "jungle",
+ "base": "fort",
+ "boss": "dreadnought",
+ "waves_file": "waves_jungle_outpost.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 5.76,
+ "armor_mult": 3.2,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -3
+   ],
+   [
+    -9,
+    -3
+   ],
+   [
+    -9,
+    2
+   ],
+   [
+    3,
+    2
+   ],
+   [
+    3,
+    -6
+   ],
+   [
+    10,
+    -6
+   ],
+   [
+    10,
+    3
+   ],
+   [
+    15.4,
+    3
+   ]
+  ],
+  [
+   [
+    -15.6,
+    7
+   ],
+   [
+    -3,
+    7
+   ],
+   [
+    -3,
+    2
+   ],
+   [
+    3,
+    2
+   ],
+   [
+    3,
+    -6
+   ],
+   [
+    10,
+    -6
+   ],
+   [
+    10,
+    3
+   ],
+   [
+    15.4,
+    3
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   12.7,
+   -1.3,
+   1.16,
+   "trees"
+  ],
+  [
+   -4.4,
+   -5.3,
+   1.27,
+   "ruins"
+  ],
+  [
+   6.3,
+   1.7,
+   1.32,
+   "trees"
+  ],
+  [
+   -1.5,
+   -2.0,
+   1.16,
+   "trees"
+  ],
+  [
+   -5.3,
+   -0.6,
+   1.34,
+   "ruins"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "bomber",
+  "cloaker",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

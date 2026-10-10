@@ -19,6 +19,7 @@ var paths: Array = []                    # [{pts, cum, length}] one per portal
 var blockers: Array = []                 # [Vector3(x, z, r)] no-build circles (lakes, lava, dunes...)
 var rivers: Array = []                   # [{pts: PackedVector2Array, half: float}] no-build water
 var hp_mult := 1.0
+var armor_mult := 1.0                    # later eras scale robot armor with tower damage
 var path_half_width := 0.85
 
 var tick := 0
@@ -63,6 +64,7 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 	path_half_width = float(map.path_width) * 0.5
 	total_waves = defs.waves.size()
 	hp_mult = float(map.get("hp_mult", 1.0))
+	armor_mult = float(map.get("armor_mult", 1.0))
 	var raw_paths: Array = map.paths if map.has("paths") else [map.path]
 	paths.clear()
 	for rp in raw_paths:
@@ -429,37 +431,80 @@ func use_ability() -> bool:
 	var lv := float(hero.level - 1)
 	var src := {"hero": true, "tower_id": -1}
 	var hit_pos := []
-	match str(ab.id):
-		"stone_rain":
-			var alive := []
-			for e in enemies:
-				if e.alive:
-					alive.append(e)
+	var dmg := float(ab.get("damage", 0.0)) + float(ab.get("damage_per_level", 0.0)) * lv
+	match ability_type():
+		"rain":
+			var alive := _alive_enemies()
 			alive.sort_custom(func(a, b): return remaining(a) < remaining(b))
-			var dmg := float(ab.damage) + float(ab.get("damage_per_level", 0.0)) * lv
 			for i in mini(int(ab.targets), alive.size()):
 				hit_pos.append(alive[i].pos)
 				_damage(alive[i], dmg, "blunt", src)
-		"earthquake":
+		"quake":
 			var st := float(ab.stun) + float(ab.get("stun_per_level", 0.0)) * lv
-			var dmg2 := float(ab.damage) + float(ab.get("damage_per_level", 0.0)) * lv
 			for e in enemies.duplicate():
 				if e.alive:
 					e.stun_until = maxi(e.stun_until, tick + int(st * (0.25 if e.boss else 1.0) / TICK))
-					_damage(e, dmg2, "blunt", src)
-		"solar_flare":
-			var dmg3 := float(ab.damage) + float(ab.get("damage_per_level", 0.0)) * lv
+					_damage(e, dmg, "blunt", src)
+		"flare":
 			var fsrc := {"hero": true, "tower_id": -1, "expose": float(ab.expose), "expose_time": float(ab.expose_time)}
 			for e in enemies.duplicate():
 				if e.alive and e.pos.distance_to(hero.pos) <= float(ab.radius):
 					hit_pos.append(e.pos)
-					_damage(e, dmg3, "fire", fsrc)
-		"forge_fury":
+					_damage(e, dmg, "fire", fsrc)
+		"fury":
 			fury_until = tick + int(float(ab.duration) / TICK)
 			fury_speed = float(ab.speed)
+		"strike":
+			# huge hits on the toughest robots, with a splash around each
+			var alive2 := _alive_enemies()
+			alive2.sort_custom(func(a, b): return a.hp > b.hp)
+			var n := mini(int(ab.targets), alive2.size())
+			var splash := float(ab.get("splash", 0.0))
+			for i in n:
+				var c: Dictionary = alive2[i]
+				var at: Vector2 = c.pos
+				hit_pos.append(at)
+				_damage(c, dmg, "energy", src)
+				if splash > 0.0:
+					for o in enemies.duplicate():
+						if o.alive and o.id != c.id and o.pos.distance_to(at) <= splash:
+							_damage(o, dmg * 0.4, "energy", src)
+		"freeze":
+			var dur := float(ab.duration) + float(ab.get("duration_per_level", 0.0)) * lv
+			for e in enemies:
+				if e.alive:
+					e.slow_amt = maxf(e.slow_amt, float(ab.slow) * (0.5 if e.boss else 1.0))
+					e.slow_until = maxi(e.slow_until, tick + int(dur / TICK))
+					hit_pos.append(e.pos)
+		"emp":
+			var st2 := float(ab.stun) + float(ab.get("stun_per_level", 0.0)) * lv
+			for e in enemies.duplicate():
+				if e.alive and e.pos.distance_to(hero.pos) <= float(ab.radius):
+					hit_pos.append(e.pos)
+					e.stun_until = maxi(e.stun_until, tick + int(st2 * (0.25 if e.boss else 1.0) / TICK))
+					if e.shield > 0.0:
+						e.shield = 0.0
+						e.last_hit = tick
+						events.append({"e": "shield_break", "id": e.id})
+					_damage(e, dmg, "energy", src)
 	hero.ability_cd = ability_cooldown()
-	events.append({"e": "ability", "ability": str(ab.id), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos})
+	events.append({"e": "ability", "ability": str(ab.id), "type": ability_type(), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos})
 	return true
+
+
+func ability_type() -> String:
+	var ab: Dictionary = hero_def.ability
+	if ab.has("type"):
+		return str(ab.type)
+	return {"stone_rain": "rain", "earthquake": "quake", "solar_flare": "flare", "forge_fury": "fury"}.get(str(ab.id), "rain")
+
+
+func _alive_enemies() -> Array:
+	var out := []
+	for e in enemies:
+		if e.alive:
+			out.append(e)
+	return out
 
 
 # ---------------------------------------------------------------- waves
@@ -525,7 +570,10 @@ func _spawn_enemy(type: String, w: int, dist: float = 0.0, pi: int = 0) -> Dicti
 	var shield := float(d.get("shield", 0.0)) * mult
 	var e := {
 		"id": _id(), "type": type, "wave": w, "pi": pi, "dist": dist, "pos": pos_at(dist, pi), "prev_pos": pos_at(dist, pi),
-		"hp": hp, "max_hp": hp, "speed": float(d.speed), "armor": float(d.armor),
+		"hp": hp, "max_hp": hp, "speed": float(d.speed), "armor": float(d.armor) * armor_mult,
+		"flying": d.get("flying", false), "cloak": d.get("cloak", false), "revealed_until": 0,
+		"burn_dps": 0.0, "burn_until": 0, "burn_src": -1, "enraged": false,
+		"emp_cd": float(d.emp.every) * 0.5 if d.has("emp") else 0.0,
 		"boss": d.get("boss", false), "alive": true,
 		"slow_amt": 0.0, "slow_until": 0, "stun_until": 0, "summon_cd": 0.0,
 		"shield": shield, "max_shield": shield, "last_hit": -100000,
@@ -545,9 +593,21 @@ func _damage(e: Dictionary, amount: float, dtype: String, src: Dictionary) -> vo
 		armor *= 0.4
 	elif dtype == "fire":
 		armor *= 0.2
+	elif dtype == "energy":
+		armor *= 0.5
 	var dmg := maxf(amount - armor, amount * 0.25)
 	if e.boss and src.has("boss_mult"):
 		dmg *= float(src.boss_mult)
+	if e.flying and src.has("air_mult"):
+		dmg *= float(src.air_mult)
+	if src.has("shield_break") and float(src.shield_break) > 0.0 and e.shield > 0.0:
+		e.shield = 0.0
+		events.append({"e": "shield_break", "id": e.id})
+	if src.has("burn") and float(src.burn) > 0.0:
+		if tick >= e.burn_until or float(src.burn) >= e.burn_dps:
+			e.burn_dps = float(src.burn)
+			e.burn_src = int(src.get("tower_id", -1))
+		e.burn_until = maxi(e.burn_until, tick + int(float(src.get("burn_time", 2.0)) / TICK))
 	if tick < e.expose_until:
 		dmg *= 1.0 + e.expose_amt
 	e.last_hit = tick
@@ -580,6 +640,26 @@ func _damage(e: Dictionary, amount: float, dtype: String, src: Dictionary) -> vo
 		_kill(e, src)
 
 
+## Damage over time (burning): ignores armor, still eaten by shields, no hit flash.
+func _raw_damage(e: Dictionary, amount: float, src: Dictionary) -> void:
+	if not e.alive:
+		return
+	if e.shield > 0.0:
+		var absorb := minf(e.shield, amount)
+		e.shield -= absorb
+		amount -= absorb
+	e.hp -= amount
+	if e.hp <= 0.0:
+		_kill(e, src)
+
+
+func _emp_blast(pos: Vector2, radius: float, duration: float) -> void:
+	for t in towers:
+		if t.pos.distance_to(pos) <= radius:
+			t.stun_until = maxi(int(t.get("stun_until", 0)), tick + int(duration / TICK))
+	events.append({"e": "emp", "pos": pos, "radius": radius, "duration": duration})
+
+
 func _kill(e: Dictionary, src: Dictionary) -> void:
 	e.alive = false
 	var d: Dictionary = defs.enemies[e.type]
@@ -601,6 +681,8 @@ func _kill(e: Dictionary, src: Dictionary) -> void:
 			if t != null:
 				t.kills += 1
 	events.append({"e": "kill", "id": e.id, "pos": e.pos, "bounty": bounty, "type": e.type})
+	if d.has("emp") and d.emp.get("on_death", false):
+		_emp_blast(e.pos, float(d.emp.radius), float(d.emp.duration))
 	if d.has("on_death"):
 		var od: Dictionary = d.on_death
 		for i in range(int(od.count)):
@@ -626,11 +708,15 @@ func _finish_enemy(e: Dictionary) -> void:
 
 # ---------------------------------------------------------------- targeting
 ## mode: first = closest to the base, strong = toughest (bosses first), close = nearest the tower, last = furthest back
-func _find_targets(center: Vector2, rng_radius: float, limit: int = 1, mode: String = "first") -> Array:
+func _find_targets(center: Vector2, rng_radius: float, limit: int = 1, mode: String = "first", air := true) -> Array:
 	var found := []
 	var r2 := rng_radius * rng_radius
 	for e in enemies:
 		if e.alive and e.pos.distance_squared_to(center) <= r2:
+			if e.cloak and tick >= e.revealed_until:
+				continue        # invisible until a Control tower, a spotter or the hero sees it
+			if e.flying and not air:
+				continue
 			found.append(e)
 	match mode:
 		"strong":
@@ -678,18 +764,27 @@ func _effective_stats(t: Dictionary) -> Dictionary:
 	return out
 
 
+## Ranged (projectile) and Control (pulse) towers hit flyers; Brute and Siege need anti_air. Heroes hit everything.
+func can_hit_air(s: Dictionary, is_hero := false) -> bool:
+	return is_hero or s.kind == "projectile" or s.kind == "pulse" or float(s.get("anti_air", 0.0)) > 0.0
+
+
 func _unit_attack(t: Dictionary) -> void:
+	if tick < int(t.get("stun_until", 0)):
+		return          # knocked out by an EMP
 	t.cd -= TICK
 	if t.cd > 0.0:
 		return
 	var s := _effective_stats(t)
 	var src := s.duplicate()
 	src.tower_id = t.id
+	var air := can_hit_air(s, t.get("is_hero", false))
+	src.air = air
 	if t.get("is_hero", false):
 		src.hero = true
 	match s.kind:
 		"projectile":
-			var tg := _find_targets(t.pos, s.range, int(s.get("shots", 1)), t.target)
+			var tg := _find_targets(t.pos, s.range, int(s.get("shots", 1)), t.target, air)
 			if tg.is_empty():
 				return
 			t.facing = (tg[0].pos - t.pos).normalized()
@@ -704,7 +799,7 @@ func _unit_attack(t: Dictionary) -> void:
 			t.cd = float(s.cooldown)
 			events.append({"e": "fire", "id": t.id})
 		"lob":
-			var tg2 := _find_targets(t.pos, s.range, 1, t.target)
+			var tg2 := _find_targets(t.pos, s.range, 1, t.target, air)
 			if tg2.is_empty():
 				return
 			var e2: Dictionary = tg2[0]
@@ -716,7 +811,7 @@ func _unit_attack(t: Dictionary) -> void:
 			t.cd = float(s.cooldown)
 			events.append({"e": "fire", "id": t.id})
 		"melee":
-			var tg3 := _find_targets(t.pos, s.range, int(s.max_targets), t.target)
+			var tg3 := _find_targets(t.pos, s.range, int(s.max_targets), t.target, air)
 			if tg3.is_empty():
 				return
 			t.facing = (tg3[0].pos - t.pos).normalized()
@@ -725,7 +820,7 @@ func _unit_attack(t: Dictionary) -> void:
 			t.cd = float(s.cooldown)
 			events.append({"e": "slam", "id": t.id, "radius": float(s.range)})
 		"pulse":
-			var tg4 := _find_targets(t.pos, s.range, 0)
+			var tg4 := _find_targets(t.pos, s.range, 0, "first", air)
 			if tg4.is_empty():
 				return
 			for e4 in tg4:
@@ -750,6 +845,22 @@ func step() -> void:
 		if not e.alive:
 			continue
 		e.prev_pos = e.pos
+		var dd: Dictionary = defs.enemies[e.type]
+		if dd.has("regen") and e.hp < e.max_hp:
+			e.hp = minf(e.max_hp, e.hp + e.max_hp * float(dd.regen) * TICK)
+		if dd.has("enrage") and not e.enraged and e.hp < e.max_hp * float(dd.enrage.below):
+			e.enraged = true
+			e.speed *= float(dd.enrage.speed_mult)
+			events.append({"e": "enrage", "id": e.id})
+		if tick < e.burn_until:
+			_raw_damage(e, e.burn_dps * TICK, {"tower_id": e.burn_src})
+			if not e.alive:
+				continue
+		if dd.has("emp") and float(dd.emp.every) < 900.0:
+			e.emp_cd -= TICK
+			if e.emp_cd <= 0.0:
+				e.emp_cd = float(dd.emp.every)
+				_emp_blast(e.pos, float(dd.emp.radius), float(dd.emp.duration))
 		if tick >= e.stun_until:
 			var sp: float = e.speed
 			if tick < e.slow_until:
@@ -792,6 +903,8 @@ func step() -> void:
 				return
 		e.pos = pos_at(e.dist, e.pi)
 
+	_reveal_cloaked()
+
 	# towers and hero
 	for t in towers:
 		_unit_attack(t)
@@ -831,10 +944,63 @@ func step() -> void:
 	enemies = alive
 
 
+## Cloaked robots become targetable for 2 s when inside the range of a Control tower, a spotter (detect) or the hero.
+func _reveal_cloaked() -> void:
+	var any := false
+	for e in enemies:
+		if e.alive and e.cloak:
+			any = true
+			break
+	if not any:
+		return
+	var eyes := []
+	for t in towers:
+		if t.stats.kind == "pulse" or float(t.stats.get("detect", 0.0)) > 0.0:
+			eyes.append([t.pos, float(t.stats.range)])
+	if hero != null:
+		eyes.append([hero.pos, maxf(float(hero.stats.range), aura_radius()) + 0.5])
+	for e in enemies:
+		if not e.alive or not e.cloak:
+			continue
+		for ey in eyes:
+			if e.pos.distance_to(ey[0]) <= ey[1]:
+				if tick >= e.revealed_until:
+					events.append({"e": "reveal", "id": e.id})
+				e.revealed_until = tick + 60
+				break
+
+
 func _add_projectile(p: Dictionary) -> void:
 	p.id = _id()
 	projectiles.append(p)
 	events.append({"e": "proj", "id": p.id})
+
+
+## Lasers and arcs jump from robot to robot, losing 30% each jump.
+func _chain(first: Dictionary, p: Dictionary, src: Dictionary) -> void:
+	var hit := [first.id]
+	var pts := [first.pos]
+	var cur: Dictionary = first
+	var dmg := float(p.damage)
+	var reach := float(src.get("chain_range", 2.5))
+	for k in int(src.chain):
+		dmg *= 0.7
+		var best = null
+		var bd := reach
+		for e in enemies:
+			if e.alive and not (e.id in hit) and not (e.cloak and tick >= e.revealed_until):
+				var d: float = e.pos.distance_to(cur.pos)
+				if d <= bd:
+					bd = d
+					best = e
+		if best == null:
+			break
+		hit.append(best.id)
+		pts.append(best.pos)
+		_damage(best, dmg, src.dtype, src)
+		cur = best
+	if pts.size() > 1:
+		events.append({"e": "chain", "pts": pts})
 
 
 func _enemy_by_id(id: int):
@@ -849,8 +1015,10 @@ func _impact(p: Dictionary, direct) -> void:
 	var splash := float(src.get("splash", 0.0))
 	if direct != null:
 		_damage(direct, p.damage, src.dtype, src)
+		if int(src.get("chain", 0)) > 0:
+			_chain(direct, p, src)
 	if splash > 0.0:
-		for e in _find_targets(p.pos, splash, 0):
+		for e in _find_targets(p.pos, splash, 0, "first", bool(src.get("air", true))):
 			if direct == null or e.id != direct.id:
 				_damage(e, p.damage * (1.0 if direct == null else 0.6), src.dtype, src)
 	events.append({"e": "impact", "pid": p.id, "pos": p.pos, "splash": splash, "crit": p.get("crit", false)})

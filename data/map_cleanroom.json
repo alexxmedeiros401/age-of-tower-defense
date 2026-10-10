@@ -1,0 +1,130 @@
+{
+ "id": "cleanroom",
+ "name": "Cleanroom",
+ "era": "Digital Age",
+ "theme": "lab",
+ "base": "lab",
+ "boss": "orbital_uplink",
+ "waves_file": "waves_cleanroom.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 15.795,
+ "armor_mult": 7.8,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -4
+   ],
+   [
+    -8,
+    -4
+   ],
+   [
+    -8,
+    -1
+   ],
+   [
+    0,
+    -1
+   ],
+   [
+    0,
+    -7
+   ],
+   [
+    7,
+    -7
+   ],
+   [
+    7,
+    5
+   ],
+   [
+    15.4,
+    5
+   ]
+  ],
+  [
+   [
+    -15.6,
+    5
+   ],
+   [
+    -5,
+    5
+   ],
+   [
+    -5,
+    -1
+   ],
+   [
+    0,
+    -1
+   ],
+   [
+    0,
+    -7
+   ],
+   [
+    7,
+    -7
+   ],
+   [
+    7,
+    5
+   ],
+   [
+    15.4,
+    5
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   10.1,
+   -3.7,
+   1.57,
+   "machine"
+  ],
+  [
+   2.3,
+   3.7,
+   1.33,
+   "tank"
+  ],
+  [
+   -12.7,
+   1.4,
+   1.15,
+   "machine"
+  ],
+  [
+   3.5,
+   -1.8,
+   1.33,
+   "machine"
+  ],
+  [
+   11.6,
+   1.2,
+   1.28,
+   "tank"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "steam_tank",
+  "nano_swarm",
+  "stealth_jet",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

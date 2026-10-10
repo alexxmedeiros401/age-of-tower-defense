@@ -1,0 +1,112 @@
+{
+ "id": "server_hall",
+ "name": "Server Hall",
+ "era": "The Data Center",
+ "theme": "server",
+ "base": "camp",
+ "boss": "the_core",
+ "waves_file": "waves_server_hall.json",
+ "start_gold": 900,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 19.11,
+ "armor_mult": 10.5,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -4
+   ],
+   [
+    -11,
+    -4
+   ],
+   [
+    -11,
+    5
+   ],
+   [
+    -5,
+    5
+   ],
+   [
+    -5,
+    -4
+   ],
+   [
+    1,
+    -4
+   ],
+   [
+    1,
+    5
+   ],
+   [
+    7,
+    5
+   ],
+   [
+    7,
+    -4
+   ],
+   [
+    13,
+    -4
+   ],
+   [
+    13,
+    1
+   ],
+   [
+    15.4,
+    1
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   -7.9,
+   -5.3,
+   1.33,
+   "rack"
+  ],
+  [
+   -2.1,
+   1.7,
+   1.35,
+   "machine"
+  ],
+  [
+   10.2,
+   0.8,
+   1.37,
+   "rack"
+  ],
+  [
+   -8.3,
+   1.2,
+   1.34,
+   "rack"
+  ],
+  [
+   4.3,
+   0.6,
+   1.36,
+   "machine"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "sentinel",
+  "nano_swarm",
+  "stealth_jet",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

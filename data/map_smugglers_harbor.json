@@ -1,0 +1,155 @@
+{
+ "id": "smugglers_harbor",
+ "name": "Smuggler's Harbor",
+ "era": "Gunpowder Age",
+ "theme": "harbor",
+ "base": "fort",
+ "boss": "dreadnought",
+ "waves_file": "waves_smugglers_harbor.json",
+ "start_gold": 900,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 4.992,
+ "armor_mult": 3.2,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    5
+   ],
+   [
+    -9,
+    5
+   ],
+   [
+    -9,
+    -3
+   ],
+   [
+    -3,
+    -3
+   ],
+   [
+    -3,
+    5
+   ],
+   [
+    3,
+    5
+   ],
+   [
+    3,
+    -6
+   ],
+   [
+    10,
+    -6
+   ],
+   [
+    10,
+    2
+   ],
+   [
+    15.4,
+    2
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   -12.0,
+   -5.3,
+   1.57,
+   "crates"
+  ],
+  [
+   10.3,
+   5.7,
+   1.17,
+   "rocks"
+  ],
+  [
+   -12.6,
+   -0.9,
+   1.15,
+   "crates"
+  ],
+  [
+   -6.1,
+   6.3,
+   1.16,
+   "crates"
+  ],
+  [
+   0.2,
+   -0.2,
+   1.2,
+   "rocks"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "bomber",
+  "cloaker",
+  "shield_bot",
+  "repair_drone"
+ ],
+ "rivers": [
+  {
+   "pts": [
+    [
+     5.87,
+     -13.0
+    ],
+    [
+     6.06,
+     -10.4
+    ],
+    [
+     5.39,
+     -7.8
+    ],
+    [
+     6.27,
+     -5.2
+    ],
+    [
+     5.7,
+     -2.6
+    ],
+    [
+     6.25,
+     -0.0
+    ],
+    [
+     5.66,
+     2.6
+    ],
+    [
+     6.28,
+     5.2
+    ],
+    [
+     5.9,
+     7.8
+    ],
+    [
+     6.56,
+     10.4
+    ],
+    [
+     5.38,
+     13.0
+    ]
+   ],
+   "width": 2.2
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "id": "coolant_vaults",
+ "name": "Coolant Vaults",
+ "era": "The Data Center",
+ "theme": "cooling",
+ "base": "camp",
+ "boss": "the_core",
+ "waves_file": "waves_coolant_vaults.json",
+ "start_gold": 1000,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 21.315,
+ "armor_mult": 10.5,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    2
+   ],
+   [
+    -8,
+    2
+   ],
+   [
+    -8,
+    -6
+   ],
+   [
+    1,
+    -6
+   ],
+   [
+    1,
+    6
+   ],
+   [
+    8,
+    6
+   ],
+   [
+    8,
+    -3
+   ],
+   [
+    15.4,
+    -3
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   5.1,
+   -4.4,
+   1.5,
+   "ice"
+  ],
+  [
+   -12.5,
+   6.1,
+   1.32,
+   "machine"
+  ],
+  [
+   11.2,
+   2.4,
+   1.27,
+   "ice"
+  ],
+  [
+   -3.2,
+   3.6,
+   1.3,
+   "ice"
+  ],
+  [
+   -2.5,
+   -1.9,
+   1.5,
+   "machine"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "sentinel",
+  "nano_swarm",
+  "stealth_jet",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

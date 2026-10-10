@@ -62,7 +62,7 @@ PALETTES = {
                     outside=C([0.11, 0.09, 0.09]), path_dark=C([0.36, 0.32, 0.29]), path=C([0.50, 0.45, 0.39]),
                     path_light=C([0.62, 0.56, 0.48]), lip=0.4),
 }
-P = PALETTES[theme]
+P = PALETTES.get(theme, PALETTES["meadow"])
 
 # ---- distance to every path (and distance travelled along it, for bridge planks / rail sleepers)
 def poly_dist(polylines):

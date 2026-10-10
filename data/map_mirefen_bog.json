@@ -1,0 +1,138 @@
+{
+ "id": "mirefen_bog",
+ "name": "Mirefen Bog",
+ "era": "Iron Age",
+ "theme": "bog",
+ "base": "hillfort",
+ "boss": "iron_colossus",
+ "waves_file": "waves_mirefen_bog.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 2.126,
+ "armor_mult": 1.35,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -6
+   ],
+   [
+    -6,
+    -6
+   ],
+   [
+    -6,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    6
+   ],
+   [
+    7,
+    6
+   ],
+   [
+    7,
+    -5
+   ],
+   [
+    15.4,
+    -5
+   ]
+  ],
+  [
+   [
+    -15.6,
+    6
+   ],
+   [
+    -10,
+    6
+   ],
+   [
+    -10,
+    2
+   ],
+   [
+    -3,
+    2
+   ],
+   [
+    -3,
+    0
+   ],
+   [
+    0,
+    0
+   ],
+   [
+    0,
+    6
+   ],
+   [
+    7,
+    6
+   ],
+   [
+    7,
+    -5
+   ],
+   [
+    15.4,
+    -5
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   10.3,
+   6.0,
+   1.19,
+   "lake"
+  ],
+  [
+   -10.6,
+   -3.0,
+   1.53,
+   "trees"
+  ],
+  [
+   11.7,
+   0.9,
+   1.58,
+   "lake"
+  ],
+  [
+   -4.3,
+   6.1,
+   1.39,
+   "lake"
+  ],
+  [
+   -0.5,
+   -2.7,
+   1.19,
+   "trees"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "carrier",
+  "scout",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

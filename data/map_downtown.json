@@ -1,0 +1,130 @@
+{
+ "id": "downtown",
+ "name": "Downtown",
+ "era": "Modern Age",
+ "theme": "metro",
+ "base": "bunker",
+ "boss": "hunter_killer",
+ "waves_file": "waves_downtown.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 11.31,
+ "armor_mult": 5.8,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -7
+   ],
+   [
+    -6,
+    -7
+   ],
+   [
+    -6,
+    -1
+   ],
+   [
+    4,
+    -1
+   ],
+   [
+    10,
+    -1
+   ],
+   [
+    10,
+    6
+   ],
+   [
+    15.4,
+    6
+   ]
+  ],
+  [
+   [
+    -15.6,
+    4
+   ],
+   [
+    -9,
+    4
+   ],
+   [
+    -9,
+    7
+   ],
+   [
+    0,
+    7
+   ],
+   [
+    0,
+    -1
+   ],
+   [
+    4,
+    -1
+   ],
+   [
+    10,
+    -1
+   ],
+   [
+    10,
+    6
+   ],
+   [
+    15.4,
+    6
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   -9.8,
+   -2.3,
+   1.24,
+   "building"
+  ],
+  [
+   3.5,
+   -4.7,
+   1.15,
+   "trees"
+  ],
+  [
+   -4.9,
+   2.2,
+   1.37,
+   "building"
+  ],
+  [
+   11.0,
+   -5.8,
+   1.51,
+   "building"
+  ],
+  [
+   7.6,
+   -3.5,
+   1.19,
+   "trees"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "steam_tank",
+  "stealth_jet",
+  "cloaker",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

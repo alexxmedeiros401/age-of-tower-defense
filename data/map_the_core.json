@@ -1,0 +1,139 @@
+{
+ "id": "the_core",
+ "name": "The Core",
+ "era": "The Data Center",
+ "theme": "core",
+ "base": "camp",
+ "boss": "the_core",
+ "waves_file": "waves_the_core.json",
+ "start_gold": 1250,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 22.05,
+ "armor_mult": 10.5,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -7
+   ],
+   [
+    -7,
+    -7
+   ],
+   [
+    -7,
+    0
+   ],
+   [
+    2,
+    0
+   ],
+   [
+    8,
+    0
+   ],
+   [
+    8,
+    -6
+   ],
+   [
+    13,
+    -6
+   ],
+   [
+    13,
+    3
+   ],
+   [
+    15.4,
+    3
+   ]
+  ],
+  [
+   [
+    -15.6,
+    7
+   ],
+   [
+    -7,
+    7
+   ],
+   [
+    -7,
+    0
+   ],
+   [
+    2,
+    0
+   ],
+   [
+    8,
+    0
+   ],
+   [
+    8,
+    -6
+   ],
+   [
+    13,
+    -6
+   ],
+   [
+    13,
+    3
+   ],
+   [
+    15.4,
+    3
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   9.4,
+   4.7,
+   1.44,
+   "pillar"
+  ],
+  [
+   0.2,
+   5.0,
+   1.51,
+   "wreck"
+  ],
+  [
+   -12.4,
+   3.1,
+   1.59,
+   "pillar"
+  ],
+  [
+   3.1,
+   -4.4,
+   1.18,
+   "pillar"
+  ],
+  [
+   -12.3,
+   -3.5,
+   1.36,
+   "wreck"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "sentinel",
+  "nano_swarm",
+  "stealth_jet",
+  "shield_bot",
+  "repair_drone"
+ ],
+ "final": true
+}

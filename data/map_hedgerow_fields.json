@@ -1,0 +1,104 @@
+{
+ "id": "hedgerow_fields",
+ "name": "Hedgerow Fields",
+ "era": "Medieval Age",
+ "theme": "farmland",
+ "base": "castle",
+ "boss": "black_knight",
+ "waves_file": "waves_hedgerow_fields.json",
+ "start_gold": 900,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 3.588,
+ "armor_mult": 2.4,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    3
+   ],
+   [
+    -9,
+    3
+   ],
+   [
+    -9,
+    -6
+   ],
+   [
+    -2,
+    -6
+   ],
+   [
+    -2,
+    5
+   ],
+   [
+    5,
+    5
+   ],
+   [
+    5,
+    -5
+   ],
+   [
+    11,
+    -5
+   ],
+   [
+    11,
+    1
+   ],
+   [
+    15.4,
+    1
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   2.0,
+   -4.6,
+   1.32,
+   "trees"
+  ],
+  [
+   -12.1,
+   -4.6,
+   1.25,
+   "building"
+  ],
+  [
+   8.5,
+   4.0,
+   1.4,
+   "trees"
+  ],
+  [
+   -4.9,
+   2.2,
+   1.58,
+   "trees"
+  ],
+  [
+   2.1,
+   1.0,
+   1.56,
+   "building"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "cloaker",
+  "hover_drone",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

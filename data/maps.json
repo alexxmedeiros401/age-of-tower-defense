@@ -41,6 +41,174 @@
    "era": "Bronze Age",
    "difficulty": "Brutal",
    "blurb": "Two portals in the mines. Two Siege Crawlers at the end."
+  },
+  {
+   "id": "highland_ford",
+   "name": "Highland Ford",
+   "era": "Iron Age",
+   "difficulty": "Normal",
+   "blurb": "Heather hills and a cold stream. Ironclads march in armored lines."
+  },
+  {
+   "id": "ember_forge",
+   "name": "Ember Forge",
+   "era": "Iron Age",
+   "difficulty": "Hard",
+   "blurb": "The tribe's forges glow. The Iron Colossus stomps and shuts down nearby towers."
+  },
+  {
+   "id": "mirefen_bog",
+   "name": "Mirefen Bog",
+   "era": "Iron Age",
+   "difficulty": "Brutal",
+   "blurb": "Two plank roads through the marsh. Twin Colossi at the end."
+  },
+  {
+   "id": "olive_hills",
+   "name": "Olive Hills",
+   "era": "Classical Age",
+   "difficulty": "Normal",
+   "blurb": "Hover Drones fly: Brute and Siege towers can't hit them."
+  },
+  {
+   "id": "marble_coast",
+   "name": "Marble Coast",
+   "era": "Classical Age",
+   "difficulty": "Hard",
+   "blurb": "A sea inlet cuts the coast. The Hydra splits into three heads."
+  },
+  {
+   "id": "acropolis",
+   "name": "Acropolis",
+   "era": "Classical Age",
+   "difficulty": "Brutal",
+   "blurb": "Defend the temple hill from two sides."
+  },
+  {
+   "id": "hedgerow_fields",
+   "name": "Hedgerow Fields",
+   "era": "Medieval Age",
+   "difficulty": "Normal",
+   "blurb": "Cloakers are invisible until a Control tower or your hero spots them."
+  },
+  {
+   "id": "castle_siege",
+   "name": "Castle Siege",
+   "era": "Medieval Age",
+   "difficulty": "Hard",
+   "blurb": "The Black Knight's shield regrows fast. Hit it hard and keep hitting."
+  },
+  {
+   "id": "darkwood",
+   "name": "Darkwood",
+   "era": "Medieval Age",
+   "difficulty": "Brutal",
+   "blurb": "Twisting forest roads full of cloakers."
+  },
+  {
+   "id": "smugglers_harbor",
+   "name": "Smuggler's Harbor",
+   "era": "Gunpowder Age",
+   "difficulty": "Normal",
+   "blurb": "Bombers fly in from the sea and knock out towers when they crash."
+  },
+  {
+   "id": "star_fort",
+   "name": "Star Fort",
+   "era": "Gunpowder Age",
+   "difficulty": "Hard",
+   "blurb": "Hold the fort against the Dreadnought Walker."
+  },
+  {
+   "id": "jungle_outpost",
+   "name": "Jungle Outpost",
+   "era": "Gunpowder Age",
+   "difficulty": "Brutal",
+   "blurb": "Two jungle trails, endless bombers."
+  },
+  {
+   "id": "railyard",
+   "name": "Railyard",
+   "era": "Industrial Age",
+   "difficulty": "Normal",
+   "blurb": "Steam Tanks repair themselves. Burst them down."
+  },
+  {
+   "id": "foundry_row",
+   "name": "Foundry Row",
+   "era": "Industrial Age",
+   "difficulty": "Hard",
+   "blurb": "The Juggernaut speeds up when it's hurt."
+  },
+  {
+   "id": "smog_city",
+   "name": "Smog City",
+   "era": "Industrial Age",
+   "difficulty": "Brutal",
+   "blurb": "Fog, soot and two Juggernauts."
+  },
+  {
+   "id": "suburbia",
+   "name": "Suburbia",
+   "era": "Modern Age",
+   "difficulty": "Normal",
+   "blurb": "Stealth Jets fly and hide. You need spotters."
+  },
+  {
+   "id": "airbase",
+   "name": "Airbase",
+   "era": "Modern Age",
+   "difficulty": "Hard",
+   "blurb": "The Hunter-Killer is invisible unless spotted."
+  },
+  {
+   "id": "downtown",
+   "name": "Downtown",
+   "era": "Modern Age",
+   "difficulty": "Brutal",
+   "blurb": "Skyscrapers, two highways, no mercy."
+  },
+  {
+   "id": "neon_grid",
+   "name": "Neon Grid",
+   "era": "Digital Age",
+   "difficulty": "Normal",
+   "blurb": "Nano Swarms burst into mites when destroyed."
+  },
+  {
+   "id": "dish_array",
+   "name": "Dish Array",
+   "era": "Digital Age",
+   "difficulty": "Hard",
+   "blurb": "The Orbital Uplink heals and shields every robot near it."
+  },
+  {
+   "id": "cleanroom",
+   "name": "Cleanroom",
+   "era": "Digital Age",
+   "difficulty": "Brutal",
+   "blurb": "The lab where it all began."
+  },
+  {
+   "id": "server_hall",
+   "name": "Server Hall",
+   "era": "The Data Center",
+   "difficulty": "Normal",
+   "blurb": "You're inside. Sentinels shield and heal each other."
+  },
+  {
+   "id": "coolant_vaults",
+   "name": "Coolant Vaults",
+   "era": "The Data Center",
+   "difficulty": "Hard",
+   "blurb": "Frozen pipes and a gauntlet of Sentinels."
+  },
+  {
+   "id": "the_core",
+   "name": "The Core",
+   "era": "The Data Center",
+   "difficulty": "Brutal",
+   "blurb": "End it. Destroy THE CORE."
   }
  ]
 }

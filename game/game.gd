@@ -145,7 +145,8 @@ func _ready() -> void:
 		map_id = Progress.current_map
 	map = Defs.load_map(map_id)
 	defs = Defs.load_all(map)
-	theme = THEMES[map.get("theme", "meadow")]
+	var th_id: String = map.get("theme", "meadow")
+	theme = THEMES[th_id] if THEMES.has(th_id) else EraDecor.env(th_id)
 	sim = Sim.new()
 	sim.setup(defs, map)
 	var hid := Progress.hero()
@@ -317,8 +318,11 @@ func _build_world() -> void:
 		var pts: PackedVector2Array = P.pts
 		_build_portal(pts[0], (pts[1] - pts[0]).normalized())
 	var end_pt := sim.path[sim.path.size() - 1]
-	if str(map.get("base", "cave")) == "city":
+	var base_id := str(map.get("base", "cave"))
+	if base_id == "city":
 		_build_city(end_pt)
+	elif base_id != "cave":
+		EraDecor.build_base(self, base_id, end_pt)
 	else:
 		_build_cave(end_pt)
 	_build_decor()
@@ -460,10 +464,25 @@ func _palm(parent: Node3D, pos: Vector3, s: float, r: RandomNumberGenerator) -> 
 	_mi(_sph(0.14, 6), _mat("coconut", Color(0.32, 0.22, 0.12)), t, top + Vector3(0, -0.1, 0))
 
 
+## Decor goes in the ring around the playable area (outside map.bounds), clear of roads and the base.
+func _decor_free(p: Vector2, clearance := 0.0) -> bool:
+	var b: Array = map.bounds
+	var inside: bool = p.x > b[0] - 0.8 - clearance and p.x < b[2] + 0.8 + clearance and p.y > b[1] - 0.8 - clearance and p.y < b[3] + 0.8 + clearance
+	if inside or sim.dist_to_path(p) < 2.2 + clearance:
+		return false
+	var end_pt: Vector2 = sim.path[sim.path.size() - 1]
+	if p.x > 13.0 and absf(p.y - end_pt.y) < 6.5:
+		return false
+	return true
+
+
 func _build_decor() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
 	var th: String = map.get("theme", "meadow")
+	if EraDecor.handles(th):
+		EraDecor.build_decor(self, th, _decor_free)
+		return
 	var b: Array = map.bounds
 	var trunk := _mat("trunk", Color(0.36, 0.22, 0.1))
 	var pines := [_mat("pine1", Color(0.11, 0.36, 0.14)), _mat("pine2", Color(0.16, 0.44, 0.15))]
@@ -589,6 +608,9 @@ func _build_blockers() -> void:
 		var n := Node3D.new()
 		n.position = pos
 		add_child(n)
+		if EraDecor.handles(th):
+			EraDecor.build_blocker(self, th, kind, n, rad, r)
+			continue
 		match kind:
 			"lake":
 				if th == "snow":
@@ -680,7 +702,11 @@ func _build_audio() -> void:
 		add_child(p)
 		sfx_players.append(p)
 	music = AudioStreamPlayer.new()
-	music.stream = load("res://assets/audio/music_bronze_age.wav" if _era() == "Bronze Age" else "res://assets/audio/music_stone_age.wav")
+	var mfile: String = {"Stone Age": "music_stone_age.wav", "Bronze Age": "music_bronze_age.wav", "Iron Age": "music_iron.ogg",
+		"Classical Age": "music_classical.ogg", "Medieval Age": "music_medieval.ogg", "Gunpowder Age": "music_gunpowder.ogg",
+		"Industrial Age": "music_industrial.ogg", "Modern Age": "music_modern.ogg", "Digital Age": "music_digital.ogg",
+		"The Data Center": "music_datacenter.ogg"}.get(_era(), "music_stone_age.wav")
+	music.stream = load("res://assets/audio/" + mfile)
 	music.volume_db = -9.0
 	music.bus = "Music"
 	add_child(music)
@@ -750,7 +776,7 @@ func _make_hero_visual(id: String) -> Node3D:
 ## Tower bases are modelled as grass; on other ground types repaint them to match.
 func _retheme_base(model: Node) -> void:
 	var key: String = theme.get("base", "")
-	if key == "":
+	if key == "" or not BASE_RECOLOR.has(key):
 		return
 	var m := _mat("base_" + key, BASE_RECOLOR[key], {"rough": 0.9})
 	for mi in model.find_children("*", "MeshInstance3D", true, false):

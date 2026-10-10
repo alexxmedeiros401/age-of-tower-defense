@@ -51,7 +51,8 @@
     "targets": 10,
     "damage": 30,
     "damage_per_level": 10,
-    "desc": "Boulders crush the 10 robots closest to your base."
+    "desc": "Boulders crush the 10 robots closest to your base.",
+    "type": "rain"
    },
    "swing": [
     -1.2,
@@ -98,7 +99,8 @@
     "stun_per_level": 0.1,
     "damage": 15,
     "damage_per_level": 6,
-    "desc": "Stuns every robot on the map."
+    "desc": "Stuns every robot on the map.",
+    "type": "quake"
    },
    "swing": [
     -0.5,
@@ -146,7 +148,8 @@
     "damage_per_level": 40,
     "expose": 0.25,
     "expose_time": 6.0,
-    "desc": "Burns every robot near Kira and marks them to take more damage."
+    "desc": "Burns every robot near Kira and marks them to take more damage.",
+    "type": "flare"
    },
    "swing": [
     -0.9,
@@ -192,11 +195,794 @@
     "unlock": 3,
     "speed": 0.5,
     "duration": 7.0,
-    "desc": "Every tower on the map attacks 50% faster for 7 seconds."
+    "desc": "Every tower on the map attacks 50% faster for 7 seconds.",
+    "type": "fury"
    },
    "swing": [
     -0.8,
     1.6
+   ],
+   "model_scale": 0.55
+  },
+  "brenna": {
+   "legacy_unlock": 9,
+   "name": "Brenna Ironhide",
+   "title": "Shieldmaiden",
+   "era": "Iron Age",
+   "color": [
+    0.3,
+    0.55,
+    0.85
+   ],
+   "blurb": "Shield and spear. Strengthens nearby Brute towers.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 10.8,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 4.1,
+    "proj": "javelin"
+   },
+   "per_level": {
+    "damage": 2.43,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Brute",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "war_cry",
+    "type": "fury",
+    "name": "War Cry",
+    "desc": "Every tower attacks 50% faster for a short time.",
+    "unlock": 3,
+    "cooldown": 60,
+    "speed": 0.5,
+    "duration": 7.0
+   },
+   "swing": [
+    -0.9,
+    1.2
+   ],
+   "model_scale": 0.55
+  },
+  "kael": {
+   "legacy_unlock": 11,
+   "name": "Kael Hillwarden",
+   "title": "Javelin Hunter",
+   "era": "Iron Age",
+   "color": [
+    0.4,
+    0.7,
+    0.3
+   ],
+   "blurb": "Never misses. Speeds up nearby Ranged towers.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 5.4,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "javelin"
+   },
+   "per_level": {
+    "damage": 1.22,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Ranged",
+    "speed": 0.08,
+    "speed_per_level": 0.01
+   },
+   "ability": {
+    "id": "javelin_storm",
+    "type": "rain",
+    "name": "Javelin Storm",
+    "desc": "Javelins rain on the robots closest to your base.",
+    "unlock": 3,
+    "cooldown": 55,
+    "targets": 10,
+    "damage": 43,
+    "damage_per_level": 14
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "cassia": {
+   "legacy_unlock": 13,
+   "name": "Cassia the Legate",
+   "title": "Legion Commander",
+   "era": "Classical Age",
+   "color": [
+    0.8,
+    0.15,
+    0.15
+   ],
+   "blurb": "Leads from the front. All nearby towers hit harder.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 14.4,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 5.4
+   },
+   "per_level": {
+    "damage": 3.24,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "shield_charge",
+    "type": "quake",
+    "name": "Shield Charge",
+    "desc": "The legion charges: every robot is stunned and hurt.",
+    "unlock": 3,
+    "cooldown": 60,
+    "stun": 1.5,
+    "stun_per_level": 0.1,
+    "damage": 29,
+    "damage_per_level": 11
+   },
+   "swing": [
+    -0.9,
+    1.2
+   ],
+   "model_scale": 0.55
+  },
+  "theron": {
+   "legacy_unlock": 15,
+   "name": "Theron of Delphi",
+   "title": "Oracle Sage",
+   "era": "Classical Age",
+   "color": [
+    0.95,
+    0.85,
+    0.4
+   ],
+   "blurb": "Sees everything. All nearby towers reach further.",
+   "base": {
+    "kind": "pulse",
+    "range": 3.2,
+    "cooldown": 1.1,
+    "damage": 5.4,
+    "dtype": "blunt",
+    "slow": 0.25,
+    "slow_time": 1.2
+   },
+   "per_level": {
+    "damage": 1.08,
+    "range": 0.06
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "range": 0.06,
+    "range_per_level": 0.008
+   },
+   "ability": {
+    "id": "prophecy",
+    "type": "flare",
+    "name": "Prophecy",
+    "desc": "Robots near Theron burn and take extra damage.",
+    "unlock": 3,
+    "cooldown": 45,
+    "radius": 5.5,
+    "damage": 216,
+    "damage_per_level": 72,
+    "expose": 0.25,
+    "expose_time": 6.0
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "aldric": {
+   "legacy_unlock": 17,
+   "name": "Sir Aldric",
+   "title": "Knight Commander",
+   "era": "Medieval Age",
+   "color": [
+    0.25,
+    0.4,
+    0.85
+   ],
+   "blurb": "Sword and honor. Strengthens nearby Brute towers.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 19.2,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 7.2
+   },
+   "per_level": {
+    "damage": 4.32,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Brute",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "holy_lance",
+    "type": "strike",
+    "name": "Holy Lance",
+    "desc": "A blinding lance strikes the strongest robots.",
+    "unlock": 3,
+    "cooldown": 50,
+    "targets": 3,
+    "damage": 624,
+    "damage_per_level": 192,
+    "splash": 1.6
+   },
+   "swing": [
+    -0.9,
+    1.2
+   ],
+   "model_scale": 0.55
+  },
+  "wren": {
+   "legacy_unlock": 19,
+   "name": "Wren the Bowmistress",
+   "title": "Forest Archer",
+   "era": "Medieval Age",
+   "color": [
+    0.3,
+    0.6,
+    0.25
+   ],
+   "blurb": "Fastest bow in the land. Speeds up nearby Ranged towers.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 9.6,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "arrow"
+   },
+   "per_level": {
+    "damage": 2.16,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Ranged",
+    "speed": 0.08,
+    "speed_per_level": 0.01
+   },
+   "ability": {
+    "id": "arrow_rain",
+    "type": "rain",
+    "name": "Arrow Rain",
+    "desc": "A storm of arrows hits the robots closest to your base.",
+    "unlock": 3,
+    "cooldown": 55,
+    "targets": 10,
+    "damage": 77,
+    "damage_per_level": 24
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "isla": {
+   "legacy_unlock": 21,
+   "name": "Captain Isla Reyes",
+   "title": "Privateer",
+   "era": "Gunpowder Age",
+   "color": [
+    0.15,
+    0.3,
+    0.6
+   ],
+   "blurb": "Pistols and cannon. Strengthens nearby Siege towers.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 12.8,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "bullet"
+   },
+   "per_level": {
+    "damage": 2.88,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Siege",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "broadside",
+    "type": "rain",
+    "name": "Broadside",
+    "desc": "Her ship's cannons pound the lead robots.",
+    "unlock": 3,
+    "cooldown": 55,
+    "targets": 10,
+    "damage": 102,
+    "damage_per_level": 32
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "marco": {
+   "legacy_unlock": 23,
+   "name": "Marco the Grenadier",
+   "title": "Bomb Thrower",
+   "era": "Gunpowder Age",
+   "color": [
+    0.85,
+    0.35,
+    0.1
+   ],
+   "blurb": "Throws grenades. All nearby towers hit harder.",
+   "base": {
+    "kind": "lob",
+    "range": 6.5,
+    "cooldown": 1.4,
+    "damage": 22.4,
+    "dtype": "blunt",
+    "splash": 1.2,
+    "flight": 0.8,
+    "proj": "cannonball"
+   },
+   "per_level": {
+    "damage": 4.48,
+    "range": 0.05
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "powder_keg",
+    "type": "flare",
+    "name": "Powder Keg",
+    "desc": "A huge blast burns robots near Marco and exposes them.",
+    "unlock": 3,
+    "cooldown": 45,
+    "radius": 5.5,
+    "damage": 384,
+    "damage_per_level": 128,
+    "expose": 0.25,
+    "expose_time": 6.0
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "ada": {
+   "legacy_unlock": 25,
+   "name": "Ada Gearwright",
+   "title": "Inventor",
+   "era": "Industrial Age",
+   "color": [
+    0.75,
+    0.5,
+    0.2
+   ],
+   "blurb": "Tinkers with everything. All nearby towers attack faster.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 17.2,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "bolt"
+   },
+   "per_level": {
+    "damage": 3.87,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "speed": 0.08,
+    "speed_per_level": 0.01
+   },
+   "ability": {
+    "id": "overdrive",
+    "type": "fury",
+    "name": "Overdrive",
+    "desc": "Every tower attacks 50% faster for a short time.",
+    "unlock": 3,
+    "cooldown": 60,
+    "speed": 0.5,
+    "duration": 7.0
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "jim": {
+   "legacy_unlock": 27,
+   "name": "Big Jim Coalfoot",
+   "title": "Rail Boss",
+   "era": "Industrial Age",
+   "color": [
+    0.35,
+    0.3,
+    0.3
+   ],
+   "blurb": "Swings a sledgehammer. Strengthens nearby Brute towers.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 34.4,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 12.9
+   },
+   "per_level": {
+    "damage": 7.74,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Brute",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "steam_blast",
+    "type": "quake",
+    "name": "Steam Blast",
+    "desc": "A boiler blast stuns and scalds every robot.",
+    "unlock": 3,
+    "cooldown": 60,
+    "stun": 1.5,
+    "stun_per_level": 0.1,
+    "damage": 69,
+    "damage_per_level": 26
+   },
+   "swing": [
+    -0.9,
+    1.2
+   ],
+   "model_scale": 0.55
+  },
+  "maya": {
+   "legacy_unlock": 29,
+   "name": "Sgt. Maya Cole",
+   "title": "Marine",
+   "era": "Modern Age",
+   "color": [
+    0.4,
+    0.45,
+    0.25
+   ],
+   "blurb": "Calls the shots. Strengthens nearby Ranged towers.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 23.2,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "bullet"
+   },
+   "per_level": {
+    "damage": 5.22,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Ranged",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "airstrike",
+    "type": "strike",
+    "name": "Airstrike",
+    "desc": "Calls in jets on the strongest robots.",
+    "unlock": 3,
+    "cooldown": 50,
+    "targets": 3,
+    "damage": 1508,
+    "damage_per_level": 464,
+    "splash": 1.6
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "ken": {
+   "legacy_unlock": 31,
+   "name": "Dr. Ken Ito",
+   "title": "Field Engineer",
+   "era": "Modern Age",
+   "color": [
+    0.9,
+    0.85,
+    0.2
+   ],
+   "blurb": "Hacks robots. Nearby Control towers reach further.",
+   "base": {
+    "kind": "pulse",
+    "range": 3.2,
+    "cooldown": 1.1,
+    "damage": 17.4,
+    "dtype": "blunt",
+    "slow": 0.25,
+    "slow_time": 1.2
+   },
+   "per_level": {
+    "damage": 3.48,
+    "range": 0.06
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Control",
+    "range": 0.06,
+    "range_per_level": 0.008
+   },
+   "ability": {
+    "id": "emp_grenade",
+    "type": "emp",
+    "name": "EMP Grenade",
+    "desc": "Stuns robots near Ken and knocks out their shields.",
+    "unlock": 3,
+    "cooldown": 50,
+    "radius": 6.0,
+    "stun": 2.5,
+    "stun_per_level": 0.15,
+    "damage": 348,
+    "damage_per_level": 116
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "nova": {
+   "legacy_unlock": 33,
+   "name": "Nova",
+   "title": "Netrunner",
+   "era": "Digital Age",
+   "color": [
+    0.9,
+    0.2,
+    0.8
+   ],
+   "blurb": "Hacks satellites. All nearby towers hit harder.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 31.2,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "laser"
+   },
+   "per_level": {
+    "damage": 7.02,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "orbital_laser",
+    "type": "strike",
+    "name": "Orbital Laser",
+    "desc": "A laser from orbit burns the strongest robots.",
+    "unlock": 3,
+    "cooldown": 50,
+    "targets": 3,
+    "damage": 2028,
+    "damage_per_level": 624,
+    "splash": 1.6
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "glitch": {
+   "legacy_unlock": 35,
+   "name": "Glitch",
+   "title": "Rogue Android",
+   "era": "Digital Age",
+   "color": [
+    0.2,
+    0.9,
+    0.9
+   ],
+   "blurb": "A robot that chose humanity. All nearby towers reach further.",
+   "base": {
+    "kind": "melee",
+    "range": 2.2,
+    "cooldown": 0.7,
+    "damage": 62.4,
+    "dtype": "pierce",
+    "max_targets": 2,
+    "armor_pierce": 23.4
+   },
+   "per_level": {
+    "damage": 14.04,
+    "range": 0.04
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "range": 0.06,
+    "range_per_level": 0.008
+   },
+   "ability": {
+    "id": "system_freeze",
+    "type": "freeze",
+    "name": "System Freeze",
+    "desc": "Every robot on the map slows to a crawl.",
+    "unlock": 3,
+    "cooldown": 60,
+    "slow": 0.7,
+    "duration": 5.0,
+    "duration_per_level": 0.25
+   },
+   "swing": [
+    -0.9,
+    1.2
+   ],
+   "model_scale": 0.55
+  },
+  "vega": {
+   "legacy_unlock": 37,
+   "name": "Commander Vega",
+   "title": "Resistance Leader",
+   "era": "The Data Center",
+   "color": [
+    1.0,
+    0.5,
+    0.1
+   ],
+   "blurb": "Humanity's last general. All nearby towers hit harder.",
+   "base": {
+    "kind": "projectile",
+    "range": 5.2,
+    "cooldown": 0.8,
+    "damage": 42.0,
+    "dtype": "pierce",
+    "proj_speed": 20,
+    "splash": 0,
+    "proj": "plasma"
+   },
+   "per_level": {
+    "damage": 9.45,
+    "range": 0.06,
+    "cooldown": -0.012
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "killswitch",
+    "type": "emp",
+    "name": "Killswitch",
+    "desc": "Shuts down robots near Vega and wipes their shields.",
+    "unlock": 3,
+    "cooldown": 50,
+    "radius": 6.0,
+    "stun": 2.5,
+    "stun_per_level": 0.15,
+    "damage": 630,
+    "damage_per_level": 210
+   },
+   "swing": [
+    -1.0,
+    0.8
+   ],
+   "model_scale": 0.55
+  },
+  "zero": {
+   "legacy_unlock": 39,
+   "name": "Unit Zero",
+   "title": "Reprogrammed Titan",
+   "era": "The Data Center",
+   "color": [
+    0.5,
+    0.5,
+    0.55
+   ],
+   "blurb": "The first robot to switch sides. Strengthens nearby Siege towers.",
+   "base": {
+    "kind": "lob",
+    "range": 6.5,
+    "cooldown": 1.4,
+    "damage": 73.5,
+    "dtype": "blunt",
+    "splash": 1.2,
+    "flight": 0.8,
+    "proj": "shell"
+   },
+   "per_level": {
+    "damage": 14.7,
+    "range": 0.05
+   },
+   "aura": {
+    "radius": 4.0,
+    "lineage": "Siege",
+    "damage": 0.1,
+    "damage_per_level": 0.015
+   },
+   "ability": {
+    "id": "overload",
+    "type": "flare",
+    "name": "Overload",
+    "desc": "Zero overloads its core and blasts robots nearby.",
+    "unlock": 3,
+    "cooldown": 45,
+    "radius": 5.5,
+    "damage": 1260,
+    "damage_per_level": 420,
+    "expose": 0.25,
+    "expose_time": 6.0
+   },
+   "swing": [
+    -1.0,
+    0.8
    ],
    "model_scale": 0.55
   }

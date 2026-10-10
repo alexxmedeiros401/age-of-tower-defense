@@ -1,0 +1,104 @@
+{
+ "id": "railyard",
+ "name": "Railyard",
+ "era": "Industrial Age",
+ "theme": "railyard",
+ "base": "factory",
+ "boss": "juggernaut",
+ "waves_file": "waves_railyard.json",
+ "start_gold": 900,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 6.987,
+ "armor_mult": 4.3,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -1
+   ],
+   [
+    -8,
+    -1
+   ],
+   [
+    -8,
+    6
+   ],
+   [
+    -2,
+    6
+   ],
+   [
+    -2,
+    -6
+   ],
+   [
+    4,
+    -6
+   ],
+   [
+    4,
+    2
+   ],
+   [
+    10,
+    2
+   ],
+   [
+    10,
+    -4
+   ],
+   [
+    15.4,
+    -4
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   -10.9,
+   4.6,
+   1.45,
+   "coal"
+  ],
+  [
+   -7.0,
+   -4.1,
+   1.27,
+   "crates"
+  ],
+  [
+   5.9,
+   5.0,
+   1.29,
+   "coal"
+  ],
+  [
+   -4.7,
+   2.2,
+   1.21,
+   "coal"
+  ],
+  [
+   6.7,
+   -1.1,
+   1.31,
+   "crates"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "steam_tank",
+  "bomber",
+  "hover_drone",
+  "shield_bot",
+  "repair_drone"
+ ]
+}

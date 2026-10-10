@@ -1,0 +1,112 @@
+{
+ "id": "star_fort",
+ "name": "Star Fort",
+ "era": "Gunpowder Age",
+ "theme": "fortress",
+ "base": "fort",
+ "boss": "dreadnought",
+ "waves_file": "waves_star_fort.json",
+ "start_gold": 1000,
+ "start_lives": 100,
+ "path_width": 1.7,
+ "hp_mult": 5.568,
+ "armor_mult": 3.2,
+ "bounds": [
+  -15.0,
+  -8.5,
+  15.0,
+  8.5
+ ],
+ "paths": [
+  [
+   [
+    -15.6,
+    -6
+   ],
+   [
+    -10,
+    -6
+   ],
+   [
+    -10,
+    6
+   ],
+   [
+    -5,
+    6
+   ],
+   [
+    -5,
+    -2
+   ],
+   [
+    0,
+    -2
+   ],
+   [
+    0,
+    6
+   ],
+   [
+    5,
+    6
+   ],
+   [
+    5,
+    -6
+   ],
+   [
+    10,
+    -6
+   ],
+   [
+    10,
+    3
+   ],
+   [
+    15.4,
+    3
+   ]
+  ]
+ ],
+ "blockers": [
+  [
+   -3.9,
+   -5.7,
+   1.49,
+   "crater"
+  ],
+  [
+   -12.5,
+   5.6,
+   1.23,
+   "crates"
+  ],
+  [
+   -12.8,
+   -2.7,
+   1.2,
+   "crater"
+  ],
+  [
+   12.7,
+   -0.4,
+   1.19,
+   "crater"
+  ],
+  [
+   1.4,
+   -5.9,
+   1.21,
+   "crates"
+  ]
+ ],
+ "endless_pool": [
+  "walker",
+  "ironclad",
+  "bomber",
+  "cloaker",
+  "shield_bot",
+  "repair_drone"
+ ]
+}
