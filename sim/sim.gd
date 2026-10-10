@@ -20,6 +20,8 @@ var blockers: Array = []                 # [Vector3(x, z, r)] no-build circles (
 var rivers: Array = []                   # [{pts: PackedVector2Array, half: float}] no-build water
 var hp_mult := 1.0
 var armor_mult := 1.0                    # later eras scale robot armor with tower damage
+var max_per_type := 0                    # 0 = unlimited; the game sets this from data/workshop.json
+var tech_mult := 1.0                     # Workshop: every tower unlocked in this era makes all towers hit harder
 var path_half_width := 0.85
 
 var tick := 0
@@ -210,9 +212,19 @@ func placement_error(type: String, p: Vector2) -> String:
 	var err := _spot_error(p, float(def.radius))
 	if err != "":
 		return err
+	if max_per_type > 0 and count_of(type) >= max_per_type:
+		return "Limit reached: %d of each tower" % max_per_type
 	if gold < tower_cost(type):
 		return "Not enough gold"
 	return ""
+
+
+func count_of(type: String) -> int:
+	var n := 0
+	for t in towers:
+		if t.type == type:
+			n += 1
+	return n
 
 
 func place_tower(type: String, p: Vector2) -> int:
@@ -281,6 +293,10 @@ func _compute_stats(t: Dictionary) -> Dictionary:
 
 
 func _apply_perk_stats(s: Dictionary) -> void:
+	if tech_mult != 1.0:
+		s.damage = float(s.damage) * tech_mult
+		if s.has("burn"):
+			s.burn = float(s.burn) * tech_mult
 	if perks.is_empty():
 		return
 	s.damage = float(s.damage) * (1.0 + perk("damage"))

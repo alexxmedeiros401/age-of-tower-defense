@@ -303,21 +303,36 @@ func add_scrap(era: String, amount: int) -> void:
 	save()
 
 
+## Towers unlock in a fixed order per era, weakest first (data/workshop.json "order").
+## The first one is free; each of the others must be bought with that era's Scrap, in order.
+func unlock_rank(tid: String) -> int:
+	return workshop.order.find(str(_towers[tid].lineage))
+
+
 func tower_scrap_cost(tid: String) -> int:
-	var lin := str(_towers[tid].lineage)
-	if lin in workshop.free_lineages:
+	if unlock_rank(tid) < int(workshop.free):
 		return 0
-	return int(workshop.cost.get(lin, 200))
+	return int(workshop.cost.get(str(_towers[tid].lineage), 200))
 
 
 func tower_unlocked(tid: String) -> bool:
 	return tower_scrap_cost(tid) == 0 or tid in data.get("towers", [])
 
 
+## The era's tower that can be bought next ("" when all are unlocked).
+func next_unlock(era: String) -> String:
+	for tid in era_towers(era):
+		if not tower_unlocked(tid):
+			return tid
+	return ""
+
+
 func unlock_tower(tid: String) -> bool:
 	if tower_unlocked(tid):
 		return true
 	var era := str(_towers[tid].get("era", "Stone Age"))
+	if next_unlock(era) != tid:
+		return false          # weaker towers come first
 	var c := tower_scrap_cost(tid)
 	if scrap(era) < c:
 		return false
@@ -344,8 +359,21 @@ func match_scrap(map_meta: Dictionary, waves: int, won: bool, first: bool) -> in
 
 func era_towers(era: String) -> Array:
 	var out := []
-	for lin in ["Ranged", "Brute", "Siege", "Control"]:
+	for lin in workshop.order:
 		for tid in _towers:
 			if str(_towers[tid].lineage) == lin and str(_towers[tid].get("era", "Stone Age")) == era:
 				out.append(tid)
 	return out
+
+
+## How many of the era's towers are unlocked (1..4); each one past the first adds the Workshop tech bonus.
+func era_unlocked_count(era: String) -> int:
+	var n := 0
+	for tid in era_towers(era):
+		if tower_unlocked(tid):
+			n += 1
+	return n
+
+
+func tech_mult(era: String) -> float:
+	return 1.0 + float(workshop.get("tech_bonus", 0.0)) * maxi(0, era_unlocked_count(era) - 1)

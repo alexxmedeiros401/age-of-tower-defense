@@ -1,21 +1,26 @@
 {
   "currency": "Scrap",
-  "free_lineages": [
+  "order": [
     "Ranged",
-    "Control"
+    "Control",
+    "Brute",
+    "Siege"
   ],
+  "free": 1,
   "cost": {
-    "Brute": 150,
-    "Siege": 300
+    "Control": 120,
+    "Brute": 300,
+    "Siege": 350
   },
   "earn": {
     "per_wave": 4,
-    "win": 50,
-    "first_clear": 100
+    "win": 20,
+    "first_clear": 0
   },
   "difficulty": {
     "Normal": 1.0,
     "Hard": 1.25,
     "Brutal": 1.5
-  }
+  },
+  "tech_bonus": 0.25
 }

@@ -172,6 +172,7 @@ func _ready() -> void:
 	if not "--noperks" in OS.get_cmdline_user_args():
 		sim.apply_perks(Progress.sim_perks())
 		sim.hp_mult *= Progress.timeline_hp_mult()
+	_apply_tech()
 	_build_world()
 	_build_audio()
 	_build_hud()
@@ -1826,6 +1827,14 @@ func _unhandled_input(event: InputEvent) -> void:
 					_begin_placing(types[i])
 
 
+## Workshop tech: every unlocked tower of this era makes all towers hit harder.
+func _apply_tech() -> void:
+	var full := 1.0 + float(Progress.workshop.get("tech_bonus", 0.0)) * 3.0
+	sim.tech_mult = full if (test_mode or attract) else Progress.tech_mult(_era())
+	for t in sim.towers:
+		t.stats = sim._compute_stats(t)
+
+
 func _tower_open(type: String) -> bool:
 	return test_mode or attract or Progress.tower_unlocked(type)
 
@@ -1838,19 +1847,29 @@ func _refresh_shop() -> void:
 		if _tower_open(type):
 			b.text = "%s\n%d gold" % [def.name, sim.tower_cost(type)]
 			b.self_modulate = Color.WHITE
-		else:
+		elif Progress.next_unlock(_era()) == type:
 			b.text = "%s\nUNLOCK: %d scrap" % [def.name, Progress.tower_scrap_cost(type)]
 			b.self_modulate = Color(0.55, 0.55, 0.6)
+		else:
+			b.text = "%s\nLOCKED" % def.name
+			b.self_modulate = Color(0.4, 0.4, 0.45)
 	if lbl_scrap != null:
-		lbl_scrap.text = "%s SCRAP: %d" % [_era().to_upper(), Progress.scrap(_era())]
+		lbl_scrap.text = "SCRAP: %d    TECH: +%d%% DAMAGE" % [Progress.scrap(_era()), int(round((sim.tech_mult - 1.0) * 100))]
 		lbl_scrap.visible = not test_mode
 
 
 func _try_unlock(type: String) -> void:
 	var cost := Progress.tower_scrap_cost(type)
+	var nxt := Progress.next_unlock(_era())
+	if nxt != type and nxt != "":
+		_sfx("error", -4.0, 0.0)
+		_toast("Unlock the %s first (towers unlock weakest to strongest)." % str(defs.towers[nxt].name), Color(1, 0.6, 0.45))
+		toast_t = 3.5
+		return
 	if Progress.unlock_tower(type):
 		_sfx("upgrade")
-		_toast("%s unlocked for the %s!" % [str(defs.towers[type].name), _era()], C_GOLD)
+		_apply_tech()
+		_toast("%s unlocked! All towers now +%d%% damage." % [str(defs.towers[type].name), int(round((sim.tech_mult - 1.0) * 100))], C_GOLD)
 		_refresh_shop()
 	else:
 		_sfx("error", -4.0, 0.0)
@@ -2367,6 +2386,7 @@ func _map_entry(mid: String) -> Dictionary:
 
 func _start_attract() -> void:
 	attract = true
+	_apply_tech()
 	sim.lives = 999999
 	_demo_build(30000)
 	_frame_camera()
@@ -2521,7 +2541,7 @@ func _open_workshop(era: String) -> void:
 			Progress.open_map_select = map_select.visible
 			get_tree().reload_current_scene())
 	head.add_child(done)
-	var intro := _label("Each age has its own Scrap and its own towers. Ranged and Control towers are free; unlock the Brute and Siege towers with Scrap from this age's maps (every wave counts, wins and first clears pay more). Scrap doesn't carry into the next age.", 22, Color(0.92, 0.86, 0.76), 5)
+	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Each map needs one more unlock than the last, so expect a few runs per map. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.92, 0.86, 0.76), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	# era switcher (only ages the player has reached)
@@ -2546,7 +2566,9 @@ func _open_workshop(era: String) -> void:
 	cards.add_theme_constant_override("h_separation", 18)
 	cards.add_theme_constant_override("v_separation", 18)
 	box.add_child(cards)
+	var rank := 0
 	for tid in Progress.era_towers(era):
+		rank += 1
 		var def: Dictionary = defs.towers[tid]
 		var own := Progress.tower_unlocked(tid)
 		var cost := Progress.tower_scrap_cost(tid)
@@ -2561,7 +2583,7 @@ func _open_workshop(era: String) -> void:
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		ic.modulate = Color.WHITE if own else Color(0.55, 0.55, 0.55)
 		v.add_child(ic)
-		var nm := _label(str(def.name), 30, C_TEXT, 7)
+		var nm := _label("%d. %s" % [rank, str(def.name)], 30, C_TEXT, 7)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
 		var ln := _label("%s  -  %d gold to build" % [str(def.lineage), int(def.cost)], 18, Color(1, 0.8, 0.5), 5)
@@ -2576,6 +2598,10 @@ func _open_workshop(era: String) -> void:
 			var ok := _label("FREE" if cost == 0 else "UNLOCKED", 26, Color(0.6, 1.0, 0.6), 6)
 			ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v.add_child(ok)
+		elif Progress.next_unlock(era) != tid:
+			var lk := _label("UNLOCK #%d FIRST  -  %d SCRAP" % [rank - 1, cost], 20, Color(0.75, 0.68, 0.6), 5)
+			lk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(lk)
 		else:
 			var ub := _button("UNLOCK  -  %d SCRAP" % cost, Color(0.2, 0.55, 0.2), 22)
 			ub.custom_minimum_size = Vector2(0, 64)
@@ -2833,6 +2859,14 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8))
 	var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
 	v.add_child(_label(str(m.difficulty).to_upper(), 20, dc.get(m.difficulty, C_TEXT), 6))
+	var era_maps := []
+	for mm in Defs.map_list():
+		if str(mm.era) == str(m.era):
+			era_maps.append(str(mm.id))
+	var need := mini(4, era_maps.find(mid) + 2)
+	var have := Progress.era_unlocked_count(str(m.era))
+	var nl := _label("Needs %d towers unlocked (you have %d)" % [need, have], 17, Color(0.6, 1.0, 0.6) if have >= need else Color(1, 0.7, 0.45), 5)
+	v.add_child(nl)
 	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bl.custom_minimum_size = Vector2(362, 60)

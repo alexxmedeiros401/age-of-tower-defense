@@ -124,6 +124,69 @@ def tune_starter(mid):
     print("%-18s starter hp %.2f -> %.2f" % (mid, hp0, best), flush=True)
 
 
+def kit_score(mid, k, hp, boss):
+    out = subprocess.run([G, "--headless", "--path", ROOT, "--script", "res://tests/balance.gd", "--", mid, "--kit=%d" % k,
+                          "--hp=%.4f" % hp, "--boss=%.4f" % boss], capture_output=True, text=True, timeout=900).stdout
+    best = -100
+    for line in out.splitlines():
+        if line.startswith("RUN|kit"):
+            p = line.split("|")
+            v = int(p[4]) if p[2] == "won" else -(20 - int(p[3])) * 5 - 5
+            best = max(best, v)
+    return best
+
+
+def tune_kit(entry):
+    """Progression tuning (towers unlock weakest-first, one more per map):
+    map #i of an era must be WON with i+2 towers + the best era hero (~45 lives)
+    and LOST with i+1 towers, whatever the hero."""
+    mid, idx = entry
+    path = os.path.join(ROOT, "data", "map_%s.json" % mid)
+    m = json.load(open(path))
+    hp0 = float(m.get("hp_mult", 1.0))
+    boss = float(m.get("boss_hp_mult", 1.0))
+    wk, lk = min(4, idx + 2), idx + 1
+    lo, hi = math.log(hp0 * 0.4), math.log(hp0 * 4.0)
+    hp = hp0
+    for i in range(7):
+        hp = math.exp((lo + hi) / 2)
+        v = kit_score(mid, wk, hp, boss)
+        if abs(v - 45) <= 8:
+            break
+        if v > 45:
+            lo = math.log(hp)
+        else:
+            hi = math.log(hp)
+    win = kit_score(mid, wk, hp, boss)
+    lose = kit_score(mid, lk, hp, boss)
+    steps = 0
+    while lose >= 0 and steps < 8:      # the smaller kit still wins: push HP up while the full kit can still win
+        trial = hp * 1.1
+        w2 = kit_score(mid, wk, trial, boss)
+        if w2 < 10:
+            break
+        hp, win = trial, w2
+        lose = kit_score(mid, lk, hp, boss)
+        steps += 1
+    m = json.load(open(path))
+    m["hp_mult"] = round(hp, 3)
+    json.dump(m, open(path, "w"), indent=1)
+    flag = "" if lose < 0 else "   <-- smaller kit can still win"
+    print("%-18s map#%d hp %.2f -> %.2f  kit%d best %d   kit%d best %d%s" % (mid, idx + 1, hp0, hp, wk, win, lk, lose, flag), flush=True)
+
+
+if __name__ == "__main__" and "--kit" in sys.argv:
+    maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
+    seen = {}
+    todo = []
+    for mm in maps:
+        seen[mm["era"]] = seen.get(mm["era"], -1) + 1
+        if len(sys.argv) <= 2 or mm["id"] in sys.argv:
+            todo.append((mm["id"], seen[mm["era"]]))
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        list(ex.map(tune_kit, todo))
+    sys.exit(0)
+
 if __name__ == "__main__" and "--starter" in sys.argv:
     normals = ["mammoth_valley", "river_delta"] + [x[0] for x in S.MAPS if x[3] == "Normal"]
     with ThreadPoolExecutor(max_workers=2) as ex:
