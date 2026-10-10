@@ -2865,7 +2865,7 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 			era_maps.append(str(mm.id))
 	var need := mini(4, era_maps.find(mid) + 2)
 	var have := Progress.era_unlocked_count(str(m.era))
-	var nl := _label("Needs %d towers unlocked (you have %d)" % [need, have], 17, Color(0.6, 1.0, 0.6) if have >= need else Color(1, 0.7, 0.45), 5)
+	var nl := _label("Recommended: %d towers unlocked (you have %d)" % [need, have], 17, Color(0.6, 1.0, 0.6) if have >= need else Color(1, 0.7, 0.45), 5)
 	v.add_child(nl)
 	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
