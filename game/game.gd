@@ -934,7 +934,27 @@ func _make_robot(type: String) -> Node3D:
 		var sh := _mi(_cyl(0.32, 0.32, 0.01, 12), _mat("fly_shadow", Color(0, 0, 0, 0.3), {"unshaded": true}), root, Vector3(0, 0.03, 0))
 		sh.scale = Vector3.ONE * float(d.get("size", 0.5)) * 2.0
 	if d.get("cloak", false):
-		root.set_meta("geoms", model.find_children("*", "GeometryInstance3D", true, false))
+		# see-through "ghost" copies of every surface material, swapped in while the robot is hidden
+		var swaps := []
+		for mi in model.find_children("*", "MeshInstance3D", true, false):
+			var mesh: Mesh = (mi as MeshInstance3D).mesh
+			if mesh == null:
+				continue
+			for si in mesh.get_surface_count():
+				var sm := mesh.surface_get_material(si) as BaseMaterial3D
+				if sm == null:
+					continue
+				var key := "ghost_%d" % sm.get_instance_id()
+				if not mats.has(key):
+					var gm: BaseMaterial3D = sm.duplicate()
+					gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					gm.albedo_color.a = 0.22
+					gm.emission_enabled = true
+					gm.emission = Color(0.3, 0.9, 1.0)
+					gm.emission_energy_multiplier = 0.25
+					mats[key] = gm
+				swaps.append([mi, si, mats[key]])
+		root.set_meta("ghost", swaps)
 	var flame := _mi(_cyl(0.0, 0.22, 0.55, 6), _mat("burn_flame", Color(1, 0.55, 0.1, 0.85), {"emit": Color(1, 0.45, 0.05), "emit_e": 2.5, "unshaded": true}),
 		root, Vector3(0, h * 0.55, 0))
 	flame.name = "Burn"
@@ -1621,8 +1641,8 @@ func _sync_visuals(alpha: float) -> void:
 			var want := 0.78 if sim.tick >= e.revealed_until else 0.0
 			if float(n.get_meta("cloak_t", -1.0)) != want:
 				n.set_meta("cloak_t", want)
-				for gi in n.get_meta("geoms"):
-					(gi as GeometryInstance3D).transparency = want
+				for sw in n.get_meta("ghost"):
+					(sw[0] as MeshInstance3D).set_surface_override_material(int(sw[1]), sw[2] if want > 0.0 else null)
 		var burn: Node3D = n.get_node("Burn")
 		burn.visible = sim.tick < e.burn_until
 		if burn.visible:
@@ -3285,6 +3305,21 @@ func _run_demo() -> void:
 		elif "--shoot-settings" in args:
 			_open_settings()
 		for i in 3:
+			await get_tree().process_frame
+		await _shot("demo_menu.png")
+		get_tree().quit()
+		return
+	if "--shoot-cloak" in args:
+		_start_game()
+		sim.wave = 1
+		sim.wave_remaining[1] = 6
+		for i in 3:
+			sim._spawn_enemy("cloaker", 1, 3.0 + i * 1.2)
+		sim._spawn_enemy("hover_drone", 1, 12.0)
+		sim._spawn_enemy("stealth_jet", 1, 14.0)
+		var e0: Dictionary = sim.enemies[0]
+		e0.revealed_until = 999999
+		for i in 6:
 			await get_tree().process_frame
 		await _shot("demo_menu.png")
 		get_tree().quit()
