@@ -9,7 +9,7 @@
  "start_gold": 1250,
  "start_lives": 100,
  "path_width": 1.7,
- "hp_mult": 11.31,
+ "hp_mult": 8.956,
  "armor_mult": 5.8,
  "bounds": [
   -15.0,
@@ -126,5 +126,6 @@
   "cloaker",
   "shield_bot",
   "repair_drone"
- ]
+ ],
+ "boss_hp_mult": 0.4
 }

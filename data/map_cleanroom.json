@@ -9,7 +9,7 @@
  "start_gold": 1250,
  "start_lives": 100,
  "path_width": 1.7,
- "hp_mult": 15.795,
+ "hp_mult": 13.607,
  "armor_mult": 7.8,
  "bounds": [
   -15.0,
@@ -126,5 +126,6 @@
   "stealth_jet",
   "shield_bot",
   "repair_drone"
- ]
+ ],
+ "boss_hp_mult": 0.254
 }

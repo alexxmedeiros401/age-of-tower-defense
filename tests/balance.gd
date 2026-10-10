@@ -17,6 +17,14 @@ func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	var map_id: String = args[0] if args.size() > 0 else "mammoth_valley"
 	map = Defs.load_map(map_id)
+	var quick := false
+	for a in args:
+		if a.begins_with("--hp="):
+			map.hp_mult = float(a.trim_prefix("--hp="))
+		if a.begins_with("--boss="):
+			map.boss_hp_mult = float(a.trim_prefix("--boss="))
+		if a == "--quick":
+			quick = true
 	defs = Defs.load_all(map)
 	print("=== ", map.name, " [", map.get("era", "Stone Age"), "] (hp x", map.get("hp_mult", 1.0), ", start gold ", map.start_gold, ")")
 	var s := Sim.new()
@@ -33,6 +41,15 @@ func _init() -> void:
 		if str(defs.heroes.heroes[h].era) == str(map.get("era", "Stone Age")):
 			era_heroes.append(h)
 
+	if quick:
+		# tuning mode: the competent build with and without the era's first hero
+		_run("balanced", _balanced(), true, "")
+		if not era_heroes.is_empty():
+			_run("balanced + " + era_heroes[0], _balanced(), true, era_heroes[0])
+			if era_heroes.size() > 1:
+				_run("balanced + " + era_heroes[1], _balanced(), true, era_heroes[1])
+		quit()
+		return
 	var runs := [
 		["lazy (2 ranged, no upgrades)", [["place", "rock_slinger"], ["place", "rock_slinger"]], false, ""],
 		["ranged spam (no upgrades)", _repeat([["place", "rock_slinger"]], 40), false, ""],
@@ -176,6 +193,7 @@ func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> vo
 	var lives_at_wave := sim.lives
 	var safety := 0
 	var abilities := 0
+	var leaks := {}
 	while sim.state != "won" and sim.state != "lost" and safety < 30 * 60 * 60:
 		safety += 1
 		while step < plan.size():
@@ -240,6 +258,8 @@ func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> vo
 			sim.start_wave()
 		sim.step()
 		for ev in sim.events:
+			if ev.e == "leak":
+				leaks[ev.type] = leaks.get(ev.type, 0) + int(ev.lives)
 			if ev.e == "leak" and defs.enemies[ev.type].get("boss", false):
 				print("    BOSS LEAKED wave %d with %d/%d hp left" % [sim.wave, int(ev.hp), int(ev.max_hp)])
 		sim.events.clear()
@@ -247,6 +267,15 @@ func _run(name: String, plan: Array, keep_spending: bool, hero_id: String) -> vo
 	var hero_txt := ""
 	if sim.hero != null:
 		hero_txt = " hero_lvl=%d abilities=%d" % [sim.hero.level, abilities]
+	var pre := 0
+	for i in mini(lives_log.size(), 19):
+		pre += int(lives_log[i])
+	var boss_leak := 0
+	for k in leaks:
+		if defs.enemies[k].get("boss", false):
+			boss_leak += int(leaks[k])
+	print("RUN|%s|%s|%d|%d|%d|%d" % [name, sim.state, sim.wave, sim.lives, pre, boss_leak])
 	print("%-30s result=%-5s wave=%2d lives=%3d kills=%4d towers=%d gold_left=%d%s" % [
 		name, sim.state, sim.wave, sim.lives, sim.stats.kills, sim.towers.size(), sim.gold, hero_txt])
 	print("    lives lost per wave: ", lives_log)
+	print("    leaked lives by robot: ", leaks)

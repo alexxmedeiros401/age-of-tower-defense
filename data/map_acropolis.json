@@ -9,7 +9,7 @@
  "start_gold": 1250,
  "start_lives": 100,
  "path_width": 1.7,
- "hp_mult": 2.97,
+ "hp_mult": 4.271,
  "armor_mult": 1.8,
  "bounds": [
   -15.0,
@@ -126,5 +126,6 @@
   "hover_drone",
   "shield_bot",
   "repair_drone"
- ]
+ ],
+ "boss_hp_mult": 0.72
 }

@@ -34,10 +34,17 @@ const THEMES := {
 }
 const BASE_RECOLOR := {"snow": Color(0.9, 0.93, 0.98), "volcano": Color(0.3, 0.26, 0.24), "desert": Color(0.86, 0.7, 0.46),
 	"canyon": Color(0.62, 0.36, 0.23)}
+const PULSE_COLORS := {"druid": Color(0.5, 1.0, 0.4), "oracle": Color(1.0, 0.9, 0.5), "alchemist": Color(0.6, 1.0, 0.3),
+	"war_drummer": Color(1.0, 0.85, 0.6), "tesla_coil": Color(0.6, 0.85, 1.0), "emp_tower": Color(0.4, 0.75, 1.0),
+	"cryo_field": Color(0.7, 0.95, 1.0), "firewall": Color(1.0, 0.55, 0.15), "theron": Color(1.0, 0.9, 0.4), "ken": Color(0.95, 0.9, 0.3)}
+const PULSE_SFX := {"tesla_coil": "zap", "emp_tower": "emp", "cryo_field": "freeze", "war_drummer": "drum", "firewall": "zap", "ken": "zap"}
+const PROJ_SFX := {"javelin": "javelin", "bolt": "bolt", "bullet": "rifle", "cannonball": "cannon", "shell": "shell", "missile": "missile",
+	"laser": "laser", "plasma": "plasma", "arc": "zap", "arrow": "arrow"}
 const SFX_NAMES := ["throw", "rock_hit", "club", "catapult", "boulder_land", "pulse", "robot_death", "boss_death", "coin",
 	"place", "upgrade", "wave_horn", "life_lost", "boss_roar", "summon", "click", "error", "victory", "defeat",
 	"arrow", "spear", "shield_up", "shield_break", "heal", "level_up", "hero_place", "ab_stone_rain", "ab_earthquake",
-	"ab_solar_flare", "ab_forge_fury", "boss_roar_bronze"]
+	"ab_solar_flare", "ab_forge_fury", "boss_roar_bronze", "airstrike", "bolt", "boss_roar_mech", "cannon", "cloak", "drum",
+	"emp", "explosion", "flame", "freeze", "javelin", "laser", "missile", "musket", "plasma", "rifle", "shell", "steam", "swing", "zap"]
 
 # palette
 const C_PANEL := Color(0.17, 0.11, 0.07, 0.94)
@@ -150,7 +157,8 @@ func _ready() -> void:
 	sim = Sim.new()
 	sim.setup(defs, map)
 	var hid := Progress.hero()
-	if not defs.heroes.heroes.has(hid) or not Progress.hero_unlocked(defs.heroes.heroes[hid]):
+	var testing := "--demo" in OS.get_cmdline_user_args() or "--autowin" in OS.get_cmdline_user_args()
+	if not defs.heroes.heroes.has(hid) or not (testing or Progress.hero_unlocked(defs.heroes.heroes[hid])):
 		hid = "ugo"
 	sim.set_hero(hid)
 	if not "--noperks" in OS.get_cmdline_user_args():
@@ -259,6 +267,18 @@ func _yaw(dir: Vector2) -> float:
 	return atan2(dir.x, dir.y)
 
 
+## "Captain Isla Reyes" -> "Isla", "Big Jim Coalfoot" -> "Jim", "Cassia the Legate" -> "Cassia".
+func _short_name(full: String) -> String:
+	var w := full.split(" ")
+	if w.size() > 1 and w[0] in ["Captain", "Sir", "Sgt.", "Dr.", "Commander", "Big", "Unit"]:
+		return w[1]
+	return w[0]
+
+
+func _era_index() -> int:
+	return maxi(0, _eras().find(_era()))
+
+
 func _era() -> String:
 	return str(map.get("era", "Stone Age"))
 
@@ -312,7 +332,7 @@ func _build_world() -> void:
 	_mi(pm, gm, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
 	var far := PlaneMesh.new()
 	far.size = Vector2(160, 120)
-	_mi(far, _mat("far_ground", theme.far), self, Vector3(0, -0.02, 0))
+	_mi(far, _mat("far_ground", _edge_color(gm.albedo_texture, theme.far), {"rough": 1.0}), self, Vector3(0, -0.02, 0))
 
 	for P in sim.paths:
 		var pts: PackedVector2Array = P.pts
@@ -343,15 +363,37 @@ func _frame_camera() -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var aspect := vp.x / maxf(vp.y, 1.0)
 	var side_frac := SIDEBAR_W / maxf(vp.x, 1.0)
-	var need_w := 31.0
+	var need_w := 33.4   # road start (-15.6) to just past the base gate (~17.8)
 	var need_h := 18.6 * sin(deg_to_rad(PITCH)) + 2.6
 	cam.size = maxf(need_h, need_w / (aspect * (1.0 - side_frac)))
 	var view_w := cam.size * aspect
-	var target := Vector3(view_w * side_frac * 0.5, 0, 0.6)
+	var target := Vector3(view_w * side_frac * 0.5 + 1.1, 0, 0.6)
 	var back := Vector3(0, sin(deg_to_rad(PITCH)), cos(deg_to_rad(PITCH))) * 60.0
 	cam.position = target + back
 	cam.look_at(target, Vector3.UP)
 	cam_base = cam.position
+
+
+## Average color of the ground texture's outer rows, so the plane beyond it blends in on tall screens.
+func _edge_color(tex: Texture2D, fallback: Color) -> Color:
+	if tex == null:
+		return fallback
+	var img := tex.get_image()
+	if img == null:
+		return fallback
+	if img.is_compressed():
+		img.decompress()
+	var acc := Vector3.ZERO
+	var n := 0
+	var w := img.get_width()
+	var h := img.get_height()
+	for x in range(0, w, 16):
+		for y in [1, 4, h - 2, h - 5]:
+			var c := img.get_pixel(x, y)
+			acc += Vector3(c.r, c.g, c.b)
+			n += 1
+	acc /= float(maxi(n, 1))
+	return Color(acc.x, acc.y, acc.z)
 
 
 func _build_portal(p: Vector2, dir: Vector2) -> void:
@@ -886,6 +928,17 @@ func _make_robot(type: String) -> Node3D:
 	root.set_meta("body", model.find_child("Body", true, false))
 	root.set_meta("punch", 0.0)
 	var h: float = float(d.get("bar_h", 1.4))
+	if d.get("flying", false):
+		model.position.y = 0.9           # flyers hover above the road (only some towers can reach them)
+		h += 0.9
+		var sh := _mi(_cyl(0.32, 0.32, 0.01, 12), _mat("fly_shadow", Color(0, 0, 0, 0.3), {"unshaded": true}), root, Vector3(0, 0.03, 0))
+		sh.scale = Vector3.ONE * float(d.get("size", 0.5)) * 2.0
+	if d.get("cloak", false):
+		root.set_meta("geoms", model.find_children("*", "GeometryInstance3D", true, false))
+	var flame := _mi(_cyl(0.0, 0.22, 0.55, 6), _mat("burn_flame", Color(1, 0.55, 0.1, 0.85), {"emit": Color(1, 0.45, 0.05), "emit_e": 2.5, "unshaded": true}),
+		root, Vector3(0, h * 0.55, 0))
+	flame.name = "Burn"
+	flame.visible = false
 	if d.get("boss", false):
 		var tag := Label3D.new()
 		tag.text = str(d.name)
@@ -1110,7 +1163,12 @@ func _auto_start(delta: float) -> void:
 
 func _fire_sfx(u: Dictionary) -> void:
 	var t: String = u.type
-	if t in ["boulder_catapult", "torsion_catapult"]:
+	var pj: String = str(u.stats.get("proj", ""))
+	if t == "musketeer" or t == "isla":
+		_sfx("musket", -7.0, 0.12, 0.05)
+	elif PROJ_SFX.has(pj):
+		_sfx(PROJ_SFX[pj], -7.0, 0.15, 0.05)
+	elif t in ["boulder_catapult", "torsion_catapult", "onager", "trebuchet", "ballista"]:
 		_sfx("catapult", -8.0, 0.15, 0.05)
 	elif t == "bronze_archer":
 		_sfx("arrow", -6.0, 0.15, 0.05)
@@ -1159,7 +1217,12 @@ func _handle_events() -> void:
 					enemy_nodes[ev.id] = n
 					if e.boss:
 						shake = 1.0
-						_sfx("boss_roar_bronze" if e.type == "siege_crawler" else "boss_roar", -6.0, 0.0, 2.0)
+						var roar := "boss_roar"
+						if e.type == "siege_crawler":
+							roar = "boss_roar_bronze"
+						elif e.type != "prime_walker":
+							roar = "boss_roar_mech"
+						_sfx(roar, -6.0, 0.0, 2.0)
 						_banner("THE %s HAS ARRIVED" % str(defs.enemies[e.type].name), Color(1, 0.35, 0.3))
 			"hit":
 				if enemy_nodes.has(ev.id):
@@ -1204,9 +1267,24 @@ func _handle_events() -> void:
 				_animate_fire(ev.id)
 				var u2 = sim.get_unit(ev.id)
 				if u2 != null:
-					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45), 0.35)
+					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
-					_sfx("spear" if u2.type in ["spear_guard", "kira"] else "club", -4.0, 0.12, 0.05)
+					var slam_col := Color(1, 0.8, 0.45)
+					var ss := "club"
+					if u2.type in ["spear_guard", "kira", "brenna", "cassia", "legionary"]:
+						ss = "spear"
+					elif u2.type in ["axe_warrior", "knight", "halberdier", "aldric", "glitch"]:
+						ss = "swing"
+					elif u2.type == "steam_brawler" or u2.type == "jim":
+						ss = "steam"
+					elif u2.type == "flamethrower":
+						ss = "flame"
+						slam_col = Color(1, 0.5, 0.1)
+					elif u2.type in ["mech_brawler", "titan_mech"]:
+						slam_col = Color(0.9, 0.4, 1.0)
+					_sfx(ss, -4.0, 0.12, 0.05)
+					if u2.type == "flamethrower":
+						_dust_fx(_v3(u2.pos + u2.facing * 1.2, 0.5), 4, 0.9)
 			"pulse":
 				_animate_fire(ev.id)
 				var u3 = sim.get_unit(ev.id)
@@ -1216,13 +1294,19 @@ func _handle_events() -> void:
 						pcol = Color(1.0, 0.85, 0.3)
 					elif u3.type == "mara":
 						pcol = Color(0.75, 0.5, 1.0)
+					elif PULSE_COLORS.has(u3.type):
+						pcol = PULSE_COLORS[u3.type]
 					if u3.get("branch", "") == "B":
 						pcol = Color(1, 0.5, 0.1)
 					_ring_fx(_v3(u3.pos, 0.25), ev.radius, pcol, 0.6)
 					if tower_nodes.has(ev.id) and tower_nodes[ev.id].has_meta("orb"):
 						var orb: Node3D = tower_nodes[ev.id].get_meta("orb")
 						orb.scale = Vector3.ONE * 2.2
-				_sfx("pulse", -7.0, 0.1, 0.08)
+				var ps := "pulse"
+				var u3b = sim.get_unit(ev.id)
+				if u3b != null:
+					ps = PULSE_SFX.get(u3b.type, "pulse")
+				_sfx(ps, -7.0, 0.1, 0.08)
 			"proj":
 				var p = _proj_by_id(ev.id)
 				if p != null:
@@ -1234,12 +1318,31 @@ func _handle_events() -> void:
 				if ev.splash > 0.0:
 					_ring_fx(_v3(ev.pos, 0.2), ev.splash, Color(1, 0.65, 0.3), 0.3)
 					_dust_fx(_v3(ev.pos, 0.2), 6, ev.splash)
-					_sfx("boulder_land", -6.0, 0.15, 0.08)
+					_sfx("explosion" if _era_index() >= 5 else "boulder_land", -8.0, 0.15, 0.08)
 					shake = maxf(shake, 0.18)
 				else:
 					_sfx("rock_hit", -10.0, 0.2, 0.05)
 				if ev.crit:
 					_float_text(_v3(ev.pos, 1.8), "CRIT!", Color(1, 0.35, 0.25), 44)
+			"emp":
+				_ring_fx(_v3(ev.pos, 0.3), float(ev.radius), Color(0.45, 0.85, 1.0), 0.6)
+				_ring_fx(_v3(ev.pos, 0.3), float(ev.radius) * 0.6, Color(0.7, 0.95, 1.0), 0.45)
+				_sfx("emp", -4.0, 0.05, 0.3)
+				shake = maxf(shake, 0.4)
+			"chain":
+				_chain_fx(ev.pts)
+				_sfx("zap", -10.0, 0.15, 0.06)
+			"enrage":
+				if enemy_nodes.has(ev.id):
+					var en: Node3D = enemy_nodes[ev.id]
+					_float_text(en.position + Vector3(0, 3.5, 0), "ENRAGED!", Color(1, 0.3, 0.2), 80)
+					_ring_fx(en.position + Vector3(0, 0.3, 0), 3.0, Color(1, 0.3, 0.2), 0.6)
+				_sfx("steam", 0.0, 0.0, 1.0)
+				shake = 0.8
+			"reveal":
+				if enemy_nodes.has(ev.id):
+					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.3, 0), 0.9, Color(0.6, 1.0, 0.8), 0.35)
+				_sfx("cloak", -12.0, 0.1, 0.4)
 			"summon":
 				var be = sim._enemy_by_id(ev.id)
 				if be != null:
@@ -1267,7 +1370,11 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	var root := Node3D.new()
 	root.position = _v3(p.pos, 1.3)
 	add_child(root)
-	if utype == "bronze_archer":
+	var pj: String = str(src.get("proj", ""))
+	if pj != "" and pj != "arrow" and pj != "rock":
+		_proj_model(root, pj, dt)
+		return root
+	if utype == "bronze_archer" or pj == "arrow":
 		var shaft := _mat("arrow_fire" if dt == "fire" else "arrow", Color(1, 0.5, 0.1) if dt == "fire" else Color(0.45, 0.3, 0.15),
 			{"emit": Color(1, 0.4, 0.05), "emit_e": 2.0} if dt == "fire" else {})
 		_mi(_box(0.05, 0.05, 0.6), shaft, root)
@@ -1294,8 +1401,128 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	return root
 
 
+## Projectile looks for the later eras (src.proj): oriented ones get the "arrow" meta so they face their flight.
+func _proj_model(root: Node3D, pj: String, dt: String) -> void:
+	match pj:
+		"javelin":
+			_mi(_box(0.05, 0.05, 1.0), _mat("javelin", Color(0.5, 0.36, 0.2)), root)
+			_mi(_cyl(0.0, 0.07, 0.2, 4), _mat("iron_tip", Color(0.42, 0.44, 0.48), {"metal": 0.6}), root, Vector3(0, 0, -0.58), Vector3(-PI * 0.5, 0, 0))
+			root.set_meta("arrow", true)
+		"bolt":
+			var bm := _mat("bolt_fire", Color(1, 0.5, 0.1), {"emit": Color(1, 0.4, 0.05), "emit_e": 2.0}) if dt == "fire" else _mat("bolt", Color(0.35, 0.24, 0.14))
+			_mi(_box(0.08, 0.08, 0.7), bm, root)
+			_mi(_cyl(0.0, 0.1, 0.18, 4), _mat("iron_tip", Color(0.42, 0.44, 0.48), {"metal": 0.6}), root, Vector3(0, 0, -0.42), Vector3(-PI * 0.5, 0, 0))
+			root.set_meta("arrow", true)
+		"bullet":
+			_mi(_box(0.05, 0.05, 0.45), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
+			root.set_meta("arrow", true)
+		"cannonball":
+			_mi(_sph(0.2, 8), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
+		"shell":
+			_mi(_cyl(0.1, 0.1, 0.32, 8), _mat("shell", Color(0.72, 0.6, 0.3), {"metal": 0.6}), root, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+			_mi(_cyl(0.0, 0.1, 0.14, 8), _mat("shell_tip", Color(0.35, 0.37, 0.38), {"metal": 0.5}), root, Vector3(0, 0, -0.22), Vector3(-PI * 0.5, 0, 0))
+			root.set_meta("arrow", true)
+		"missile":
+			_mi(_cyl(0.07, 0.07, 0.6, 8), _mat("missile", Color(0.92, 0.92, 0.9)), root, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+			_mi(_cyl(0.0, 0.07, 0.16, 8), _mat("missile_tip", Color(0.85, 0.15, 0.1)), root, Vector3(0, 0, -0.38), Vector3(-PI * 0.5, 0, 0))
+			_mi(_cyl(0.07, 0.0, 0.35, 6), _mat("exhaust", Color(1, 0.7, 0.2, 0.9), {"emit": Color(1, 0.55, 0.1), "emit_e": 3.0, "unshaded": true}), root,
+				Vector3(0, 0, 0.45), Vector3(-PI * 0.5, 0, 0))
+			root.set_meta("arrow", true)
+		"laser":
+			_mi(_box(0.07, 0.07, 1.1), _mat("laser_beam", Color(0.4, 1.0, 1.0), {"emit": Color(0.2, 0.9, 1.0), "emit_e": 4.0, "unshaded": true}), root)
+			root.set_meta("arrow", true)
+		"plasma":
+			_mi(_sph(0.22, 10), _mat("plasma", Color(1.0, 0.4, 0.95), {"emit": Color(1.0, 0.3, 0.9), "emit_e": 4.0, "unshaded": true}), root)
+			_mi(_sph(0.34, 10), _mat("plasma_glow", Color(1.0, 0.5, 1.0, 0.3), {"unshaded": true}), root)
+		"arc":
+			_mi(_sph(0.16, 8), _mat("arc_ball", Color(0.75, 0.9, 1.0), {"emit": Color(0.5, 0.8, 1.0), "emit_e": 4.0, "unshaded": true}), root)
+			root.set_meta("spin", true)
+		_:
+			_mi(_sph(0.15, 6), _mat("proj_default", Color(0.6, 0.58, 0.55)), root)
+
+
+## A jagged lightning line through the chain-hit robots.
+func _chain_fx(pts: Array) -> void:
+	var m := _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
+	for i in range(1, pts.size()):
+		var a := _v3(pts[i - 1], 1.0)
+		var b := _v3(pts[i], 1.0)
+		var mid := (a + b) * 0.5 + Vector3(randf_range(-0.25, 0.25), randf_range(0.0, 0.4), randf_range(-0.25, 0.25))
+		for seg in [[a, mid], [mid, b]]:
+			var p0: Vector3 = seg[0]
+			var p1: Vector3 = seg[1]
+			var L := p0.distance_to(p1)
+			if L < 0.01:
+				continue
+			var bolt := _mi(_box(0.06, 0.06, L), m, self, (p0 + p1) * 0.5)
+			bolt.look_at((p0 + p1) * 0.5 + (p1 - p0), Vector3.UP if absf((p1 - p0).normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": bolt, "t": 0.0, "life": 0.15, "kind": "flash", "s": 1.0})
+
+
 func _ability_fx(ev: Dictionary) -> void:
 	var hp := _v3(ev.pos, 0.3)
+	var aname := str(sim.hero_def.ability.name).to_upper() + "!"
+	match str(ev.get("type", "")):
+		"rain":
+			var i := 0
+			for p in ev.hits:
+				_boulder_drop_fx(_v3(p), i * 0.06)
+				i += 1
+			_banner(aname, Color(0.9, 0.8, 0.6))
+			_sfx("ab_stone_rain" if _era_index() < 4 else "airstrike", 0.0, 0.0, 0.5)
+			return
+		"quake":
+			_ring_fx(hp, 26.0, Color(0.75, 0.55, 0.3), 1.0)
+			_ring_fx(hp, 14.0, Color(0.85, 0.65, 0.35), 0.7)
+			for e in sim.enemies:
+				_dust_fx(_v3(e.pos, 0.2), 3, 0.6)
+			shake = 1.4
+			_banner(aname, Color(0.85, 0.6, 1.0))
+			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
+			return
+		"flare":
+			_ring_fx(hp, float(ev.radius), Color(1, 0.6, 0.25), 0.7)
+			_ring_fx(hp, float(ev.radius) * 0.6, Color(1, 0.9, 0.5), 0.5)
+			var f := _mi(_sph(1.0, 12), _mat("flare", Color(1, 0.85, 0.4, 0.6), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), self, hp + Vector3(0, 1.0, 0))
+			effects.append({"node": f, "t": 0.0, "life": 0.35, "kind": "flash", "s": 2.5})
+			shake = 0.7
+			_banner(aname, C_GOLD)
+			_sfx("ab_solar_flare" if str(ev.ability) == "solar_flare" else "explosion", 0.0, 0.0, 0.5)
+			return
+		"fury":
+			for t in sim.towers:
+				_ring_fx(_v3(t.pos, 0.3), 1.3, Color(1, 0.5, 0.15), 0.6)
+			_banner(aname, Color(1, 0.6, 0.2))
+			_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
+			return
+		"strike":
+			var beam_m := _mat("strike_beam", Color(1.0, 0.95, 0.7, 0.8), {"emit": Color(1.0, 0.85, 0.5), "emit_e": 4.0, "unshaded": true})
+			for p in ev.hits:
+				var at := _v3(p, 0.0)
+				var beam := _mi(_cyl(0.35, 0.35, 14.0, 10), beam_m, self, at + Vector3(0, 7.0, 0))
+				effects.append({"node": beam, "t": 0.0, "life": 0.35, "kind": "flash", "s": 1.0})
+				_ring_fx(at + Vector3(0, 0.2, 0), 1.8, Color(1, 0.8, 0.4), 0.5)
+				_debris_fx(at + Vector3(0, 0.5, 0), 6, true)
+			shake = 1.2
+			_banner(aname, Color(1, 0.85, 0.5))
+			_sfx("airstrike", 0.0, 0.0, 0.5)
+			return
+		"freeze":
+			_ring_fx(hp, 30.0, Color(0.6, 0.9, 1.0), 1.2)
+			for p in ev.hits:
+				_ring_fx(_v3(p, 0.3), 0.8, Color(0.75, 0.95, 1.0), 0.8)
+			_banner(aname, Color(0.6, 0.9, 1.0))
+			_sfx("freeze", 0.0, 0.0, 0.5)
+			return
+		"emp":
+			_ring_fx(hp, float(ev.radius), Color(0.45, 0.85, 1.0), 0.7)
+			_ring_fx(hp, float(ev.radius) * 0.55, Color(0.8, 0.95, 1.0), 0.5)
+			for p in ev.hits:
+				_chain_fx([ev.pos, p])
+			shake = 0.8
+			_banner(aname, Color(0.5, 0.85, 1.0))
+			_sfx("emp", 0.0, 0.0, 0.5)
+			return
 	match str(ev.ability):
 		"stone_rain":
 			var i := 0
@@ -1374,7 +1601,7 @@ func _sync_visuals(alpha: float) -> void:
 		var body = n.get_meta("body")
 		if body != null:
 			var bob: float = absf(sin(ph)) * 0.05
-			if e.type in ["scout", "carrier", "repair_drone"]:
+			if e.type in ["scout", "carrier", "repair_drone"] or e.flying:
 				bob = sin(time_s * 5.0 + e.id) * 0.08
 			body.position.y = bob
 			body.rotation.z = sin(time_s * 40.0) * 0.12 if stunned else 0.0
@@ -1390,6 +1617,16 @@ func _sync_visuals(alpha: float) -> void:
 			if bubble.visible:
 				var bmat: StandardMaterial3D = bubble.material_override
 				bmat.albedo_color.a = 0.1 + 0.2 * clampf(e.shield / maxf(e.max_shield, 1.0), 0.0, 1.0)
+		if e.cloak:
+			var want := 0.78 if sim.tick >= e.revealed_until else 0.0
+			if float(n.get_meta("cloak_t", -1.0)) != want:
+				n.set_meta("cloak_t", want)
+				for gi in n.get_meta("geoms"):
+					(gi as GeometryInstance3D).transparency = want
+		var burn: Node3D = n.get_node("Burn")
+		burn.visible = sim.tick < e.burn_until
+		if burn.visible:
+			burn.scale = Vector3(1, 0.8 + 0.4 * absf(sin(time_s * 13.0 + e.id)), 1)
 		var mark: Node3D = n.get_node("Mark")
 		mark.visible = sim.tick < e.expose_until
 		if mark.visible:
@@ -1433,6 +1670,20 @@ func _sync_visuals(alpha: float) -> void:
 		if tn.has_meta("orb"):
 			var orb: Node3D = tn.get_meta("orb")
 			orb.scale = orb.scale.lerp(Vector3.ONE * (1.0 + 0.1 * sin(time_s * 4.0)), 0.1)
+		var zap: Node3D = tn.get_node_or_null("Zap")
+		var emp_on: bool = sim.tick < int(t.get("stun_until", 0))
+		if emp_on and zap == null:
+			zap = Node3D.new()
+			zap.name = "Zap"
+			tn.add_child(zap)
+			for k in 3:
+				_mi(_box(0.05, 0.05, 0.7), _mat("zap_arc", Color(0.5, 0.85, 1.0), {"emit": Color(0.4, 0.8, 1.0), "emit_e": 3.0, "unshaded": true}),
+					zap, Vector3(0, 1.0 + k * 0.35, 0), Vector3(0.3 * k, k * 1.2, 0.5))
+		if zap != null:
+			zap.visible = emp_on
+			if emp_on:
+				zap.rotation.y = time_s * 9.0
+				zap.scale = Vector3.ONE * (0.8 + 0.3 * absf(sin(time_s * 23.0)))
 		var buff: Node3D = tn.get_node("Buff")
 		buff.visible = t.get("buffed", false) and not t.get("is_hero", false)
 		if buff.visible:
@@ -1768,8 +2019,10 @@ func _build_hud() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	side.add_child(col)
-	var era := _label(_era().to_upper() + "  -  " + str(map.name) + ("   T%d" % Progress.timeline() if Progress.timeline() > 1 else ""), 26, Color(1, 0.78, 0.45))
+	var era := _label(_era().to_upper() + "  -  " + str(map.name) + ("   T%d" % Progress.timeline() if Progress.timeline() > 1 else ""), 22, Color(1, 0.78, 0.45))
 	era.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	era.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	era.custom_minimum_size.x = 10
 	col.add_child(era)
 
 	# hero card
@@ -1784,7 +2037,7 @@ func _build_hud() -> void:
 	hcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hcol.add_theme_constant_override("separation", 2)
 	hrow.add_child(hcol)
-	lbl_hero_name = _label(str(sim.hero_def.name).get_slice(" ", 0), 22, C_GOLD, 6)
+	lbl_hero_name = _label(_short_name(str(sim.hero_def.name)), 22, C_GOLD, 6)
 	lbl_hero_name.clip_text = true
 	hcol.add_child(lbl_hero_name)
 	lbl_hero_level = _label("", 18, C_TEXT, 5)
@@ -1797,8 +2050,9 @@ func _build_hud() -> void:
 	hero_xp_fill.color = C_GOLD
 	hero_xp_fill.size = Vector2(0, 10)
 	xp_bg.add_child(hero_xp_fill)
-	btn_hero = _button("", Color(0.2, 0.55, 0.2), 20)
-	btn_hero.custom_minimum_size = Vector2(118, 72)
+	btn_hero = _button("", Color(0.2, 0.55, 0.2), 16)
+	btn_hero.custom_minimum_size = Vector2(136, 72)
+	btn_hero.clip_text = true
 	btn_hero.pressed.connect(_on_hero_button)
 	hrow.add_child(btn_hero)
 
@@ -2057,9 +2311,10 @@ func _build_map_select(root: Control) -> void:
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(tl)
 	# era tabs
-	var tabs := HBoxContainer.new()
-	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
-	tabs.add_theme_constant_override("separation", 16)
+	var tabs := HFlowContainer.new()
+	tabs.alignment = FlowContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("h_separation", 10)
+	tabs.add_theme_constant_override("v_separation", 10)
 	box.add_child(tabs)
 	var rows := {}
 	var tab_buttons := {}
@@ -2078,8 +2333,9 @@ func _build_map_select(root: Control) -> void:
 			_map_card(row, m)
 		if era_open and default_tab == "":
 			pass
-		var tbtn := _button(era_name.to_upper() if era_open else era_name.to_upper() + "  (LOCKED)", Color(0.45, 0.32, 0.2), 30)
-		tbtn.custom_minimum_size = Vector2(320, 70)
+		var tbtn := _button(era_name.to_upper(), Color(0.45, 0.32, 0.2) if era_open else Color(0.25, 0.22, 0.2), 20)
+		tbtn.custom_minimum_size = Vector2(244, 58)
+		tbtn.set_meta("open", era_open)
 		tabs.add_child(tbtn)
 		tab_buttons[era_name] = tbtn
 		if era_open:
@@ -2089,7 +2345,7 @@ func _build_map_select(root: Control) -> void:
 		for k in rows:
 			rows[k].visible = k == era_name
 			var b: Button = tab_buttons[k]
-			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else Color(0.7, 0.7, 0.7)
+			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else (Color(0.8, 0.8, 0.8) if b.get_meta("open") else Color(0.55, 0.55, 0.55))
 		Progress.data.tab = era_name
 	for era_name in tab_buttons:
 		tab_buttons[era_name].pressed.connect(func():
@@ -2121,13 +2377,13 @@ func _build_map_select(root: Control) -> void:
 	for hid in defs.heroes.heroes:
 		var hd2: Dictionary = defs.heroes.heroes[hid]
 		var open := Progress.hero_unlocked(hd2)
-		var hname := str(hd2.name).split(" ")[0]
+		var hname := _short_name(str(hd2.name))
 		var hb := _button(hname if open else "%s\nLEGACY LV %d" % [hname, int(hd2.get("legacy_unlock", 1))],
 			Color(hd2.color[0], hd2.color[1], hd2.color[2]).lerp(Color(0.3, 0.2, 0.12), 0.45 if open else 0.8), 24 if open else 20)
 		hb.icon = _icon_tex(hid)
 		hb.expand_icon = true
-		hb.add_theme_constant_override("icon_max_width", 64)
-		hb.custom_minimum_size = Vector2(250, 84)
+		hb.add_theme_constant_override("icon_max_width", 56)
+		hb.custom_minimum_size = Vector2(236, 76)
 		hb.pressed.connect(func():
 			_sfx("click")
 			if Progress.hero_unlocked(hd2):
@@ -2344,6 +2600,18 @@ func _show_tower_panel(id: int) -> void:
 			lines += "\nStrips %d armor per hit" % int(s.shred)
 		if s.has("expose"):
 			lines += "\nMarked robots take +%d%% damage" % int(float(s.expose) * 100)
+		if int(s.get("chain", 0)) > 0:
+			lines += "\nJumps to %d more robots" % int(s.chain)
+		if float(s.get("burn", 0.0)) > 0.0:
+			lines += "\nBurns for %s damage/sec" % str(snappedf(float(s.burn), 0.1))
+		if float(s.get("shield_break", 0.0)) > 0.0:
+			lines += "\nKnocks out robot shields"
+		if float(s.get("detect", 0.0)) > 0.0 or s.kind == "pulse":
+			lines += "\nSpots cloaked robots"
+		if not sim.can_hit_air(s):
+			lines += "\nCan't hit flying robots"
+		elif float(s.get("anti_air", 0.0)) > 0.0:
+			lines += "\nHits flying robots"
 		if t.buffed:
 			lines += "\nBoosted by your hero!"
 		if t.branch != "":
@@ -2474,6 +2742,9 @@ func _show_overlay(won: bool) -> void:
 		lbl_overlay.add_theme_color_override("font_color", C_GOLD)
 		var boss_name := str(defs.enemies[str(map.get("boss", "prime_walker"))].name).capitalize()
 		lbl_overlay_sub.text = "The %s is scrap metal.\n%d robots destroyed  -  %d lives left" % [boss_name, sim.stats.kills, sim.lives]
+		if map.get("final", false):
+			lbl_overlay.text = "THE CORE IS DESTROYED!"
+			lbl_overlay_sub.text = "The machines are finished. Humanity is free.\n...but the AI you built to win this war is already slipping back through time.\n%d robots destroyed  -  %d lives left" % [sim.stats.kills, sim.lives]
 		if newly != "":
 			var nm_era := ""
 			for m in Defs.map_list():
@@ -2482,8 +2753,8 @@ func _show_overlay(won: bool) -> void:
 			if nm_era != _era():
 				lbl_overlay_sub.text += "\nNEW ERA UNLOCKED: %s!" % nm_era.to_upper()
 				nb.text = "ENTER THE %s" % nm_era.to_upper()
-		if not nb.visible:
-			lbl_overlay_sub.text += "\nYou beat every map in this timeline! More ages are coming in future updates."
+		if not nb.visible and not map.get("final", false):
+			lbl_overlay_sub.text += "\nYou beat every map in this timeline!"
 		(overlay.get_meta("timeline") as Button).visible = not demo and Progress.can_new_timeline(map_order)
 		lbl_overlay_sub.text += _award_xp(true)
 		btn_endless.visible = true
@@ -2835,7 +3106,7 @@ func _build_legacy_contents() -> void:
 		var hd: Dictionary = defs.heroes.heroes[hid]
 		var open := Progress.hero_unlocked(hd)
 		hrow.add_child(_icon(_icon_tex(hid), 44))
-		hrow.add_child(_label("%s  LV %d%s" % [str(hd.name).split(" ")[0], int(hd.get("legacy_unlock", 1)), "  - READY" if open else ""], 20,
+		hrow.add_child(_label("%s  LV %d%s" % [_short_name(str(hd.name)), int(hd.get("legacy_unlock", 1)), "  - READY" if open else ""], 20,
 			Color(0.6, 1.0, 0.6) if open else Color(0.7, 0.66, 0.6), 5))
 	# footer
 	var foot := HBoxContainer.new()

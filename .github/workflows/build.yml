@@ -82,7 +82,7 @@ jobs:
       - name: Balance bots (all maps)
         run: |
           for m in $(ls data/map_*.json | sed 's#data/map_##; s#\.json##'); do
-            godot --headless --path . --script res://tests/balance.gd -- $m | grep -E "^===|result" || true
+            godot --headless --path . --script res://tests/balance.gd -- $m --quick | grep -E "^RUN" || true
           done
 
       - name: Export Android APK and Windows build

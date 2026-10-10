@@ -121,7 +121,8 @@
   "bounty": 16,
   "leak": 4,
   "size": 0.75,
-  "model_scale": 0.9
+  "model_scale": 0.9,
+  "bar_h": 1.66
  },
  "hover_drone": {
   "name": "Hover Drone",
@@ -133,6 +134,7 @@
   "size": 0.45,
   "model_scale": 0.9,
   "flying": true,
+  "bar_h": 1.38,
   "flying_look": true
  },
  "hydra_head": {
@@ -147,7 +149,8 @@
   "on_death": {
    "type": "hover_drone",
    "count": 3
-  }
+  },
+  "bar_h": 1.8
  },
  "cloaker": {
   "name": "Cloaker",
@@ -158,7 +161,8 @@
   "leak": 2,
   "size": 0.5,
   "model_scale": 0.9,
-  "cloak": true
+  "cloak": true,
+  "bar_h": 1.42
  },
  "bomber": {
   "name": "Bomber",
@@ -176,6 +180,7 @@
    "duration": 1.5,
    "on_death": true
   },
+  "bar_h": 1.61,
   "flying_look": true
  },
  "steam_tank": {
@@ -187,7 +192,8 @@
   "leak": 5,
   "size": 0.85,
   "model_scale": 0.9,
-  "regen": 0.02
+  "regen": 0.02,
+  "bar_h": 1.76
  },
  "stealth_jet": {
   "name": "Stealth Jet",
@@ -200,6 +206,7 @@
   "model_scale": 0.9,
   "flying": true,
   "cloak": true,
+  "bar_h": 1.52,
   "flying_look": true
  },
  "nano_swarm": {
@@ -214,7 +221,8 @@
   "on_death": {
    "type": "nano_mite",
    "count": 3
-  }
+  },
+  "bar_h": 1.47
  },
  "nano_mite": {
   "name": "Nano Mite",
@@ -224,7 +232,8 @@
   "bounty": 2,
   "leak": 1,
   "size": 0.3,
-  "model_scale": 0.9
+  "model_scale": 0.9,
+  "bar_h": 1.23
  },
  "sentinel": {
   "name": "Sentinel",
@@ -241,11 +250,12 @@
    "every": 2.5,
    "radius": 2.8,
    "pct": 0.06
-  }
+  },
+  "bar_h": 1.71
  },
  "iron_colossus": {
   "name": "IRON COLOSSUS",
-  "hp": 3400,
+  "hp": 2810,
   "speed": 0.45,
   "armor": 9,
   "bounty": 700,
@@ -262,11 +272,12 @@
    "radius": 3.2,
    "duration": 2.0
   },
+  "bar_h": 3.8,
   "boss": true
  },
  "hydra_swarm": {
   "name": "HYDRA SWARM",
-  "hp": 3600,
+  "hp": 3030,
   "speed": 0.5,
   "armor": 4,
   "bounty": 800,
@@ -282,11 +293,12 @@
    "count": 3,
    "every": 6.0
   },
+  "bar_h": 3.8,
   "boss": true
  },
  "black_knight": {
   "name": "BLACK KNIGHT MECH",
-  "hp": 4200,
+  "hp": 3280,
   "speed": 0.5,
   "armor": 7,
   "bounty": 900,
@@ -298,13 +310,14 @@
    "count": 2,
    "every": 7.0
   },
-  "shield": 1500,
+  "shield": 1170,
   "shield_delay": 3.0,
+  "bar_h": 3.8,
   "boss": true
  },
  "dreadnought": {
   "name": "DREADNOUGHT WALKER",
-  "hp": 5200,
+  "hp": 3540,
   "speed": 0.42,
   "armor": 9,
   "bounty": 1000,
@@ -321,11 +334,12 @@
    "radius": 3.6,
    "duration": 2.0
   },
+  "bar_h": 3.8,
   "boss": true
  },
  "juggernaut": {
   "name": "STEAM JUGGERNAUT",
-  "hp": 6400,
+  "hp": 3820,
   "speed": 0.45,
   "armor": 8,
   "bounty": 1100,
@@ -336,13 +350,14 @@
    "below": 0.5,
    "speed_mult": 2.2
   },
-  "shield": 900,
+  "shield": 540,
   "shield_delay": 4.0,
+  "bar_h": 3.8,
   "boss": true
  },
  "hunter_killer": {
   "name": "HUNTER-KILLER",
-  "hp": 7200,
+  "hp": 4130,
   "speed": 0.55,
   "armor": 7,
   "bounty": 1200,
@@ -355,11 +370,12 @@
    "count": 2,
    "every": 7.0
   },
+  "bar_h": 3.8,
   "boss": true
  },
  "orbital_uplink": {
   "name": "ORBITAL UPLINK",
-  "hp": 8200,
+  "hp": 4460,
   "speed": 0.42,
   "armor": 6,
   "bounty": 1300,
@@ -376,18 +392,19 @@
    "radius": 4.0,
    "duration": 2.0
   },
-  "shield": 2000,
+  "shield": 1090,
   "shield_delay": 3.0,
   "heal": {
    "every": 3.0,
    "radius": 5.0,
    "pct": 0.1
   },
+  "bar_h": 3.8,
   "boss": true
  },
  "the_core": {
   "name": "THE CORE",
-  "hp": 12000,
+  "hp": 4810,
   "speed": 0.38,
   "armor": 8,
   "bounty": 2000,
@@ -408,8 +425,9 @@
    "below": 0.35,
    "speed_mult": 2.0
   },
-  "shield": 3000,
+  "shield": 1200,
   "shield_delay": 3.0,
+  "bar_h": 3.8,
   "boss": true
  }
 }

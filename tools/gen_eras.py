@@ -293,6 +293,7 @@ def make_robot(r, boss=False):
     for k in ("flying", "cloak", "on_death", "summon", "emp", "regen", "enrage", "shield", "shield_delay", "heal"):
         if k in r:
             out[k] = r[k]
+    out["bar_h"] = 3.8 if boss else round(0.95 + 0.95 * r["size"], 2)
     if boss:
         out["boss"] = True
     if r.get("flying"):
@@ -483,7 +484,15 @@ enemies_new = dict(enemies)
 for r in S.ROBOTS:
     enemies_new[r["id"]] = make_robot(r)
 for b in S.BOSSES:
-    enemies_new[b["id"]] = make_robot(b, boss=True)
+    # Map hp_mult already scales with era power, so boss base HP only grows gently from the
+    # Siege Crawler's 2600 (the spec's raw numbers would double-count the era scaling).
+    bb = dict(b)
+    idx = ERA_BY_ID[b["era"]]["index"]
+    k = 2600 * 1.08 ** (idx - 1) / b["hp"]
+    bb["hp"] = int(round(b["hp"] * k, -1))
+    if "shield" in bb:
+        bb["shield"] = int(round(b["shield"] * k, -1))
+    enemies_new[b["id"]] = make_robot(bb, boss=True)
 
 for era in S.ERAS:
     for spec in S.TOWERS[era["id"]]:
@@ -499,9 +508,13 @@ for hid, h in heroes["heroes"].items():
 
 tables = bronze_tables()
 prev_hp = {}
+prev_boss = {}
 for m in maps_index["maps"]:
     if os.path.exists(os.path.join(D, "map_%s.json" % m["id"])):
-        prev_hp[m["id"]] = load("map_%s.json" % m["id"]).get("hp_mult")
+        old = load("map_%s.json" % m["id"])
+        prev_hp[m["id"]] = old.get("hp_mult")
+        if "boss_hp_mult" in old:
+            prev_boss[m["id"]] = old["boss_hp_mult"]
 maps_index["maps"] = [m for m in maps_index["maps"] if m["era"] in ("Stone Age", "Bronze Age")]
 for mid, name, era_id, diff, theme, portals, blurb, extra in S.MAPS:
     era = ERA_BY_ID[era_id]
@@ -525,10 +538,19 @@ for mid, name, era_id, diff, theme, portals, blurb, extra in S.MAPS:
     }
     if rivers:
         m["rivers"] = rivers
+    if mid in prev_boss:
+        m["boss_hp_mult"] = prev_boss[mid]
     if extra.get("final"):
         m["final"] = True
     save("map_%s.json" % mid, m)
-    save("waves_%s.json" % mid, {"waves": remix(tables[diff], roster, ERA_BOSS[era_id], era_id)})
+    waves = remix(tables[diff], roster, ERA_BOSS[era_id], era_id)
+    if extra.get("final"):
+        for g in waves[-1]:
+            if g["type"] == ERA_BOSS[era_id]:
+                g["count"] = 1
+        m.setdefault("boss_hp_mult", 1.4)
+        save("map_%s.json" % mid, m)
+    save("waves_%s.json" % mid, {"waves": waves})
     maps_index["maps"].append({"id": mid, "name": name, "era": era["name"], "difficulty": diff, "blurb": blurb})
     lens = [round(path_len(p)) for p in paths]
     print("%-18s %-16s %-6s hp=%.2f len=%s blockers=%d%s" % (mid, era["name"], diff, hp, lens, len(blockers), " river" if rivers else ""))
