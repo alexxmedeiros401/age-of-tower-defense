@@ -3,3 +3,4 @@ build/
 *.tmp
 demo.log
 __pycache__/
+.claude/

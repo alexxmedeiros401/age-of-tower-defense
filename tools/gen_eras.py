@@ -400,7 +400,8 @@ def river_for(paths, seed):
                 n += 1
             if (a == x0 or b == x0):
                 n += 9
-        if n == 1:
+        near_parallel = any(pts[i - 1][0] == pts[i][0] and abs(pts[i][0] - x0) < 2.8 for i in range(1, len(pts)))
+        if n == 1 and not near_parallel:
             r = random.Random(seed)
             rv = []
             z = -13.0
