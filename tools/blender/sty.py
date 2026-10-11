@@ -28,6 +28,7 @@ scene = None
 PARTS = []          # (object, color fn)
 MAT = {}
 AO_K = [1.0]        # ambient-occlusion factor for parts registered now (characters use a softer one)
+POST = [None]       # optional theme filter: fn(color, world_pos, world_normal, obj) -> color (snow caps, scorching)
 
 
 class soft_ao:
@@ -146,7 +147,7 @@ def empty(name, loc=(0, 0, 0), parent=None, rot=(0, 0, 0)):
 
 
 def reg(o, col, matk="matte", parent=None, bevel=None, smooth=True, var=0.06, name=None, colfn=None,
-        noao=False, noocc=False, keep=False, no_outline=False, segments=1):
+        noao=False, noocc=False, keep=False, no_outline=False, segments=1, nopost=False):
     """Register a part: material, parent, optional bevel, base color (or per-vertex color fn).
     keep=True: never merged (for meshes animated on their own, e.g. a held rock)."""
     if name:
@@ -169,7 +170,7 @@ def reg(o, col, matk="matte", parent=None, bevel=None, smooth=True, var=0.06, na
         m.angle_limit = math.radians(40)
         m.harden_normals = True
     o["ao_k"] = AO_K[-1]
-    for flag, on in (("noao", noao), ("noocc", noocc), ("keep", keep), ("no_outline", no_outline)):
+    for flag, on in (("noao", noao), ("noocc", noocc), ("keep", keep), ("no_outline", no_outline), ("nopost", nopost)):
         if on:
             o[flag] = 1
     c = vary(col, var) if var else col
@@ -367,6 +368,8 @@ def bake(ao_dist=0.5, ao_strength=0.82, outline_w=0.06):
                 ao = 1.0 - ao_strength * k * occ / wsum
             sky = 0.94 + 0.12 * max(0.0, n.z)
             c = fn(p, n)
+            if POST[0] is not None and not o.get("nopost"):
+                c = POST[0](c, p, n, o)
             attr.data[v.index].color = (c[0] * ao * sky, c[1] * ao * sky, c[2] * ao * sky, 1.0)
         me.color_attributes.active_color = attr
         # parts thinner than a few outline widths get no outline shell (ropes, pupils, teeth...)

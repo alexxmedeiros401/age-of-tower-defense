@@ -380,7 +380,7 @@ func _build_world() -> void:
 		_build_city(end_pt)
 	elif base_id != "cave":
 		EraDecor.build_base(self, base_id, end_pt)
-	elif _style2() and map.get("theme", "meadow") == "meadow":
+	elif _style2() and DECOR_V2.has(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
 	else:
 		_build_cave(end_pt)
@@ -406,11 +406,22 @@ func _style2() -> bool:
 ## v2 look: a real sky (seen from the menu hub camera), warm key light against a cool fill,
 ## filmic tone curve and a gentle grade. Works in the Compatibility renderer.
 func _style2_env(env: Environment, sun: DirectionalLight3D) -> void:
+	var th := str(map.get("theme", "meadow"))
 	var sky_mat := ProceduralSkyMaterial.new()
 	sky_mat.sky_top_color = Color(0.3, 0.55, 0.92)
 	sky_mat.sky_horizon_color = Color(0.8, 0.88, 0.96)
 	sky_mat.ground_horizon_color = Color(0.55, 0.66, 0.5)
 	sky_mat.ground_bottom_color = Color(0.18, 0.3, 0.14)
+	if th == "snow":
+		sky_mat.sky_top_color = Color(0.42, 0.56, 0.78)
+		sky_mat.sky_horizon_color = Color(0.86, 0.9, 0.96)
+		sky_mat.ground_horizon_color = Color(0.82, 0.86, 0.92)
+		sky_mat.ground_bottom_color = Color(0.6, 0.66, 0.74)
+	elif th == "volcano":
+		sky_mat.sky_top_color = Color(0.14, 0.08, 0.08)
+		sky_mat.sky_horizon_color = Color(0.62, 0.26, 0.1)
+		sky_mat.ground_horizon_color = Color(0.3, 0.14, 0.08)
+		sky_mat.ground_bottom_color = Color(0.06, 0.04, 0.04)
 	sky_mat.sun_angle_max = 25.0
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
@@ -427,6 +438,18 @@ func _style2_env(env: Environment, sun: DirectionalLight3D) -> void:
 	env.adjustment_saturation = 1.14
 	sun.light_color = Color(1.0, 0.91, 0.78)
 	sun.light_energy = float(theme.sun_e) * 1.25
+	if th == "snow":
+		env.ambient_light_color = Color(0.72, 0.82, 1.0)
+		env.ambient_light_energy = 0.5
+		env.tonemap_exposure = 1.0
+		sun.light_color = Color(0.98, 0.96, 1.0)
+		sun.light_energy = float(theme.sun_e) * 1.15
+	elif th == "volcano":
+		env.ambient_light_color = Color(1.0, 0.7, 0.55)
+		env.ambient_light_energy = 0.42
+		env.adjustment_saturation = 1.2
+		sun.light_color = Color(1.0, 0.72, 0.5)
+		sun.light_energy = float(theme.sun_e) * 1.15
 	sun.rotation_degrees = Vector3(-52, -36, 0)
 	sun.shadow_opacity = 0.8
 
@@ -775,7 +798,7 @@ func _build_decor() -> void:
 	if EraDecor.handles(th):
 		EraDecor.build_decor(self, th, _decor_free)
 		return
-	if _style2() and th == "meadow":
+	if _style2() and DECOR_V2.has(th):
 		_build_decor_v2()
 		return
 	var b: Array = map.bounds
@@ -891,13 +914,36 @@ func _build_decor() -> void:
 		_mi(_box(1.2, 0.6, 0.9), _mat("gold_top", Color(0.95, 0.7, 0.18), {"metal": 0.6, "rough": 0.3}), pyr, Vector3(0, 4.8, 0))
 
 
-# ---------------------------------------------------------------- v2 decor (Stone Age meadow)
+# ---------------------------------------------------------------- v2 decor (Stone Age)
+## Per theme: the decor kit file, weighted scatter (prop names, weight), playfield ground cover and the landmarks
+## that ring the map ([prop, approx position, scale, keep-clear radius]).
+const DECOR_V2 := {
+	"meadow": {"kit": "stone_decor", "count": 105,
+		"scatter": [["Pine_A", 21], ["Pine_B", 21], ["Pine_C", 20], ["Bush_A", 9], ["Bush_B", 9], ["Rock_A", 4], ["Rock_B", 4], ["Rock_C", 4], ["Stump", 5], ["Log", 3]],
+		"cover": [["Tuft", 3], ["Flowers", 1]], "cover_n": 140,
+		"marks": [["Mammoth", Vector2(4.0, -10.3), 0.85, 2.6], ["Dolmen", Vector2(-9.0, 11.0), 0.8, 1.8],
+			["BoneHut", Vector2(10.5, 10.8), 0.85, 1.6], ["BoneHut", Vector2(-17.5, -10.5), 0.75, 1.4], ["Dolmen", Vector2(-17.6, 2.5), 0.6, 1.4]]},
+	"snow": {"kit": "stone_decor_snow", "count": 100,
+		"scatter": [["Pine_A", 20], ["Pine_B", 20], ["Pine_C", 16], ["Rock_A", 6], ["Rock_B", 6], ["Rock_C", 5], ["Mound_A", 10], ["Mound_B", 10], ["Ice_A", 3], ["Ice_B", 3], ["Stump", 3], ["Log", 2]],
+		"cover": [["Mound_B", 1]], "cover_n": 14,
+		"marks": [["Mammoth", Vector2(3.0, -10.4), 0.85, 2.6], ["BoneHut", Vector2(-9.5, 10.9), 0.85, 1.6],
+			["Dolmen", Vector2(10.5, 10.8), 0.8, 1.8], ["BoneHut", Vector2(-17.5, -10.5), 0.75, 1.4], ["Ice_A", Vector2(-17.8, 3.0), 1.5, 1.2]]},
+	"volcano": {"kit": "stone_decor_volcano", "count": 85,
+		"scatter": [["Dead_A", 14], ["Dead_B", 14], ["Rock_A", 12], ["Rock_B", 12], ["Rock_C", 10], ["Obsidian", 6], ["Stump", 3]],
+		"cover": [["Tuft", 1]], "cover_n": 50,
+		"marks": [["Volcano", Vector2(5.5, -12.4), 0.56, 4.2], ["Mammoth", Vector2(10.5, 10.8), 0.8, 2.6],
+			["Obsidian", Vector2(-17.6, 1.0), 1.6, 1.4], ["Obsidian", Vector2(-9.0, 11.2), 1.3, 1.2]]},
+}
 var _decor_lib := {}
+
+
+func _decor_theme() -> Dictionary:
+	return DECOR_V2.get(str(map.get("theme", "meadow")), {})
 
 
 func _decor_mesh(name: String) -> Mesh:
 	if _decor_lib.is_empty():
-		var src := _inst("res://assets/decor/stone_decor.glb")
+		var src := _inst("res://assets/decor/%s.glb" % str(_decor_theme().get("kit", "stone_decor")))
 		for mi in src.find_children("*", "MeshInstance3D", true, false):
 			_decor_lib[str(mi.name)] = (mi as MeshInstance3D).mesh
 		src.free()
@@ -927,12 +973,12 @@ func _decor_batch(name: String, xforms: Array, shadow := true) -> void:
 		add_child(mmi)
 
 
-func _decor_single(name: String, pos: Vector3, yaw := 0.0, s := 1.0) -> Node3D:
+func _decor_single(name: String, pos: Vector3, yaw := 0.0, s := 1.0, parent: Node3D = null) -> Node3D:
 	var n := Node3D.new()
 	n.position = pos
 	n.rotation.y = yaw
 	n.scale = Vector3.ONE * s
-	add_child(n)
+	(parent if parent != null else self).add_child(n)
 	for part in [name, name + "_Outline"]:
 		var mesh := _decor_mesh(part)
 		if mesh == null or (part.ends_with("_Outline") and Progress.gfx_level() >= 2):
@@ -945,25 +991,43 @@ func _decor_single(name: String, pos: Vector3, yaw := 0.0, s := 1.0) -> Node3D:
 	return n
 
 
+func _pick_weighted(list: Array, r: RandomNumberGenerator) -> String:
+	var tot := 0
+	for it in list:
+		tot += int(it[1])
+	var x := r.randi() % maxi(tot, 1)
+	for it in list:
+		x -= int(it[1])
+		if x < 0:
+			return str(it[0])
+	return str(list[0][0])
+
+
 func _build_decor_v2() -> void:
+	var dt := _decor_theme()
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
 	var b: Array = map.bounds
-	var taken := []      # [Vector2, radius] of landmarks so trees keep clear of them
-	# landmarks in the ring around the playfield
-	var marks := [["Mammoth", Vector2(4.0, -10.3), 0.85, 2.6], ["Dolmen", Vector2(-9.0, 11.0), 0.8, 1.8],
-		["BoneHut", Vector2(10.5, 10.8), 0.85, 1.6], ["BoneHut", Vector2(-17.5, -10.5), 0.75, 1.4], ["Dolmen", Vector2(-17.6, 2.5), 0.6, 1.4]]
-	for mk in marks:
+	var taken := []      # [Vector2, radius] of landmarks so scatter keeps clear of them
+	for mk in dt.marks:
 		var p: Vector2 = mk[1]
 		var ok := false
 		for tries in 30:
-			if _decor_free(p, 0.6):
+			if _decor_free(p, 0.6) or mk[0] == "Volcano":
 				ok = true
 				break
 			p = mk[1] + Vector2(r.randf_range(-2.5, 2.5), r.randf_range(-1.2, 1.2))
 		if ok:
-			_decor_single(mk[0], _v3(p), r.randf_range(-0.5, 0.5) + (PI if p.y > 0 else 0.0), mk[2])
+			var n := _decor_single(mk[0], _v3(p), r.randf_range(-0.5, 0.5) + (PI if p.y > 0 else 0.0), mk[2])
 			taken.append([p, float(mk[3])])
+			if mk[0] == "Volcano":
+				n.rotation.y = 0.0
+				var vl := OmniLight3D.new()
+				vl.light_color = Color(1, 0.5, 0.2)
+				vl.light_energy = 3.0
+				vl.omni_range = 9.0
+				vl.position = Vector3(0, 5.0, 0)
+				n.add_child(vl)
 	var batches := {}
 	var put := func(nm: String, p: Vector2, s: float, yaw: float) -> void:
 		if not batches.has(nm):
@@ -971,7 +1035,7 @@ func _build_decor_v2() -> void:
 		(batches[nm] as Array).append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), _v3(p)))
 	var placed := 0
 	var tries2 := 0
-	while placed < 105 and tries2 < 3000:
+	while placed < int(dt.count) and tries2 < 3000:
 		tries2 += 1
 		var p2 := Vector2(r.randf_range(-19.5, 17.5), r.randf_range(-12.0, 12.0))
 		if not _decor_free(p2):
@@ -984,25 +1048,21 @@ func _build_decor_v2() -> void:
 		if not clear:
 			continue
 		placed += 1
-		var roll := r.randf()
-		var s := r.randf_range(0.75, 1.25)
-		var yaw := r.randf() * TAU
-		if roll < 0.62:
-			put.call(["Pine_A", "Pine_B", "Pine_C"][r.randi() % 3], p2, s, yaw)
-		elif roll < 0.8:
-			put.call(["Bush_A", "Bush_B"][r.randi() % 2], p2, s, yaw)
-		elif roll < 0.92:
-			put.call(["Rock_A", "Rock_B", "Rock_C"][r.randi() % 3], p2, s * 0.9, yaw)
-		elif roll < 0.97:
-			put.call("Stump", p2, s, yaw)
-		else:
-			put.call("Log", p2, s, yaw)
-	# grass tufts and flowers inside the playfield, off the road
-	for i in 140:
+		var nm := _pick_weighted(dt.scatter, r)
+		var s := r.randf_range(0.75, 1.25) * (0.9 if nm.begins_with("Rock") else 1.0)
+		put.call(nm, p2, s, r.randf() * TAU)
+	# ground cover inside the playfield, off the road and clear of no-build zones
+	for i in int(dt.cover_n):
 		var p3 := Vector2(r.randf_range(b[0], b[2]), r.randf_range(b[1], b[3]))
 		if sim.dist_to_path(p3) < float(map.get("path_width", 1.7)) * 0.5 + 0.5:
 			continue
-		put.call("Flowers" if r.randf() < 0.25 else "Tuft", p3, r.randf_range(0.8, 1.3), r.randf() * TAU)
+		var in_block := false
+		for bl in map.get("blockers", []):
+			if p3.distance_to(Vector2(bl[0], bl[1])) < float(bl[2]) + 0.4:
+				in_block = true
+		if in_block:
+			continue
+		put.call(_pick_weighted(dt.cover, r), p3, r.randf_range(0.8, 1.3) * (0.6 if dt.kit != "stone_decor" else 1.0), r.randf() * TAU)
 	for nm in batches:
 		_decor_batch(nm, batches[nm], not (nm in ["Tuft", "Flowers"]))
 
@@ -1021,6 +1081,33 @@ func _build_cave_v2(p: Vector2) -> void:
 	_ambient_fx(n.position + fire_pos)
 
 
+## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
+## glowing basalt. The ground texture still paints the zone itself.
+func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
+	var th := str(map.get("theme", "meadow"))
+	match kind:
+		"lake":
+			if th != "snow":
+				return false
+			_mi(_cyl(rad * 0.95, rad * 0.95, 0.02, 32), _mat("ice", Color(0.75, 0.9, 1.0, 0.3), {"rough": 0.05, "metal": 0.3}), n, Vector3(0, 0.03, 0))
+			for k in 7:
+				var a := TAU * k / 7.0 + r.randf() * 0.4
+				var nm := "Ice_B" if k % 3 else "Mound_B"
+				_decor_single(nm, Vector3(cos(a) * rad, 0, sin(a) * rad), r.randf() * TAU, r.randf_range(0.5, 0.8), n)
+			return true
+		"lava":
+			for k in 7:
+				var a2 := TAU * k / 7.0 + r.randf() * 0.4
+				_decor_single(["Rock_A", "Rock_B"][k % 2], Vector3(cos(a2) * rad * 0.95, 0, sin(a2) * rad * 0.95), r.randf() * TAU, r.randf_range(0.45, 0.65), n)
+			return false     # keep the old glowing pool, light and pulse on top of the new rim
+		"rocks":
+			for k in 4:
+				var off := Vector2(r.randf_range(-0.5, 0.5), r.randf_range(-0.5, 0.5)) * rad
+				_decor_single(["Rock_C", "Rock_A", "Rock_B", "Rock_A"][k], Vector3(off.x, 0, off.y), r.randf() * TAU, r.randf_range(0.7, 1.0) * rad * 0.8, n)
+			return true
+	return false
+
+
 ## No-build zones: the ground texture paints them; these add depth and glow.
 func _build_blockers() -> void:
 	var r := RandomNumberGenerator.new()
@@ -1036,6 +1123,19 @@ func _build_blockers() -> void:
 		if EraDecor.handles(th):
 			EraDecor.build_blocker(self, th, kind, n, rad, r)
 			continue
+		if _style2() and DECOR_V2.has(th):
+			if _blocker_v2(kind, n, rad, r):
+				continue
+			if kind == "lava":
+				var lava2 := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("pool_lava", Color(1, 0.55, 0.15, 0.45), {"emit": Color(1, 0.42, 0.05), "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
+				var ll2 := OmniLight3D.new()
+				ll2.light_color = Color(1, 0.45, 0.15)
+				ll2.light_energy = 0.9
+				ll2.omni_range = rad * 2.2
+				ll2.position = Vector3(0, 0.8, 0)
+				n.add_child(ll2)
+				effects.append({"node": n, "t": r.randf() * 5.0, "life": INF, "kind": "lava", "pool": lava2, "light": ll2})
+				continue
 		match kind:
 			"lake":
 				if th == "snow":
@@ -1601,9 +1701,17 @@ func _ambient_fx(fire_pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
 		return
 	var b: Array = map.bounds
-	for i in 16:
-		var m := _mi(_fx_mesh("mote"), _mat("mote", Color(1.0, 0.97, 0.75, 0.75), {"unshaded": true, "billboard": true}), holder,
-			Vector3(randf_range(b[0], b[2]), randf_range(0.4, 1.6), randf_range(b[1], b[3])))
+	var th := str(map.get("theme", "meadow"))
+	# meadow: drifting pollen; snow: falling snowflakes; volcano: rising embers
+	var spec: Dictionary = {"meadow": {"n": 16, "col": Color(1.0, 0.97, 0.75, 0.75), "vy": 0.0, "s": 1.0},
+		"snow": {"n": 60, "col": Color(1, 1, 1, 0.9), "vy": -0.9, "s": 0.8},
+		"volcano": {"n": 34, "col": Color(1.0, 0.55, 0.15, 0.95), "vy": 0.7, "s": 0.7}}.get(th, {"n": 16, "col": Color(1, 1, 1, 0.7), "vy": 0.0, "s": 1.0})
+	holder.set_meta("vy", float(spec.vy))
+	holder.set_meta("box", [b[0] - 3.0, b[1] - 3.0, b[2] + 3.0, b[3] + 3.0])
+	for i in int(spec.n):
+		var m := _mi(_fx_mesh("mote"), _mat("mote_" + th, spec.col, {"unshaded": true, "billboard": true}), holder,
+			Vector3(randf_range(b[0] - 3.0, b[2] + 3.0), randf_range(0.2, 6.0) if spec.vy != 0.0 else randf_range(0.4, 1.6), randf_range(b[1] - 3.0, b[3] + 3.0)),
+			Vector3.ZERO, Vector3.ONE * float(spec.s) * randf_range(0.7, 1.3))
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		m.set_meta("seed", randf() * 100.0)
 
@@ -1709,9 +1817,15 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 					if _fx_room(1):
 						var pf := _mi(_fx_mesh("dust"), _mat("smoke", Color(0.6, 0.6, 0.62, 0.45), {"unshaded": true}), self, fx.fire + Vector3(0, 1.0, 0))
 						effects.append({"node": pf, "t": 0.0, "life": 2.4, "kind": "smoke", "v": Vector3(randf_range(-0.1, 0.25), 0.9, randf_range(-0.15, 0.15))})
+				var vy: float = n.get_meta("vy", 0.0)
+				var bx: Array = n.get_meta("box", [-20, -12, 20, 12])
 				for m in n.get_children():
 					var sd: float = m.get_meta("seed")
-					m.position += Vector3(sin(time_s * 0.4 + sd) * 0.25, sin(time_s * 0.7 + sd * 2.0) * 0.12, cos(time_s * 0.3 + sd) * 0.2) * dt
+					m.position += Vector3(sin(time_s * 0.4 + sd) * 0.25, sin(time_s * 0.7 + sd * 2.0) * 0.12 + vy * (0.7 + 0.3 * sin(sd)), cos(time_s * 0.3 + sd) * 0.2) * dt
+					if vy < 0.0 and m.position.y < 0.05:
+						m.position = Vector3(randf_range(bx[0], bx[2]), 6.0, randf_range(bx[1], bx[3]))
+					elif vy > 0.0 and m.position.y > 6.0:
+						m.position = Vector3(randf_range(bx[0], bx[2]), 0.1, randf_range(bx[1], bx[3]))
 			"smoke":
 				n.position += fx.v * dt
 				n.scale = Vector3.ONE * (0.8 + k * 2.6)
