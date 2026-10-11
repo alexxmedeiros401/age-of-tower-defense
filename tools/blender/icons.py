@@ -10,6 +10,8 @@ for name in NAMES:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     bpy.ops.import_scene.gltf(filepath=os.path.join(SRC, name + ".glb"))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import icon_fix; icon_fix.srgb_vertex_colors()
     w = bpy.data.worlds.new("W"); sc.world = w; w.use_nodes = True
     w.node_tree.nodes["Background"].inputs["Color"].default_value = (0.75, 0.82, 1.0, 1)
     w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8

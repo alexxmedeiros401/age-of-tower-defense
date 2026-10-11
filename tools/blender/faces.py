@@ -10,6 +10,8 @@ for name in names:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT, "assets", "heroes", name + ".glb"))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import icon_fix; icon_fix.srgb_vertex_colors()
     body = [o for o in bpy.data.objects if o.name.startswith("Body")][0]
     bpy.context.view_layer.update()
     mw = body.matrix_world

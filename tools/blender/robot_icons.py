@@ -12,6 +12,8 @@ for name in names:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     sc = bpy.context.scene
     bpy.ops.import_scene.gltf(filepath=path)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import icon_fix; icon_fix.srgb_vertex_colors()
     bpy.context.view_layer.update()
     lo = Vector((1e9, 1e9, 1e9)); hi = Vector((-1e9, -1e9, -1e9))
     for o in bpy.data.objects:
