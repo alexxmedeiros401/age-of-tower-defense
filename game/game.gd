@@ -208,6 +208,25 @@ func _res(path: String) -> Resource:
 	return _res_cache[path]
 
 
+## Instantiates a model GLB. v2 art bakes its colors (and ambient occlusion) into vertex colors,
+## which Godot's glTF importer doesn't route to albedo on its own: switch that on for every
+## surface that carries vertex colors (shared materials, so this runs once per model file).
+var _vc_done := {}
+func _inst(path: String) -> Node3D:
+	var model: Node3D = (_res(path) as PackedScene).instantiate()
+	if not _vc_done.has(path):
+		_vc_done[path] = true
+		for mi in model.find_children("*", "MeshInstance3D", true, false):
+			var mesh := (mi as MeshInstance3D).mesh as ArrayMesh
+			if mesh == null:
+				continue
+			for si in mesh.get_surface_count():
+				var m := mesh.surface_get_material(si) as BaseMaterial3D
+				if m != null and (mesh.surface_get_format(si) & Mesh.ARRAY_FORMAT_COLOR) != 0:
+					m.vertex_color_use_as_albedo = true
+	return model
+
+
 func _icon_tex(id: String) -> Texture2D:
 	return _res("res://assets/ui/icon_%s.png" % id)
 
@@ -326,6 +345,9 @@ func _build_world() -> void:
 	sun.directional_shadow_max_distance = 80.0
 	add_child(sun)
 
+	if _style2():
+		_style2_env(env, sun)
+
 	cam = Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	cam.size = 20.0
@@ -358,6 +380,8 @@ func _build_world() -> void:
 		_build_city(end_pt)
 	elif base_id != "cave":
 		EraDecor.build_base(self, base_id, end_pt)
+	elif _style2() and map.get("theme", "meadow") == "meadow":
+		_build_cave_v2(end_pt)
 	else:
 		_build_cave(end_pt)
 	_build_decor()
@@ -372,6 +396,39 @@ func _build_world() -> void:
 	ghost.visible = false
 	ghost_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range_g", Color(1, 1, 1, 0.18), {"unshaded": true}), ghost, Vector3(0, 0.13, 0))
 	ghost_foot = _mi(_cyl(1, 1, 0.03, 24), _mat("foot_ok", Color(0.2, 1, 0.3, 0.45), {"unshaded": true}), ghost, Vector3(0, 0.15, 0))
+
+
+## v2 art pass (rolling out era by era; Stone Age first).
+func _style2() -> bool:
+	return _era() == "Stone Age"
+
+
+## v2 look: a real sky (seen from the menu hub camera), warm key light against a cool fill,
+## filmic tone curve and a gentle grade. Works in the Compatibility renderer.
+func _style2_env(env: Environment, sun: DirectionalLight3D) -> void:
+	var sky_mat := ProceduralSkyMaterial.new()
+	sky_mat.sky_top_color = Color(0.3, 0.55, 0.92)
+	sky_mat.sky_horizon_color = Color(0.8, 0.88, 0.96)
+	sky_mat.ground_horizon_color = Color(0.55, 0.66, 0.5)
+	sky_mat.ground_bottom_color = Color(0.18, 0.3, 0.14)
+	sky_mat.sun_angle_max = 25.0
+	var sky := Sky.new()
+	sky.sky_material = sky_mat
+	env.background_mode = Environment.BG_SKY
+	env.sky = sky
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.7, 0.8, 1.0)
+	env.ambient_light_energy = 0.44
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.12
+	env.tonemap_white = 5.0
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.07
+	env.adjustment_saturation = 1.14
+	sun.light_color = Color(1.0, 0.91, 0.78)
+	sun.light_energy = float(theme.sun_e) * 1.25
+	sun.rotation_degrees = Vector3(-52, -36, 0)
+	sun.shadow_opacity = 0.8
 
 
 ## Main-menu hub: a low perspective shot in front of the time portal, robots marching out at you.
@@ -718,6 +775,9 @@ func _build_decor() -> void:
 	if EraDecor.handles(th):
 		EraDecor.build_decor(self, th, _decor_free)
 		return
+	if _style2() and th == "meadow":
+		_build_decor_v2()
+		return
 	var b: Array = map.bounds
 	var trunk := _mat("trunk", Color(0.36, 0.22, 0.1))
 	var pines := [_mat("pine1", Color(0.11, 0.36, 0.14)), _mat("pine2", Color(0.16, 0.44, 0.15))]
@@ -829,6 +889,136 @@ func _build_decor() -> void:
 			var w := 9.0 - k * 1.7
 			_mi(_box(w, 0.9, w * 0.7), _mat("pyr_%d" % (k % 2), Color(0.86, 0.72, 0.48) if k % 2 == 0 else Color(0.78, 0.62, 0.4)), pyr, Vector3(0, 0.45 + k * 0.9, 0))
 		_mi(_box(1.2, 0.6, 0.9), _mat("gold_top", Color(0.95, 0.7, 0.18), {"metal": 0.6, "rough": 0.3}), pyr, Vector3(0, 4.8, 0))
+
+
+# ---------------------------------------------------------------- v2 decor (Stone Age meadow)
+var _decor_lib := {}
+
+
+func _decor_mesh(name: String) -> Mesh:
+	if _decor_lib.is_empty():
+		var src := _inst("res://assets/decor/stone_decor.glb")
+		for mi in src.find_children("*", "MeshInstance3D", true, false):
+			_decor_lib[str(mi.name)] = (mi as MeshInstance3D).mesh
+		src.free()
+	return _decor_lib.get(name)
+
+
+## One MultiMesh (one draw call) per prop type, plus one for its outline shell.
+func _decor_batch(name: String, xforms: Array, shadow := true) -> void:
+	if xforms.is_empty():
+		return
+	for part in [name, name + "_Outline"]:
+		var mesh := _decor_mesh(part)
+		if mesh == null:
+			continue
+		if part.ends_with("_Outline") and Progress.gfx_level() >= 2:
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		var cast: bool = shadow and not part.ends_with("_Outline")
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mmi)
+
+
+func _decor_single(name: String, pos: Vector3, yaw := 0.0, s := 1.0) -> Node3D:
+	var n := Node3D.new()
+	n.position = pos
+	n.rotation.y = yaw
+	n.scale = Vector3.ONE * s
+	add_child(n)
+	for part in [name, name + "_Outline"]:
+		var mesh := _decor_mesh(part)
+		if mesh == null or (part.ends_with("_Outline") and Progress.gfx_level() >= 2):
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		if part.ends_with("_Outline"):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(mi)
+	return n
+
+
+func _build_decor_v2() -> void:
+	var r := RandomNumberGenerator.new()
+	r.seed = 11
+	var b: Array = map.bounds
+	var taken := []      # [Vector2, radius] of landmarks so trees keep clear of them
+	# landmarks in the ring around the playfield
+	var marks := [["Mammoth", Vector2(4.0, -10.3), 0.85, 2.6], ["Dolmen", Vector2(-9.0, 11.0), 0.8, 1.8],
+		["BoneHut", Vector2(10.5, 10.8), 0.85, 1.6], ["BoneHut", Vector2(-17.5, -10.5), 0.75, 1.4], ["Dolmen", Vector2(-17.6, 2.5), 0.6, 1.4]]
+	for mk in marks:
+		var p: Vector2 = mk[1]
+		var ok := false
+		for tries in 30:
+			if _decor_free(p, 0.6):
+				ok = true
+				break
+			p = mk[1] + Vector2(r.randf_range(-2.5, 2.5), r.randf_range(-1.2, 1.2))
+		if ok:
+			_decor_single(mk[0], _v3(p), r.randf_range(-0.5, 0.5) + (PI if p.y > 0 else 0.0), mk[2])
+			taken.append([p, float(mk[3])])
+	var batches := {}
+	var put := func(nm: String, p: Vector2, s: float, yaw: float) -> void:
+		if not batches.has(nm):
+			batches[nm] = []
+		(batches[nm] as Array).append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * s), _v3(p)))
+	var placed := 0
+	var tries2 := 0
+	while placed < 105 and tries2 < 3000:
+		tries2 += 1
+		var p2 := Vector2(r.randf_range(-19.5, 17.5), r.randf_range(-12.0, 12.0))
+		if not _decor_free(p2):
+			continue
+		var clear := true
+		for tk in taken:
+			if p2.distance_to(tk[0]) < float(tk[1]) + 0.9:
+				clear = false
+				break
+		if not clear:
+			continue
+		placed += 1
+		var roll := r.randf()
+		var s := r.randf_range(0.75, 1.25)
+		var yaw := r.randf() * TAU
+		if roll < 0.62:
+			put.call(["Pine_A", "Pine_B", "Pine_C"][r.randi() % 3], p2, s, yaw)
+		elif roll < 0.8:
+			put.call(["Bush_A", "Bush_B"][r.randi() % 2], p2, s, yaw)
+		elif roll < 0.92:
+			put.call(["Rock_A", "Rock_B", "Rock_C"][r.randi() % 3], p2, s * 0.9, yaw)
+		elif roll < 0.97:
+			put.call("Stump", p2, s, yaw)
+		else:
+			put.call("Log", p2, s, yaw)
+	# grass tufts and flowers inside the playfield, off the road
+	for i in 140:
+		var p3 := Vector2(r.randf_range(b[0], b[2]), r.randf_range(b[1], b[3]))
+		if sim.dist_to_path(p3) < float(map.get("path_width", 1.7)) * 0.5 + 0.5:
+			continue
+		put.call("Flowers" if r.randf() < 0.25 else "Tuft", p3, r.randf_range(0.8, 1.3), r.randf() * TAU)
+	for nm in batches:
+		_decor_batch(nm, batches[nm], not (nm in ["Tuft", "Flowers"]))
+
+
+func _build_cave_v2(p: Vector2) -> void:
+	var n := _decor_single("Cave", _v3(p) + Vector3(0.1, 0, 0), 0.0, 0.95)
+	var fire_pos := Vector3(-1.6, 0, 1.75)
+	var wood := _mat("wood", Color(0.45, 0.27, 0.12))
+	var rock2 := _mat("cave_rock2", Color(0.32, 0.31, 0.3))
+	for k in 3:
+		_mi(_cyl(0.07, 0.07, 0.8, 5), wood, n, fire_pos + Vector3(0, 0.1, 0), Vector3(PI * 0.5, k * 1.05, 0))
+	for k in 6:
+		var a := TAU * k / 6.0
+		_mi(_sph(0.12, 6), rock2, n, fire_pos + Vector3(cos(a) * 0.45, 0.05, sin(a) * 0.45), Vector3.ZERO, Vector3(1, 0.6, 1))
+	_campfire(n, fire_pos)
+	_ambient_fx(n.position + fire_pos)
 
 
 ## No-build zones: the ground texture paints them; these add depth and glow.
@@ -988,11 +1178,74 @@ func _rig_model(root: Node3D, model: Node3D) -> void:
 	var orb := model.find_child("Orb", true, false)
 	if orb != null:
 		root.set_meta("orb", orb)
+	_rig_extras(root, model)
+
+
+## v2 art: Spin* nodes whirl (slings, rotors, orbiting stones), Flicker* nodes flicker (fires),
+## *_Outline meshes are the baked cartoon outline shells (no shadows; off on MINIMAL graphics).
+func _rig_extras(root: Node3D, model: Node3D) -> void:
+	var spins := model.find_children("Spin*", "Node3D", true, false)
+	if not spins.is_empty():
+		root.set_meta("spins", spins)
+	var flick := model.find_children("Flicker*", "Node3D", true, false)
+	if not flick.is_empty():
+		root.set_meta("flicker", flick)
+	var body_mis := []
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		if not str(mi.name).ends_with("_Outline"):
+			body_mis.append(mi)
+	root.set_meta("body_mis", body_mis)
+	var outlines := []
+	for mi in model.find_children("*_Outline", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.visible = Progress.gfx_level() < 2
+		outlines.append(m)
+	if not outlines.is_empty():
+		root.set_meta("outlines", outlines)
+
+
+## A robot that takes a hit flashes white for a moment (three shared overlay strengths, no per-robot materials).
+var _flash_mats: Array = []
+func _hit_flash(n: Node3D) -> void:
+	var f: float = n.get_meta("flash", 0.0)
+	if f <= 0.0 and not n.has_meta("flash_on"):
+		return
+	if _flash_mats.is_empty():
+		for a in [0.6, 0.35, 0.15]:
+			var m := StandardMaterial3D.new()
+			m.albedo_color = Color(1, 1, 1, a)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_flash_mats.append(m)
+	var lvl := -1
+	if f > 0.0:
+		lvl = 0 if f > 0.66 else (1 if f > 0.33 else 2)
+		n.set_meta("flash", maxf(0.0, f - get_process_delta_time() * 7.0))
+	var want: Material = _flash_mats[lvl] if lvl >= 0 else null
+	if want == null:
+		n.remove_meta("flash_on")
+	else:
+		n.set_meta("flash_on", true)
+	for mi in n.get_meta("body_mis", []):
+		(mi as MeshInstance3D).material_overlay = want
+
+
+func _spin_flicker(n: Node3D, dt: float, rate := 9.0) -> void:
+	if n.has_meta("spins"):
+		for sp in n.get_meta("spins"):
+			(sp as Node3D).rotation.y += dt * rate
+	if n.has_meta("flicker"):
+		var i := 0
+		for f in n.get_meta("flicker"):
+			var k := 1.0 + 0.14 * sin(time_s * 13.0 + i * 2.1) + 0.06 * sin(time_s * 29.0 + i)
+			(f as Node3D).scale = Vector3(2.0 - k, k, 2.0 - k)
+			i += 1
 
 
 func _make_tower_visual(type: String) -> Node3D:
 	var root := Node3D.new()
-	var model: Node3D = (_res("res://assets/towers/%s.glb" % type) as PackedScene).instantiate()
+	var model: Node3D = _inst("res://assets/towers/%s.glb" % type)
 	model.scale = Vector3.ONE * float(defs.towers[type].get("model_scale", 0.56))
 	root.add_child(model)
 	_rig_model(root, model)
@@ -1003,7 +1256,7 @@ func _make_tower_visual(type: String) -> Node3D:
 func _make_hero_visual(id: String) -> Node3D:
 	var root := Node3D.new()
 	var hd: Dictionary = defs.heroes.heroes[id]
-	var model: Node3D = (_res("res://assets/heroes/%s.glb" % id) as PackedScene).instantiate()
+	var model: Node3D = _inst("res://assets/heroes/%s.glb" % id)
 	model.scale = Vector3.ONE * float(hd.get("model_scale", 0.55))
 	root.add_child(model)
 	_rig_model(root, model)
@@ -1114,7 +1367,7 @@ func _refresh_tower_node(t: Dictionary) -> void:
 func _make_robot(type: String) -> Node3D:
 	var d: Dictionary = defs.enemies[type]
 	var root := Node3D.new()
-	var model: Node3D = (_res("res://assets/robots/%s.glb" % type) as PackedScene).instantiate()
+	var model: Node3D = _inst("res://assets/robots/%s.glb" % type)
 	model.scale = Vector3.ONE * float(d.get("model_scale", 0.9))
 	model.name = "Model"
 	root.add_child(model)
@@ -1122,6 +1375,7 @@ func _make_robot(type: String) -> Node3D:
 	root.set_meta("legsB", model.find_children("LegB*", "", true, false))
 	root.set_meta("body", model.find_child("Body", true, false))
 	root.set_meta("punch", 0.0)
+	_rig_extras(root, model)
 	var h: float = float(d.get("bar_h", 1.4))
 	if d.get("flying", false):
 		model.position.y = 0.9           # flyers hover above the road (only some towers can reach them)
@@ -1133,7 +1387,7 @@ func _make_robot(type: String) -> Node3D:
 		var swaps := []
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
 			var mesh: Mesh = (mi as MeshInstance3D).mesh
-			if mesh == null:
+			if mesh == null or str(mi.name).ends_with("_Outline"):
 				continue
 			for si in mesh.get_surface_count():
 				var sm := mesh.surface_get_material(si) as BaseMaterial3D
@@ -1237,32 +1491,121 @@ func _float_text(pos: Vector3, text: String, col: Color, size := 56) -> void:
 	effects.append({"node": l, "t": 0.0, "life": 0.9, "kind": "text"})
 
 
+# Effects share cached meshes (one per shape, scaled per node) and respect a live-effect cap,
+# so heavy fights can't pile up nodes and resources (the Pixel 10 PowerVR lesson).
+var _fx_meshes := {}
+
+
+func _fx_mesh(key: String) -> Mesh:
+	if not _fx_meshes.has(key):
+		match key:
+			"cube":
+				_fx_meshes[key] = _box(1, 1, 1)
+			"spark":
+				_fx_meshes[key] = _box(0.04, 0.04, 0.22)
+			"flash":
+				_fx_meshes[key] = _sph(0.5, 10)
+			"dust":
+				_fx_meshes[key] = _sph(0.18, 6)
+			"pebble":
+				_fx_meshes[key] = _sph(0.5, 4)
+			"disc":
+				_fx_meshes[key] = _cyl(1, 1, 0.02, 16)
+			"mote":
+				var q := QuadMesh.new()
+				q.size = Vector2(0.09, 0.09)
+				_fx_meshes[key] = q
+	return _fx_meshes[key]
+
+
+func _fx_room(need := 1) -> bool:
+	var cap: int = [240, 150, 80][clampi(Progress.gfx_level(), 0, 2)]
+	return effects.size() + need <= cap
+
+
 func _debris_fx(pos: Vector3, count: int, big := false) -> void:
+	if not _fx_room(count * 2 + 3):
+		count = mini(count, 2)
+		if not _fx_room(3):
+			return
 	var cols := [Color(0.86, 0.88, 0.92), Color(0.5, 0.54, 0.6), Color(0.12, 0.13, 0.16)]
 	for i in count:
 		var col: Color = cols[i % 3]
 		var sz := randf_range(0.08, 0.16) * (2.0 if big else 1.0)
-		var c := _mi(_box(sz, sz, sz), _mat("debris_%d" % (i % 3), col, {"metal": 0.4, "rough": 0.4}), self, pos)
+		var c := _mi(_fx_mesh("cube"), _mat("debris_%d" % (i % 3), col, {"metal": 0.4, "rough": 0.4}), self, pos, Vector3.ZERO, Vector3.ONE * sz)
 		var a := randf() * TAU
 		var sp := randf_range(1.5, 3.5) * (1.8 if big else 1.0)
-		effects.append({"node": c, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "debris",
+		effects.append({"node": c, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "debris", "s": sz,
 			"v": Vector3(cos(a) * sp, randf_range(3, 6), sin(a) * sp)})
 	for i in (count + 2):
-		var s := _mi(_box(0.04, 0.04, 0.22), _mat("spark", Color(1, 0.3, 0.1), {"emit": Color(1, 0.25, 0.05), "emit_e": 3.0, "unshaded": true}), self, pos)
+		var s := _mi(_fx_mesh("spark"), _mat("spark", Color(1, 0.3, 0.1), {"emit": Color(1, 0.25, 0.05), "emit_e": 3.0, "unshaded": true}), self, pos)
 		var a2 := randf() * TAU
 		var v := Vector3(cos(a2), randf_range(0.4, 1.4), sin(a2)) * randf_range(4, 7)
 		s.look_at_from_position(pos, pos + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
 		effects.append({"node": s, "t": 0.0, "life": 0.3, "kind": "spark", "v": v})
-	var f := _mi(_sph(0.5, 10), _mat("flash", Color(1, 0.7, 0.4, 0.8), {"emit": Color(1, 0.5, 0.2), "emit_e": 3.0, "unshaded": true}), self, pos)
+	var f := _mi(_fx_mesh("flash"), _mat("flash", Color(1, 0.7, 0.4, 0.8), {"emit": Color(1, 0.5, 0.2), "emit_e": 3.0, "unshaded": true}), self, pos)
 	effects.append({"node": f, "t": 0.0, "life": 0.18, "kind": "flash", "s": 1.6 if big else 0.8})
 
 
-func _dust_fx(pos: Vector3, count: int, spread := 0.6) -> void:
+func _dust_fx(pos: Vector3, count: int, spread := 0.6, col := Color(0.78, 0.68, 0.5, 0.7)) -> void:
+	if not _fx_room(count):
+		count = mini(count, 2)
+		if not _fx_room(count):
+			return
+	var key := "dust_%s" % col.to_html()
 	for i in count:
-		var d := _mi(_sph(0.18, 6), _mat("dust", Color(0.78, 0.68, 0.5, 0.7), {"unshaded": true}), self, pos)
+		var d := _mi(_fx_mesh("dust"), _mat(key, col, {"unshaded": true}), self, pos)
 		var a := TAU * i / count + randf() * 0.4
 		effects.append({"node": d, "t": 0.0, "life": randf_range(0.35, 0.6), "kind": "dust",
 			"v": Vector3(cos(a), 0.6, sin(a)) * spread * randf_range(1.2, 2.2)})
+
+
+## v2: a rock or club hit kicks up a puff of dust and a couple of pebbles.
+func _pebble_fx(pos: Vector3, count := 2) -> void:
+	if not _fx_room(count + 2):
+		return
+	_dust_fx(pos, 2, 0.35)
+	for i in count:
+		var sz := randf_range(0.06, 0.1)
+		var c := _mi(_fx_mesh("pebble"), _mat("pebble_%d" % (i % 2), [Color(0.55, 0.53, 0.5), Color(0.4, 0.3, 0.2)][i % 2]), self, pos,
+			Vector3.ZERO, Vector3.ONE * sz)
+		var a := randf() * TAU
+		effects.append({"node": c, "t": 0.0, "life": 0.5, "kind": "debris", "s": sz,
+			"v": Vector3(cos(a) * 1.6, randf_range(2.5, 4.0), sin(a) * 1.6)})
+
+
+## v2 robot death: white armor plates fly, red sparks, a smoke puff and a scorch mark that fades.
+func _robot_death_fx(pos: Vector3, big: bool) -> void:
+	_debris_fx(pos, 14 if big else 5, big)
+	if not _fx_room(6):
+		return
+	for i in (6 if big else 3):
+		var sz := randf_range(0.14, 0.24) * (2.2 if big else 1.0)
+		var c := _mi(_fx_mesh("cube"), _mat("plate_chunk", Color(0.86, 0.88, 0.92), {"rough": 0.4}), self, pos,
+			Vector3(randf(), randf(), randf()) * 3.0, Vector3(sz, sz * 0.25, sz))
+		var a := randf() * TAU
+		effects.append({"node": c, "t": 0.0, "life": randf_range(0.7, 1.0), "kind": "debris", "s": sz, "flat": true,
+			"v": Vector3(cos(a) * 3.0, randf_range(4, 7), sin(a) * 3.0) * (1.4 if big else 1.0)})
+	_dust_fx(pos + Vector3(0, 0.3, 0), 4 if big else 3, 0.5 if not big else 1.4, Color(0.25, 0.25, 0.27, 0.7))
+	var sc := _mi(_fx_mesh("disc"), _mat("scorch", Color(0.05, 0.04, 0.03, 0.45), {"unshaded": true}), self,
+		Vector3(pos.x, 0.035, pos.z), Vector3(0, randf() * TAU, 0), Vector3(1.0, 1.0, 1.0) * (1.6 if big else 0.42))
+	sc.material_override = (sc.material_override as StandardMaterial3D).duplicate()
+	effects.append({"node": sc, "t": 0.0, "life": 2.6, "kind": "scorch"})
+
+
+## v2 ambience: smoke rising off the cave fire, pollen drifting over the meadow.
+func _ambient_fx(fire_pos: Vector3) -> void:
+	var holder := Node3D.new()
+	add_child(holder)
+	effects.append({"node": holder, "t": 0.0, "life": INF, "kind": "ambient", "fire": fire_pos, "smoke_t": 0.0})
+	if Progress.gfx_level() >= 2:
+		return
+	var b: Array = map.bounds
+	for i in 16:
+		var m := _mi(_fx_mesh("mote"), _mat("mote", Color(1.0, 0.97, 0.75, 0.75), {"unshaded": true, "billboard": true}), holder,
+			Vector3(randf_range(b[0], b[2]), randf_range(0.4, 1.6), randf_range(b[1], b[3])))
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.set_meta("seed", randf() * 100.0)
 
 
 func _boulder_drop_fx(target: Vector3, delay: float) -> void:
@@ -1355,7 +1698,24 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 					n.position.y = 0.05
 					fx.v *= 0.4
 				n.rotation += Vector3(9, 6, 4) * dt
-				n.scale = Vector3.ONE * (1.0 - k * k)
+				var sz: float = float(fx.get("s", 1.0)) * (1.0 - k * k)
+				n.scale = Vector3(sz, sz * 0.25, sz) if fx.get("flat", false) else Vector3.ONE * sz
+			"scorch":
+				(n.material_override as StandardMaterial3D).albedo_color.a = 0.45 * (1.0 - k * k)
+			"ambient":
+				fx.smoke_t = float(fx.smoke_t) - dt
+				if fx.smoke_t <= 0.0:
+					fx.smoke_t = 0.35
+					if _fx_room(1):
+						var pf := _mi(_fx_mesh("dust"), _mat("smoke", Color(0.6, 0.6, 0.62, 0.45), {"unshaded": true}), self, fx.fire + Vector3(0, 1.0, 0))
+						effects.append({"node": pf, "t": 0.0, "life": 2.4, "kind": "smoke", "v": Vector3(randf_range(-0.1, 0.25), 0.9, randf_range(-0.15, 0.15))})
+				for m in n.get_children():
+					var sd: float = m.get_meta("seed")
+					m.position += Vector3(sin(time_s * 0.4 + sd) * 0.25, sin(time_s * 0.7 + sd * 2.0) * 0.12, cos(time_s * 0.3 + sd) * 0.2) * dt
+			"smoke":
+				n.position += fx.v * dt
+				n.scale = Vector3.ONE * (0.8 + k * 2.6)
+				n.transparency = 0.35 + 0.65 * k
 			"spark":
 				fx.v.y -= 10.0 * dt
 				n.position += fx.v * dt
@@ -1498,6 +1858,7 @@ func _handle_events() -> void:
 			"hit":
 				if enemy_nodes.has(ev.id):
 					enemy_nodes[ev.id].set_meta("punch", 1.0)
+					enemy_nodes[ev.id].set_meta("flash", 1.0)
 			"shield_break":
 				if enemy_nodes.has(ev.id):
 					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.7, 0), 1.0, Color(0.4, 0.9, 1.0), 0.3)
@@ -1512,7 +1873,10 @@ func _handle_events() -> void:
 				if enemy_nodes.has(ev.id):
 					var n2: Node3D = enemy_nodes[ev.id]
 					var big: bool = defs.enemies[ev.type].get("boss", false)
-					_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
+					if _style2():
+						_robot_death_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), big)
+					else:
+						_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
 					_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_COIN, 46 if not big else 90)
 					n2.queue_free()
 					enemy_nodes.erase(ev.id)
@@ -1540,6 +1904,8 @@ func _handle_events() -> void:
 				if u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
+					if _style2():
+						_pebble_fx(_v3(u2.pos + u2.facing * 1.0, 0.3), 3)
 					var slam_col := Color(1, 0.8, 0.45)
 					var ss := "club"
 					if u2.type in ["spear_guard", "kira", "brenna", "cassia", "legionary"]:
@@ -1593,6 +1959,8 @@ func _handle_events() -> void:
 					shake = maxf(shake, 0.18)
 				else:
 					_sfx("rock_hit", -10.0, 0.2, 0.05)
+					if _style2():
+						_pebble_fx(_v3(ev.pos, 0.9))
 				if ev.crit:
 					_float_text(_v3(ev.pos, 1.8), "CRIT!", Color(1, 0.35, 0.25), 44)
 			"emp":
@@ -1899,6 +2267,8 @@ func _sync_visuals(alpha: float) -> void:
 			l.rotation.x = swing
 		for l in n.get_meta("legsB"):
 			l.rotation.x = -swing
+		_spin_flicker(n, get_process_delta_time(), 0.0 if stunned else 24.0)
+		_hit_flash(n)
 		var body = n.get_meta("body")
 		if body != null:
 			var bob: float = absf(sin(ph)) * 0.05
@@ -1924,6 +2294,8 @@ func _sync_visuals(alpha: float) -> void:
 				n.set_meta("cloak_t", want)
 				for sw in n.get_meta("ghost"):
 					(sw[0] as MeshInstance3D).set_surface_override_material(int(sw[1]), sw[2] if want > 0.0 else null)
+				for ol in n.get_meta("outlines", []):
+					(ol as MeshInstance3D).visible = want <= 0.0 and Progress.gfx_level() < 2
 		var burn: Node3D = n.get_node("Burn")
 		burn.visible = sim.tick < e.burn_until
 		if burn.visible:
@@ -1969,6 +2341,7 @@ func _sync_visuals(alpha: float) -> void:
 		if tn.has_meta("yaw"):
 			var yaw_node: Node3D = tn.get_meta("yaw")
 			yaw_node.rotation.y = lerp_angle(yaw_node.rotation.y, _yaw(t.facing), 0.2)
+		_spin_flicker(tn, pdt, 0.0 if sim.tick < int(t.get("stun_until", 0)) else 9.0)
 		if tn.has_meta("orb"):
 			var orb: Node3D = tn.get_meta("orb")
 			orb.scale = orb.scale.lerp(Vector3.ONE * (1.0 + 0.1 * sin(time_s * 4.0)), 0.1)
@@ -3292,7 +3665,7 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	svc.add_child(vp)
 	var pivot := Node3D.new()
 	vp.add_child(pivot)
-	var model: Node3D = (_res(path) as PackedScene).instantiate()
+	var model: Node3D = _inst(path)
 	pivot.add_child(model)
 	var box := AABB()
 	var first := true
@@ -5056,6 +5429,39 @@ func _run_demo() -> void:
 		print("AUTO wave=", sim.wave, " auto_t=", auto_t)
 		await _wait_ticks(int(2.0 / TICK))
 		print("AUTO after wait wave=", sim.wave)
+		get_tree().quit()
+		return
+	if "--shoot-showcase" in args:
+		_start_game()
+		var sids := _demo_build(6000)
+		sim.wave = 3
+		var kinds := ["walker", "scout", "brute", "walker", "carrier", "scout", "walker", "brute", "scout", "walker"]
+		sim.wave_remaining[3] = kinds.size() + 1
+		for i in kinds.size():
+			sim._spawn_enemy(kinds[i], 3, 4.0 + i * 2.3, i % sim.paths.size())
+		if "--boss" in args:
+			sim._spawn_enemy("prime_walker", 3, 9.0, 0)
+		_handle_events()
+		await _wait_ticks(int(2.2 / TICK))
+		await _shot("showcase_%s_battle.png" % tag)
+		if "--gif" in args:
+			for i in 48:
+				await _shot("showcase_gif_%03d.png" % i)
+		set_process(false)
+		var tn: Node3D = tower_nodes[sids[0]]
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov = 34
+		cam.global_position = tn.global_position + Vector3(5.0, 5.2, 7.5)
+		cam.look_at(tn.global_position + Vector3(-0.6, 0.6, 0))
+		for i in 4:
+			_sync_visuals(1.0)
+			await get_tree().process_frame
+		await _shot("showcase_%s_close.png" % tag)
+		if portal_nodes.has(0):
+			_hub_camera()
+			for i in 4:
+				await get_tree().process_frame
+			await _shot("showcase_%s_hub.png" % tag)
 		get_tree().quit()
 		return
 	if "--shoot-timeline" in args:
