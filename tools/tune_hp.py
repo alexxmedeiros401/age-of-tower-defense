@@ -175,6 +175,66 @@ def tune_kit(entry):
     print("%-18s map#%d hp %.2f -> %.2f  kit%d best %d   kit%d best %d%s" % (mid, idx + 1, hp0, hp, wk, win, lk, lose, flag), flush=True)
 
 
+def target_lives(gi, n):
+    """Progressive difficulty: map 1 of the whole campaign is the easiest, the last map the hardest.
+    Target = lives the intended kit + best era hero keeps (out of 100)."""
+    return round(88 - 76 * gi / max(1, n - 1))
+
+
+def tune_prog(entry):
+    """Like tune_kit, but the win margin shrinks steadily across all maps (not per era),
+    while still making the kit with one tower fewer lose."""
+    mid, idx, gi, n = entry
+    path = os.path.join(ROOT, "data", "map_%s.json" % mid)
+    m = json.load(open(path))
+    hp0 = float(m.get("hp_mult", 1.0))
+    boss = float(m.get("boss_hp_mult", 1.0))
+    tgt = target_lives(gi, n)
+    wk, lk = min(4, idx + 2), idx + 1
+    lo, hi = math.log(hp0 * 0.45), math.log(hp0 * 2.2)
+    hp = hp0
+    best = None
+    for i in range(6):
+        hp = math.exp((lo + hi) / 2)
+        v = kit_score(mid, wk, hp, boss)
+        if best is None or abs(v - tgt) < abs(best[1] - tgt):
+            best = (hp, v)
+        if abs(v - tgt) <= 6:
+            break
+        if v > tgt:
+            lo = math.log(hp)
+        else:
+            hi = math.log(hp)
+    hp, win = best
+    lose = kit_score(mid, lk, hp, boss)
+    steps = 0
+    while lose >= 0 and steps < 8:      # the smaller kit still wins: tougher robots until it can't
+        trial = hp * 1.08
+        w2 = kit_score(mid, wk, trial, boss)
+        if w2 < 5:
+            break
+        hp, win = trial, w2
+        lose = kit_score(mid, lk, hp, boss)
+        steps += 1
+    m = json.load(open(path))
+    m["hp_mult"] = round(hp, 3)
+    json.dump(m, open(path, "w"), indent=1)
+    flag = "" if lose < 0 else "   <-- smaller kit can still win"
+    print("%-18s #%02d target %2d  hp %.2f -> %.2f  kit%d %d   kit%d %d%s" % (mid, gi + 1, tgt, hp0, hp, wk, win, lk, lose, flag), flush=True)
+
+
+if __name__ == "__main__" and "--prog" in sys.argv:
+    maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
+    seen = {}
+    todo = []
+    for gi, mm in enumerate(maps):
+        seen[mm["era"]] = seen.get(mm["era"], -1) + 1
+        if len(sys.argv) <= 2 or mm["id"] in sys.argv:
+            todo.append((mm["id"], seen[mm["era"]], gi, len(maps)))
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        list(ex.map(tune_prog, todo))
+    sys.exit(0)
+
 if __name__ == "__main__" and "--kit" in sys.argv:
     maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
     seen = {}

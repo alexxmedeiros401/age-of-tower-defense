@@ -160,7 +160,7 @@ static func _cap(g: Node3D, p: Node3D, m: Material, pos: Vector3, rad: float, h:
 	return mi
 
 
-## Spins `rotor` about its local y axis (reuses game.gd's "portal" effect). `breathe` also pulses its scale.
+## Spins `rotor` about its local y axis (game.gd "spin" effect). `breathe` also pulses its scale.
 static func _spin(g: Node3D, holder: Node3D, rotor: Node3D, breathe := false) -> void:
 	if breathe:
 		holder.set_meta("spin", rotor)
@@ -169,7 +169,7 @@ static func _spin(g: Node3D, holder: Node3D, rotor: Node3D, breathe := false) ->
 		holder.add_child(dummy)
 		holder.set_meta("spin", dummy)
 	holder.set_meta("core", rotor)
-	g.effects.append({"node": holder, "life": INF, "t": 0.0, "kind": "portal"})
+	g.effects.append({"node": holder, "life": INF, "t": 0.0, "kind": "spin"})
 
 
 ## Pulses the emission of mi's (shared) material once per material (reuses the "lava" effect, light hidden).

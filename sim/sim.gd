@@ -586,7 +586,10 @@ func _hp_scale(w: int) -> float:
 
 
 # ---------------------------------------------------------------- enemies
-func _spawn_enemy(type: String, w: int, dist: float = 0.0, pi: int = 0) -> Dictionary:
+const SPAWN_DIST := 3.0     # robots step out of the time portal, which stands this far along the path
+
+
+func _spawn_enemy(type: String, w: int, dist: float = SPAWN_DIST, pi: int = 0) -> Dictionary:
 	var d: Dictionary = defs.enemies[type]
 	var mult := _hp_scale(w) * hp_mult
 	if d.get("boss", false):
@@ -711,7 +714,7 @@ func _kill(e: Dictionary, src: Dictionary) -> void:
 	if d.has("on_death"):
 		var od: Dictionary = d.on_death
 		for i in range(int(od.count)):
-			var child := _spawn_enemy(od.type, e.wave, maxf(0.0, e.dist - 0.35 * i), e.pi)
+			var child := _spawn_enemy(od.type, e.wave, maxf(SPAWN_DIST, e.dist - 0.35 * i), e.pi)
 			wave_remaining[e.wave] += 1
 			child.stun_until = tick + 6
 	_finish_enemy(e)
@@ -863,7 +866,7 @@ func step() -> void:
 	# spawns
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= tick:
 		var s: Dictionary = spawn_queue.pop_front()
-		_spawn_enemy(s.type, s.wave, 0.0, int(s.get("pi", 0)))
+		_spawn_enemy(s.type, s.wave, SPAWN_DIST, int(s.get("pi", 0)))
 
 	# movement, shields, healing, boss summons, leaks
 	for e in enemies:

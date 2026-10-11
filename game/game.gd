@@ -349,7 +349,8 @@ func _build_world() -> void:
 
 	for P in sim.paths:
 		var pts: PackedVector2Array = P.pts
-		_build_portal(pts[0], (pts[1] - pts[0]).normalized(), sim.paths.find(P))
+		var ppi := sim.paths.find(P)
+		_build_portal(sim.pos_at(Sim.SPAWN_DIST, ppi), sim.dir_at(Sim.SPAWN_DIST, ppi), ppi)
 	var end_pt := sim.path[sim.path.size() - 1]
 	var base_id := str(map.get("base", "cave"))
 	if base_id == "city":
@@ -431,6 +432,8 @@ func _edge_color(tex: Texture2D, fallback: Color) -> Color:
 
 
 var portal_nodes := {}      # path index -> portal root
+var btn_details: Button
+var detail_open := 0        # detail cards open during a match pause the action
 var _swirl: ImageTexture = null
 
 
@@ -476,11 +479,9 @@ func _glow_mat(key: String, col: Color, tex: Texture2D = null) -> StandardMateri
 
 ## The time machine portal the robots step out of. It stands right on the start of the path,
 ## facing down it, so every robot visibly emerges from the vortex.
-const PORTAL_IN := 1.7     # how far down the path the portal stands; robots appear there
-
 func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	var n := Node3D.new()
-	n.position = _v3(p + dir * PORTAL_IN)
+	n.position = _v3(p)
 	add_child(n)
 	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))   # -Z points down the path
 	var steel := _mat("portal_steel", Color(0.22, 0.24, 0.3), {"metal": 0.8, "rough": 0.35})
@@ -1267,10 +1268,31 @@ func _update_effects(dt: float) -> void:
 	var keep := []
 	var landed := []
 	for fx in effects:
-		fx.t += dt
-		var n: Node3D = fx.node
-		var k: float = clampf(fx.t / fx.life, 0.0, 1.0) if fx.life != INF else 0.0
+		# each effect ticks in its own call: if one ever errors, only that effect is dropped
+		if _tick_effect(fx, dt, landed):
+			keep.append(fx)
+		elif is_instance_valid(fx.node):
+			(fx.node as Node).queue_free()
+	effects = keep
+	for p in landed:
+		_dust_fx(p, 7, 1.0)
+		shake = maxf(shake, 0.35)
+
+
+## Advances one effect; returns false when it's finished (or broke) and its node should go.
+func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
+	fx.t += dt
+	if not is_instance_valid(fx.node):
+		return false
+	var n: Node3D = fx.node
+	var k: float = clampf(fx.t / fx.life, 0.0, 1.0) if fx.life != INF else 0.0
+	if true:
 		match fx.kind:
+			"spin":
+				var ring: Node3D = n.get_meta("spin")
+				ring.scale = Vector3.ONE * (1.0 + 0.05 * sin(time_s * 4.0))
+				var core: Node3D = n.get_meta("core")
+				core.rotation.y += dt * 2.0
 			"portal":
 				var fl: float = n.get_meta("flash")
 				if fl > 0.0:
@@ -1345,14 +1367,7 @@ func _update_effects(dt: float) -> void:
 				n.rotation += Vector3(5, 3, 2) * dt
 				if fx.t >= fx.life:
 					landed.append(fx.to)
-		if fx.t >= fx.life:
-			n.queue_free()
-		else:
-			keep.append(fx)
-	effects = keep
-	for p in landed:
-		_dust_fx(p, 7, 1.0)
-		shake = maxf(shake, 0.35)
+	return fx.t < fx.life
 
 
 # =================================================================== loop
@@ -1360,7 +1375,7 @@ func _process(delta: float) -> void:
 	time_s += delta
 	_drag_scroll_tick(delta)
 	_fit_modals()
-	if paused:
+	if paused or (started and detail_open > 0):
 		_update_hud(0.0)
 		return
 	_auto_start(delta)
@@ -1459,10 +1474,11 @@ func _handle_events() -> void:
 					n.position = _v3(e.pos)
 					add_child(n)
 					enemy_nodes[ev.id] = n
-					if float(e.dist) < 0.05:
+					if absf(float(e.dist) - Sim.SPAWN_DIST) < 0.05:
 						n.set_meta("emerge", true)
-						n.set_meta("need_flash", true)
-						n.scale = Vector3.ONE * 0.01
+						n.scale = Vector3.ONE * 0.05
+						_portal_flash(int(e.pi), bool(e.boss))
+						_sfx("portal_warp", -10.0 if not e.boss else -2.0, 0.12)
 					if e.boss:
 						shake = 1.0
 						var roar := "boss_roar"
@@ -1858,14 +1874,10 @@ func _sync_visuals(alpha: float) -> void:
 		n.position = _v3(p)
 		if n.has_meta("emerge"):
 			# grows out of the vortex over its first steps
-			var ek := clampf((float(e.dist) - PORTAL_IN + 0.3) / 1.2, 0.0, 1.0)
-			if n.has_meta("need_flash") and float(e.dist) >= PORTAL_IN - 0.3:
-				n.remove_meta("need_flash")
-				_portal_flash(int(e.pi), bool(e.boss))
-				_sfx("portal_warp", -10.0 if not e.boss else -2.0, 0.12)
+			var ek := clampf((float(e.dist) - Sim.SPAWN_DIST) / 1.0, 0.0, 1.0)
 			ek = ek * ek * (3.0 - 2.0 * ek)
-			n.scale = Vector3.ONE * lerpf(0.01, 1.0, ek)
-			n.position.y += (1.0 - ek) * 0.9
+			n.scale = Vector3.ONE * lerpf(0.05, 1.0, ek)
+			n.position.y += (1.0 - ek) * 1.0
 			if ek >= 1.0:
 				n.remove_meta("emerge")
 				n.scale = Vector3.ONE
@@ -2426,6 +2438,16 @@ func _build_hud() -> void:
 		b.pressed.connect(_begin_placing.bind(type))
 		shop_box.add_child(b)
 		shop_buttons[type] = b
+		var info := _button("?", Color(0.3, 0.36, 0.5), 26)
+		info.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+		info.offset_left = -64
+		info.offset_right = -10
+		info.offset_top = -27
+		info.offset_bottom = 27
+		info.pressed.connect(func():
+			_sfx("click")
+			_tower_detail(type))
+		b.add_child(info)
 	_refresh_shop()
 
 	tower_box = VBoxContainer.new()
@@ -2467,6 +2489,17 @@ func _build_hud() -> void:
 			_sfx("click", -6.0)
 			_show_tower_panel(selected))
 	tower_actions.add_child(btn_target)
+	btn_details = _button("DETAILS", Color(0.3, 0.36, 0.5), 22)
+	btn_details.custom_minimum_size = Vector2(0, 56)
+	btn_details.pressed.connect(func():
+		var tt = sim.get_unit(selected) if selected != -1 else null
+		if tt != null and not tt.get("is_hero", false):
+			_sfx("click")
+			_tower_detail(str(tt.type))
+		elif tt != null:
+			_sfx("click")
+			_hero_detail(sim.hero_id, VBoxContainer.new()))
+	tower_actions.add_child(btn_details)
 	btn_sell = _button("", Color(0.62, 0.22, 0.16), 24)
 	btn_sell.custom_minimum_size = Vector2(0, 64)
 	btn_sell.pressed.connect(func():
@@ -2978,7 +3011,7 @@ func _build_main_menu(root: Control) -> void:
 	var pulse := play.create_tween().set_loops()
 	pulse.tween_property(play, "scale", Vector2.ONE * 1.06, 0.7).set_trans(Tween.TRANS_SINE)
 	pulse.tween_property(play, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE)
-	var nm := _label("%s  -  %s" % [str(cme.get("name", "")), str(cme.get("difficulty", ""))], 20, Color(0.85, 1.0, 0.8), 7)
+	var nm := _label("%s  -  Map %d" % [str(cme.get("name", "")), map_order.find(cm) + 1], 20, Color(0.85, 1.0, 0.8), 7)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	(bot[2] as VBoxContainer).add_child(nm)
 	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 16, Color(0.75, 0.7, 0.62), 4)
@@ -3070,6 +3103,12 @@ func _open_workshop(era: String) -> void:
 		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ds.custom_minimum_size = Vector2(290, 56)
 		v.add_child(ds)
+		var dbt := _button("DETAILS", Color(0.3, 0.36, 0.5), 20)
+		dbt.custom_minimum_size = Vector2(0, 54)
+		dbt.pressed.connect(func():
+			_sfx("click")
+			_tower_detail(tid))
+		v.add_child(dbt)
 		if own:
 			var ok := _label("FREE" if cost == 0 else "UNLOCKED", 26, Color(0.6, 1.0, 0.6), 6)
 			ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -3230,6 +3269,10 @@ func _hero_pros_cons(hd: Dictionary) -> Array:
 
 ## A turning 3D model of a hero for menus.
 func _hero_viewer(hid: String, size: Vector2) -> SubViewportContainer:
+	return _model_viewer("res://assets/heroes/%s.glb" % hid, size)
+
+
+func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	var svc := SubViewportContainer.new()
 	svc.stretch = true
 	svc.custom_minimum_size = size
@@ -3241,7 +3284,7 @@ func _hero_viewer(hid: String, size: Vector2) -> SubViewportContainer:
 	svc.add_child(vp)
 	var pivot := Node3D.new()
 	vp.add_child(pivot)
-	var model: Node3D = (_res("res://assets/heroes/%s.glb" % hid) as PackedScene).instantiate()
+	var model: Node3D = (_res(path) as PackedScene).instantiate()
 	pivot.add_child(model)
 	var box := AABB()
 	var first := true
@@ -3278,6 +3321,204 @@ func _hero_viewer(hid: String, size: Vector2) -> SubViewportContainer:
 	return svc
 
 
+func _tower_pros_cons(d: Dictionary) -> Array:
+	var b: Dictionary = d.base
+	var pros := []
+	var cons := []
+	var single := int(b.get("chain", 0)) == 0 and float(b.get("splash", 0.0)) <= 0.0 and int(b.get("shots", 1)) <= 1
+	match str(b.kind):
+		"projectile":
+			pros.append("Long reach (%.1f tiles)" % float(b.range) if float(b.range) >= 4.5 else "Fast, reliable single-target damage")
+			if single:
+				cons.append("Hits one robot per shot")
+		"melee":
+			pros.append("Heavy hits up close")
+			cons.append("Short range: build it right beside the path")
+		"pulse":
+			pros.append("Hits every robot in range at once")
+			cons.append("Small hits; shines with upgrades and combos")
+		"lob":
+			pros.append("Explosive splash hits whole groups")
+			pros.append("Long range (%.1f tiles)" % float(b.range))
+			cons.append("Shells fly slowly and can miss fast robots")
+	if float(b.get("slow", 0.0)) > 0.0:
+		pros.append("Slows robots by %d%%" % int(float(b.slow) * 100))
+	if float(b.get("stun", 0.0)) > 0.0:
+		pros.append("Stuns robots")
+	if float(b.get("burn", 0.0)) > 0.0:
+		pros.append("Sets robots on fire")
+	if int(b.get("chain", 0)) > 0:
+		pros.append("Lightning jumps to %d more robots" % int(b.chain))
+	if float(b.get("shield_break", 0.0)) > 0.0:
+		pros.append("Knocks out robot shields")
+	if float(b.get("armor_pierce", 0.0)) > 0.0:
+		pros.append("Punches through armor")
+	if float(b.get("shred", 0.0)) > 0.0:
+		pros.append("Strips armor off robots")
+	if float(b.get("expose", 0.0)) > 0.0:
+		pros.append("Marked robots take +%d%% damage" % int(float(b.expose) * 100))
+	if int(b.get("shots", 1)) > 1:
+		pros.append("Fires %d shots per volley" % int(b.shots))
+	if float(b.get("crit_chance", 0.0)) > 0.0:
+		pros.append("%d%% chance of critical hits" % int(float(b.crit_chance) * 100))
+	if float(b.get("knockback", 0.0)) > 0.0:
+		pros.append("Knocks robots backward")
+	if str(b.get("dtype", "")) == "energy":
+		pros.append("Energy damage cuts through armor")
+	if float(b.get("anti_air", 0.0)) > 0.0:
+		pros.append("Extra damage to flying robots")
+	if float(b.get("detect", 0.0)) > 0.0 or str(b.kind) == "pulse":
+		pros.append("Spots cloaked robots for your other towers")
+	else:
+		cons.append("Can't see cloaked robots on its own")
+	if not sim.can_hit_air(b):
+		cons.append("Can't hit flying robots")
+	if float(b.cooldown) >= 2.0:
+		cons.append("Slow to fire")
+	if int(d.cost) >= 500:
+		cons.append("Expensive to build (%d gold)" % int(d.cost))
+	return [pros, cons]
+
+
+## Tower card: model, attack stats, specials, upgrade paths, pros and cons.
+func _tower_detail(tid: String) -> void:
+	var d: Dictionary = defs.towers[tid]
+	var b: Dictionary = d.base
+	var dlg := _modal(ui_root, 0.7)
+	var box: VBoxContainer = dlg.get_meta("box")
+	box.set_meta("want_w", 1350.0)
+	box.add_theme_constant_override("separation", 12)
+	detail_open += 1
+	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
+	_on_close(dlg, func():
+		_sfx("click")
+		dlg.queue_free())
+	var col := Color(d.color[0], d.color[1], d.color[2])
+	var ttl := _label(str(d.name).to_upper(), 52, col.lightened(0.4), 12)
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ttl)
+	var roles := {"Ranged": "single-target damage", "Control": "slows, stuns and spotting", "Brute": "close-range area damage", "Siege": "splash and long range"}
+	var sub := _label("%s tower (%s)   -   %s   -   %d gold" % [d.lineage, roles.get(str(d.lineage), ""), d.era, int(d.cost)], 24, C_GOLD, 7)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(sub)
+	var row := HFlowContainer.new()
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("h_separation", 26)
+	box.add_child(row)
+	var stage := PanelContainer.new()
+	var ssb := _style(Color(col.darkened(0.6), 0.85), 24, col.darkened(0.2), 5)
+	stage.add_theme_stylebox_override("panel", ssb)
+	row.add_child(stage)
+	stage.add_child(_model_viewer("res://assets/towers/%s.glb" % tid, Vector2(360, 400)))
+	var info := VBoxContainer.new()
+	info.custom_minimum_size = Vector2(760, 0)
+	info.add_theme_constant_override("separation", 6)
+	row.add_child(info)
+	var ds := _label(str(d.desc), 24, C_TEXT, 6)
+	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_child(ds)
+	# attack stats as chips
+	var kinds := {"projectile": "Shoots", "melee": "Melee", "pulse": "Pulse (hits all around it)", "lob": "Lobs explosive shells"}
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 10)
+	chips.add_theme_constant_override("v_separation", 8)
+	info.add_child(chips)
+	var tech := Progress.tech_mult(str(d.era)) if not test_mode else 1.0
+	var stats := [
+		["ATTACK", str(kinds.get(str(b.kind), b.kind))],
+		["DAMAGE", "%s %s" % [str(snappedf(float(b.damage) * tech, 0.1)), str(b.get("dtype", "")).capitalize()]],
+		["RANGE", "%.1f tiles" % float(b.range)],
+		["SPEED", "%.1f attacks/sec" % (1.0 / maxf(0.05, float(b.cooldown)))],
+		["FLYING", "Can hit" if sim.can_hit_air(b) else "Can't hit"],
+		["CLOAKED", "Spots them" if (float(b.get("detect", 0.0)) > 0.0 or str(b.kind) == "pulse") else "Needs a spotter"],
+	]
+	if float(b.get("splash", 0.0)) > 0.0:
+		stats.append(["SPLASH", "%.1f tiles" % float(b.splash)])
+	if int(b.get("max_targets", 0)) > 1:
+		stats.append(["TARGETS", "%d per hit" % int(b.max_targets)])
+	for st in stats:
+		var chip := PanelContainer.new()
+		var csb := _style(Color(0.1, 0.07, 0.05), 12, col.darkened(0.3), 3)
+		csb.content_margin_left = 12
+		csb.content_margin_right = 12
+		csb.content_margin_top = 4
+		csb.content_margin_bottom = 4
+		chip.add_theme_stylebox_override("panel", csb)
+		var cv := VBoxContainer.new()
+		cv.add_theme_constant_override("separation", -4)
+		chip.add_child(cv)
+		cv.add_child(_label(str(st[0]), 15, Color(0.75, 0.7, 0.6), 4))
+		cv.add_child(_label(str(st[1]), 21, Color.WHITE, 5))
+		chips.add_child(chip)
+	if tech > 1.0:
+		info.add_child(_label("Damage includes your +%d%% tech bonus for this age." % int(round((tech - 1.0) * 100)), 17, Color(0.6, 0.9, 1.0), 4))
+	var pc := _tower_pros_cons(d)
+	var pcrow := HBoxContainer.new()
+	pcrow.add_theme_constant_override("separation", 24)
+	info.add_child(pcrow)
+	var pv := VBoxContainer.new()
+	pv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pcrow.add_child(pv)
+	pv.add_child(_label("PROS", 24, Color(0.55, 1.0, 0.5), 7))
+	for t in pc[0]:
+		var l := _label("+  " + str(t), 19, Color(0.8, 1.0, 0.78), 5)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		pv.add_child(l)
+	var cv2 := VBoxContainer.new()
+	cv2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pcrow.add_child(cv2)
+	cv2.add_child(_label("CONS", 24, Color(1.0, 0.5, 0.45), 7))
+	for t in pc[1]:
+		var l2 := _label("-  " + str(t), 19, Color(1.0, 0.82, 0.78), 5)
+		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cv2.add_child(l2)
+	# upgrade paths
+	box.add_child(_label("UPGRADES", 30, C_GOLD, 8))
+	var shared := ""
+	for tr in d.get("tiers", []):
+		shared += "%s (%d gold): %s.   " % [tr.name, int(tr.cost), tr.desc]
+	var sl := _label("Tiers 1-2:  " + shared, 19, C_TEXT, 5)
+	sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(sl)
+	var paths := HBoxContainer.new()
+	paths.add_theme_constant_override("separation", 18)
+	box.add_child(paths)
+	for key in ["A", "B"]:
+		if not d.branches.has(key):
+			continue
+		var br: Dictionary = d.branches[key]
+		var bp := PanelContainer.new()
+		var bcol := Color(0.7, 0.36, 0.12) if key == "A" else Color(0.14, 0.42, 0.62)
+		bp.add_theme_stylebox_override("panel", _style(bcol.darkened(0.55), 16, bcol, 3))
+		bp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		paths.add_child(bp)
+		var bv := VBoxContainer.new()
+		bv.add_theme_constant_override("separation", 3)
+		bp.add_child(bv)
+		bv.add_child(_label("PATH %s: %s" % [key, str(br.name).to_upper()], 24, bcol.lightened(0.45), 6))
+		var bd := _label(str(br.desc), 18, C_TEXT, 4)
+		bd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		bv.add_child(bd)
+		var ti := 3
+		for tr in br.tiers:
+			var tl := _label("Tier %d  %s (%d gold): %s" % [ti, tr.name, int(tr.cost), tr.desc], 17, Color(0.92, 0.88, 0.8), 4)
+			tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			bv.add_child(tl)
+			ti += 1
+	var note := _label("At tier 3 you pick Path A or Path B. The other path locks for that tower.", 17, Color(1, 0.75, 0.5), 4)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	var back := _button("CLOSE", Color(0.42, 0.3, 0.2), 28)
+	back.custom_minimum_size = Vector2(260, 80)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(func():
+		_sfx("click")
+		dlg.queue_free())
+	box.add_child(back)
+	dlg.get_parent().move_child(dlg, -1)
+
+
 ## Hero card: model, story, pros and cons, then PLAY AS (owned) or LOCKED + BUY (not owned yet).
 func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	var hd: Dictionary = defs.heroes.heroes[hid]
@@ -3288,6 +3529,8 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	_on_close(dlg, func():
 		_sfx("click")
 		dlg.queue_free())
+	detail_open += 1
+	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
 	var col := Color(hd.color[0], hd.color[1], hd.color[2])
 	var ttl := _label(str(hd.name).to_upper(), 52, col.lightened(0.35), 12)
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -3334,7 +3577,14 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	btns.add_theme_constant_override("separation", 24)
 	box.add_child(btns)
 	var owned := Progress.hero_owned(hid)
-	if owned:
+	if started:
+		var close := _button("BACK TO THE FIGHT", Color(0.2, 0.58, 0.18), 30)
+		close.custom_minimum_size = Vector2(420, 88)
+		close.pressed.connect(func():
+			_sfx("click")
+			dlg.queue_free())
+		btns.add_child(close)
+	elif owned:
 		var is_cur := Progress.hero() == hid
 		var play := _button("PLAYING AS %s" % _short_name(str(hd.name)).to_upper() if is_cur else "PLAY AS %s" % _short_name(str(hd.name)).to_upper(), Color(0.2, 0.58, 0.18), 32)
 		play.custom_minimum_size = Vector2(460, 92)
@@ -3587,8 +3837,7 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 		thumb_holder.add_child(cc)
 		cc.add_child(_icon(ICON_LOCK, 90))
 	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8))
-	var dc := {"Normal": Color(0.55, 0.9, 0.45), "Hard": Color(1, 0.7, 0.3), "Brutal": Color(1, 0.4, 0.35)}
-	v.add_child(_label(str(m.difficulty).to_upper(), 20, dc.get(m.difficulty, C_TEXT), 6))
+	v.add_child(_label("MAP %d OF %d" % [map_order.find(str(m.id)) + 1, map_order.size()], 20, Color(0.85, 0.78, 0.6), 6))
 	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bl.custom_minimum_size = Vector2(362, 60)
@@ -4432,6 +4681,12 @@ func _shoot_menu() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	await _shot("menu_workshop.png")
+	if "--shoot-tower" in OS.get_cmdline_user_args():
+		_tower_detail(str(Progress.era_towers("Bronze Age")[1]))
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_tower_detail.png")
+		get_tree().quit()
+		return
 	if "--shoot-heroes" in OS.get_cmdline_user_args():
 		_open_heroes()
 		for i in 4:
