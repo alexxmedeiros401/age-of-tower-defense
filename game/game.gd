@@ -47,10 +47,11 @@ const SFX_NAMES := ["portal_warp", "throw", "rock_hit", "club", "catapult", "bou
 	"emp", "explosion", "flame", "freeze", "javelin", "laser", "missile", "musket", "plasma", "rifle", "shell", "steam", "swing", "zap"]
 
 # palette
-const C_PANEL := Color(0.17, 0.11, 0.07, 0.94)
-const C_PANEL_EDGE := Color(0.46, 0.31, 0.17)
-const C_TEXT := Color(1.0, 0.95, 0.85)
-const C_GOLD := Color(1.0, 0.82, 0.22)
+const C_PANEL := Color(0.07, 0.09, 0.15, 0.96)
+const C_PANEL_EDGE := Color(0.25, 0.52, 0.8)
+const C_TEXT := Color(0.94, 0.97, 1.0)
+const C_GOLD := Color(0.45, 0.9, 1.0)        # accent (titles, highlights): time-portal cyan
+const C_COIN := Color(1.0, 0.82, 0.22)        # gold money only
 
 var defs: Dictionary
 var map: Dictionary
@@ -320,7 +321,7 @@ func _build_world() -> void:
 	sun.rotation_degrees = Vector3(-50, -40, 0)
 	sun.light_color = theme.sun
 	sun.light_energy = theme.sun_e
-	sun.shadow_enabled = true
+	sun.shadow_enabled = Progress.gfx_level() == 0
 	sun.shadow_blur = 1.5
 	sun.directional_shadow_max_distance = 80.0
 	add_child(sun)
@@ -569,7 +570,10 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	var spm := _sph(0.05, 4)
 	spm.material = _glow_mat("portal_spark", Color(0.6, 0.95, 1.0, 1.0))
 	sp.mesh = spm
-	vortex.add_child(sp)
+	if Progress.gfx_level() < 2:
+		vortex.add_child(sp)
+	else:
+		sp.free()
 	# light that washes the ground in time-energy colours
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.55, 0.6, 1.0)
@@ -577,6 +581,7 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	light.omni_range = 6.0
 	light.position = Vector3(0, hz, -0.6)
 	n.add_child(light)
+	light.visible = Progress.gfx_level() < 2
 	n.set_meta("lights", lights)
 	n.set_meta("vortex", vortex)
 	n.set_meta("layers", layers)
@@ -1189,7 +1194,9 @@ func _make_robot(type: String) -> Node3D:
 	var q := QuadMesh.new()
 	q.size = Vector2(bw, 0.22 if d.get("boss", false) else 0.12)
 	_mi(q, _mat("bar_bg", Color(0.08, 0.04, 0.04), {"unshaded": true, "billboard": true, "nodepth": true}), bar)
-	var fg := _mi(q, _mat("bar_fg", Color(0.4, 1.0, 0.3), {"unshaded": true, "billboard": true, "nodepth": true}), bar, Vector3(0, 0, 0.01))
+	var fgm := _mat("bar_fg", Color(0.4, 1.0, 0.3), {"unshaded": true, "billboard": true, "nodepth": true})
+	fgm.render_priority = 3      # always on top of its dark background (same depth = flicker)
+	var fg := _mi(q, fgm, bar, Vector3.ZERO)
 	fg.name = "Fg"
 	bar.visible = false
 	return root
@@ -1220,7 +1227,7 @@ func _float_text(pos: Vector3, text: String, col: Color, size := 56) -> void:
 	l.font = FONT
 	l.font_size = size
 	l.outline_size = 14
-	l.outline_modulate = Color(0.15, 0.08, 0.02)
+	l.outline_modulate = Color(0.05, 0.08, 0.13)
 	l.pixel_size = 0.01
 	l.modulate = col
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1506,7 +1513,7 @@ func _handle_events() -> void:
 					var n2: Node3D = enemy_nodes[ev.id]
 					var big: bool = defs.enemies[ev.type].get("boss", false)
 					_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
-					_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_GOLD, 46 if not big else 90)
+					_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_COIN, 46 if not big else 90)
 					n2.queue_free()
 					enemy_nodes.erase(ev.id)
 					if big:
@@ -1617,7 +1624,7 @@ func _handle_events() -> void:
 				_sfx("wave_horn", -3.0, 0.03, 0.5)
 			"wave_clear":
 				waves_cleared += 1
-				_toast("Wave %d cleared!  +%d gold" % [ev.wave, ev.bonus], C_GOLD)
+				_toast("Wave %d cleared!  +%d gold" % [ev.wave, ev.bonus], C_COIN)
 				_sfx("coin", -4.0, 0.0)
 			"victory":
 				if not attract:
@@ -1928,6 +1935,7 @@ func _sync_visuals(alpha: float) -> void:
 		var bar: Node3D = n.get_node("Bar")
 		if e.hp < e.max_hp:
 			bar.visible = true
+			bar.global_rotation = Vector3.ZERO     # don't swing around when the robot turns a corner
 			var fg: MeshInstance3D = bar.get_node("Fg")
 			var f: float = clampf(e.hp / e.max_hp, 0.0, 1.0)
 			fg.scale.x = maxf(f, 0.001)
@@ -2250,7 +2258,7 @@ func _button(text: String, col: Color, font := 28) -> Button:
 	var pressed := _style(col.darkened(0.08), 18, col.darkened(0.45), 4)
 	pressed.border_width_bottom = 4
 	pressed.content_margin_top = 17
-	var dis := _style(Color(0.3, 0.26, 0.22), 18, Color(0.2, 0.17, 0.14), 4)
+	var dis := _style(Color(0.19, 0.24, 0.32), 18, Color(0.13, 0.16, 0.22), 4)
 	dis.border_width_bottom = 9
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
@@ -2274,7 +2282,7 @@ func _label(text: String, size := 28, col := C_TEXT, outline := 9) -> Label:
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
-	l.add_theme_color_override("font_outline_color", Color(0.12, 0.06, 0.02, 0.95))
+	l.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 0.95))
 	l.add_theme_constant_override("outline_size", outline)
 	return l
 
@@ -2293,10 +2301,10 @@ func _build_hud() -> void:
 	ui_theme.default_font = FONT
 	ui_theme.default_font_size = 28
 	for sbn in ["VScrollBar", "HScrollBar"]:
-		var track := _style(Color(0.08, 0.05, 0.03, 0.9), 10)
+		var track := _style(Color(0.03, 0.05, 0.09, 0.9), 10)
 		track.set_content_margin_all(11)
 		track.shadow_size = 0
-		var grab := _style(Color(0.78, 0.6, 0.3), 10)
+		var grab := _style(Color(0.31, 0.47, 0.74), 10)
 		grab.set_content_margin_all(11)
 		grab.shadow_size = 0
 		var grab_h := _style(Color(0.95, 0.75, 0.38), 10)
@@ -2319,14 +2327,14 @@ func _build_hud() -> void:
 	# --- top-left stat bar
 	var top := PanelContainer.new()
 	hud_top = top
-	top.add_theme_stylebox_override("panel", _style(Color(0.14, 0.09, 0.05, 0.82), 22, C_PANEL_EDGE, 4))
+	top.add_theme_stylebox_override("panel", _style(Color(0.06, 0.09, 0.15, 0.82), 22, C_PANEL_EDGE, 4))
 	top.position = Vector2(20, 16)
 	root.add_child(top)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 14)
 	top.add_child(hb)
 	hb.add_child(_icon(ICON_GOLD))
-	lbl_gold = _label("", 40, C_GOLD)
+	lbl_gold = _label("", 40, C_COIN)
 	lbl_gold.custom_minimum_size.x = 120
 	hb.add_child(lbl_gold)
 	hb.add_child(_icon(ICON_LIVES))
@@ -2338,7 +2346,7 @@ func _build_hud() -> void:
 	hb.add_child(lbl_wave)
 
 	# --- pause button (top-right of the play area)
-	btn_pause = _button("II", Color(0.36, 0.28, 0.2), 34)
+	btn_pause = _button("II", Color(0.18, 0.25, 0.37), 34)
 	btn_pause.anchor_left = 1.0
 	btn_pause.anchor_right = 1.0
 	btn_pause.offset_left = -SIDEBAR_W - 108
@@ -2368,7 +2376,7 @@ func _build_hud() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	side.add_child(col)
-	var era := _label(_era().to_upper() + "  -  " + str(map.name) + ("   T%d" % Progress.timeline() if Progress.timeline() > 1 else ""), 22, Color(1, 0.78, 0.45))
+	var era := _label(_era().to_upper() + "  -  " + str(map.name) + ("   T%d" % Progress.timeline() if Progress.timeline() > 1 else ""), 22, C_GOLD)
 	era.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	era.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	era.custom_minimum_size.x = 10
@@ -2376,7 +2384,7 @@ func _build_hud() -> void:
 
 	# hero card
 	hero_card = PanelContainer.new()
-	hero_card.add_theme_stylebox_override("panel", _style(Color(0.26, 0.18, 0.1), 16, C_GOLD.darkened(0.3), 3))
+	hero_card.add_theme_stylebox_override("panel", _style(Color(0.1, 0.16, 0.26), 16, C_GOLD.darkened(0.3), 3))
 	col.add_child(hero_card)
 	var hrow := HBoxContainer.new()
 	hrow.add_theme_constant_override("separation", 10)
@@ -2392,7 +2400,7 @@ func _build_hud() -> void:
 	lbl_hero_level = _label("", 18, C_TEXT, 5)
 	hcol.add_child(lbl_hero_level)
 	var xp_bg := ColorRect.new()
-	xp_bg.color = Color(0.1, 0.06, 0.03)
+	xp_bg.color = Color(0.04, 0.06, 0.1)
 	xp_bg.custom_minimum_size = Vector2(130, 10)
 	hcol.add_child(xp_bg)
 	hero_xp_fill = ColorRect.new()
@@ -2427,8 +2435,8 @@ func _build_hud() -> void:
 		var type: String = types[i]
 		var def: Dictionary = defs.towers[type]
 		var c := Color(def.color[0], def.color[1], def.color[2])
-		var b := _button("", c.lerp(Color(0.45, 0.3, 0.18), 0.35), 26)
-		b.set_meta("col", c.lerp(Color(0.45, 0.3, 0.18), 0.35))
+		var b := _button("", c.lerp(Color(0.17, 0.27, 0.45), 0.35), 26)
+		b.set_meta("col", c.lerp(Color(0.1, 0.16, 0.3), 0.45))
 		b.icon = _icon_tex(type)
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 92)
@@ -2464,13 +2472,13 @@ func _build_hud() -> void:
 	lbl_t_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl_t_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(lbl_t_name)
-	var close := _button("X", Color(0.42, 0.3, 0.22), 26)
+	var close := _button("X", Color(0.2, 0.28, 0.43), 26)
 	close.custom_minimum_size = Vector2(60, 60)
 	close.pressed.connect(func():
 		_sfx("click", -6.0)
 		_deselect())
 	head.add_child(close)
-	lbl_t_info = _label("", 21, Color(0.95, 0.9, 0.82), 6)
+	lbl_t_info = _label("", 21, Color(0.84, 0.88, 0.93), 6)
 	lbl_t_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tower_box.add_child(lbl_t_info)
 	up_box = VBoxContainer.new()
@@ -2596,7 +2604,7 @@ func _build_hud() -> void:
 	ob2.alignment = BoxContainer.ALIGNMENT_CENTER
 	ob2.add_theme_constant_override("separation", 24)
 	ov.add_child(ob2)
-	var to_select := _button("MAP SELECT", Color(0.42, 0.3, 0.2), 28)
+	var to_select := _button("MAP SELECT", Color(0.18, 0.27, 0.43), 28)
 	to_select.custom_minimum_size = Vector2(300, 80)
 	to_select.pressed.connect(func():
 		Progress.current_map = ""
@@ -2687,7 +2695,7 @@ func _menu_button(text: String, col: Color, cb: Callable, h := 78, font := 30) -
 	return b
 
 
-const MENU_GOLD := Color(0.98, 0.78, 0.32)
+const MENU_GOLD := Color(0.5, 0.86, 1.0)
 
 
 ## Big round menu button with an icon and a banner label underneath (and an optional "!" badge).
@@ -2754,7 +2762,7 @@ func _round_button(icon: Texture2D, text: String, col: Color, size: float, cb: C
 		tw2.tween_property(bd, "position:y", -size * 0.04, 0.45).set_trans(Tween.TRANS_SINE)
 	if text != "":
 		var ban := PanelContainer.new()
-		var bsb2 := _style(Color(0.32, 0.18, 0.08), 14, MENU_GOLD.darkened(0.25), 4)
+		var bsb2 := _style(Color(0.11, 0.18, 0.29), 14, MENU_GOLD.darkened(0.25), 4)
 		bsb2.content_margin_left = 16
 		bsb2.content_margin_right = 16
 		bsb2.content_margin_top = 2
@@ -2773,7 +2781,7 @@ func _round_button(icon: Texture2D, text: String, col: Color, size: float, cb: C
 ## Rounded "pill" showing a currency, with an optional + button.
 func _currency_pill(icon: Texture2D, text: String, col: Color, plus_cb := Callable()) -> PanelContainer:
 	var pill := PanelContainer.new()
-	var sb := _style(Color(0.1, 0.06, 0.03, 0.85), 30, MENU_GOLD.darkened(0.3), 4)
+	var sb := _style(Color(0.04, 0.06, 0.1, 0.85), 30, MENU_GOLD.darkened(0.3), 4)
 	sb.content_margin_left = 10
 	sb.content_margin_right = 10
 	sb.content_margin_top = 4
@@ -2845,7 +2853,7 @@ func _build_main_menu(root: Control) -> void:
 	var face := _icon(_face_tex(hid), 106)
 	face_frame.add_child(face)
 	var barbg := PanelContainer.new()
-	var bbs := _style(Color(0.18, 0.1, 0.05, 0.95), 14, MENU_GOLD.darkened(0.3), 4)
+	var bbs := _style(Color(0.07, 0.1, 0.17, 0.95), 14, MENU_GOLD.darkened(0.3), 4)
 	bbs.set_content_margin_all(5)
 	barbg.add_theme_stylebox_override("panel", bbs)
 	barbg.position = Vector2(150, 18)
@@ -2872,7 +2880,7 @@ func _build_main_menu(root: Control) -> void:
 	var star := _icon(_res("res://assets/ui/menu_star.png") as Texture2D, 104)
 	star.position = Vector2(110, -6)
 	prof.add_child(star)
-	var lvl := _label(str(Progress.legacy_level()), 38, Color(0.25, 0.12, 0.0), 0)
+	var lvl := _label(str(Progress.legacy_level()), 38, Color(0.07, 0.11, 0.19), 0)
 	lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lvl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lvl.position = Vector2(110, 6)
@@ -2916,7 +2924,7 @@ func _build_main_menu(root: Control) -> void:
 	cur.add_child(_currency_pill(ICON_SHARD, str(Progress.shards()), Color(0.85, 0.78, 1.0), func(): _open_heroes()))
 	cur.add_child(_currency_pill(_icon_tex(str(Progress.era_towers(era_now)[0])) if not Progress.era_towers(era_now).is_empty() else ICON_GOLD,
 		str(Progress.scrap(era_now)), Color(0.8, 0.9, 1.0), func(): _open_workshop("")))
-	var sl := _label("%s SCRAP" % era_now.to_upper(), 16, Color(0.8, 0.75, 0.68), 5)
+	var sl := _label("%s SCRAP" % era_now.to_upper(), 16, Color(0.68, 0.73, 0.8), 5)
 	sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	cur.add_child(sl)
 	# ---- left column: settings, quit
@@ -2930,7 +2938,7 @@ func _build_main_menu(root: Control) -> void:
 	title_screen.add_child(lcol)
 	lcol.add_child(_round_button(_res("res://assets/ui/menu_gear.png"), "", Color(0.3, 0.42, 0.6), 108, func(): _open_settings()))
 	if OS.has_feature("pc"):
-		lcol.add_child(_round_button(_res("res://assets/ui/menu_door.png"), "", Color(0.45, 0.25, 0.15), 108, func(): get_tree().quit()))
+		lcol.add_child(_round_button(_res("res://assets/ui/menu_door.png"), "", Color(0.16, 0.26, 0.43), 108, func(): get_tree().quit()))
 	# ---- right column: age badge, new timeline
 	var rcol := VBoxContainer.new()
 	rcol.anchor_left = 1.0
@@ -2948,7 +2956,7 @@ func _build_main_menu(root: Control) -> void:
 	for mid in map_order:
 		stars += Progress.stars(mid)
 	var age := PanelContainer.new()
-	var asb := _style(Color(0.1, 0.06, 0.03, 0.85), 22, MENU_GOLD.darkened(0.3), 4)
+	var asb := _style(Color(0.04, 0.06, 0.1, 0.85), 22, MENU_GOLD.darkened(0.3), 4)
 	asb.set_content_margin_all(12)
 	age.add_theme_stylebox_override("panel", asb)
 	var av := VBoxContainer.new()
@@ -2963,7 +2971,7 @@ func _build_main_menu(root: Control) -> void:
 	var srow := HBoxContainer.new()
 	srow.alignment = BoxContainer.ALIGNMENT_CENTER
 	srow.add_child(_icon(ICON_STAR, 34))
-	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 22, C_GOLD, 6))
+	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 22, C_COIN, 6))
 	av.add_child(srow)
 	rcol.add_child(age)
 	if Progress.can_new_timeline(map_order):
@@ -2993,7 +3001,7 @@ func _build_main_menu(root: Control) -> void:
 	var cm := _continue_map()
 	var cme := _map_entry(cm)
 	var bot := [
-		_round_button(_icon_tex(str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.62, 0.38, 0.14), 150, func(): _open_workshop(""), tower_badge, 0.8),
+		_round_button(_icon_tex(str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.2, 0.33, 0.54), 150, func(): _open_workshop(""), tower_badge, 0.8),
 		_round_button(_face_tex(hid), "HEROS", Color(0.6, 0.25, 0.45), 150, func(): _open_heroes(), hero_badge, 0.78),
 		_round_button(ICON_PLAY, "PLAY", Color(0.25, 0.72, 0.18), 196, func():
 			Progress.current_map = cm
@@ -3014,7 +3022,7 @@ func _build_main_menu(root: Control) -> void:
 	var nm := _label("%s  -  Map %d" % [str(cme.get("name", "")), map_order.find(cm) + 1], 20, Color(0.85, 1.0, 0.8), 7)
 	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	(bot[2] as VBoxContainer).add_child(nm)
-	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 16, Color(0.75, 0.7, 0.62), 4)
+	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 16, Color(0.62, 0.67, 0.75), 4)
 	ver.anchor_top = 1.0
 	ver.anchor_bottom = 1.0
 	ver.offset_left = 16
@@ -3050,7 +3058,7 @@ func _open_workshop(era: String) -> void:
 			get_tree().reload_current_scene())
 	head.add_child(done)
 	_close_with(dlg, done)
-	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.92, 0.86, 0.76), 5)
+	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.78, 0.83, 0.9), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	# era switcher (only ages the player has reached)
@@ -3062,7 +3070,7 @@ func _open_workshop(era: String) -> void:
 	for en in _eras():
 		if not Progress.is_unlocked(_first_map_of(en)):
 			continue
-		var tb := _button(en.to_upper(), Color(0.45, 0.32, 0.2), 18)
+		var tb := _button(en.to_upper(), Color(0.18, 0.28, 0.46), 18)
 		tb.custom_minimum_size = Vector2(210, 50)
 		tb.modulate = Color(1.25, 1.2, 0.95) if en == era else Color(0.75, 0.75, 0.75)
 		tb.pressed.connect(func():
@@ -3082,7 +3090,7 @@ func _open_workshop(era: String) -> void:
 		var own := Progress.tower_unlocked(tid)
 		var cost := Progress.tower_scrap_cost(tid)
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", _style(Color(0.24, 0.16, 0.1) if own else Color(0.17, 0.13, 0.1), 18, C_GOLD.darkened(0.3) if own else C_PANEL_EDGE, 3))
+		card.add_theme_stylebox_override("panel", _style(Color(0.09, 0.15, 0.25) if own else Color(0.09, 0.13, 0.18), 18, C_GOLD.darkened(0.3) if own else C_PANEL_EDGE, 3))
 		card.custom_minimum_size = Vector2(330, 0)
 		cards.add_child(card)
 		var v := VBoxContainer.new()
@@ -3098,7 +3106,7 @@ func _open_workshop(era: String) -> void:
 		var ln := _label("%s  -  %d gold to build" % [str(def.lineage), int(def.cost)], 18, Color(1, 0.8, 0.5), 5)
 		ln.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(ln)
-		var ds := _label(str(def.desc), 18, Color(0.9, 0.85, 0.78), 4)
+		var ds := _label(str(def.desc), 18, Color(0.78, 0.83, 0.9), 4)
 		ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ds.custom_minimum_size = Vector2(290, 56)
@@ -3114,7 +3122,7 @@ func _open_workshop(era: String) -> void:
 			ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v.add_child(ok)
 		elif Progress.next_unlock(era) != tid:
-			var lk := _label("UNLOCK #%d FIRST  -  %d SCRAP" % [rank - 1, cost], 20, Color(0.75, 0.68, 0.6), 5)
+			var lk := _label("UNLOCK #%d FIRST  -  %d SCRAP" % [rank - 1, cost], 20, Color(0.6, 0.66, 0.75), 5)
 			lk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v.add_child(lk)
 		else:
@@ -3177,7 +3185,7 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 		var hd: Dictionary = defs.heroes.heroes[hid]
 		var owned := Progress.hero_owned(hid)
 		var col := Color(hd.color[0], hd.color[1], hd.color[2])
-		var hb := _button(_short_name(str(hd.name)), col.lerp(Color(0.3, 0.2, 0.12), 0.35 if owned else 0.75), 20)
+		var hb := _button(_short_name(str(hd.name)), col.lerp(Color(0.12, 0.18, 0.3), 0.35 if owned else 0.75), 20)
 		hb.icon = _face_tex(hid)
 		hb.expand_icon = true
 		hb.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
@@ -3205,7 +3213,7 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 	var now := _label("Playing as: %s, %s" % [hd2.name, hd2.title], 22, C_GOLD, 6)
 	now.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(now)
-	var tip := _label("Tap a hero to see what they do.", 18, Color(0.85, 0.78, 0.68), 5)
+	var tip := _label("Tap a hero to see what they do.", 18, Color(0.68, 0.75, 0.85), 5)
 	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(tip)
 
@@ -3280,7 +3288,7 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	var vp := SubViewport.new()
 	vp.own_world_3d = true
 	vp.transparent_bg = true
-	vp.msaa_3d = Viewport.MSAA_4X
+	vp.msaa_3d = Viewport.MSAA_4X if (Progress.gfx_level() == 0 and not OS.has_feature("mobile")) else Viewport.MSAA_DISABLED
 	svc.add_child(vp)
 	var pivot := Node3D.new()
 	vp.add_child(pivot)
@@ -3380,6 +3388,148 @@ func _tower_pros_cons(d: Dictionary) -> Array:
 	return [pros, cons]
 
 
+## Every robot type a map sends (including ones that split off or get summoned), in order of first appearance.
+func _map_robots(mid: String) -> Array:
+	var mp := Defs.load_map(mid)
+	var wf: Dictionary = Defs._load("res://data/" + str(mp.get("waves_file", "waves.json")))
+	var first := {}
+	var order := []
+	var add := func(t: String, w: int) -> void:
+		if not defs.enemies.has(t) or first.has(t):
+			return
+		first[t] = w
+		order.append(t)
+	var wi := 0
+	for wave in wf.waves:
+		wi += 1
+		for g in wave:
+			add.call(str(g.type), wi)
+	var i := 0
+	while i < order.size():           # children: split-on-death and summons
+		var d: Dictionary = defs.enemies[order[i]]
+		if d.has("on_death") and d.on_death is Dictionary and d.on_death.has("type"):
+			add.call(str(d.on_death.type), first[order[i]])
+		if d.has("summon"):
+			add.call(str(d.summon.type), first[order[i]])
+		i += 1
+	var out := []
+	for t in order:
+		out.append([t, first[t]])
+	return out
+
+
+## Robot card for a map: who comes, from which wave, how tough they are there, and how to beat them.
+func _robot_roster(mid: String) -> void:
+	var mp := Defs.load_map(mid)
+	var me := _map_entry(mid)
+	var hpm := float(mp.get("hp_mult", 1.0)) * Progress.timeline_hp_mult()
+	var bossm := float(mp.get("boss_hp_mult", 1.0))
+	var arm := float(mp.get("armor_mult", 1.0))
+	var dlg := _modal(ui_root, 0.7)
+	var box: VBoxContainer = dlg.get_meta("box")
+	box.set_meta("want_w", 1500.0)
+	box.add_theme_constant_override("separation", 12)
+	detail_open += 1
+	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
+	_on_close(dlg, func():
+		_sfx("click")
+		dlg.queue_free())
+	var ttl := _label("ROBOTS  -  %s" % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ttl)
+	var sub := _label("%s   -   Map %d of %d   -   20 waves. Stats are for this map." % [str(me.get("era", "")), map_order.find(mid) + 1, map_order.size()], 22, C_TEXT, 6)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(sub)
+	var grid := HFlowContainer.new()
+	grid.alignment = FlowContainer.ALIGNMENT_CENTER
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	box.add_child(grid)
+	for pair in _map_robots(mid):
+		var t: String = pair[0]
+		var d: Dictionary = defs.enemies[t]
+		var boss := bool(d.get("boss", false))
+		var card := PanelContainer.new()
+		var cc := Color(0.55, 0.15, 0.15) if boss else Color(0.25, 0.32, 0.45)
+		card.add_theme_stylebox_override("panel", _style(Color(0.08, 0.09, 0.13), 18, cc, 4 if boss else 3))
+		card.custom_minimum_size = Vector2(440, 0)
+		grid.add_child(card)
+		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 12)
+		card.add_child(h)
+		var ic := _icon(_res("res://assets/ui/icon_%s.png" % t) as Texture2D if ResourceLoader.exists("res://assets/ui/icon_%s.png" % t) else ICON_WAVE, 120)
+		h.add_child(ic)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 2)
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(v)
+		var nm := _label(("BOSS: " if boss else "") + str(d.name), 26, Color(1, 0.5, 0.45) if boss else C_TEXT, 7)
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(nm)
+		v.add_child(_label("First seen: wave %d" % int(pair[1]), 17, Color(0.75, 0.8, 0.9), 4))
+		var hp := float(d.hp) * hpm * (bossm if boss else 1.0)
+		var sp := float(d.speed)
+		var spd := "slow" if sp < 0.9 else ("fast" if sp > 1.7 else "normal")
+		var stats := "HP %s   Armor %s   Speed %s (%s)" % [_short_num(hp), str(snappedf(float(d.armor) * arm, 0.1)), str(snappedf(sp, 0.01)), spd]
+		if float(d.get("shield", 0.0)) > 0.0:
+			stats += "\nShield %s (recharges)" % _short_num(float(d.shield) * hpm * (bossm if boss else 1.0))
+		stats += "\nCosts you %d %s if it gets through   -   %d gold" % [int(d.leak), "life" if int(d.leak) == 1 else "lives", int(d.bounty)]
+		var sl := _label(stats, 18, Color(0.85, 0.88, 0.92), 4)
+		sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(sl)
+		for tip in _robot_traits(d):
+			var tl := _label("-  " + str(tip), 17, Color(1.0, 0.8, 0.55), 4)
+			tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			v.add_child(tl)
+	var note := _label("Armor takes a flat chunk off every hit, so small fast hits struggle against armored robots.", 18, Color(0.75, 0.8, 0.9), 4)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
+	var back := _button("CLOSE", Color(0.3, 0.36, 0.5), 28)
+	back.custom_minimum_size = Vector2(260, 80)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(func():
+		_sfx("click")
+		dlg.queue_free())
+	box.add_child(back)
+	dlg.get_parent().move_child(dlg, -1)
+
+
+func _short_num(x: float) -> String:
+	if x >= 10000.0:
+		return "%.1fk" % (x / 1000.0)
+	return str(int(round(x)))
+
+
+func _robot_traits(d: Dictionary) -> Array:
+	var out := []
+	if d.get("flying", false):
+		out.append("Flies: only shooting and pulse towers, anti-air and heros can hit it")
+	if d.get("cloak", false):
+		out.append("Cloaked: a Control tower, a spotter or your hero must reveal it")
+	if float(d.get("shield", 0.0)) > 0.0:
+		out.append("Shield recharges if left alone: burst it or use shield breakers")
+	if d.has("heal"):
+		out.append("Repairs robots around it: kill it first")
+	if float(d.get("regen", 0.0)) > 0.0:
+		out.append("Regenerates health over time")
+	if d.has("on_death") and d.on_death is Dictionary and d.on_death.has("type"):
+		var ct := str(d.on_death.type)
+		out.append("Splits into %d %s when destroyed: splash damage helps" % [int(d.on_death.get("count", 1)), str(defs.enemies[ct].name) if defs.enemies.has(ct) else ct])
+	if d.has("summon"):
+		var st := str(d.summon.type)
+		out.append("Calls in %s every %ds" % [str(defs.enemies[st].name) if defs.enemies.has(st) else st, int(d.summon.every)])
+	if d.has("emp"):
+		if d.emp.get("on_death", false):
+			out.append("EMP blast when destroyed knocks out nearby towers")
+		else:
+			out.append("EMP knocks out towers within %.1f tiles for %.1fs: spread out" % [float(d.emp.radius), float(d.emp.duration)])
+	if d.has("enrage"):
+		out.append("Enrages below %d%% health and speeds up" % int(float(d.enrage.below) * 100))
+	if float(d.armor) >= 4.0:
+		out.append("Heavily armored: use big hits, Siege or armor piercing")
+	return out
+
+
 ## Tower card: model, attack stats, specials, upgrade paths, pros and cons.
 func _tower_detail(tid: String) -> void:
 	var d: Dictionary = defs.towers[tid]
@@ -3439,7 +3589,7 @@ func _tower_detail(tid: String) -> void:
 		stats.append(["TARGETS", "%d per hit" % int(b.max_targets)])
 	for st in stats:
 		var chip := PanelContainer.new()
-		var csb := _style(Color(0.1, 0.07, 0.05), 12, col.darkened(0.3), 3)
+		var csb := _style(Color(0.05, 0.07, 0.11), 12, col.darkened(0.3), 3)
 		csb.content_margin_left = 12
 		csb.content_margin_right = 12
 		csb.content_margin_top = 4
@@ -3448,7 +3598,7 @@ func _tower_detail(tid: String) -> void:
 		var cv := VBoxContainer.new()
 		cv.add_theme_constant_override("separation", -4)
 		chip.add_child(cv)
-		cv.add_child(_label(str(st[0]), 15, Color(0.75, 0.7, 0.6), 4))
+		cv.add_child(_label(str(st[0]), 15, Color(0.6, 0.66, 0.75), 4))
 		cv.add_child(_label(str(st[1]), 21, Color.WHITE, 5))
 		chips.add_child(chip)
 	if tech > 1.0:
@@ -3502,14 +3652,14 @@ func _tower_detail(tid: String) -> void:
 		bv.add_child(bd)
 		var ti := 3
 		for tr in br.tiers:
-			var tl := _label("Tier %d  %s (%d gold): %s" % [ti, tr.name, int(tr.cost), tr.desc], 17, Color(0.92, 0.88, 0.8), 4)
+			var tl := _label("Tier %d  %s (%d gold): %s" % [ti, tr.name, int(tr.cost), tr.desc], 17, Color(0.81, 0.85, 0.91), 4)
 			tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			bv.add_child(tl)
 			ti += 1
 	var note := _label("At tier 3 you pick Path A or Path B. The other path locks for that tower.", 17, Color(1, 0.75, 0.5), 4)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
-	var back := _button("CLOSE", Color(0.42, 0.3, 0.2), 28)
+	var back := _button("CLOSE", Color(0.18, 0.27, 0.43), 28)
 	back.custom_minimum_size = Vector2(260, 80)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func():
@@ -3570,7 +3720,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 		var l2 := _label("-  " + str(t), 20, Color(1.0, 0.82, 0.78), 5)
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(l2)
-	var note := _label("Every hero fights at full strength in any age.", 18, Color(0.85, 0.78, 0.68), 5)
+	var note := _label("Every hero fights at full strength in any age.", 18, Color(0.68, 0.75, 0.85), 5)
 	info.add_child(note)
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -3595,7 +3745,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 			dlg.queue_free()
 			_refresh_hero_pickers(picker_box))
 		btns.add_child(play)
-		var back := _button("BACK", Color(0.42, 0.3, 0.2), 30)
+		var back := _button("BACK", Color(0.18, 0.27, 0.43), 30)
 		back.custom_minimum_size = Vector2(240, 92)
 		back.pressed.connect(func():
 			_sfx("click")
@@ -3660,7 +3810,7 @@ func _open_heroes() -> void:
 			get_tree().reload_current_scene())
 	head.add_child(done)
 	_close_with(heroes_panel, done)
-	var intro := _label("Your hero joins every match for free. Each age brings new heros to buy with Time Shards, which you earn from maps and Upgrade levels. They don't come cheap.", 22, Color(0.92, 0.86, 0.76), 5)
+	var intro := _label("Your hero joins every match for free. Each age brings new heros to buy with Time Shards, which you earn from maps and Upgrade levels. They don't come cheap.", 22, Color(0.78, 0.83, 0.9), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	var picker := _hero_picker(box)
@@ -3716,7 +3866,7 @@ func _build_map_select(root: Control) -> void:
 			_map_card(row, m)
 		if era_open and default_tab == "":
 			pass
-		var tbtn := _button(era_name.to_upper(), Color(0.45, 0.32, 0.2) if era_open else Color(0.25, 0.22, 0.2), 20)
+		var tbtn := _button(era_name.to_upper(), Color(0.18, 0.28, 0.46) if era_open else Color(0.18, 0.21, 0.27), 20)
 		tbtn.custom_minimum_size = Vector2(244, 58)
 		tbtn.set_meta("open", era_open)
 		tabs.add_child(tbtn)
@@ -3742,7 +3892,7 @@ func _build_map_select(root: Control) -> void:
 	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hhead)
 	_hero_picker(box)
-	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = lose 50 lives or fewer, 3 = lose 10 or fewer.  Your hero joins every match for free.", 18, Color(0.85, 0.78, 0.68), 5)
+	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = lose 50 lives or fewer, 3 = lose 10 or fewer.  Your hero joins every match for free.", 18, Color(0.68, 0.75, 0.85), 5)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)
 	var brow := HFlowContainer.new()
@@ -3750,7 +3900,7 @@ func _build_map_select(root: Control) -> void:
 	brow.add_theme_constant_override("h_separation", 14)
 	brow.add_theme_constant_override("v_separation", 10)
 	box.add_child(brow)
-	var m_back := _button("BACK", Color(0.42, 0.3, 0.22), 22)
+	var m_back := _button("BACK", Color(0.2, 0.28, 0.43), 22)
 	m_back.custom_minimum_size = Vector2(160, 60)
 	m_back.pressed.connect(func():
 		_sfx("click")
@@ -3758,7 +3908,7 @@ func _build_map_select(root: Control) -> void:
 		title_screen.visible = true)
 	brow.add_child(m_back)
 	_close_with(map_select, m_back)
-	var m_work := _button("TOWERS", Color(0.5, 0.36, 0.16), 22)
+	var m_work := _button("TOWERS", Color(0.18, 0.28, 0.47), 22)
 	m_work.custom_minimum_size = Vector2(220, 60)
 	m_work.pressed.connect(func():
 		_sfx("click")
@@ -3811,7 +3961,7 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 	var mid: String = m.id
 	var unlocked := Progress.is_unlocked(mid)
 	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", _style(Color(0.24, 0.16, 0.1) if unlocked else Color(0.16, 0.13, 0.11), 20,
+	card.add_theme_stylebox_override("panel", _style(Color(0.09, 0.15, 0.25) if unlocked else Color(0.1, 0.13, 0.18), 20,
 		C_PANEL_EDGE if unlocked else Color(0.3, 0.25, 0.2), 4))
 	card.custom_minimum_size = Vector2(390, 0)
 	row.add_child(card)
@@ -3836,9 +3986,9 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 		cc.set_anchors_preset(Control.PRESET_FULL_RECT)
 		thumb_holder.add_child(cc)
 		cc.add_child(_icon(ICON_LOCK, 90))
-	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.6, 0.55, 0.5), 8))
-	v.add_child(_label("MAP %d OF %d" % [map_order.find(str(m.id)) + 1, map_order.size()], 20, Color(0.85, 0.78, 0.6), 6))
-	var bl := _label(str(m.blurb), 17, Color(0.9, 0.85, 0.78), 5)
+	v.add_child(_label(str(m.name), 32, C_TEXT if unlocked else Color(0.43, 0.51, 0.63), 8))
+	v.add_child(_label("MAP %d OF %d" % [map_order.find(str(m.id)) + 1, map_order.size()], 20, Color(0.63, 0.71, 0.82), 6))
+	var bl := _label(str(m.blurb), 17, Color(0.78, 0.83, 0.9), 5)
 	bl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	bl.custom_minimum_size = Vector2(362, 60)
 	v.add_child(bl)
@@ -3846,7 +3996,14 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 	for k in 3:
 		stars.add_child(_icon(ICON_STAR if k < Progress.stars(mid) else ICON_STAR_EMPTY, 36))
 	v.add_child(stars)
-	var go := _button("PLAY" if unlocked else "LOCKED", Color(0.2, 0.58, 0.18) if unlocked else Color(0.3, 0.27, 0.24), 28)
+	var rb := _button("ROBOTS", Color(0.55, 0.2, 0.22), 20)
+	rb.custom_minimum_size = Vector2(0, 52)
+	var rmid := str(m.id)
+	rb.pressed.connect(func():
+		_sfx("click")
+		_robot_roster(rmid))
+	v.add_child(rb)
+	var go := _button("PLAY" if unlocked else "LOCKED", Color(0.2, 0.58, 0.18) if unlocked else Color(0.21, 0.25, 0.32), 28)
 	go.disabled = not unlocked
 	go.custom_minimum_size = Vector2(0, 66)
 	go.pressed.connect(func():
@@ -3866,7 +4023,7 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.add_child(center)
 	var panel := PanelContainer.new()
-	var sb := _style(Color(0.16, 0.1, 0.06, 1.0), 30, C_PANEL_EDGE, 6)
+	var sb := _style(Color(0.06, 0.1, 0.17, 1.0), 30, C_PANEL_EDGE, 6)
 	sb.set_content_margin_all(30)
 	sb.shadow_size = 24
 	panel.add_theme_stylebox_override("panel", sb)
@@ -4191,6 +4348,7 @@ func _build_pause_menu(root: Control) -> void:
 	var items := [
 		["RESUME", Color(0.2, 0.58, 0.18), func(): _set_paused(false)],
 		["SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()],
+		["ROBOTS ON THIS MAP", Color(0.55, 0.2, 0.22), func(): _robot_roster(map_id)],
 		["RESTART MAP", Color(0.24, 0.4, 0.62), func():
 			_award_xp(false)
 			Progress.current_map = map_id
@@ -4209,7 +4367,7 @@ func _build_pause_menu(root: Control) -> void:
 			_sfx("click")
 			cb.call())
 		box.add_child(b)
-	var note := _label("Waves you cleared still earn Upgrade XP if you restart or quit.", 19, Color(0.85, 0.78, 0.68), 5)
+	var note := _label("Waves you cleared still earn Upgrade XP if you restart or quit.", 19, Color(0.68, 0.75, 0.85), 5)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
@@ -4223,7 +4381,11 @@ func _apply_settings() -> void:
 		AudioServer.set_bus_mute(i, v <= 0.01)
 		AudioServer.set_bus_volume_db(i, linear_to_db(maxf(v, 0.01)))
 	if world_env != null:
-		world_env.glow_enabled = bool(Progress.setting("glow"))
+		world_env.glow_enabled = bool(Progress.setting("glow")) and Progress.gfx_level() == 0
+	# MSAA leaks memory in the Compatibility renderer on some Android GPUs (godot#97967): off on phones
+	var aa := Viewport.MSAA_2X if (Progress.gfx_level() == 0 and not OS.has_feature("mobile")) else Viewport.MSAA_DISABLED
+	if get_viewport().msaa_3d != aa:
+		get_viewport().msaa_3d = aa
 	var sc := clampf(float(Progress.setting("ui_scale")), 0.8, 1.6)
 	if not is_equal_approx(get_tree().root.content_scale_factor, sc):
 		get_tree().root.content_scale_factor = sc
@@ -4256,6 +4418,28 @@ func _toggle_button(key: String) -> Button:
 	return b
 
 
+func _gfx_picker() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var btns := []
+	for i in 3:
+		var b := _button(Progress.GFX_NAMES[i], Color(0.3, 0.3, 0.36), 20)
+		b.custom_minimum_size = Vector2(120, 60)
+		btns.append(b)
+		row.add_child(b)
+		b.pressed.connect(func():
+			_sfx("click", -6.0)
+			Progress.data.settings.gfx = i
+			Progress.save()
+			_apply_settings()
+			_toast("Graphics: %s (fully applies on the next map load)" % Progress.GFX_NAMES[i], C_GOLD)
+			for j in btns.size():
+				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+	for j in btns.size():
+		btns[j].modulate = Color(0.7, 1.5, 0.7) if j == Progress.gfx_level() else Color.WHITE
+	return row
+
+
 func _scale_picker() -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -4286,7 +4470,7 @@ func _slider(key: String) -> HSlider:
 	sl.value = float(Progress.setting(key))
 	sl.custom_minimum_size = Vector2(320, 48)
 	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var track := _style(Color(0.1, 0.06, 0.03), 8, C_PANEL_EDGE, 2)
+	var track := _style(Color(0.04, 0.06, 0.1), 8, C_PANEL_EDGE, 2)
 	track.set_content_margin_all(6)
 	track.shadow_size = 0
 	sl.add_theme_stylebox_override("slider", track)
@@ -4318,6 +4502,7 @@ func _open_settings() -> void:
 		["Screen shake", _toggle_button("shake")],
 		["Gold popups", _toggle_button("popups")],
 		["Glow effects (turn off on slow phones)", _toggle_button("glow")],
+		["Graphics (Safe or Minimal if the game crashes)", _gfx_picker()],
 	]
 	for r in rows:
 		var hb := HBoxContainer.new()
@@ -4328,9 +4513,27 @@ func _open_settings() -> void:
 		hb.add_child(l)
 		hb.add_child(r[1])
 		box.add_child(hb)
-	var note := _label("Auto-start: after you start wave 1, each next wave starts 2 seconds after the last one is cleared.", 18, Color(0.85, 0.78, 0.68), 5)
+	var note := _label("Auto-start: after you start wave 1, each next wave starts 2 seconds after the last one is cleared.", 18, Color(0.68, 0.75, 0.85), 5)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
+	if Progress.crash_recovered:
+		var cr := _label("The game closed unexpectedly last time, so graphics were lowered to %s." % Progress.GFX_NAMES[Progress.gfx_level()], 18, Color(1, 0.75, 0.5), 5)
+		cr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(cr)
+	var reset := _button("RESET TO NEW PLAYER (test)", Color(0.62, 0.2, 0.18), 22)
+	reset.custom_minimum_size = Vector2(0, 64)
+	reset.pressed.connect(func():
+		_sfx("click")
+		if not reset.has_meta("armed"):
+			reset.set_meta("armed", true)
+			reset.text = "TAP AGAIN: WIPE ALL PROGRESS?"
+			return
+		Progress.reset_progress()
+		Progress.current_map = ""
+		Progress.open_map_select = false
+		get_tree().paused = false
+		get_tree().reload_current_scene())
+	box.add_child(reset)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 34)
 	done.custom_minimum_size = Vector2(0, 84)
 	done.pressed.connect(func():
@@ -4371,7 +4574,7 @@ func _confirm_new_timeline() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
 	box.add_child(row)
-	var no := _button("NOT YET", Color(0.42, 0.3, 0.2), 32)
+	var no := _button("NOT YET", Color(0.18, 0.27, 0.43), 32)
 	no.custom_minimum_size = Vector2(300, 90)
 	no.pressed.connect(func():
 		_sfx("click")
@@ -4472,7 +4675,7 @@ func _build_legacy_contents() -> void:
 	var pr := Progress.legacy_progress()
 	lvbox.add_child(_label("LEVEL %d" % Progress.legacy_level(), 36, Color(0.6, 0.9, 1.0), 8))
 	var bar := ColorRect.new()
-	bar.color = Color(0.08, 0.05, 0.03)
+	bar.color = Color(0.03, 0.05, 0.09)
 	bar.custom_minimum_size = Vector2(460, 18)
 	lvbox.add_child(bar)
 	var fill := ColorRect.new()
@@ -4481,14 +4684,14 @@ func _build_legacy_contents() -> void:
 	bar.add_child(fill)
 	lvbox.add_child(_label("%d / %d XP to the next level" % [pr[0], pr[1]], 19, Color(0.85, 0.85, 0.9), 5))
 	var pts := Progress.points_free()
-	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.7, 0.65, 0.6), 9)
+	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.6, 0.64, 0.7), 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
 	var intro_t := "Every battle raises your Upgrade level, which unlocks new heros. Upgrade Points are earned only by starting a New Timeline, and the perks you buy carry into every map and every timeline after that."
 	if Progress.timeline() > 1:
 		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
 			Progress.timeline() - 1, "" if Progress.timeline() == 2 else "s"]
-	var intro := _label(intro_t, 22, Color(0.92, 0.86, 0.76), 5)
+	var intro := _label(intro_t, 22, Color(0.78, 0.83, 0.9), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	# branches
@@ -4517,7 +4720,7 @@ func _build_legacy_contents() -> void:
 	foot.alignment = BoxContainer.ALIGNMENT_CENTER
 	foot.add_theme_constant_override("separation", 20)
 	box.add_child(foot)
-	var reset := _button("RESET POINTS (free)", Color(0.5, 0.28, 0.2), 22)
+	var reset := _button("RESET POINTS (free)", Color(0.19, 0.3, 0.5), 22)
 	reset.custom_minimum_size = Vector2(320, 70)
 	reset.disabled = Progress.points_spent() == 0
 	reset.pressed.connect(func():
@@ -4553,7 +4756,7 @@ func _perk_card(p: Dictionary, bc: Color) -> Control:
 	var rank := Progress.perk_rank(id)
 	var mx := Progress.perk_max(id)
 	var card := PanelContainer.new()
-	var sb := _style(Color(0.22, 0.15, 0.09) if rank == 0 else bc.darkened(0.62), 14, bc.darkened(0.2) if rank > 0 else Color(0.36, 0.27, 0.18), 3)
+	var sb := _style(Color(0.09, 0.14, 0.23) if rank == 0 else bc.darkened(0.62), 14, bc.darkened(0.2) if rank > 0 else Color(0.16, 0.24, 0.37), 3)
 	sb.set_content_margin_all(10)
 	sb.shadow_size = 0
 	card.add_theme_stylebox_override("panel", sb)
@@ -4569,9 +4772,9 @@ func _perk_card(p: Dictionary, bc: Color) -> Control:
 	var nm := _label(str(p.name), 24, C_TEXT, 6)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(nm)
-	top.add_child(_label("%d/%d" % [rank, mx], 22, C_GOLD if rank > 0 else Color(0.7, 0.65, 0.6), 6))
+	top.add_child(_label("%d/%d" % [rank, mx], 22, C_GOLD if rank > 0 else Color(0.6, 0.64, 0.7), 6))
 	var now_txt := ("Now: " + Progress.perk_text(id, rank)) if rank > 0 else str(p.desc)
-	info.add_child(_label(now_txt, 17, Color(0.95, 0.9, 0.8) if rank > 0 else Color(0.8, 0.75, 0.68), 4))
+	info.add_child(_label(now_txt, 17, Color(0.83, 0.87, 0.92) if rank > 0 else Color(0.68, 0.73, 0.8), 4))
 	info.add_child(_label(("Next: " + Progress.perk_text(id, rank + 1)) if rank < mx else "MAXED", 17,
 		Color(0.6, 0.95, 0.6) if rank < mx else C_GOLD, 4))
 	var plus := _button("+", Color(0.2, 0.55, 0.2), 34)
@@ -4681,6 +4884,15 @@ func _shoot_menu() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	await _shot("menu_workshop.png")
+	if "--shoot-robots" in OS.get_cmdline_user_args():
+		_robot_roster("railyard")
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_robots.png")
+		_open_settings()
+		await get_tree().create_timer(0.5).timeout
+		await _shot("menu_settings.png")
+		get_tree().quit()
+		return
 	if "--shoot-tower" in OS.get_cmdline_user_args():
 		_tower_detail(str(Progress.era_towers("Bronze Age")[1]))
 		await get_tree().create_timer(1.0).timeout

@@ -3,7 +3,8 @@
 extends Node
 
 const SAVE_PATH := "user://save.json"
-const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true, "ui_scale": 1.15}
+const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true, "ui_scale": 1.15, "gfx": -1}
+const GFX_NAMES := ["FULL", "SAFE", "MINIMAL"]
 const UI_SCALES := [1.0, 1.15, 1.3]
 
 var current_map := ""          # set before reloading the game scene; "" = show title
@@ -44,6 +45,7 @@ func _ready() -> void:
 		_migrate_towers()
 	if not data.has("owned_heroes"):
 		_migrate_heroes()
+	_boot_guard()
 	if points_spent() > points_total():
 		data.perks = {}      # v0.8: points no longer come from levels, so refund perks bought that way
 		save()
@@ -123,6 +125,56 @@ func record_win(map_id: String, lives_lost: int, map_order: Array) -> Array:
 func next_map(map_id: String, map_order: Array) -> String:
 	var i := map_order.find(map_id)
 	return map_order[i + 1] if i != -1 and i + 1 < map_order.size() else ""
+
+
+# ---------------------------------------------------------------- graphics safety
+## If the last launch died before it had run for a while (e.g. the Pixel 10 PowerVR driver
+## running out of memory), drop one graphics level automatically.
+var crash_recovered := false
+
+func _boot_guard() -> void:
+	if bool(data.get("booting", false)):
+		var lv := gfx_level()
+		if lv < 2:
+			data.settings.gfx = lv + 1
+			crash_recovered = true
+	data.booting = true
+	save()
+	get_tree().create_timer(25.0).timeout.connect(mark_boot_ok)
+
+
+func mark_boot_ok() -> void:
+	if bool(data.get("booting", false)):
+		data.booting = false
+		save()
+
+
+func _notification(what: int) -> void:
+	# leaving the app normally is not a crash
+	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_APPLICATION_FOCUS_OUT]:
+		mark_boot_ok()
+
+
+## 0 = full, 1 = safe (no MSAA / glow / shadows), 2 = minimal (also lighter effects, still menu).
+## -1 in the save means "auto": safe on PowerVR GPUs, full elsewhere.
+func gfx_level() -> int:
+	var g := int(data.settings.get("gfx", -1))
+	if g >= 0:
+		return clampi(g, 0, 2)
+	var gpu := (RenderingServer.get_video_adapter_vendor() + " " + RenderingServer.get_video_adapter_name()).to_lower()
+	if "powervr" in gpu or "imagination" in gpu or "img " in gpu:
+		return 1
+	return 0
+
+
+# ---------------------------------------------------------------- test reset
+## Wipes all progress (maps, stars, XP, perks, Scrap, towers, heros, Time Shards, timeline)
+## but keeps settings, so the tester starts over as a brand-new player.
+func reset_progress() -> void:
+	var keep: Dictionary = data.settings.duplicate(true)
+	data = {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
+		"settings": keep, "cleared": [], "timeline": 1, "towers": [], "scrap": {}, "owned_heroes": ["ugo"], "shards": 0}
+	save()
 
 
 # ---------------------------------------------------------------- heroes
