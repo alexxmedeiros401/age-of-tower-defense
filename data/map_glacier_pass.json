@@ -7,7 +7,7 @@
  "start_gold": 700,
  "start_lives": 100,
  "path_width": 1.7,
- "hp_mult": 1.661,
+ "hp_mult": 1.401,
  "bounds": [
   -15.0,
   -8.5,

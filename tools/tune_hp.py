@@ -223,6 +223,112 @@ def tune_prog(entry):
     print("%-18s #%02d target %2d  hp %.2f -> %.2f  kit%d %d   kit%d %d%s" % (mid, gi + 1, tgt, hp0, hp, wk, win, lk, lose, flag), flush=True)
 
 
+def fix_prog(entry):
+    """Second pass for maps the bisection left far off target (the boss wave makes lives jump):
+    walk robot HP in small steps toward the target, never leaving the map unwinnable."""
+    mid, idx, gi, n = entry
+    path = os.path.join(ROOT, "data", "map_%s.json" % mid)
+    m = json.load(open(path))
+    hp = float(m.get("hp_mult", 1.0))
+    boss = float(m.get("boss_hp_mult", 1.0))
+    tgt = target_lives(gi, n)
+    wk, lk = min(4, idx + 2), idx + 1
+    v = kit_score(mid, wk, hp, boss)
+    hp0, v0 = hp, v
+    steps = 0
+    while v < 0 and steps < 14:            # unwinnable: soften until the intended kit wins
+        hp *= 0.94
+        v = kit_score(mid, wk, hp, boss)
+        steps += 1
+    best = (hp, v)
+    if abs(v - tgt) > 10:
+        f = 1.05 if v > tgt else 0.95
+        for i in range(8):
+            trial = hp * f
+            tv = kit_score(mid, wk, trial, boss)
+            if tv < 0:
+                break
+            hp, v = trial, tv
+            if abs(v - tgt) < abs(best[1] - tgt):
+                best = (hp, v)
+            if (f > 1 and v <= tgt) or (f < 1 and v >= tgt):
+                break
+    hp, v = best
+    lose = kit_score(mid, lk, hp, boss)
+    m = json.load(open(path))
+    m["hp_mult"] = round(hp, 3)
+    json.dump(m, open(path, "w"), indent=1)
+    flag = "" if lose < 0 else "   <-- smaller kit can still win"
+    print("FIX %-18s #%02d target %2d  hp %.2f -> %.2f  kit%d %d -> %d   kit%d %d%s" % (mid, gi + 1, tgt, hp0, hp, wk, v0, v, lk, lose, flag), flush=True)
+
+
+def headroom(gi, n):
+    """How much tougher the robots could get before the intended kit loses.
+    Map 1: 1.55x (forgiving). Last map: 1.08x (razor thin)."""
+    return 1.55 - 0.47 * gi / max(1, n - 1)
+
+
+def tune_head(entry):
+    """Progressive difficulty by HP headroom (smooth, unlike lives, which jump at the boss):
+    find the toughest robots the intended kit + best era hero still beats, then set the map
+    that much below it. Then make sure the kit with one tower fewer loses."""
+    mid, idx, gi, n = entry
+    path = os.path.join(ROOT, "data", "map_%s.json" % mid)
+    m = json.load(open(path))
+    hp0 = float(m.get("hp_mult", 1.0))
+    boss = float(m.get("boss_hp_mult", 1.0))
+    wk, lk = min(4, idx + 2), idx + 1
+    lo, hi = hp0 * 0.6, hp0 * 1.9
+    if kit_score(mid, wk, lo, boss) < 0:
+        lo = hp0 * 0.3
+    for i in range(6):
+        mid_hp = math.sqrt(lo * hi)
+        if kit_score(mid, wk, mid_hp, boss) >= 0:
+            lo = mid_hp
+        else:
+            hi = mid_hp
+    crit = lo
+    H = headroom(gi, n)
+    hp = crit / H
+    lose = kit_score(mid, lk, hp, boss)
+    steps = 0
+    while lose >= 0 and hp * 1.06 < crit * 0.97 and steps < 6:   # gating first: one tower fewer must not be enough
+        hp *= 1.06
+        lose = kit_score(mid, lk, hp, boss)
+        steps += 1
+    win = kit_score(mid, wk, hp, boss)
+    m = json.load(open(path))
+    m["hp_mult"] = round(hp, 3)
+    json.dump(m, open(path, "w"), indent=1)
+    flag = "" if lose < 0 else "   <-- smaller kit can still win"
+    print("HEAD %-18s #%02d headroom %.2f (actual %.2f)  hp %.2f -> %.2f  kit%d %d   kit%d %d%s" % (
+        mid, gi + 1, H, crit / hp, hp0, hp, wk, win, lk, lose, flag), flush=True)
+
+
+if __name__ == "__main__" and "--head" in sys.argv:
+    maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
+    seen = {}
+    todo = []
+    for gi, mm in enumerate(maps):
+        seen[mm["era"]] = seen.get(mm["era"], -1) + 1
+        if len(sys.argv) <= 2 or mm["id"] in sys.argv:
+            todo.append((mm["id"], seen[mm["era"]], gi, len(maps)))
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        list(ex.map(tune_head, todo))
+    sys.exit(0)
+
+if __name__ == "__main__" and "--fixprog" in sys.argv:
+    maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
+    seen = {}
+    todo = []
+    for gi, mm in enumerate(maps):
+        seen[mm["era"]] = seen.get(mm["era"], -1) + 1
+        if mm["id"] in sys.argv:
+            todo.append((mm["id"], seen[mm["era"]], gi, len(maps)))
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        list(ex.map(fix_prog, todo))
+    sys.exit(0)
+
 if __name__ == "__main__" and "--prog" in sys.argv:
     maps = json.load(open(os.path.join(ROOT, "data", "maps.json")))["maps"]
     seen = {}

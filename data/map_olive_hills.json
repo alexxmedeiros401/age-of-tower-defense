@@ -9,7 +9,7 @@
  "start_gold": 900,
  "start_lives": 100,
  "path_width": 1.7,
- "hp_mult": 3.62,
+ "hp_mult": 3.188,
  "armor_mult": 1.8,
  "bounds": [
   -15.0,
