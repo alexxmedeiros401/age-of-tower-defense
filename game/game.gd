@@ -177,6 +177,7 @@ func _ready() -> void:
 	_build_world()
 	_build_audio()
 	_build_hud()
+	_build_confirm_bar()
 	_apply_settings()
 	demo = "--demo" in OS.get_cmdline_user_args()
 	if Progress.current_map == "" and not demo and not "--autowin" in OS.get_cmdline_user_args():
@@ -1871,6 +1872,7 @@ func _process(delta: float) -> void:
 		if steps == MAX_STEPS_PER_FRAME:
 			accum = 0.0
 	_handle_events()
+	_confirm_bar_tick()
 	_sync_visuals(clampf(accum / TICK, 0.0, 1.0))
 	_update_effects(delta)
 	_update_hud(delta)
@@ -2515,7 +2517,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if paused:
 		return
 	if event is InputEventMouseMotion and placing != "":
-		_move_ghost(_ground_point(event.position))
+		if _place_mode() == 2:
+			# CONFIRM: the ghost follows the pointer until a spot is picked, then only while dragging it
+			if _pc_pos == Vector2.INF or _pc_drag:
+				var gp2 := _ground_point(event.position)
+				_move_ghost(gp2)
+				if _pc_drag:
+					_pc_pos = gp2
+		else:
+			_move_ghost(_ground_point(event.position))
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_pc_drag = false
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			_cancel_placing()
@@ -2524,29 +2536,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index != MOUSE_BUTTON_LEFT:
 			return
 		var gp := _ground_point(event.position)
-		if placing == HERO_PLACING:
+		if placing != "" and _place_mode() == 2:
 			_move_ghost(gp)
-			var herr := sim.hero_placement_error(gp)
-			if herr == "":
-				sim.place_hero(gp)
-				_cancel_placing()
-				_handle_events()
-				_select(sim.hero.id)
-			else:
-				_toast(herr, Color(1, 0.45, 0.4))
-				_sfx("error", -4.0, 0.0)
+			_pc_pos = gp
+			_pc_drag = true
+			_sfx("click", -10.0)
 			return
 		if placing != "":
 			_move_ghost(gp)
-			var err := sim.placement_error(placing, gp)
-			if err == "":
-				var id := sim.place_tower(placing, gp)
-				_cancel_placing()
-				_handle_events()
-				_select(id)
-			else:
-				_toast(err, Color(1, 0.45, 0.4))
-				_sfx("error", -4.0, 0.0)
+			_commit_place(gp)
 			return
 		if sim.hero != null and sim.hero.pos.distance_to(gp) <= 0.8:
 			_select(sim.hero.id)
@@ -2622,6 +2620,8 @@ func _try_unlock(type: String) -> void:
 
 
 func _begin_placing(type: String) -> void:
+	if Time.get_ticks_msec() < _pd_block_until:
+		return
 	if type != HERO_PLACING and not _tower_open(type):
 		_try_unlock(type)
 		return
@@ -2650,9 +2650,19 @@ func _begin_placing(type: String) -> void:
 	ghost_range.scale = Vector3(r, 1, r)
 	ghost_foot.scale = Vector3(foot, 1, foot)
 	ghost.visible = true
+	_pc_pos = Vector2.INF
+	_pc_drag = false
 	_move_ghost(Vector2(-1.0, 0.0))
 	_update_shop_highlight()
-	_toast("Tap the map to place %s" % (str(sim.hero_def.name) if type == HERO_PLACING else str(defs.towers[type].name)), C_TEXT)
+	var nm := str(sim.hero_def.name) if type == HERO_PLACING else str(defs.towers[type].name)
+	match _place_mode():
+		1:
+			if not _pd_active:
+				_toast("Drag %s onto the map (or tap a spot)" % nm, C_TEXT)
+		2:
+			_toast("Tap a spot for %s, then BUILD" % nm, C_TEXT)
+		_:
+			_toast("Tap the map to place %s" % nm, C_TEXT)
 
 
 func _move_ghost(p: Vector2) -> void:
@@ -2669,7 +2679,175 @@ func _move_ghost(p: Vector2) -> void:
 func _cancel_placing() -> void:
 	placing = ""
 	ghost.visible = false
+	_pc_pos = Vector2.INF
+	_pc_drag = false
+	if _pc_bar != null:
+		_pc_bar.visible = false
 	_update_shop_highlight()
+
+
+# ---------------------------------------------------------------- placement modes (Settings > Tower placement)
+## 0 TAP:     tap a card, then tap the map. Builds right away.
+## 1 DRAG:    drag a card onto the map and let go to build (a plain tap on the card falls back to TAP).
+## 2 CONFIRM: tap a card, tap (or drag) a spot on the map; the ghost waits there with its range shown,
+##            then BUILD builds and X cancels. Nothing is built by accident.
+var _pd_type := ""             # DRAG: card the finger went down on
+var _pd_start := Vector2.ZERO
+var _pd_active := false
+var _pd_block_until := 0       # ms: swallow the card's own "pressed" right after a drag ends on it
+var _pc_pos := Vector2.INF     # CONFIRM: chosen spot
+var _pc_drag := false
+var _pc_bar: Control = null
+var _pc_build: Button = null
+
+
+func _place_mode() -> int:
+	return clampi(int(Progress.setting("place_mode")), 0, 2)
+
+
+## Lifts the dragged ghost above the finger on touch screens so the finger doesn't hide it.
+func _drag_lift() -> Vector2:
+	return Vector2(0, -90) if DisplayServer.is_touchscreen_available() else Vector2.ZERO
+
+
+func _over_ui(pos: Vector2) -> bool:
+	if hud_side != null and hud_side.is_visible_in_tree() and hud_side.get_global_rect().has_point(pos):
+		return true
+	if btn_pause != null and btn_pause.is_visible_in_tree() and btn_pause.get_global_rect().has_point(pos):
+		return true
+	return _pc_bar != null and _pc_bar.visible and _pc_bar.get_global_rect().has_point(pos)
+
+
+## The tower (or hero) card under the pointer that can start a drag, else "".
+func _card_at(pos: Vector2) -> String:
+	if shop_box == null or not shop_box.is_visible_in_tree():
+		return ""
+	for type in shop_buttons:
+		var b: Button = shop_buttons[type]
+		if b.is_visible_in_tree() and b.get_global_rect().has_point(pos) and _tower_open(type) and sim.gold >= sim.tower_cost(type):
+			# the "?" info button on the card keeps working
+			for c in b.get_children():
+				if c is Button and (c as Button).get_global_rect().has_point(pos):
+					return ""
+			return type
+	if sim.hero == null and btn_hero != null and btn_hero.is_visible_in_tree() and btn_hero.get_global_rect().has_point(pos):
+		return HERO_PLACING
+	return ""
+
+
+## Builds the current placement at gp. Returns true if it was built.
+func _commit_place(gp: Vector2) -> bool:
+	if placing == "" or gp == Vector2.INF:
+		return false
+	if placing == HERO_PLACING:
+		var herr := sim.hero_placement_error(gp)
+		if herr == "":
+			sim.place_hero(gp)
+			_cancel_placing()
+			_handle_events()
+			_select(sim.hero.id)
+			return true
+		_toast(herr, Color(1, 0.45, 0.4))
+		_sfx("error", -4.0, 0.0)
+		return false
+	var err := sim.placement_error(placing, gp)
+	if err == "":
+		var id := sim.place_tower(placing, gp)
+		_cancel_placing()
+		_handle_events()
+		_select(id)
+		return true
+	_toast(err, Color(1, 0.45, 0.4))
+	_sfx("error", -4.0, 0.0)
+	return false
+
+
+## DRAG mode, seen in _input before the GUI: press on a card arms it, moving past a few pixels picks the
+## tower up, letting go over the map builds it (over the sidebar cancels).
+func _place_drag_input(event: InputEvent) -> bool:
+	if not started or paused or _place_mode() != 1:
+		return false
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var mb := event as InputEventMouseButton
+		if mb.pressed:
+			_pd_type = _card_at(mb.position)
+			_pd_start = mb.position
+			_pd_active = false
+			return _pd_type != ""        # no drag-scrolling the sidebar from a tower card
+		if _pd_type == "":
+			return false
+		var was := _pd_active
+		_pd_type = ""
+		_pd_active = false
+		if not was:
+			return false                 # a plain tap: the card's own button handles it
+		_pd_block_until = Time.get_ticks_msec() + 150
+		if _over_ui(mb.position):
+			_cancel_placing()
+			_sfx("click", -10.0)
+		else:
+			var gp := _ground_point(mb.position + _drag_lift())
+			_move_ghost(gp)
+			if not _commit_place(gp):
+				_cancel_placing()
+		return true
+	if event is InputEventMouseMotion and _pd_type != "":
+		var mm := event as InputEventMouseMotion
+		if not _pd_active and mm.position.distance_to(_pd_start) > 16.0:
+			_pd_active = true
+			_cancel_placing()
+			_deselect()
+			_begin_placing(_pd_type)
+			if placing == "":
+				_pd_type = ""
+				_pd_active = false
+				return false
+		if _pd_active:
+			var over := _over_ui(mm.position)
+			ghost.visible = not over
+			if not over:
+				_move_ghost(_ground_point(mm.position + _drag_lift()))
+			return true
+	return false
+
+
+## CONFIRM mode: the floating BUILD / X bar over the waiting ghost.
+func _build_confirm_bar() -> void:
+	_pc_bar = HBoxContainer.new()
+	_pc_bar.add_theme_constant_override("separation", 14)
+	_pc_bar.visible = false
+	_pc_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pc_build = _button("BUILD", Color(0.2, 0.62, 0.25), 30)
+	_pc_build.custom_minimum_size = Vector2(150, 72)
+	_pc_build.pressed.connect(func():
+		if _pc_pos != Vector2.INF:
+			_commit_place(_pc_pos))
+	var x := _button("X", Color(0.75, 0.2, 0.18), 30)
+	x.custom_minimum_size = Vector2(72, 72)
+	x.pressed.connect(func():
+		_sfx("click", -6.0)
+		_cancel_placing())
+	_pc_bar.add_child(_pc_build)
+	_pc_bar.add_child(x)
+	ui_root.add_child(_pc_bar)
+
+
+func _confirm_bar_tick() -> void:
+	if _pc_bar == null:
+		return
+	var show := started and not paused and detail_open == 0 and placing != "" and _place_mode() == 2 and _pc_pos != Vector2.INF
+	_pc_bar.visible = show
+	if not show:
+		return
+	var err := sim.hero_placement_error(_pc_pos) if placing == HERO_PLACING else sim.placement_error(placing, _pc_pos)
+	_pc_build.modulate = Color.WHITE if err == "" else Color(1, 0.55, 0.55)
+	_pc_build.text = "BUILD" if err == "" else "CAN'T"
+	var sp := cam.unproject_position(_v3(_pc_pos, 2.4))
+	var vp := get_viewport().get_visible_rect().size
+	var sz := _pc_bar.get_combined_minimum_size()
+	var side_w := hud_side.get_global_rect().size.x if hud_side != null else 0.0
+	_pc_bar.size = sz
+	_pc_bar.global_position = Vector2(clampf(sp.x - sz.x * 0.5, 8.0, vp.x - side_w - sz.x - 8.0), clampf(sp.y - sz.y - 30.0, 90.0, vp.y - sz.y - 8.0))
 
 
 func _select(id: int) -> void:
@@ -2696,7 +2874,7 @@ func _on_start_pressed() -> void:
 
 
 func _on_hero_button() -> void:
-	if not started:
+	if not started or Time.get_ticks_msec() < _pd_block_until:
 		return
 	if sim.hero == null:
 		_begin_placing(HERO_PLACING)
@@ -4910,7 +5088,7 @@ func _gfx_picker() -> HBoxContainer:
 	row.add_theme_constant_override("separation", 8)
 	var btns := []
 	for i in 3:
-		var b := _button(Progress.GFX_NAMES[i], Color(0.3, 0.3, 0.36), 20)
+		var b := _button(Progress.GFX_NAMES[i], Color(0.3, 0.3, 0.36), 17)
 		b.custom_minimum_size = Vector2(120, 60)
 		btns.append(b)
 		row.add_child(b)
@@ -4924,6 +5102,35 @@ func _gfx_picker() -> HBoxContainer:
 				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
 	for j in btns.size():
 		btns[j].modulate = Color(0.7, 1.5, 0.7) if j == Progress.gfx_level() else Color.WHITE
+	return row
+
+
+const PLACE_HELP := ["TAP: tap a tower, then tap the map. Fastest.",
+	"DRAG: drag a tower from the right onto the map and let go. Drop it back on the list to cancel.",
+	"CONFIRM: tap a tower, tap a spot to preview its range, then press BUILD. No misplaced towers."]
+
+
+func _place_picker() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var btns := []
+	for i in 3:
+		var b := _button(Progress.PLACE_MODES[i], Color(0.3, 0.3, 0.36), 17)
+		b.custom_minimum_size = Vector2(120, 60)
+		b.tooltip_text = PLACE_HELP[i]
+		btns.append(b)
+		row.add_child(b)
+		b.pressed.connect(func():
+			_sfx("click", -6.0)
+			Progress.data.settings.place_mode = i
+			Progress.save()
+			_cancel_placing()
+			_toast(PLACE_HELP[i], C_GOLD)
+			toast_t = 4.0
+			for j in btns.size():
+				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+	for j in btns.size():
+		btns[j].modulate = Color(0.7, 1.5, 0.7) if j == _place_mode() else Color.WHITE
 	return row
 
 
@@ -4990,6 +5197,7 @@ func _open_settings() -> void:
 		["Gold popups", _toggle_button("popups")],
 		["Glow effects (turn off on slow phones)", _toggle_button("glow")],
 		["Graphics (Safe or Minimal if the game crashes)", _gfx_picker()],
+		["Tower placement", _place_picker()],
 	]
 	for r in rows:
 		var hb := HBoxContainer.new()
@@ -5407,6 +5615,94 @@ func _shoot_menu() -> void:
 	get_tree().quit()
 
 
+## Places a tower in each placement mode with simulated pointer input and reports what got built.
+func _test_place() -> void:
+	_start_game()
+	sim.gold += 9000
+	for i in 4:
+		await get_tree().process_frame
+	var type: String = sim.tower_types()[0]
+	var results := []
+	for mode in 3:
+		Progress.data.settings.place_mode = mode
+		_cancel_placing()
+		_deselect()
+		for i in 3:
+			await get_tree().process_frame
+		var before := sim.towers.size()
+		var spot := _demo_spot(type)
+		var target := cam.unproject_position(_v3(spot))
+		var card: Button = shop_buttons[type]
+		var cpos := card.get_global_rect().get_center() - Vector2(card.size.x * 0.2, 0)
+		match mode:
+			0:
+				await _tap(cpos)
+				await _tap(target)
+			1:
+				await _press(cpos, true)
+				for k in 12:
+					await _drag_to(cpos.lerp(target, (k + 1) / 12.0))
+				await _press(target, false)
+			2:
+				await _tap(cpos)
+				await _tap(target)
+				var mid := sim.towers.size()
+				await _shot("place_confirm_preview.png")
+				results.append("confirm_before_build=%d" % (mid - before))
+				await _tap(_pc_build.get_global_rect().get_center())
+		for i in 3:
+			await get_tree().process_frame
+		results.append("%s=%d" % [Progress.PLACE_MODES[mode], sim.towers.size() - before])
+	# drag released over the sidebar must cancel
+	Progress.data.settings.place_mode = 1
+	_deselect()
+	var n0 := sim.towers.size()
+	var c2: Button = shop_buttons[type]
+	var p2 := c2.get_global_rect().get_center() - Vector2(c2.size.x * 0.2, 0)
+	await _press(p2, true)
+	for k in 6:
+		await _drag_to(p2 + Vector2(-10.0 * (k + 1), 40.0 * (k + 1)))
+	await _press(p2 + Vector2(-60, 240), false)
+	results.append("drag_cancel=%d placing=%s" % [sim.towers.size() - n0, placing])
+	# hero in DRAG mode
+	if sim.hero == null:
+		var hb := btn_hero.get_global_rect().get_center()
+		var ht := cam.unproject_position(_v3(_demo_spot("", true)))
+		await _press(hb, true)
+		for k in 12:
+			await _drag_to(hb.lerp(ht, (k + 1) / 12.0))
+		await _press(ht, false)
+		results.append("hero_drag=%s" % str(sim.hero != null))
+	print("PLACETEST ", " ".join(results))
+
+
+func _press(p: Vector2, down: bool) -> void:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = down
+	e.position = p
+	e.global_position = p
+	if down:
+		e.button_mask = MOUSE_BUTTON_MASK_LEFT
+	get_viewport().push_input(e, true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func _drag_to(p: Vector2) -> void:
+	var m := InputEventMouseMotion.new()
+	m.position = p
+	m.global_position = p
+	m.button_mask = MOUSE_BUTTON_MASK_LEFT
+	get_viewport().push_input(m, true)
+	await get_tree().process_frame
+
+
+func _tap(p: Vector2) -> void:
+	await _press(p, true)
+	await _press(p, false)
+
+
 ## Drags the open dialog starting ON a button: it should scroll and the button must not fire.
 func _test_drag() -> void:
 	var sc := _scroll_under(ui_root.size * 0.5)
@@ -5545,6 +5841,10 @@ func _run_demo() -> void:
 		print("AUTO after wait wave=", sim.wave)
 		get_tree().quit()
 		return
+	if "--test-place" in args:
+		await _test_place()
+		get_tree().quit()
+		return
 	if "--shoot-showcase" in args:
 		_start_game()
 		var sids := _demo_build(6000)
@@ -5676,6 +5976,8 @@ func _scroll_under(pos: Vector2) -> ScrollContainer:
 
 
 func _input(event: InputEvent) -> void:
+	if _place_drag_input(event):
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		if mb.pressed and mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:

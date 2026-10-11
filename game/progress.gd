@@ -3,8 +3,9 @@
 extends Node
 
 const SAVE_PATH := "user://save.json"
-const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true, "ui_scale": 1.15, "gfx": -1}
+const DEFAULT_SETTINGS := {"music": 0.7, "sfx": 1.0, "auto_start": true, "shake": true, "popups": true, "glow": true, "ui_scale": 1.15, "gfx": -1, "place_mode": 0}
 const GFX_NAMES := ["FULL", "SAFE", "MINIMAL"]
+const PLACE_MODES := ["TAP", "DRAG", "CONFIRM"]   # how towers are placed (Settings)
 const UI_SCALES := [1.0, 1.15, 1.3]
 
 var current_map := ""          # set before reloading the game scene; "" = show title
@@ -150,8 +151,9 @@ func mark_boot_ok() -> void:
 
 
 func _notification(what: int) -> void:
-	# leaving the app normally is not a crash
-	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_APPLICATION_FOCUS_OUT]:
+	# leaving the app normally is not a crash. NOTIFICATION_EXIT_TREE covers get_tree().quit() (the in-game
+	# Quit button and test runs), which sends no close request; a real crash never gets this far.
+	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_EXIT_TREE]:
 		mark_boot_ok()
 
 
