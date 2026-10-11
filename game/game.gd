@@ -376,6 +376,7 @@ func _build_world() -> void:
 		var ppi := sim.paths.find(P)
 		_build_portal(sim.pos_at(Sim.SPAWN_DIST, ppi), sim.dir_at(Sim.SPAWN_DIST, ppi), ppi)
 	var end_pt := sim.path[sim.path.size() - 1]
+	var d0 := get_child_count()
 	var base_id := str(map.get("base", "cave"))
 	if base_id == "city":
 		_build_city(end_pt)
@@ -387,6 +388,11 @@ func _build_world() -> void:
 		_build_cave(end_pt)
 	_build_decor()
 	_build_blockers()
+	_decor_roots = get_children().slice(d0)
+	if "--export-decor" not in OS.get_cmdline_user_args():
+		_swap_baked_decor()
+		if not DECOR_V2.has(str(map.get("theme", ""))):
+			_ambient_fx(Vector3.INF)
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -401,43 +407,56 @@ func _build_world() -> void:
 
 ## v2 art pass (rolling out era by era; Stone Age first).
 func _style2() -> bool:
-	return _era() == "Stone Age"
+	return true
 
 
 ## v2 look: a real sky (seen from the menu hub camera), warm key light against a cool fill,
 ## filmic tone curve and a gentle grade. Works in the Compatibility renderer.
+## v2 sky per theme: [sky top, horizon, ground horizon, ground bottom]. Seen from the menu hub camera and
+## at the edges of tall screens. Indoor themes get a dark "ceiling" sky.
+const SKY_V2 := {
+	"day": [Color(0.3, 0.55, 0.92), Color(0.8, 0.88, 0.96), Color(0.55, 0.66, 0.5), Color(0.18, 0.3, 0.14)],
+	"snow": [Color(0.42, 0.56, 0.78), Color(0.86, 0.9, 0.96), Color(0.82, 0.86, 0.92), Color(0.6, 0.66, 0.74)],
+	"volcano": [Color(0.14, 0.08, 0.08), Color(0.62, 0.26, 0.1), Color(0.3, 0.14, 0.08), Color(0.06, 0.04, 0.04)],
+	"desert": [Color(0.35, 0.58, 0.9), Color(0.96, 0.86, 0.68), Color(0.8, 0.66, 0.44), Color(0.5, 0.38, 0.22)],
+	"dusk": [Color(0.22, 0.24, 0.42), Color(0.9, 0.55, 0.36), Color(0.36, 0.3, 0.24), Color(0.12, 0.1, 0.08)],
+	"forge": [Color(0.12, 0.07, 0.06), Color(0.55, 0.22, 0.1), Color(0.2, 0.1, 0.06), Color(0.05, 0.03, 0.03)],
+	"mist": [Color(0.42, 0.5, 0.5), Color(0.78, 0.82, 0.78), Color(0.45, 0.5, 0.42), Color(0.16, 0.2, 0.14)],
+	"night": [Color(0.04, 0.05, 0.12), Color(0.22, 0.26, 0.4), Color(0.12, 0.14, 0.18), Color(0.03, 0.03, 0.05)],
+	"smog": [Color(0.4, 0.38, 0.3), Color(0.76, 0.66, 0.46), Color(0.42, 0.38, 0.3), Color(0.14, 0.12, 0.1)],
+	"neon": [Color(0.05, 0.02, 0.12), Color(0.45, 0.1, 0.5), Color(0.1, 0.06, 0.18), Color(0.02, 0.01, 0.04)],
+	"indoor": [Color(0.04, 0.06, 0.09), Color(0.14, 0.2, 0.26), Color(0.1, 0.14, 0.18), Color(0.03, 0.04, 0.05)],
+}
+const THEME_SKY := {"snow": "snow", "volcano": "volcano", "desert": "desert", "canyon": "desert", "coast": "day", "olive": "desert",
+	"forge": "forge", "bog": "mist", "darkwood": "night", "jungle": "mist", "smog": "smog", "factory": "smog", "railyard": "dusk",
+	"neon": "neon", "lab": "indoor", "server": "indoor", "cooling": "indoor", "core": "neon", "satellite": "night", "metro": "dusk"}
+
+
+## v2 look: a real sky, warm key light against a cool fill, filmic tone curve and a gentle grade, built on
+## each theme's own light levels (so dark interiors stay dark). Works in the Compatibility renderer.
 func _style2_env(env: Environment, sun: DirectionalLight3D) -> void:
 	var th := str(map.get("theme", "meadow"))
+	var sk: Array = SKY_V2[THEME_SKY.get(th, "day")]
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.3, 0.55, 0.92)
-	sky_mat.sky_horizon_color = Color(0.8, 0.88, 0.96)
-	sky_mat.ground_horizon_color = Color(0.55, 0.66, 0.5)
-	sky_mat.ground_bottom_color = Color(0.18, 0.3, 0.14)
-	if th == "snow":
-		sky_mat.sky_top_color = Color(0.42, 0.56, 0.78)
-		sky_mat.sky_horizon_color = Color(0.86, 0.9, 0.96)
-		sky_mat.ground_horizon_color = Color(0.82, 0.86, 0.92)
-		sky_mat.ground_bottom_color = Color(0.6, 0.66, 0.74)
-	elif th == "volcano":
-		sky_mat.sky_top_color = Color(0.14, 0.08, 0.08)
-		sky_mat.sky_horizon_color = Color(0.62, 0.26, 0.1)
-		sky_mat.ground_horizon_color = Color(0.3, 0.14, 0.08)
-		sky_mat.ground_bottom_color = Color(0.06, 0.04, 0.04)
+	sky_mat.sky_top_color = sk[0]
+	sky_mat.sky_horizon_color = sk[1]
+	sky_mat.ground_horizon_color = sk[2]
+	sky_mat.ground_bottom_color = sk[3]
 	sky_mat.sun_angle_max = 25.0
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.7, 0.8, 1.0)
-	env.ambient_light_energy = 0.44
+	env.ambient_light_color = (theme.ambient as Color).lerp(Color(0.7, 0.8, 1.0), 0.35)
+	env.ambient_light_energy = float(theme.ambient_e) * 1.22
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.12
 	env.tonemap_white = 5.0
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.07
 	env.adjustment_saturation = 1.14
-	sun.light_color = Color(1.0, 0.91, 0.78)
+	sun.light_color = (theme.sun as Color).lerp(Color(1.0, 0.91, 0.78), 0.4)
 	sun.light_energy = float(theme.sun_e) * 1.25
 	if th == "snow":
 		env.ambient_light_color = Color(0.72, 0.82, 1.0)
@@ -451,6 +470,10 @@ func _style2_env(env: Environment, sun: DirectionalLight3D) -> void:
 		env.adjustment_saturation = 1.2
 		sun.light_color = Color(1.0, 0.72, 0.5)
 		sun.light_energy = float(theme.sun_e) * 1.15
+	elif th == "meadow":
+		env.ambient_light_color = Color(0.7, 0.8, 1.0)
+		env.ambient_light_energy = 0.44
+		sun.light_color = Color(1.0, 0.91, 0.78)
 	sun.rotation_degrees = Vector3(-52, -36, 0)
 	sun.shadow_opacity = 0.8
 
@@ -1082,6 +1105,97 @@ func _build_cave_v2(p: Vector2) -> void:
 	_ambient_fx(n.position + fire_pos)
 
 
+# ---------------------------------------------------------------- baked scenery (eras 2-10)
+# The base, decor and no-build zones of every map outside the Stone Age are built here at runtime
+# (game.gd / era_decor.gd), then the static parts are swapped for a baked version made offline:
+#   godot -- --demo --export-decor --map=<id>     exports the static meshes  (tools/bake_decor.sh)
+#   tools/blender/bake_decor.py                    bevels, bakes ambient occlusion (props on props and on
+#                                                  the ground), adds outlines, merges into a few meshes
+#   assets/decor/maps/<id>.glb                     loaded here; its root is named "Decor_<n>" (n = mesh count)
+# Animated parts (spinners, fires, pulsing glows, smoke, water, lights) stay live. If the code that builds
+# the scenery changes and the count no longer matches, the runtime scenery is kept (rebake to update).
+var _decor_roots: Array = []
+
+
+func _decor_static() -> Array:
+	var anim := {}
+	for fx in effects:
+		for k in ["node", "pool", "f1", "f2"]:
+			if fx.has(k) and fx[k] is Node:
+				anim[fx[k]] = true
+	var out := []
+	for r in _decor_roots:
+		_decor_collect(r as Node, anim, out)
+	return out
+
+
+func _decor_collect(n: Node, anim: Dictionary, out: Array) -> void:
+	if anim.has(n) or n is Light3D:
+		return
+	if n is MeshInstance3D and n.get_child_count() == 0:
+		var mi := n as MeshInstance3D
+		var m := mi.material_override as BaseMaterial3D
+		if m == null and mi.mesh != null and mi.mesh.get_surface_count() > 0:
+			m = mi.mesh.surface_get_material(0) as BaseMaterial3D
+		if mi.mesh is PrimitiveMesh and mi.visible and m != null and m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED \
+				and m.billboard_mode == BaseMaterial3D.BILLBOARD_DISABLED and not m.has_meta("ed_pulse") \
+				and mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			out.append(mi)
+		return
+	for c in n.get_children():
+		_decor_collect(c, anim, out)
+
+
+func _swap_baked_decor() -> void:
+	if not _style2() or DECOR_V2.has(str(map.get("theme", ""))):
+		return
+	var path := "res://assets/decor/maps/%s.glb" % map_id
+	if not ResourceLoader.exists(path):
+		return
+	var list := _decor_static()
+	var baked := _inst(path)
+	var want := -1
+	for c in [baked] + baked.get_children():
+		if str(c.name).begins_with("Decor_"):
+			want = int(str(c.name).trim_prefix("Decor_").get_slice(".", 0).get_slice("_", 0))
+	if want != list.size():
+		push_warning("baked decor for %s is stale (%d meshes, now %d): keeping runtime scenery" % [map_id, want, list.size()])
+		baked.free()
+		return
+	for mi in list:
+		(mi as Node).queue_free()
+	for ol in baked.find_children("*_Outline", "MeshInstance3D", true, false):
+		(ol as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		(ol as MeshInstance3D).visible = Progress.gfx_level() < 2
+	add_child(baked)
+
+
+func _export_decor(path: String) -> void:
+	var list := _decor_static()
+	var sc := Node3D.new()
+	sc.name = "Decor_%d" % list.size()
+	var cache := {}
+	for mi in list:
+		var src := (mi as MeshInstance3D).mesh
+		var mat: Material = (mi as MeshInstance3D).material_override
+		var key := "%d_%d" % [src.get_instance_id(), mat.get_instance_id() if mat != null else 0]
+		if not cache.has(key):
+			var am := ArrayMesh.new()
+			for si in src.get_surface_count():
+				am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, src.surface_get_arrays(si))
+				am.surface_set_material(si, mat if mat != null else src.surface_get_material(si))
+			cache[key] = am
+		var m2 := MeshInstance3D.new()
+		m2.mesh = cache[key]
+		m2.transform = (mi as MeshInstance3D).global_transform
+		sc.add_child(m2)
+	var doc := GLTFDocument.new()
+	var st := GLTFState.new()
+	doc.append_from_scene(sc, st)
+	var err := doc.write_to_filesystem(st, path)
+	sc.free()
+
+
 ## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
 ## glowing basalt. The ground texture still paints the zone itself.
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
@@ -1704,9 +1818,21 @@ func _ambient_fx(fire_pos: Vector3) -> void:
 	var b: Array = map.bounds
 	var th := str(map.get("theme", "meadow"))
 	# meadow: drifting pollen; snow: falling snowflakes; volcano: rising embers
-	var spec: Dictionary = {"meadow": {"n": 16, "col": Color(1.0, 0.97, 0.75, 0.75), "vy": 0.0, "s": 1.0},
+	var kinds := {
+		"pollen": {"n": 16, "col": Color(1.0, 0.97, 0.75, 0.75), "vy": 0.0, "s": 1.0},
 		"snow": {"n": 60, "col": Color(1, 1, 1, 0.9), "vy": -0.9, "s": 0.8},
-		"volcano": {"n": 34, "col": Color(1.0, 0.55, 0.15, 0.95), "vy": 0.7, "s": 0.7}}.get(th, {"n": 16, "col": Color(1, 1, 1, 0.7), "vy": 0.0, "s": 1.0})
+		"embers": {"n": 34, "col": Color(1.0, 0.55, 0.15, 0.95), "vy": 0.7, "s": 0.7},
+		"fireflies": {"n": 26, "col": Color(0.85, 1.0, 0.4, 0.95), "vy": 0.0, "s": 0.75},
+		"dust": {"n": 30, "col": Color(0.95, 0.85, 0.65, 0.55), "vy": 0.0, "s": 1.3},
+		"soot": {"n": 40, "col": Color(0.3, 0.3, 0.32, 0.7), "vy": -0.35, "s": 0.9},
+		"frost": {"n": 40, "col": Color(0.75, 0.95, 1.0, 0.85), "vy": -0.25, "s": 0.7},
+		"data": {"n": 34, "col": Color(0.3, 0.95, 1.0, 0.9), "vy": 0.45, "s": 0.6},
+		"datam": {"n": 34, "col": Color(1.0, 0.3, 0.9, 0.9), "vy": 0.45, "s": 0.6},
+	}
+	var kind_of := {"meadow": "pollen", "snow": "snow", "volcano": "embers", "forge": "embers", "bog": "fireflies", "jungle": "fireflies",
+		"darkwood": "fireflies", "desert": "dust", "canyon": "dust", "olive": "dust", "smog": "soot", "factory": "soot", "railyard": "soot",
+		"cooling": "frost", "lab": "data", "server": "data", "satellite": "data", "neon": "datam", "core": "datam"}
+	var spec: Dictionary = kinds[kind_of.get(th, "pollen")]
 	holder.set_meta("vy", float(spec.vy))
 	holder.set_meta("box", [b[0] - 3.0, b[1] - 3.0, b[2] + 3.0, b[3] + 3.0])
 	for i in int(spec.n):
@@ -1813,7 +1939,7 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				(n.material_override as StandardMaterial3D).albedo_color.a = 0.45 * (1.0 - k * k)
 			"ambient":
 				fx.smoke_t = float(fx.smoke_t) - dt
-				if fx.smoke_t <= 0.0:
+				if fx.smoke_t <= 0.0 and fx.fire != Vector3.INF:
 					fx.smoke_t = 0.35
 					if _fx_room(1):
 						var pf := _mi(_fx_mesh("dust"), _mat("smoke", Color(0.6, 0.6, 0.62, 0.45), {"unshaded": true}), self, fx.fire + Vector3(0, 1.0, 0))
@@ -2075,7 +2201,7 @@ func _handle_events() -> void:
 					shake = maxf(shake, 0.18)
 				else:
 					_sfx("rock_hit", -10.0, 0.2, 0.05)
-					if _style2():
+					if _era_index() < 5:      # thrown rocks, arrows and bolts kick up dirt; bullets and beams don't
 						_pebble_fx(_v3(ev.pos, 0.9))
 				if ev.crit:
 					_float_text(_v3(ev.pos, 1.8), "CRIT!", Color(1, 0.35, 0.25), 44)
@@ -5841,6 +5967,14 @@ func _run_demo() -> void:
 		print("AUTO after wait wave=", sim.wave)
 		get_tree().quit()
 		return
+	if "--export-decor" in args:
+		var outp := "/tmp/decor_%s.glb" % map_id
+		for a2 in args:
+			if a2.begins_with("--decor-out="):
+				outp = a2.trim_prefix("--decor-out=")
+		_export_decor(outp)
+		get_tree().quit()
+		return
 	if "--test-place" in args:
 		await _test_place()
 		get_tree().quit()
@@ -5849,12 +5983,21 @@ func _run_demo() -> void:
 		_start_game()
 		var sids := _demo_build(6000)
 		sim.wave = 3
-		var kinds := ["walker", "scout", "brute", "walker", "carrier", "scout", "walker", "brute", "scout", "walker"]
+		# this map's own robots (most recent ones first), plus its boss
+		var roster := []
+		var boss_t := str(map.get("boss", "prime_walker"))
+		for it in _map_robots(map_id):
+			if not defs.enemies[it[0]].get("boss", false) and not (it[0] in roster):
+				roster.append(it[0])
+		roster.reverse()
+		var kinds := []
+		for i in 10:
+			kinds.append(roster[i % mini(roster.size(), 5)] if not roster.is_empty() else "walker")
 		sim.wave_remaining[3] = kinds.size() + 1
 		for i in kinds.size():
 			sim._spawn_enemy(kinds[i], 3, 4.0 + i * 2.3, i % sim.paths.size())
 		if "--boss" in args:
-			sim._spawn_enemy("prime_walker", 3, 9.0, 0)
+			sim._spawn_enemy(boss_t, 3, 9.0, 0)
 		_handle_events()
 		await _wait_ticks(int(2.2 / TICK))
 		await _shot("showcase_%s_battle.png" % tag)

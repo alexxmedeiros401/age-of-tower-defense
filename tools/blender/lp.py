@@ -177,6 +177,21 @@ def shoot(cam, path, target, scale, res=512, pos_dir=(1, -1.15, 0.95), dist=20):
     bpy.ops.render.render(write_still=True)
 
 
+def face(body, skin, pupil=None, brow=None):
+    """Readable cartoon face on the standard head (centre (0, -0.02, 1.16), r 0.21, facing -Y):
+    whites + pupils, brows, a proper nose and a small mouth. Shared by every era's people."""
+    pupil = pupil or mat("Eye", (0.02, 0.02, 0.02), 0.3)
+    white = mat("EyeWhite", (0.95, 0.95, 0.92), 0.25)
+    brow = brow or mat("Brow", (0.12, 0.07, 0.04), 0.9)
+    mouth = mat("Mouth", (0.3, 0.07, 0.05), 0.7)
+    ico(0.062, (0, -0.225, 1.125), skin, body, sub=1, scale=(0.85, 1.0, 0.85))           # nose
+    for s in (-1, 1):
+        ico(0.04, (s * 0.075, -0.18, 1.185), white, body, sub=2, scale=(1.0, 0.55, 1.2))  # eye white
+        ico(0.022, (s * 0.072, -0.2, 1.18), pupil, body, sub=1)                            # pupil
+        box((0.085, 0.03, 0.026), (s * 0.08, -0.195, 1.245), brow, body, rot=(0, -s * 0.18, 0))
+    ico(0.034, (0, -0.205, 1.06), mouth, body, sub=1, scale=(1.5, 0.45, 0.55))
+
+
 def person(parent, loc, skin, top, bottom, hair, scale=1.0, burly=1.0, beard=None, helmet=None,
            hair_style="short", belt=None, crest=None, eye=None, sandal=None):
     """Chunky low-poly human facing -Y. Returns (body, arm) where arm is an empty at the right
@@ -194,9 +209,7 @@ def person(parent, loc, skin, top, bottom, hair, scale=1.0, burly=1.0, beard=Non
         cyl(0.3, 0.07, (0, 0, 0.6), belt, body, verts=8)
     cyl(0.08, 0.12, (0, -0.01, 1.03), skin, body, verts=6)
     ico(0.21, (0, -0.02, 1.16), skin, body, sub=2, scale=(1, 0.95, 1.05))
-    ico(0.055, (0, -0.22, 1.13), skin, body, sub=1, scale=(0.8, 1, 1))
-    for s in (-1, 1):
-        ico(0.03, (s * 0.08, -0.195, 1.19), eye, body, sub=1)
+    face(body, skin, eye, hair if hair is not None else beard)
     if helmet is None:
         if hair_style in ("short", "long", "pony"):
             ico(0.225, (0, 0.03, 1.22), hair, body, sub=2, scale=(1.05, 1.0, 0.78))

@@ -127,9 +127,7 @@ def figure(parent, loc, skin, top, bottom, hair=None, scale=1.0, burly=1.0, bear
     cyl(0.08, 0.12, (0, -0.01, 1.03), skin, body, verts=6)
     ico(0.21, (0, -0.02, 1.16), skin, body, sub=2, scale=(1, 0.95, 1.05))
     if face:
-        ico(0.055, (0, -0.22, 1.13), skin, body, sub=1, scale=(0.8, 1, 1))
-        for s in (-1, 1):
-            ico(0.03, (s * 0.08, -0.195, 1.19), EYE, body, sub=1)
+        lp.face(body, skin, EYE, hair if hair is not None else beard)
     if hair is not None:
         if hair_style in ("short", "long", "pony", "braids"):
             ico(0.225, (0, 0.03, 1.22), hair, body, sub=2, scale=(1.05, 1.0, 0.78))

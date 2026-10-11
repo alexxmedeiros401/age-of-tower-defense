@@ -273,7 +273,7 @@ static func build_decor(g: Node3D, theme_id: String, free: Callable) -> void:
 	var occ: Array = []
 	_landmarks(g, theme_id, free, r, occ)
 	var spec: Array = DECOR.get(theme_id, DECOR["highland"])
-	var target: int = spec[0]
+	var target: int = int(spec[0] * 1.45)    # v2: the baked scenery costs no extra draw calls, so maps can be lusher
 	var kinds: Array = spec[1]
 	var total := 0.0
 	for k in kinds:

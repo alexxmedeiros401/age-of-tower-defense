@@ -157,6 +157,8 @@ def reg(o, col, matk="matte", parent=None, bevel=None, smooth=True, var=0.06, na
         for v in o.data.vertices:
             v.co = Vector((v.co.x * s.x, v.co.y * s.y, v.co.z * s.z))
         o.scale = (1, 1, 1)
+        if s.x * s.y * s.z < 0:              # a mirrored part: keep its faces pointing outwards
+            o.data.flip_normals()
     o.data.materials.clear()
     o.data.materials.append(MAT[matk])
     o.parent = parent
@@ -320,7 +322,7 @@ def caveman_head(parent, c, hair=None, beard=True, beard_col=None, angry=True, s
 
 
 # ---------- bake: apply modifiers, AO + color into vertex colors ----------
-def bake(ao_dist=0.5, ao_strength=0.82, outline_w=0.06):
+def bake(ao_dist=0.5, ao_strength=0.82, outline_w=0.06, ground=None, rays=20, ray_offset=0.006, ao_floor=0.0):
     scene.frame_set(1)
     bpy.context.view_layer.update()
     dg = bpy.context.evaluated_depsgraph_get()
@@ -338,8 +340,12 @@ def bake(ao_dist=0.5, ao_strength=0.82, outline_w=0.06):
         base = len(verts)
         verts += [mw @ v.co for v in o.data.vertices]
         polys += [[base + i for i in p.vertices] for p in o.data.polygons]
+    if ground is not None:        # a big ground plane at z = ground: contact shadows under every prop
+        base = len(verts)
+        verts += [Vector((-80, -80, ground)), Vector((80, -80, ground)), Vector((80, 80, ground)), Vector((-80, 80, ground))]
+        polys.append([base, base + 1, base + 2, base + 3])
     bvh = BVHTree.FromPolygons(verts, polys) if polys else None
-    N = 20
+    N = rays
     dirs = []
     for i in range(N):
         z = 1 - (i + 0.5) / N
@@ -363,9 +369,9 @@ def bake(ao_dist=0.5, ao_strength=0.82, outline_w=0.06):
                 k = float(o.get("ao_k", 1.0))
                 dist = ao_dist * (0.5 if k < 1.0 else 1.0)
                 for d in dirs:
-                    if bvh.ray_cast(p + n * 0.006, q @ d, dist)[0] is not None:
+                    if bvh.ray_cast(p + n * ray_offset, q @ d, dist)[0] is not None:
                         occ += d.z
-                ao = 1.0 - ao_strength * k * occ / wsum
+                ao = max(ao_floor, 1.0 - ao_strength * k * occ / wsum)
             sky = 0.94 + 0.12 * max(0.0, n.z)
             c = fn(p, n)
             if POST[0] is not None and not o.get("nopost"):
@@ -425,7 +431,11 @@ def outline(width=0.06, ratio=0.5, darkness=0.16, skip_mats=("Flame", "Grass")):
         scene.collection.objects.link(hull)
         hull.parent = o.parent
         hull.matrix_parent_inverse = o.matrix_parent_inverse.copy()
-        hull.location, hull.rotation_euler, hull.scale = o.location.copy(), o.rotation_euler.copy(), o.scale.copy()
+        # copy the whole transform: imported (glTF) objects rotate by quaternion, not euler
+        hull.rotation_mode = o.rotation_mode
+        hull.location, hull.scale = o.location.copy(), o.scale.copy()
+        hull.rotation_euler = o.rotation_euler.copy()
+        hull.rotation_quaternion = o.rotation_quaternion.copy()
         # simplify first, THEN inflate, so the shell never dips back inside the surface
         if ratio < 1.0 and len(me.polygons) > 60:
             dm = hull.modifiers.new("Dec", "DECIMATE")
@@ -467,11 +477,33 @@ def stats(tag=""):
     return tris
 
 
-def finish(out_glb, outline_w=0.06, outline_ratio=0.5, names=None, export=True, ao_dist=0.5):
-    bake(ao_dist=ao_dist, outline_w=outline_w or 0.06)
-    merge(names)
-    if outline_w:
+def merge_outlines():
+    """Join per-part outline shells that share a parent into one mesh per parent."""
+    groups = {}
+    for o in [x for x in scene.objects if x.type == "MESH" and x.name.endswith("_Outline")]:
+        groups.setdefault(o.parent.name if o.parent else "", []).append(o)
+    for pname, objs in groups.items():
+        if len(objs) > 1:
+            bpy.ops.object.select_all(action="DESELECT")
+            for o in objs:
+                o.select_set(True)
+            bpy.context.view_layer.objects.active = objs[0]
+            bpy.ops.object.join()
+        objs[0].name = "M_" + (pname or "Root") + "_Outline"
+
+
+def finish(out_glb, outline_w=0.06, outline_ratio=0.5, names=None, export=True, ao_dist=0.5, ray_offset=0.006, ao_floor=0.0,
+           per_part_outline=False):
+    bake(ao_dist=ao_dist, outline_w=outline_w or 0.06, ray_offset=ray_offset, ao_floor=ao_floor)
+    if per_part_outline and outline_w:
+        # shells are made (and simplified) part by part, so simplification can never bridge two parts
         outline(outline_w, outline_ratio)
+        merge(names)
+        merge_outlines()
+    else:
+        merge(names)
+        if outline_w:
+            outline(outline_w, outline_ratio)
     stats(os.path.basename(out_glb))
     if export:
         os.makedirs(os.path.dirname(out_glb) or ".", exist_ok=True)

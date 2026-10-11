@@ -147,7 +147,7 @@ def strip(body, test):
 
 
 LEFT_ARM = lambda p: p.x > 0.3 and 0.45 < p.z < 0.85
-FACE = lambda p: p.y < -0.18 and 1.08 < p.z < 1.22
+FACE = lambda p: p.y < -0.17 and 1.03 < p.z < 1.27
 LEGS = lambda p: p.z < 0.25 and abs(p.x) < 0.2
 
 
