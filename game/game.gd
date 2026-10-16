@@ -3773,52 +3773,72 @@ func _build_main_menu(root: Control) -> void:
 func _open_workshop(era: String, reuse: Control = null) -> void:
 	if era == "":
 		era = str(Progress.data.get("tab", ""))
-		if era == "" or not Progress.is_unlocked(_first_map_of(era)):
-			era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
+	if era == "" or not Progress.is_unlocked(_first_map_of(era)):
+		era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
 	var dlg: Control = reuse if reuse != null and is_instance_valid(reuse) else _modal(ui_root, 0.6)
 	var box: VBoxContainer = dlg.get_meta("box")
 	_clear_box(box)
 	dlg.set_meta("full_h", true)
 	box.set_meta("want_w", 1500.0)
-	box.add_theme_constant_override("separation", 14)
+	box.add_theme_constant_override("separation", 10)
+	# header: everything here keeps its place whichever age tab is open
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 24)
 	box.add_child(head)
-	var ttl := _label("TOWERS  -  %s" % era.to_upper(), 52, C_GOLD, 12)
+	var ttl := _label("TOWERS  -  %s" % era.to_upper(), 44, C_GOLD, 12)
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ttl.clip_text = true
 	head.add_child(ttl)
-	head.add_child(_label("SCRAP: %d" % Progress.scrap(era), 40, Color(0.75, 0.85, 0.95), 9))
+	var sc := HBoxContainer.new()
+	sc.custom_minimum_size = Vector2(230, 0)
+	sc.alignment = BoxContainer.ALIGNMENT_END
+	sc.add_child(_icon(_res("res://assets/ui/icon_scrap.png") as Texture2D, 52))
+	var scl := _label(str(Progress.scrap(era)), 40, Color(0.75, 0.85, 0.95), 9)
+	scl.custom_minimum_size = Vector2(120, 0)
+	sc.add_child(scl)
+	head.add_child(sc)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
-	done.custom_minimum_size = Vector2(200, 70)
+	done.custom_minimum_size = Vector2(200, 62)
 	done.pressed.connect(func():
 		_sfx("click")
 		dlg.queue_free()
 		_refresh_menus())
 	head.add_child(done)
 	_close_with(dlg, done)
-	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.78, 0.83, 0.9), 5)
+	var intro := _label("Unlock towers in order with this age's Scrap. Every unlock gives ALL towers in this age +%d%% damage." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)), 19, Color(0.78, 0.83, 0.9), 5)
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
-	# era switcher (only ages the player has reached)
-	var tabs := HFlowContainer.new()
-	tabs.alignment = FlowContainer.ALIGNMENT_CENTER
+	# every age has a tab; ages you haven't reached stay locked
+	var tabs := GridContainer.new()
+	tabs.columns = 5
 	tabs.add_theme_constant_override("h_separation", 8)
 	tabs.add_theme_constant_override("v_separation", 8)
+	tabs.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	box.add_child(tabs)
 	for en in _eras():
-		if not Progress.is_unlocked(_first_map_of(en)):
-			continue
-		var tb := _button(en.to_upper(), Color(0.18, 0.28, 0.46), 18)
-		tb.custom_minimum_size = Vector2(210, 50)
-		tb.modulate = Color(1.25, 1.2, 0.95) if en == era else Color(0.75, 0.75, 0.75)
+		var open := Progress.is_unlocked(_first_map_of(en))
+		var tb := _button(en.to_upper() if open else "LOCKED", Color(0.2, 0.36, 0.6) if en == era else (Color(0.16, 0.24, 0.38) if open else Color(0.12, 0.14, 0.18)), 17)
+		tb.custom_minimum_size = Vector2(230, 44)
+		tb.clip_text = true
+		if not open:
+			tb.disabled = true
+			tb.icon = ICON_LOCK
+			tb.add_theme_constant_override("icon_max_width", 26)
+		elif en == era:
+			tb.add_theme_color_override("font_color", C_GOLD)
 		tb.pressed.connect(func():
+			if en == era:
+				return
 			_sfx("click")
+			Progress.data.tab = en
 			_open_workshop(en, dlg))
 		tabs.add_child(tb)
+	# four identical, fixed-size cards
 	var cards := HFlowContainer.new()
 	cards.alignment = FlowContainer.ALIGNMENT_CENTER
-	cards.add_theme_constant_override("h_separation", 18)
-	cards.add_theme_constant_override("v_separation", 18)
+	cards.add_theme_constant_override("h_separation", 16)
+	cards.add_theme_constant_override("v_separation", 16)
 	box.add_child(cards)
 	var rank := 0
 	for tid in Progress.era_towers(era):
@@ -3828,49 +3848,59 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 		var cost := Progress.tower_scrap_cost(tid)
 		var card := PanelContainer.new()
 		card.add_theme_stylebox_override("panel", _style(Color(0.09, 0.15, 0.25) if own else Color(0.09, 0.13, 0.18), 18, C_GOLD.darkened(0.3) if own else C_PANEL_EDGE, 3))
-		card.custom_minimum_size = Vector2(330, 0)
+		card.custom_minimum_size = Vector2(300, 430)
 		cards.add_child(card)
 		var v := VBoxContainer.new()
-		v.add_theme_constant_override("separation", 6)
+		v.add_theme_constant_override("separation", 4)
 		card.add_child(v)
-		var ic := _icon(_icon_tex(tid), 150)
+		var ic := _icon(_icon_tex(tid), 112)
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		ic.modulate = Color.WHITE if own else Color(0.55, 0.55, 0.55)
 		v.add_child(ic)
-		var nm := _label("%d. %s" % [rank, str(def.name)], 30, C_TEXT, 7)
+		var nm := _label("%d. %s" % [rank, str(def.name)], 26, C_TEXT, 7)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		nm.clip_text = true
+		nm.custom_minimum_size = Vector2(270, 0)
 		v.add_child(nm)
-		var ln := _label("%s  -  %d gold to build" % [str(def.lineage), int(def.cost)], 18, Color(1, 0.8, 0.5), 5)
+		var ln := _label("%s  -  %d gold" % [str(def.lineage), int(def.cost)], 18, Color(1, 0.8, 0.5), 5)
 		ln.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(ln)
 		var ds := _label(str(def.desc), 18, Color(0.78, 0.83, 0.9), 4)
 		ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		ds.custom_minimum_size = Vector2(290, 56)
+		ds.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		ds.max_lines_visible = 3
+		ds.custom_minimum_size = Vector2(270, 78)
+		ds.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		v.add_child(ds)
 		var dbt := _button("DETAILS", Color(0.3, 0.36, 0.5), 20)
-		dbt.custom_minimum_size = Vector2(0, 54)
+		dbt.custom_minimum_size = Vector2(0, 50)
 		dbt.pressed.connect(func():
 			_sfx("click")
 			_tower_detail(tid))
 		v.add_child(dbt)
+		# status slot: always the same height
+		var slot := CenterContainer.new()
+		slot.custom_minimum_size = Vector2(0, 72)
+		v.add_child(slot)
 		if own:
-			var ok := _label("FREE" if cost == 0 else "UNLOCKED", 26, Color(0.6, 1.0, 0.6), 6)
-			ok.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			v.add_child(ok)
+			slot.add_child(_label("FREE" if cost == 0 else "UNLOCKED", 26, Color(0.6, 1.0, 0.6), 6))
 		elif Progress.next_unlock(era) != tid:
-			var lk := _label("UNLOCK #%d FIRST  -  %d SCRAP" % [rank - 1, cost], 20, Color(0.6, 0.66, 0.75), 5)
-			lk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			v.add_child(lk)
+			var lk := _button("UNLOCK #%d FIRST" % (rank - 1), Color(0.14, 0.16, 0.2), 19)
+			lk.disabled = true
+			lk.custom_minimum_size = Vector2(270, 56)
+			slot.add_child(lk)
 		else:
-			var ub := _button("UNLOCK  -  %d SCRAP" % cost, Color(0.2, 0.55, 0.2), 22)
-			ub.custom_minimum_size = Vector2(0, 64)
+			var ub := _button("UNLOCK  %d" % cost, Color(0.2, 0.55, 0.2), 22)
+			ub.icon = _res("res://assets/ui/icon_scrap.png")
+			ub.add_theme_constant_override("icon_max_width", 40)
+			ub.custom_minimum_size = Vector2(270, 56)
 			ub.disabled = Progress.scrap(era) < cost
 			ub.pressed.connect(func():
 				if Progress.unlock_tower(tid):
 					_sfx("upgrade")
 					_open_workshop(era, dlg))
-			v.add_child(ub)
+			slot.add_child(ub)
 	if OS.is_debug_build():
 		var cheat := _button("+300 SCRAP (test)", Color(0.35, 0.3, 0.45), 18)
 		cheat.custom_minimum_size = Vector2(260, 52)
@@ -3933,17 +3963,24 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 			sel.border_width_bottom = 9
 			hb.add_theme_stylebox_override("normal", sel)
 			hb.add_theme_stylebox_override("hover", sel)
+		var avail := owned or Progress.hero_available(hd)
 		if not owned:
+			# not owned: the face stays shaded; the lock only shows until the hero's age is reached
 			hb.add_theme_color_override("icon_normal_color", Color(0.45, 0.45, 0.5))
 			hb.add_theme_color_override("icon_hover_color", Color(0.55, 0.55, 0.6))
-			var lk := _icon(ICON_LOCK, 40)
-			lk.position = Vector2(104, 6)
-			lk.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			hb.add_child(lk)
+			if not avail:
+				var lk := _icon(ICON_LOCK, 40)
+				lk.position = Vector2(104, 6)
+				lk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				hb.add_child(lk)
 		hb.pressed.connect(func():
 			_sfx("click")
 			_hero_detail(hid, box))
-		hrow.add_child(hb)
+		var tile := VBoxContainer.new()
+		tile.add_theme_constant_override("separation", 6)
+		tile.add_child(hb)
+		tile.add_child(_hero_price_button(hd, box, Vector2(150, 52), 20))
+		hrow.add_child(tile)
 	var hd2: Dictionary = defs.heroes.heroes[cur]
 	var now := _label("Playing as: %s, %s" % [hd2.name, hd2.title], 22, C_GOLD, 6)
 	now.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -3951,6 +3988,45 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 	var tip := _label("Tap a hero to see what they do.", 18, Color(0.68, 0.75, 0.85), 5)
 	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(tip)
+
+
+## Shard-price button under a hero. Owned: a quiet label. Age not reached: a greyed button you
+## can't press showing the price. Age reached: the same button lights up and buys the hero.
+func _hero_price_button(hd: Dictionary, picker_box: VBoxContainer, size: Vector2, font: int) -> Control:
+	var hid := str(hd.id)
+	if Progress.hero_owned(hid):
+		var c := CenterContainer.new()
+		c.custom_minimum_size = size
+		var cur := Progress.hero() == hid
+		c.add_child(_label("PLAYING" if cur else "OWNED", font - 2, C_GOLD if cur else Color(0.6, 0.68, 0.8), 5))
+		return c
+	var cost := Progress.hero_cost(hd, defs.heroes.heroes)
+	var avail := Progress.hero_available(hd)
+	var b := _button(str(cost), Color(0.5, 0.28, 0.85) if avail else Color(0.16, 0.16, 0.2), font)
+	b.icon = ICON_SHARD
+	b.expand_icon = false
+	b.add_theme_constant_override("icon_max_width", int(size.y * 0.62))
+	b.custom_minimum_size = size
+	b.disabled = not avail
+	b.tooltip_text = "Reach the %s to unlock" % str(hd.era) if not avail else "Buy for %d Time Shards" % cost
+	if avail:
+		var glow := b.create_tween().set_loops()
+		glow.tween_property(b, "modulate", Color(1.25, 1.2, 1.35), 0.7).set_trans(Tween.TRANS_SINE)
+		glow.tween_property(b, "modulate", Color.WHITE, 0.7).set_trans(Tween.TRANS_SINE)
+	b.pressed.connect(func():
+		if Progress.buy_hero(hd, defs.heroes.heroes):
+			_sfx("level_up")
+			Progress.set_hero(hid)
+			_toast("%s joins you!" % str(hd.name), C_GOLD)
+			for m in modals:
+				if is_instance_valid(m) and m.has_meta("hero_detail"):
+					m.queue_free()
+			_refresh_hero_pickers(picker_box)
+		else:
+			_sfx("error", -4.0, 0.0)
+			_toast("Need %d more Time Shards. Earn them from maps and hero level-ups." % (cost - Progress.shards()), Color(0.85, 0.7, 1.0))
+			toast_t = 3.5)
+	return b
 
 
 ## Rebuilds every open hero picker (after picking or buying).
@@ -4416,6 +4492,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 		dlg.queue_free())
 	detail_open += 1
 	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
+	dlg.set_meta("hero_detail", hid)
 	var col := Color(hd.color[0], hd.color[1], hd.color[2])
 	var ttl := _label(str(hd.name).to_upper(), 52, col.lightened(0.35), 12)
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -4514,38 +4591,25 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 			dlg.queue_free())
 		btns.add_child(back)
 	else:
-		var locked := _button("LOCKED", Color(0.3, 0.3, 0.3), 30)
-		locked.icon = ICON_LOCK
-		locked.expand_icon = false
-		locked.add_theme_constant_override("icon_max_width", 40)
-		locked.custom_minimum_size = Vector2(260, 92)
-		locked.disabled = true
-		btns.add_child(locked)
 		var cost := Progress.hero_cost(hd, defs.heroes.heroes)
 		var avail := Progress.hero_available(hd)
 		var have := Progress.shards()
-		var buy_txt := "BUY  %d" % cost
-		if not avail:
-			buy_txt = "REACH THE %s" % str(hd.era).to_upper()
-		var buy := _button(buy_txt, Color(0.45, 0.25, 0.75), 30)
-		if avail:
-			buy.icon = ICON_SHARD
-			buy.add_theme_constant_override("icon_max_width", 48)
-		buy.custom_minimum_size = Vector2(420, 92)
-		buy.disabled = not avail or have < cost
-		buy.pressed.connect(func():
-			if Progress.buy_hero(hd, defs.heroes.heroes):
-				_sfx("level_up")
-				Progress.set_hero(hid)
-				_toast("%s joins you!" % hd.name, C_GOLD)
-				dlg.queue_free()
-				_refresh_hero_pickers(picker_box)
-				_hero_detail(hid, picker_box))
-		btns.add_child(buy)
-		var wallet := _label("You have %d Time Shards.%s" % [have, ("  Need %d more: earn them by playing maps and leveling up heros." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
+		btns.add_child(_hero_price_button(hd, picker_box, Vector2(420, 92), 32))
+		var back2 := _button("BACK", Color(0.24, 0.3, 0.44), 30)
+		back2.custom_minimum_size = Vector2(240, 92)
+		back2.pressed.connect(func():
+			_sfx("click")
+			dlg.queue_free())
+		btns.add_child(back2)
+		var why := "Reach the %s to unlock %s. " % [str(hd.era), _short_name(str(hd.name))] if not avail else ""
+		var wallet := _label("%sYou have %d Time Shards.%s" % [why, have, ("  Need %d more: earn them by playing maps and leveling up heros." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
 		wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(wallet)
+	# action buttons (PLAY AS / buy) sit right under the level bar so they never need scrolling
+	box.move_child(btns, lb.get_index() + 1)
+	if box.get_child(box.get_child_count() - 1) is Label and btns.get_index() < box.get_child_count() - 1:
+		box.move_child(box.get_child(box.get_child_count() - 1), btns.get_index() + 1)
 	dlg.get_parent().move_child(dlg, -1)
 
 
@@ -5906,6 +5970,29 @@ func _shoot_menu() -> void:
 		_tower_detail(str(Progress.era_towers("Bronze Age")[1]))
 		await get_tree().create_timer(1.0).timeout
 		await _shot("menu_tower_detail.png")
+		get_tree().quit()
+		return
+	if "--shoot-tabs" in OS.get_cmdline_user_args():
+		for c in modals.duplicate():
+			if is_instance_valid(c) and c.visible and c != map_select and c.has_meta("full_h") and c != heroes_panel and c != legacy_panel:
+				c.queue_free()
+		_open_workshop("Stone Age")
+		await get_tree().create_timer(0.6).timeout
+		await _shot("tabs_stone.png")
+		for c in modals:
+			if is_instance_valid(c) and c.visible and c.has_meta("full_h") and c != map_select and c != heroes_panel and c != legacy_panel:
+				_open_workshop("Bronze Age", c)
+		await get_tree().create_timer(0.6).timeout
+		await _shot("tabs_bronze.png")
+		_open_heroes()
+		await get_tree().create_timer(0.6).timeout
+		await _shot("menu_heroes.png")
+		_hero_detail("brenna", VBoxContainer.new())
+		await get_tree().create_timer(0.8).timeout
+		await _shot("hero_locked.png")
+		_hero_detail("tarek", VBoxContainer.new())
+		await get_tree().create_timer(0.8).timeout
+		await _shot("hero_buyable.png")
 		get_tree().quit()
 		return
 	if "--shoot-heroes" in OS.get_cmdline_user_args():

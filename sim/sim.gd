@@ -617,7 +617,7 @@ func _hp_scale(w: int) -> float:
 
 
 # ---------------------------------------------------------------- enemies
-const SPAWN_DIST := 3.0     # robots step out of the time portal, which stands this far along the path
+const SPAWN_DIST := 1.0     # robots step out of the time portal, which stands at the map edge where the path enters
 
 
 func _spawn_enemy(type: String, w: int, dist: float = SPAWN_DIST, pi: int = 0) -> Dictionary:
