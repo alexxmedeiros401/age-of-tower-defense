@@ -55,7 +55,7 @@
  "id": "mammoth_valley",
  "theme": "meadow",
  "waves_file": "waves.json",
- "hp_mult": 0.944,
+ "hp_mult": 0.94,
  "base": "cave",
  "boss": "prime_walker"
 }

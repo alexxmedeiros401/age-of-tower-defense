@@ -1791,7 +1791,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 			"v": Vector3(cos(a) * 1.6, randf_range(2.5, 4.0), sin(a) * 1.6)})
 
 
-## v2 robot death: white armor plates fly, red sparks, a smoke puff and a scorch mark that fades.
+## v2 robot death: white armor plates fly and red sparks burst. Nothing is left on the ground.
 func _robot_death_fx(pos: Vector3, big: bool) -> void:
 	_debris_fx(pos, 14 if big else 5, big)
 	if not _fx_room(6):
@@ -1803,11 +1803,7 @@ func _robot_death_fx(pos: Vector3, big: bool) -> void:
 		var a := randf() * TAU
 		effects.append({"node": c, "t": 0.0, "life": randf_range(0.7, 1.0), "kind": "debris", "s": sz, "flat": true,
 			"v": Vector3(cos(a) * 3.0, randf_range(4, 7), sin(a) * 3.0) * (1.4 if big else 1.0)})
-	_dust_fx(pos + Vector3(0, 0.3, 0), 4 if big else 3, 0.5 if not big else 1.4, Color(0.25, 0.25, 0.27, 0.7))
-	var sc := _mi(_fx_mesh("disc"), _mat("scorch", Color(0.05, 0.04, 0.03, 0.45), {"unshaded": true}), self,
-		Vector3(pos.x, 0.035, pos.z), Vector3(0, randf() * TAU, 0), Vector3(1.0, 1.0, 1.0) * (1.6 if big else 0.42))
-	sc.material_override = (sc.material_override as StandardMaterial3D).duplicate()
-	effects.append({"node": sc, "t": 0.0, "life": 2.6, "kind": "scorch"})
+	# (v0.9.10: the gray smoke puff and the ground scorch disc were removed — they read as leftover gray circles)
 
 
 ## v2 ambience: smoke rising off the cave fire, pollen drifting over the meadow.
@@ -4230,7 +4226,17 @@ func _map_robots(mid: String) -> Array:
 
 
 ## Robot card for a map: who comes, from which wave, how tough they are there, and how to beat them.
-func _robot_roster(mid: String) -> void:
+## intro = the automatic popup on a map's first visit: NEW! over robots never met, then they count as seen.
+func _robot_roster(mid: String, intro := false) -> void:
+	var robots := _map_robots(mid)
+	var fresh := {}
+	if intro:
+		var ts := []
+		for pair in robots:
+			ts.append(pair[0])
+			if not Progress.robot_seen(str(pair[0])):
+				fresh[pair[0]] = true
+		Progress.mark_seen(mid, ts)
 	var mp := Defs.load_map(mid)
 	var me := _map_entry(mid)
 	var hpm := float(mp.get("hp_mult", 1.0)) * Progress.timeline_hp_mult()
@@ -4242,13 +4248,20 @@ func _robot_roster(mid: String) -> void:
 	box.add_theme_constant_override("separation", 12)
 	detail_open += 1
 	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
-	_on_close(dlg, func():
+	var close := func():
 		_sfx("click")
-		dlg.queue_free())
-	var ttl := _label("ROBOTS  -  %s" % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
+		dlg.queue_free()
+		if intro:
+			_toast("Place your hero (free), then pick towers on the right", C_TEXT)
+			toast_t = 4.5
+	_on_close(dlg, close)
+	var ttl := _label(("INCOMING!  -  %s" if intro else "ROBOTS  -  %s") % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(ttl)
-	var sub := _label("%s   -   Map %d of %d   -   20 waves. Stats are for this map." % [str(me.get("era", "")), map_order.find(mid) + 1, map_order.size()], 22, C_TEXT, 6)
+	var sub_txt := "%s   -   Map %d of %d   -   20 waves. Stats are for this map." % [str(me.get("era", "")), map_order.find(mid) + 1, map_order.size()]
+	if intro:
+		sub_txt = "These robots attack on this map. " + ("NEW! marks robots you haven't faced yet." if not fresh.is_empty() else "You've faced all of them before.")
+	var sub := _label(sub_txt, 22, C_TEXT, 6)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 	var grid := HFlowContainer.new()
@@ -4256,7 +4269,7 @@ func _robot_roster(mid: String) -> void:
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 14)
 	box.add_child(grid)
-	for pair in _map_robots(mid):
+	for pair in robots:
 		var t: String = pair[0]
 		var d: Dictionary = defs.enemies[t]
 		var boss := bool(d.get("boss", false))
@@ -4269,7 +4282,29 @@ func _robot_roster(mid: String) -> void:
 		h.add_theme_constant_override("separation", 12)
 		card.add_child(h)
 		var ic := _icon(_res("res://assets/ui/icon_%s.png" % t) as Texture2D if ResourceLoader.exists("res://assets/ui/icon_%s.png" % t) else ICON_WAVE, 120)
-		h.add_child(ic)
+		var holder := Control.new()          # portrait with room on top for the NEW! sign over its head
+		holder.custom_minimum_size = Vector2(120, 150)
+		holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(holder)
+		holder.add_child(ic)
+		ic.position = Vector2(0, 30)
+		ic.size = Vector2(120, 120)
+		if fresh.has(t):
+			card.add_theme_stylebox_override("panel", _style(Color(0.08, 0.09, 0.13), 18, Color(1.0, 0.8, 0.15), 4))
+			var badge := PanelContainer.new()
+			var bs := _style(Color(1.0, 0.82, 0.12), 12, Color(0.55, 0.3, 0.0), 3)
+			bs.set_content_margin_all(4)
+			bs.content_margin_left = 12
+			bs.content_margin_right = 12
+			badge.add_theme_stylebox_override("panel", bs)
+			badge.add_child(_label("NEW!", 26, Color(0.75, 0.05, 0.05), 0))
+			holder.add_child(badge)
+			badge.rotation = -0.12
+			badge.resized.connect(func(): badge.position = Vector2((120.0 - badge.size.x) * 0.5, 0.0))
+			badge.pivot_offset = Vector2(45, 18)
+			var bt: Tween = badge.create_tween().set_loops()
+			bt.tween_property(badge, "scale", Vector2(1.12, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
+			bt.tween_property(badge, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_SINE)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 2)
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -4295,12 +4330,10 @@ func _robot_roster(mid: String) -> void:
 	var note := _label("Armor takes a flat chunk off every hit, so small fast hits struggle against armored robots.", 18, Color(0.75, 0.8, 0.9), 4)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
-	var back := _button("CLOSE", Color(0.3, 0.36, 0.5), 28)
-	back.custom_minimum_size = Vector2(260, 80)
+	var back := _button("LET'S GO!" if intro else "CLOSE", Color(0.2, 0.6, 0.3) if intro else Color(0.3, 0.36, 0.5), 28)
+	back.custom_minimum_size = Vector2(300 if intro else 260, 80)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	back.pressed.connect(func():
-		_sfx("click")
-		dlg.queue_free())
+	back.pressed.connect(close)
 	box.add_child(back)
 	dlg.get_parent().move_child(dlg, -1)
 
@@ -4970,8 +5003,24 @@ func _start_game() -> void:
 	if not demo:
 		music.play()
 	_sfx("click")
+	if not demo and _first_visit():
+		_robot_roster(map_id, true)
+		return
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 	toast_t = 4.5
+
+
+## True the first time this map is entered. Old saves first count robots from maps already beaten as met.
+func _first_visit() -> bool:
+	if not Progress.seen_ready():
+		for m in map_order:
+			if Progress.stars(m) > 0 or m in Progress.data.get("cleared", []):
+				var ts := []
+				for pair in _map_robots(m):
+					ts.append(pair[0])
+				Progress.mark_seen(m, ts, false)
+		Progress.mark_seen("", [])
+	return not Progress.map_seen(map_id)
 
 
 func _show_tower_panel(id: int) -> void:
@@ -5955,6 +6004,20 @@ func _shoot_menu() -> void:
 			await get_tree().process_frame
 		print("REFRESH ok title_valid=%s ms=%d modals=%d" % [is_instance_valid(title_screen), Time.get_ticks_msec() - t0, modals.size()])
 		await _shot("menu_after_refresh.png")
+		get_tree().quit()
+		return
+	if "--shoot-newbots" in OS.get_cmdline_user_args():
+		Progress.data.erase("seen_robots")
+		Progress.data.erase("seen_maps")
+		map_id = "railyard"
+		print("NEWBOTS first_visit=%s seen_before=%s" % [_first_visit(), Progress.data.seen_robots])
+		Progress.data.seen_robots = Progress.data.seen_robots.slice(0, 3)
+		Progress.data.seen_maps.erase("railyard")
+		print("NEWBOTS first_visit_after_trim=%s" % _first_visit())
+		_robot_roster("railyard", true)
+		print("NEWBOTS marked=%s" % Progress.map_seen("railyard"))
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_newbots.png")
 		get_tree().quit()
 		return
 	if "--shoot-robots" in OS.get_cmdline_user_args():

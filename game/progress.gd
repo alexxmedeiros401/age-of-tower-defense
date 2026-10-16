@@ -175,8 +175,38 @@ func gfx_level() -> int:
 func reset_progress() -> void:
 	var keep: Dictionary = data.settings.duplicate(true)
 	data = {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
-		"settings": keep, "cleared": [], "timeline": 1, "towers": [], "scrap": {}, "owned_heroes": ["ugo"], "shards": 0, "hero_xp": {}}
+		"settings": keep, "cleared": [], "timeline": 1, "towers": [], "scrap": {}, "owned_heroes": ["ugo"], "shards": 0, "hero_xp": {},
+		"seen_maps": [], "seen_robots": []}
 	save()
+
+
+# ---------------------------------------------------------------- robots seen (first-visit intro)
+## The first time a map is entered, a popup shows its robots, with NEW! over any type never met before.
+## Saves from before this feature lack "seen_robots"; the game fills it from maps already beaten.
+func seen_ready() -> bool:
+	return data.has("seen_robots") and data.has("seen_maps")
+
+
+func map_seen(mid: String) -> bool:
+	return mid in data.get("seen_maps", [])
+
+
+func robot_seen(t: String) -> bool:
+	return t in data.get("seen_robots", [])
+
+
+func mark_seen(mid: String, robots: Array, write := true) -> void:
+	if not data.has("seen_maps"):
+		data.seen_maps = []
+	if not data.has("seen_robots"):
+		data.seen_robots = []
+	if not mid.is_empty() and not mid in data.seen_maps:
+		data.seen_maps.append(mid)
+	for t in robots:
+		if not str(t) in data.seen_robots:
+			data.seen_robots.append(str(t))
+	if write:
+		save()
 
 
 # ---------------------------------------------------------------- hero levels (persistent)
