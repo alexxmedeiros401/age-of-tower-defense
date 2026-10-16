@@ -39,7 +39,12 @@ var projectiles: Array = []
 var spawn_queue: Array = []     # sorted by tick
 var wave_remaining := {}        # wave -> enemies pending or alive
 var events: Array = []
-var stats := {"kills": 0, "leaked": 0, "gold_earned": 0}
+var stats := {"kills": 0, "leaked": 0, "gold_earned": 0, "built": 0, "best": {}}
+var hero_plevel := 1         # the hero's persistent level (1..10), set by the game before placing it
+var hero_kill_xp := 0.0      # persistent hero XP earned this match (only from the hero's own kills)
+const HERO_LV_DAMAGE := 0.06     # per persistent level above 1
+const HERO_LV_RANGE := 0.02
+const HERO_LV_ABILITY_CD := 0.03
 var _next_id := 1
 
 # hero
@@ -109,7 +114,7 @@ func _discount(c: int) -> int:
 
 
 func ability_cooldown() -> float:
-	return float(hero_def.ability.cooldown) * (1.0 - perk("ability_cd"))
+	return float(hero_def.ability.cooldown) * (1.0 - perk("ability_cd")) * (1.0 - HERO_LV_ABILITY_CD * float(hero_plevel - 1))
 
 
 func aura_radius() -> float:
@@ -234,10 +239,11 @@ func place_tower(type: String, p: Vector2) -> int:
 	var t := {
 		"id": _id(), "type": type, "pos": p, "radius": float(def.radius),
 		"level": 0, "branch": "", "spent": tower_cost(type), "cd": 0.0,
-		"facing": Vector2(0, 1), "kills": 0, "target": "first", "buffed": false,
+		"facing": Vector2(0, 1), "kills": 0, "target": "first", "buffed": false, "dealt": 0.0,
 	}
 	t.stats = _compute_stats(t)
 	gold -= tower_cost(type)
+	stats.built += 1
 	towers.append(t)
 	events.append({"e": "place", "id": t.id})
 	return t.id
@@ -350,10 +356,24 @@ func sell_tower(id: int) -> bool:
 	for i in range(towers.size()):
 		if towers[i].id == id:
 			gold += sell_value(towers[i])
+			_note_best(towers[i])
 			towers.remove_at(i)
 			events.append({"e": "sell", "id": id})
 			return true
 	return false
+
+
+## Best tower of the match by damage dealt (sold towers count too).
+func _note_best(t: Dictionary) -> void:
+	var b: Dictionary = stats.best
+	if b.is_empty() or float(t.get("dealt", 0.0)) > float(b.get("dealt", 0.0)):
+		stats.best = {"type": t.type, "name": tower_display_name(t), "dealt": float(t.get("dealt", 0.0)), "kills": int(t.kills), "level": int(t.level)}
+
+
+func best_tower() -> Dictionary:
+	for t in towers:
+		_note_best(t)
+	return stats.best
 
 
 func cycle_target(id: int) -> String:
@@ -411,7 +431,8 @@ func _hero_stats(level: int) -> Dictionary:
 		s[k] = float(s.get(k, 0.0)) + float(pl[k]) * float(level - 1)
 	s.cooldown = maxf(float(s.cooldown), 0.15)
 	var hs := hero_scale()
-	s.damage = float(s.damage) * hs
+	s.damage = float(s.damage) * hs * (1.0 + HERO_LV_DAMAGE * float(hero_plevel - 1))
+	s.range = float(s.range) * (1.0 + HERO_LV_RANGE * float(hero_plevel - 1))
 	if s.has("armor_pierce"):
 		s.armor_pierce = float(s.armor_pierce) * hs
 	return s
@@ -533,6 +554,16 @@ func _alive_enemies() -> Array:
 
 
 # ---------------------------------------------------------------- waves
+## True while robots are still coming or still alive (not between rounds).
+func wave_active() -> bool:
+	if not spawn_queue.is_empty():
+		return true
+	for e in enemies:
+		if e.alive:
+			return true
+	return false
+
+
 func can_start_wave() -> bool:
 	if state == "lost":
 		return false
@@ -645,13 +676,19 @@ func _damage(e: Dictionary, amount: float, dtype: String, src: Dictionary) -> vo
 		dmg -= absorb
 		if e.shield <= 0.0:
 			events.append({"e": "shield_break", "id": e.id})
+	var hp_before: float = e.hp
 	e.hp -= dmg
+	var tid := int(src.get("tower_id", -1))
+	if tid >= 0:
+		var tt = get_tower(tid)
+		if tt != null:
+			tt.dealt = float(tt.get("dealt", 0.0)) + minf(dmg, maxf(hp_before, 0.0))
 	events.append({"e": "hit", "id": e.id})
 	if src.has("stun") and float(src.stun) > 0.0:
 		var st := float(src.stun) * (0.25 if e.boss else 1.0)
 		e.stun_until = maxi(e.stun_until, tick + int(st / TICK))
 	if src.has("knockback") and not e.boss:
-		e.dist = maxf(0.0, e.dist - float(src.knockback))
+		e.dist = maxf(SPAWN_DIST, e.dist - float(src.knockback))
 	if src.has("slow") and float(src.slow) > 0.0:
 		var amt := minf(float(src.slow), 0.85) * (0.5 if e.boss else 1.0)
 		if amt >= e.slow_amt or tick >= e.slow_until:
@@ -701,6 +738,7 @@ func _kill(e: Dictionary, src: Dictionary) -> void:
 	if src.get("hero", false):
 		if hero != null:
 			hero.kills += 1
+		hero_kill_xp += 10.0 + base_bounty
 		_hero_gain_xp(base_bounty * 1.5)
 	else:
 		_hero_gain_xp(base_bounty * 0.6)   # heroes learn faster from their own kills
@@ -938,7 +976,8 @@ func step() -> void:
 		_unit_attack(t)
 	if hero != null:
 		_unit_attack(hero)
-		hero.ability_cd = maxf(0.0, hero.ability_cd - TICK)
+		if wave_active():      # the ability only recharges while a wave is actually being fought
+			hero.ability_cd = maxf(0.0, hero.ability_cd - TICK)
 
 	# projectiles
 	var keep := []

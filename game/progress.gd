@@ -173,8 +173,59 @@ func gfx_level() -> int:
 func reset_progress() -> void:
 	var keep: Dictionary = data.settings.duplicate(true)
 	data = {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
-		"settings": keep, "cleared": [], "timeline": 1, "towers": [], "scrap": {}, "owned_heroes": ["ugo"], "shards": 0}
+		"settings": keep, "cleared": [], "timeline": 1, "towers": [], "scrap": {}, "owned_heroes": ["ugo"], "shards": 0, "hero_xp": {}}
 	save()
+
+
+# ---------------------------------------------------------------- hero levels (persistent)
+## Each hero has its own level (1..10). XP comes only from robots that hero destroys itself.
+func hero_xp(id: String) -> int:
+	return int(data.get("hero_xp", {}).get(id, 0))
+
+
+func hero_level(id: String) -> int:
+	var hl: Dictionary = workshop.hero_levels
+	var lv := 1
+	var left := hero_xp(id)
+	for need in hl.need:
+		if left < int(need):
+			break
+		left -= int(need)
+		lv += 1
+	return mini(lv, int(hl.max))
+
+
+## [xp into this level, xp needed for the next] (both equal at max level)
+func hero_level_progress(id: String) -> Array:
+	var hl: Dictionary = workshop.hero_levels
+	var left := hero_xp(id)
+	for need in hl.need:
+		if left < int(need):
+			return [left, int(need)]
+		left -= int(need)
+	return [1, 1]
+
+
+## Adds XP to a hero; each new level pays Time Shards. Returns [old level, new level, shards paid].
+func add_hero_xp(id: String, amount: int) -> Array:
+	var before := hero_level(id)
+	if not data.has("hero_xp"):
+		data.hero_xp = {}
+	data.hero_xp[id] = hero_xp(id) + maxi(0, amount)
+	var after := hero_level(id)
+	var paid := (after - before) * int(workshop.hero_levels.shards_per_level)
+	data.shards = shards() + paid
+	save()
+	return [before, after, paid]
+
+
+## What a level gives, as text (for hero cards).
+func hero_level_bonus_text(level: int) -> String:
+	var pl: Dictionary = workshop.hero_levels.per_level
+	var k := level - 1
+	if k <= 0:
+		return "No level bonus yet"
+	return "+%d%% damage, +%d%% range, -%d%% ability cooldown" % [int(round(float(pl.damage) * k * 100)), int(round(float(pl.range) * k * 100)), int(round(float(pl.ability_cd) * k * 100))]
 
 
 # ---------------------------------------------------------------- heroes
@@ -318,9 +369,6 @@ func match_xp(map_meta: Dictionary, waves: int, won: bool, first: bool) -> int:
 func add_xp(amount: int) -> Array:
 	var before := legacy_level()
 	data.legacy_xp = int(data.get("legacy_xp", 0)) + amount
-	var ups := legacy_level() - before
-	if ups > 0:     # every Upgrade level pays Time Shards
-		data.shards = shards() + ups * int(workshop.shards.earn.level_up)
 	save()
 	return [before, legacy_level()]
 
