@@ -122,9 +122,10 @@ var toast_t := 0.0
 var banner: Label
 var banner_t := 0.0
 var overlay: Control
-var lbl_overlay: Label
-var lbl_overlay_sub: Label
-var btn_endless: Button
+var results_pages: Array = []    # Callables, one per results page
+var results_page := 0
+var results_summary := ""         # one line for the autowin test log
+var hero_xp_awarded := 0.0
 var title_screen: Control
 var map_select: Control
 var hero_card: PanelContainer
@@ -170,6 +171,7 @@ func _ready() -> void:
 	if not defs.heroes.heroes.has(hid) or not (test_mode or Progress.hero_unlocked(defs.heroes.heroes[hid])):
 		hid = "ugo"
 	sim.set_hero(hid)
+	sim.hero_plevel = 1 if (demo or test_mode) else Progress.hero_level(hid)
 	if not "--noperks" in OS.get_cmdline_user_args():
 		sim.apply_perks(Progress.sim_perks())
 		sim.hp_mult *= Progress.timeline_hp_mult()
@@ -2054,7 +2056,7 @@ func _handle_events() -> void:
 			"hero_level":
 				_refresh_hero_tag()
 				if sim.hero != null:
-					_float_text(_v3(sim.hero.pos, 2.5), "LEVEL %d!" % ev.level, C_GOLD, 60)
+					_float_text(_v3(sim.hero.pos, 2.5), "RANK %d!" % ev.level, C_GOLD, 60)
 					_ring_fx(_v3(sim.hero.pos, 0.3), 1.6, C_GOLD, 0.6)
 					if sim.ability_unlocked() and ev.level == int(sim.hero_def.ability.get("unlock", 3)):
 						_toast("%s unlocked!  Press the hero button to use it." % sim.hero_def.ability.name, C_GOLD)
@@ -3008,7 +3010,7 @@ func _on_hero_button() -> void:
 		sim.use_ability()
 		_handle_events()
 	elif not sim.ability_unlocked():
-		_toast("%s unlocks at hero level %d" % [sim.hero_def.ability.name, int(sim.hero_def.ability.get("unlock", 3))], C_TEXT)
+		_toast("%s unlocks at rank %d (your hero ranks up during the match)" % [sim.hero_def.ability.name, int(sim.hero_def.ability.get("unlock", 3))], C_TEXT)
 	else:
 		_toast("%s is recharging" % sim.hero_def.ability.name, C_TEXT)
 
@@ -3357,69 +3359,13 @@ func _build_hud() -> void:
 	banner.pivot_offset = Vector2(700, 300)
 	root.add_child(banner)
 
-	# --- victory/defeat overlay
+	# --- end-of-match results (a sequence of pages, built when the match ends)
 	overlay = _modal(root)
 	_on_close(overlay, func():
 		_sfx("click")
 		Progress.current_map = ""
 		Progress.open_map_select = false
 		get_tree().reload_current_scene())
-	var ov: VBoxContainer = overlay.get_meta("box")
-	lbl_overlay = _label("", 84, C_GOLD, 16)
-	lbl_overlay.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ov.add_child(lbl_overlay)
-	lbl_overlay_sub = _label("", 30, C_TEXT, 8)
-	lbl_overlay_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_overlay_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ov.add_child(lbl_overlay_sub)
-	var ob := HBoxContainer.new()
-	ob.alignment = BoxContainer.ALIGNMENT_CENTER
-	ob.add_theme_constant_override("separation", 24)
-	ov.add_child(ob)
-	var again := _button("PLAY AGAIN", Color(0.24, 0.4, 0.62), 32)
-	again.custom_minimum_size = Vector2(300, 96)
-	again.pressed.connect(func():
-		Progress.current_map = map_id
-		get_tree().reload_current_scene())
-	ob.add_child(again)
-	btn_endless = _button("ENDLESS MODE", Color(0.5, 0.28, 0.6), 32)
-	btn_endless.custom_minimum_size = Vector2(300, 96)
-	btn_endless.pressed.connect(func():
-		sim.endless = true
-		sim.state = "ready"
-		overlay.visible = false
-		_banner("ENDLESS", Color(0.85, 0.6, 1))
-		_toast("How long can you hold out?", Color(0.85, 0.6, 1)))
-	ob.add_child(btn_endless)
-	var ob2 := HBoxContainer.new()
-	ob2.alignment = BoxContainer.ALIGNMENT_CENTER
-	ob2.add_theme_constant_override("separation", 24)
-	ov.add_child(ob2)
-	var to_select := _button("MAP SELECT", Color(0.18, 0.27, 0.43), 28)
-	to_select.custom_minimum_size = Vector2(300, 80)
-	to_select.pressed.connect(func():
-		Progress.current_map = ""
-		Progress.open_map_select = true
-		get_tree().reload_current_scene())
-	ob2.add_child(to_select)
-	var nm := Progress.next_map(map_id, map_order)
-	var btn_next := _button("NEXT MAP", Color(0.2, 0.58, 0.18), 28)
-	btn_next.custom_minimum_size = Vector2(300, 80)
-	btn_next.pressed.connect(func():
-		Progress.current_map = nm
-		get_tree().reload_current_scene())
-	btn_next.visible = false
-	ob2.add_child(btn_next)
-	overlay.set_meta("next", btn_next)
-	var btn_tl := _button("BEGIN A NEW TIMELINE", Color(0.5, 0.2, 0.62), 30)
-	btn_tl.custom_minimum_size = Vector2(624, 90)
-	btn_tl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn_tl.pressed.connect(func():
-		_sfx("click")
-		_confirm_new_timeline())
-	btn_tl.visible = false
-	ov.add_child(btn_tl)
-	overlay.set_meta("timeline", btn_tl)
 	overlay.visible = false
 
 	# --- main menu (title): the newest era plays itself in the background
@@ -3430,6 +3376,7 @@ func _build_hud() -> void:
 	settings_panel = _modal(root, 0.5)
 	settings_panel.visible = false
 	legacy_panel = _modal(root, 0.6)
+	legacy_panel.set_meta("full_h", true)
 	legacy_panel.visible = false
 
 
@@ -3650,7 +3597,8 @@ func _build_main_menu(root: Control) -> void:
 	barbg.position = Vector2(150, 18)
 	barbg.custom_minimum_size = Vector2(330, 50)
 	prof.add_child(barbg)
-	var pr := Progress.legacy_progress()
+	var pr := Progress.hero_level_progress(hid)
+	var hmax := Progress.hero_level(hid) >= int(Progress.workshop.hero_levels.max)
 	var pb := ProgressBar.new()
 	pb.show_percentage = false
 	pb.max_value = maxf(float(pr[1]), 1.0)
@@ -3663,7 +3611,7 @@ func _build_main_menu(root: Control) -> void:
 	pb.add_theme_stylebox_override("fill", fill)
 	pb.add_theme_stylebox_override("background", bgs)
 	barbg.add_child(pb)
-	var xpl := _label("%d / %d XP" % [pr[0], pr[1]], 22, Color.WHITE, 7)
+	var xpl := _label("MAX LEVEL" if hmax else "%d / %d XP" % [pr[0], pr[1]], 22, Color.WHITE, 7)
 	xpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	xpl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	xpl.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -3671,13 +3619,13 @@ func _build_main_menu(root: Control) -> void:
 	var star := _icon(_res("res://assets/ui/menu_star.png") as Texture2D, 104)
 	star.position = Vector2(110, -6)
 	prof.add_child(star)
-	var lvl := _label(str(Progress.legacy_level()), 38, Color(0.07, 0.11, 0.19), 0)
+	var lvl := _label(str(Progress.hero_level(hid)), 38, Color(0.07, 0.11, 0.19), 0)
 	lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lvl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lvl.position = Vector2(110, 6)
 	lvl.size = Vector2(104, 92)
 	prof.add_child(lvl)
-	var who := "UPGRADE LEVEL" + ("   -   TIMELINE %d" % Progress.timeline() if Progress.timeline() > 1 else "")
+	var who := "%s  -  HERO LEVEL" % _short_name(str(defs.heroes.heroes[hid].name)).to_upper() + ("   -   TIMELINE %d" % Progress.timeline() if Progress.timeline() > 1 else "")
 	var whol := _label(who, 24, MENU_GOLD, 8)
 	whol.position = Vector2(210, 74)
 	prof.add_child(whol)
@@ -3822,13 +3770,15 @@ func _build_main_menu(root: Control) -> void:
 
 
 ## Workshop: spend an era's Scrap to unlock that era's towers. Each era's Scrap starts at 0.
-func _open_workshop(era: String) -> void:
+func _open_workshop(era: String, reuse: Control = null) -> void:
 	if era == "":
 		era = str(Progress.data.get("tab", ""))
 		if era == "" or not Progress.is_unlocked(_first_map_of(era)):
 			era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
-	var dlg := _modal(ui_root, 0.6)
+	var dlg: Control = reuse if reuse != null and is_instance_valid(reuse) else _modal(ui_root, 0.6)
 	var box: VBoxContainer = dlg.get_meta("box")
+	_clear_box(box)
+	dlg.set_meta("full_h", true)
 	box.set_meta("want_w", 1500.0)
 	box.add_theme_constant_override("separation", 14)
 	var head := HBoxContainer.new()
@@ -3843,10 +3793,7 @@ func _open_workshop(era: String) -> void:
 	done.pressed.connect(func():
 		_sfx("click")
 		dlg.queue_free()
-		if not started:
-			Progress.current_map = ""
-			Progress.open_map_select = map_select.visible
-			get_tree().reload_current_scene())
+		_refresh_menus())
 	head.add_child(done)
 	_close_with(dlg, done)
 	var intro := _label("Each age has its own Scrap and its own towers. You start with one tower; unlock the rest in order, weakest to strongest, with Scrap from this age's maps. Every wave you clear pays, even when you lose. Every tower you unlock also gives ALL your towers in this age +%d%% damage. Scrap doesn't carry into the next age." % int(round(float(Progress.workshop.get("tech_bonus", 0.0)) * 100)) + "", 22, Color(0.78, 0.83, 0.9), 5)
@@ -3866,8 +3813,7 @@ func _open_workshop(era: String) -> void:
 		tb.modulate = Color(1.25, 1.2, 0.95) if en == era else Color(0.75, 0.75, 0.75)
 		tb.pressed.connect(func():
 			_sfx("click")
-			dlg.queue_free()
-			_open_workshop(en))
+			_open_workshop(en, dlg))
 		tabs.add_child(tb)
 	var cards := HFlowContainer.new()
 	cards.alignment = FlowContainer.ALIGNMENT_CENTER
@@ -3923,8 +3869,7 @@ func _open_workshop(era: String) -> void:
 			ub.pressed.connect(func():
 				if Progress.unlock_tower(tid):
 					_sfx("upgrade")
-					dlg.queue_free()
-					_open_workshop(era))
+					_open_workshop(era, dlg))
 			v.add_child(ub)
 	if OS.is_debug_build():
 		var cheat := _button("+300 SCRAP (test)", Color(0.35, 0.3, 0.45), 18)
@@ -3932,8 +3877,7 @@ func _open_workshop(era: String) -> void:
 		cheat.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		cheat.pressed.connect(func():
 			Progress.add_scrap(era, 300)
-			dlg.queue_free()
-			_open_workshop(era))
+			_open_workshop(era, dlg))
 		box.add_child(cheat)
 	dlg.get_parent().move_child(dlg, -1)
 
@@ -3976,7 +3920,7 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 		var hd: Dictionary = defs.heroes.heroes[hid]
 		var owned := Progress.hero_owned(hid)
 		var col := Color(hd.color[0], hd.color[1], hd.color[2])
-		var hb := _button(_short_name(str(hd.name)), col.lerp(Color(0.12, 0.18, 0.3), 0.35 if owned else 0.75), 20)
+		var hb := _button(("%s  Lv%d" % [_short_name(str(hd.name)), Progress.hero_level(hid)]) if owned else _short_name(str(hd.name)), col.lerp(Color(0.12, 0.18, 0.3), 0.35 if owned else 0.75), 20)
 		hb.icon = _face_tex(hid)
 		hb.expand_icon = true
 		hb.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
@@ -4062,7 +4006,7 @@ func _hero_pros_cons(hd: Dictionary) -> Array:
 	if float(ab.cooldown) >= 60:
 		cons.append("Ability has a long cooldown (%ds)" % int(ab.cooldown))
 	if cons.size() < 2:
-		cons.append("Ability unlocks at hero level %d" % int(ab.get("unlock", 3)))
+		cons.append("Ability unlocks at rank %d each match" % int(ab.get("unlock", 3)))
 	return [pros, cons]
 
 
@@ -4479,6 +4423,33 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	var sub := _label("%s   -   %s" % [hd.title, hd.era], 26, C_GOLD, 7)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
+	# persistent hero level
+	var hl := Progress.hero_level(hid)
+	var hmx := hl >= int(Progress.workshop.hero_levels.max)
+	var hpr := Progress.hero_level_progress(hid)
+	var lrow := HBoxContainer.new()
+	lrow.alignment = BoxContainer.ALIGNMENT_CENTER
+	lrow.add_theme_constant_override("separation", 14)
+	box.add_child(lrow)
+	lrow.add_child(_label("LEVEL %d / %d" % [hl, int(Progress.workshop.hero_levels.max)], 28, Color(0.6, 0.9, 1.0), 7))
+	var lpb := ProgressBar.new()
+	lpb.show_percentage = false
+	lpb.custom_minimum_size = Vector2(320, 26)
+	lpb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lpb.max_value = maxf(float(hpr[1]), 1.0)
+	lpb.value = float(hpr[0]) if not hmx else lpb.max_value
+	var lfill := _style(Color(0.3, 0.75, 1.0), 9)
+	lfill.shadow_size = 0
+	var lbg := _style(Color(0.04, 0.07, 0.12), 9)
+	lbg.shadow_size = 0
+	lpb.add_theme_stylebox_override("fill", lfill)
+	lpb.add_theme_stylebox_override("background", lbg)
+	lrow.add_child(lpb)
+	lrow.add_child(_label("MAX" if hmx else "%d / %d XP" % [hpr[0], hpr[1]], 20, Color(0.8, 0.86, 0.95), 5))
+	var lb := _label("Level bonus: %s%s" % [Progress.hero_level_bonus_text(hl), "" if hmx else ".  Next level: " + Progress.hero_level_bonus_text(hl + 1)], 19, Color(0.7, 0.85, 1.0), 4)
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(lb)
 	var row := HFlowContainer.new()
 	row.alignment = FlowContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("h_separation", 28)
@@ -4497,7 +4468,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(blurb)
 	var ab: Dictionary = hd.ability
-	var abl := _label("ABILITY: %s  (every %ds, from hero level %d)\n%s" % [str(ab.name).to_upper(), int(ab.cooldown), int(ab.get("unlock", 3)), ab.desc], 21, Color(0.75, 0.88, 1.0), 6)
+	var abl := _label("ABILITY: %s  (every %ds, from rank %d in a match)\n%s" % [str(ab.name).to_upper(), int(ab.cooldown), int(ab.get("unlock", 3)), ab.desc], 21, Color(0.75, 0.88, 1.0), 6)
 	abl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_child(abl)
 	var pc := _hero_pros_cons(hd)
@@ -4511,7 +4482,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 		var l2 := _label("-  " + str(t), 20, Color(1.0, 0.82, 0.78), 5)
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(l2)
-	var note := _label("Every hero fights at full strength in any age.", 18, Color(0.68, 0.75, 0.85), 5)
+	var note := _label("Every hero fights at full strength in any age. Heros gain XP only from robots they destroy themselves.", 18, Color(0.68, 0.75, 0.85), 5)
 	info.add_child(note)
 	var btns := HBoxContainer.new()
 	btns.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -4571,7 +4542,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 				_refresh_hero_pickers(picker_box)
 				_hero_detail(hid, picker_box))
 		btns.add_child(buy)
-		var wallet := _label("You have %d Time Shards.%s" % [have, ("  Need %d more: earn them by playing maps and gaining Upgrade levels." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
+		var wallet := _label("You have %d Time Shards.%s" % [have, ("  Need %d more: earn them by playing maps and leveling up heros." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
 		wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		box.add_child(wallet)
@@ -4582,6 +4553,7 @@ func _open_heroes() -> void:
 	if heroes_panel != null and is_instance_valid(heroes_panel):
 		heroes_panel.queue_free()
 	heroes_panel = _modal(ui_root, 0.6)
+	heroes_panel.set_meta("full_h", true)
 	var box: VBoxContainer = heroes_panel.get_meta("box")
 	box.set_meta("want_w", 1350.0)
 	box.add_theme_constant_override("separation", 14)
@@ -4595,13 +4567,10 @@ func _open_heroes() -> void:
 	done.pressed.connect(func():
 		_sfx("click")
 		heroes_panel.queue_free()
-		if not started:
-			Progress.current_map = ""
-			Progress.open_map_select = map_select.visible
-			get_tree().reload_current_scene())
+		_refresh_menus())
 	head.add_child(done)
 	_close_with(heroes_panel, done)
-	var intro := _label("Your hero joins every match for free. Each age brings new heros to buy with Time Shards, which you earn from maps and Upgrade levels. They don't come cheap.", 22, Color(0.78, 0.83, 0.9), 5)
+	var intro := _label("Your hero joins every match for free. Each age brings new heros to buy with Time Shards, which you earn from maps and hero level-ups. Every hero levels up (to 10) from the robots it destroys itself.", 22, Color(0.78, 0.83, 0.9), 5)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(intro)
 	var picker := _hero_picker(box)
@@ -4626,12 +4595,13 @@ func _eras() -> Array:
 
 func _build_map_select(root: Control) -> void:
 	map_select = _modal(root, 0.6)
+	map_select.set_meta("full_h", true)
 	var box: VBoxContainer = map_select.get_meta("box")
 	box.set_meta("want_w", 1300.0)
 	box.add_theme_constant_override("separation", 14)
 	if Progress.timeline() > 1:
-		var tl := _label("TIMELINE %d   -   robots +%d%% tougher   -   +%d%% Upgrade XP" % [Progress.timeline(),
-			int(round((Progress.timeline_hp_mult() - 1.0) * 100)), int(round((Progress.timeline_xp_mult() - 1.0) * 100))], 26, Color(0.85, 0.6, 1.0), 7)
+		var tl := _label("TIMELINE %d   -   robots +%d%% tougher" % [Progress.timeline(),
+			int(round((Progress.timeline_hp_mult() - 1.0) * 100))], 26, Color(0.85, 0.6, 1.0), 7)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(tl)
 	# era tabs
@@ -4706,7 +4676,7 @@ func _build_map_select(root: Control) -> void:
 		_open_workshop(""))
 	brow.add_child(m_work)
 	var pts := Progress.points_free()
-	var m_legacy := _button("UPGRADE LV %d%s" % [Progress.legacy_level(), ("  (%d!)" % pts) if pts > 0 else ""],
+	var m_legacy := _button("UPGRADES%s" % [("  (%d!)" % pts) if pts > 0 else ""],
 		Color(0.18, 0.42, 0.6), 22)
 	m_legacy.custom_minimum_size = Vector2(300, 60)
 	if pts > 0:
@@ -4844,7 +4814,44 @@ func _modal(root: Control, dim := 0.45) -> Control:
 			cb.call())
 	shade.set_meta("x", xb)
 	modals.append(shade)
+	_reveal(shade)
 	return shade
+
+
+## Dialogs stay invisible for a few frames while their size settles, then fade in:
+## no visible jump or shake when they open or when a tab rebuilds them.
+func _reveal(shade: Control) -> void:
+	shade.modulate.a = 0.0
+	shade.set_meta("age", 0)
+
+
+func _clear_box(box: Node) -> void:
+	for c in box.get_children():
+		box.remove_child(c)
+		c.queue_free()
+
+
+## Rebuild the main-menu screens in place (after buying/unlocking) instead of reloading the
+## whole scene: no freeze, the 3D hub keeps running.
+func _refresh_menus() -> void:
+	if started or title_screen == null or not is_instance_valid(title_screen):
+		return
+	var root := title_screen.get_parent()
+	var ti := title_screen.get_index()
+	var mi := map_select.get_index() if map_select != null and is_instance_valid(map_select) else -1
+	var title_vis := title_screen.visible
+	var ms_vis := map_select.visible if mi != -1 else false
+	title_screen.queue_free()
+	if mi != -1:
+		modals.erase(map_select)
+		map_select.queue_free()
+	_build_main_menu(root)
+	root.move_child(title_screen, ti)
+	_build_map_select(root)
+	if mi != -1:
+		root.move_child(map_select, mi)
+	title_screen.visible = title_vis
+	map_select.visible = ms_vis
 
 
 ## What the dialog's red X does (usually: the same as its DONE / BACK button).
@@ -4862,6 +4869,8 @@ func _fit_modals() -> void:
 	if ui_root == null:
 		return
 	var vp := ui_root.size
+	if Engine.get_process_frames() % 30 == 0:
+		modals = modals.filter(func(x): return is_instance_valid(x))
 	for m in modals:
 		if not is_instance_valid(m) or not m.visible:
 			continue
@@ -4870,8 +4879,18 @@ func _fit_modals() -> void:
 		var w := minf(float(box.get_meta("want_w", 900.0)), vp.x - 120.0)
 		box.custom_minimum_size.x = w
 		var need := box.get_combined_minimum_size().y
-		var bar := 26.0 if need > vp.y - 110.0 else 0.0
+		if bool(m.get_meta("full_h", false)):
+			need = vp.y - 110.0          # big screens keep one size, so switching tabs can't make them jump
+		var bar := 26.0 if need >= vp.y - 110.0 else 0.0
 		scroll.custom_minimum_size = Vector2(w + bar, minf(need, vp.y - 110.0))
+		var age := int(m.get_meta("age", 99))
+		if age < 99:
+			age += 1
+			m.set_meta("age", age)
+			if age == 3:
+				var tw: Tween = (m as Node).create_tween()
+				tw.tween_property(m, "modulate:a", 1.0, 0.12)
+				m.set_meta("age", 99)
 		var xb: Button = m.get_meta("x")
 		if xb.visible:
 			var pr := (m.get_meta("panel") as Control).get_rect()
@@ -4909,7 +4928,7 @@ func _show_tower_panel(id: int) -> void:
 		tower_icon.texture = _face_tex(sim.hero_id)
 		lbl_t_name.text = str(hd.name)
 		var nxt := "MAX" if t.level >= sim.hero_levels.size() else "%d/%d XP" % [int(t.xp), int(sim.hero_levels[t.level])]
-		lines = "%s  -  Level %d  (%s)\n" % [hd.title, t.level, nxt]
+		lines = "%s  -  Hero Level %d  -  Rank %d (%s)\n" % [hd.title, sim.hero_plevel, t.level, nxt]
 		lines += "Damage %s  Range %.1f  Attacks %.1f/sec\nKills %d\n" % [str(snappedf(float(s.damage), 0.1)), float(s.range), rate, t.kills]
 		var au: Dictionary = hd.get("aura", {})
 		lines += "Aura: %s\nAbility (level %d): %s. %s" % [hd.blurb, int(hd.ability.get("unlock", 3)), hd.ability.name, hd.ability.desc]
@@ -5012,13 +5031,13 @@ func _update_hero_card() -> void:
 		btn_hero.modulate = Color(1.15, 1.15, 1.0) if placing == HERO_PLACING else Color.WHITE
 		return
 	btn_hero.modulate = Color.WHITE
-	lbl_hero_level.text = "Level %d" % sim.hero.level
+	lbl_hero_level.text = "Rank %d" % sim.hero.level
 	hero_xp_fill.size.x = 130.0 * sim.hero_xp_progress()
 	if not sim.ability_unlocked():
-		btn_hero.text = "%s\nLVL %d" % [str(ab.name).to_upper(), int(ab.get("unlock", 3))]
+		btn_hero.text = "%s\nRANK %d" % [str(ab.name).to_upper(), int(ab.get("unlock", 3))]
 		btn_hero.disabled = true
 	elif sim.hero.ability_cd > 0.0:
-		btn_hero.text = "%s\n%ds" % [str(ab.name).to_upper(), int(ceil(sim.hero.ability_cd))]
+		btn_hero.text = "%s\n%ds%s" % [str(ab.name).to_upper(), int(ceil(sim.hero.ability_cd)), "" if sim.wave_active() else " (paused)"]
 		btn_hero.disabled = true
 	else:
 		btn_hero.text = "%s\nREADY!" % str(ab.name).to_upper()
@@ -5060,12 +5079,11 @@ func _update_hud(delta: float) -> void:
 
 
 func _show_overlay(won: bool) -> void:
-	overlay.visible = true
 	_cancel_placing()
+	var earned := 0
+	var newly := ""
 	if won:
 		_sfx("victory")
-		var earned := 0
-		var newly := ""
 		if not demo:
 			var res: Array = Progress.record_win(map_id, sim.start_lives - sim.lives, map_order)
 			earned = res[0]
@@ -5076,37 +5094,219 @@ func _show_overlay(won: bool) -> void:
 					if str(m.id) == newly:
 						Progress.data.tab = str(m.era)
 				Progress.save()
-		var nb: Button = overlay.get_meta("next")
-		nb.visible = Progress.next_map(map_id, map_order) != ""
-		lbl_overlay.text = "VICTORY!"
-		if earned > 0:
-			lbl_overlay.text = "VICTORY!  %d/3 STARS" % earned
-		lbl_overlay.add_theme_color_override("font_color", C_GOLD)
-		var boss_name := str(defs.enemies[str(map.get("boss", "prime_walker"))].name).capitalize()
-		lbl_overlay_sub.text = "The %s is scrap metal.\n%d robots destroyed  -  %d lives left" % [boss_name, sim.stats.kills, sim.lives]
-		if map.get("final", false):
-			lbl_overlay.text = "THE CORE IS DESTROYED!"
-			lbl_overlay_sub.text = "The machines are finished. Humanity is free.\n...but the AI you built to win this war is already slipping back through time.\n%d robots destroyed  -  %d lives left" % [sim.stats.kills, sim.lives]
-		if newly != "":
-			var nm_era := ""
-			for m in Defs.map_list():
-				if m.id == newly:
-					nm_era = str(m.era)
-			if nm_era != _era():
-				lbl_overlay_sub.text += "\nNEW ERA UNLOCKED: %s!" % nm_era.to_upper()
-				nb.text = "ENTER THE %s" % nm_era.to_upper()
-		if not nb.visible and not map.get("final", false):
-			lbl_overlay_sub.text += "\nYou beat every map in this timeline!"
-		(overlay.get_meta("timeline") as Button).visible = not demo and Progress.can_new_timeline(map_order)
-		lbl_overlay_sub.text += _award_xp(true)
-		btn_endless.visible = true
 	else:
 		_sfx("defeat")
-		lbl_overlay.text = "THE CITY HAS FALLEN" if str(map.get("base", "cave")) == "city" else "THE CAVE HAS FALLEN"
-		lbl_overlay.add_theme_color_override("font_color", Color(1, 0.45, 0.4))
-		lbl_overlay_sub.text = "You held out until wave %d.\n%d robots destroyed." % [sim.wave, sim.stats.kills]
-		lbl_overlay_sub.text += _award_xp(false)
-		btn_endless.visible = false
+	var rewards := _award(won)
+	results_pages = [func(box: VBoxContainer): _results_summary_page(box, won, earned)]
+	for r in rewards:
+		results_pages.append(func(box: VBoxContainer): _results_reward_page(box, r))
+	if newly != "":
+		results_pages.append(func(box: VBoxContainer): _results_unlock_page(box, newly))
+	results_pages.append(func(box: VBoxContainer): _results_actions_page(box, won, newly))
+	results_summary = "%s stars=%d rewards=%d newly=%s" % ["won" if won else "lost", earned, rewards.size(), newly]
+	results_page = 0
+	overlay.visible = true
+	_show_results_page()
+
+
+func _show_results_page() -> void:
+	var box: VBoxContainer = overlay.get_meta("box")
+	_clear_box(box)
+	box.set_meta("want_w", 1100.0)
+	box.add_theme_constant_override("separation", 18)
+	(results_pages[results_page] as Callable).call(box)
+	if results_page < results_pages.size() - 1:
+		var dots := _label("%d / %d" % [results_page + 1, results_pages.size()], 18, Color(0.6, 0.68, 0.8), 4)
+		dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(dots)
+		var nxt := _button("NEXT", Color(0.2, 0.58, 0.18), 34)
+		nxt.custom_minimum_size = Vector2(360, 92)
+		nxt.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		nxt.pressed.connect(func():
+			_sfx("click")
+			results_page += 1
+			_show_results_page())
+		box.add_child(nxt)
+	_reveal(overlay)
+
+
+func _results_title(box: VBoxContainer, text: String, col: Color, size := 76) -> void:
+	var t := _label(text, size, col, 16)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(t)
+
+
+## Page 1: win or lose, the match stats, and the best tower of the match.
+func _results_summary_page(box: VBoxContainer, won: bool, stars: int) -> void:
+	if won:
+		box.add_theme_constant_override("separation", 10)
+		_results_title(box, "THE CORE IS DESTROYED!" if map.get("final", false) else "VICTORY!", C_GOLD, 62)
+		if stars > 0 or not demo:
+			var srow := HBoxContainer.new()
+			srow.alignment = BoxContainer.ALIGNMENT_CENTER
+			var have := Progress.stars(map_id) if not demo else 3
+			for i in 3:
+				srow.add_child(_icon(ICON_STAR if i < have else ICON_STAR_EMPTY, 56))
+			box.add_child(srow)
+		var line := "The %s is scrap metal." % str(defs.enemies[str(map.get("boss", "prime_walker"))].name).capitalize()
+		if map.get("final", false):
+			line = "The machines are finished... but the AI you built to win this war is already slipping back through time."
+		var sl := _label(line, 26, C_TEXT, 6)
+		sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(sl)
+	else:
+		box.add_theme_constant_override("separation", 10)
+		_results_title(box, "THE CITY HAS FALLEN" if str(map.get("base", "cave")) == "city" else "DEFEAT", Color(1, 0.45, 0.4), 62)
+		var sl2 := _label("You held out until wave %d of %d. Every wave you cleared still paid out." % [sim.wave, sim.total_waves], 26, C_TEXT, 6)
+		sl2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sl2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(sl2)
+	var grid := HFlowContainer.new()
+	grid.alignment = FlowContainer.ALIGNMENT_CENTER
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 14)
+	box.add_child(grid)
+	var cells := [
+		["WAVES", "%d / %d" % [mini(waves_cleared, sim.total_waves), sim.total_waves]],
+		["ROBOTS DESTROYED", str(sim.stats.kills)],
+		["LIVES LEFT", str(maxi(0, sim.lives))],
+		["GOLD EARNED", str(sim.stats.gold_earned)],
+		["TOWERS BUILT", str(sim.stats.built)],
+		["HERO KILLS", str(sim.hero.kills if sim.hero != null else 0)],
+	]
+	for c in cells:
+		var cell := PanelContainer.new()
+		cell.add_theme_stylebox_override("panel", _style(Color(0.08, 0.12, 0.2), 14, C_PANEL_EDGE.darkened(0.2), 3))
+		cell.custom_minimum_size = Vector2(300, 0)
+		var cv := VBoxContainer.new()
+		cv.add_theme_constant_override("separation", -2)
+		cell.add_child(cv)
+		var k := _label(str(c[0]), 17, Color(0.62, 0.72, 0.86), 4)
+		k.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cv.add_child(k)
+		var v := _label(str(c[1]), 30, Color.WHITE, 7)
+		v.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cv.add_child(v)
+		grid.add_child(cell)
+	var best := sim.best_tower()
+	if not best.is_empty():
+		var bp := PanelContainer.new()
+		bp.add_theme_stylebox_override("panel", _style(Color(0.1, 0.16, 0.27), 18, C_GOLD, 4))
+		bp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(bp)
+		var bh := HBoxContainer.new()
+		bh.add_theme_constant_override("separation", 18)
+		bp.add_child(bh)
+		bh.add_child(_icon(_icon_tex(str(best.type)), 96))
+		var bv := VBoxContainer.new()
+		bv.alignment = BoxContainer.ALIGNMENT_CENTER
+		bh.add_child(bv)
+		bv.add_child(_label("BEST TOWER", 20, C_GOLD, 5))
+		bv.add_child(_label(str(best.name), 32, Color.WHITE, 8))
+		bv.add_child(_label("%s damage  -  %d robots destroyed  -  tier %d" % [_short_num(float(best.dealt)), int(best.kills), int(best.level)], 21, Color(0.8, 0.86, 0.95), 5))
+
+
+## One reward per page: a big picture, the amount, and what it's for.
+func _results_reward_page(box: VBoxContainer, r: Dictionary) -> void:
+	_results_title(box, str(r.title), r.get("col", C_GOLD), 60)
+	var ic := _icon(r.icon, 210)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ic.pivot_offset = Vector2(105, 105)
+	ic.scale = Vector2.ONE * 0.4
+	box.add_child(ic)
+	var tw := ic.create_tween()
+	tw.tween_property(ic, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var amt := _label(str(r.amount), 56, Color.WHITE, 14)
+	amt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(amt)
+	if r.has("bar"):
+		var pb := ProgressBar.new()
+		pb.show_percentage = false
+		pb.custom_minimum_size = Vector2(560, 30)
+		pb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		pb.max_value = maxf(float(r.bar[1]), 1.0)
+		pb.value = float(r.bar[0])
+		var fill := _style(Color(0.3, 0.75, 1.0), 10)
+		fill.shadow_size = 0
+		var bg := _style(Color(0.04, 0.07, 0.12), 10)
+		bg.shadow_size = 0
+		pb.add_theme_stylebox_override("fill", fill)
+		pb.add_theme_stylebox_override("background", bg)
+		box.add_child(pb)
+	var ex := _label(str(r.text), 26, Color(0.82, 0.88, 0.96), 6)
+	ex.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ex.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(ex)
+	if r.get("fanfare", false):
+		_sfx("level_up", 0.0, 0.0, 0.0)
+	else:
+		_sfx("coin", -2.0)
+
+
+func _results_unlock_page(box: VBoxContainer, newly: String) -> void:
+	var me := _map_entry(newly)
+	var new_era := str(me.get("era", "")) != _era()
+	_results_title(box, "NEW AGE UNLOCKED!" if new_era else "NEW MAP UNLOCKED!", Color(0.6, 1.0, 0.6), 60)
+	var tex = load("res://assets/textures/ground_%s.png" % newly)
+	if tex != null:
+		var tr := TextureRect.new()
+		tr.texture = tex
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tr.custom_minimum_size = Vector2(560, 300)
+		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		box.add_child(tr)
+	var nm := _label("%s  -  Map %d of %d" % [str(me.get("name", newly)), map_order.find(newly) + 1, map_order.size()], 40, Color.WHITE, 9)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(nm)
+	var txt := "Welcome to the %s: new towers to unlock, new heros to recruit and new robots coming through the portal. Scrap starts fresh here." % str(me.get("era", "")) if new_era else "The next map is open. It's tougher than this one, so unlock towers with your Scrap if you need more firepower."
+	var ex := _label(txt, 24, Color(0.82, 0.88, 0.96), 6)
+	ex.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ex.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(ex)
+	_sfx("upgrade")
+
+
+## Last page: where to go next.
+func _results_actions_page(box: VBoxContainer, won: bool, newly: String) -> void:
+	_results_title(box, "WHAT NEXT?", C_GOLD, 60)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 20)
+	grid.add_theme_constant_override("v_separation", 20)
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(grid)
+	var add := func(text: String, col: Color, cb: Callable) -> void:
+		var b := _button(text, col, 30)
+		b.custom_minimum_size = Vector2(420, 96)
+		b.pressed.connect(func():
+			_sfx("click")
+			cb.call())
+		grid.add_child(b)
+	var nm := Progress.next_map(map_id, map_order)
+	if won and nm != "":
+		var ne := str(_map_entry(nm).get("era", "")) != _era()
+		add.call("ENTER THE %s" % str(_map_entry(nm).get("era", "")).to_upper() if ne else "NEXT MAP", Color(0.2, 0.58, 0.18), func():
+			Progress.current_map = nm
+			get_tree().reload_current_scene())
+	add.call("PLAY AGAIN", Color(0.24, 0.4, 0.62), func():
+		Progress.current_map = map_id
+		get_tree().reload_current_scene())
+	if won:
+		add.call("ENDLESS MODE", Color(0.5, 0.28, 0.6), func():
+			sim.endless = true
+			sim.state = "ready"
+			overlay.visible = false
+			_banner("ENDLESS", Color(0.85, 0.6, 1))
+			_toast("How long can you hold out?", Color(0.85, 0.6, 1)))
+	add.call("MAIN MENU", Color(0.24, 0.3, 0.44), func():
+		Progress.current_map = ""
+		Progress.open_map_select = false
+		get_tree().reload_current_scene())
+	if won and not demo and Progress.can_new_timeline(map_order):
+		add.call("BEGIN A NEW TIMELINE", Color(0.5, 0.2, 0.62), func(): _confirm_new_timeline())
 
 
 # =================================================================== pause, settings, legacy
@@ -5141,11 +5341,11 @@ func _build_pause_menu(root: Control) -> void:
 		["SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()],
 		["ROBOTS ON THIS MAP", Color(0.55, 0.2, 0.22), func(): _robot_roster(map_id)],
 		["RESTART MAP", Color(0.24, 0.4, 0.62), func():
-			_award_xp(false)
+			_award(false)
 			Progress.current_map = map_id
 			get_tree().reload_current_scene()],
 		["QUIT TO MAIN MENU", Color(0.55, 0.26, 0.18), func():
-			_award_xp(false)
+			_award(false)
 			Progress.current_map = ""
 			Progress.open_map_select = false
 			get_tree().reload_current_scene()],
@@ -5158,7 +5358,7 @@ func _build_pause_menu(root: Control) -> void:
 			_sfx("click")
 			cb.call())
 		box.add_child(b)
-	var note := _label("Waves you cleared still earn Upgrade XP if you restart or quit.", 19, Color(0.68, 0.75, 0.85), 5)
+	var note := _label("Waves you cleared still earn Scrap and Time Shards if you restart or quit, and your hero keeps its XP.", 19, Color(0.68, 0.75, 0.85), 5)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
@@ -5307,8 +5507,8 @@ func _slider(key: String) -> HSlider:
 
 func _open_settings() -> void:
 	var box: VBoxContainer = settings_panel.get_meta("box")
-	for c in box.get_children():
-		c.queue_free()
+	_reveal(settings_panel)
+	_clear_box(box)
 	box.set_meta("want_w", 760.0)
 	box.add_theme_constant_override("separation", 16)
 	var t := _label("SETTINGS", 64, C_GOLD, 14)
@@ -5381,11 +5581,11 @@ func _confirm_new_timeline() -> void:
 	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(story)
-	var keep := _label("YOU KEEP:  your Upgrade level, every perk you bought, and all unlocked heros.", 26, Color(0.6, 1.0, 0.6), 6)
+	var keep := _label("YOU KEEP:  every perk you bought, all your heros and their levels, and your Time Shards.", 26, Color(0.6, 1.0, 0.6), 6)
 	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(keep)
-	var gain := _label("YOU GAIN:  +%d Upgrade Points, every perk can go %d rank higher, and +%d%% Upgrade XP from every match." % [
-		int(lt.bonus_points_per), int(lt.max_rank_per), int(round(float(lt.xp_per) * 100))], 26, C_GOLD, 6)
+	var gain := _label("YOU GAIN:  +%d Upgrade Points, and every perk can go %d rank higher." % [
+		int(lt.bonus_points_per), int(lt.max_rank_per)], 26, C_GOLD, 6)
 	gain.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(gain)
 	var lose := _label("RESETS:  map unlocks and stars. Robots in the new timeline are %d%% tougher." % int(round(float(lt.robot_hp_per) * 100)), 26, Color(1, 0.6, 0.55), 6)
@@ -5413,16 +5613,6 @@ func _confirm_new_timeline() -> void:
 	row.add_child(yes)
 
 
-func _legacy_badge_text() -> String:
-	var pr := Progress.legacy_progress()
-	var t := "Upgrade Level %d   -   %d / %d XP" % [Progress.legacy_level(), pr[0], pr[1]]
-	if Progress.timeline() > 1:
-		t = "Timeline %d   -   " % Progress.timeline() + t
-	if Progress.points_free() > 0:
-		t += "   -   %d point%s to spend!" % [Progress.points_free(), "" if Progress.points_free() == 1 else "s"]
-	return t
-
-
 func _map_meta() -> Dictionary:
 	for m in Defs.map_list():
 		if str(m.id) == map_id:
@@ -5431,48 +5621,56 @@ func _map_meta() -> Dictionary:
 
 
 ## Grants Legacy XP for waves cleared since the last award (and the win bonus once). Returns text for the result screen.
-func _award_xp(won: bool) -> String:
+## Pays out Scrap, Time Shards and hero XP for whatever hasn't been paid yet this match
+## (also used when restarting or quitting). Returns the rewards to show, one page each.
+func _award(won: bool) -> Array:
+	var out := []
 	if demo:
-		return ""
+		return out
 	var meta := _map_meta()
-	var xp := 0
 	var scrap := 0
 	var shards := 0
 	var new_waves := waves_cleared - xp_waves_awarded
 	if new_waves > 0 and not sim.endless:
-		xp += Progress.match_xp(meta, new_waves, false, false)
 		scrap += Progress.match_scrap(meta, new_waves, false, false)
 		shards += Progress.match_shards(meta, new_waves, false, false)
-	elif new_waves > 0:
-		xp += Progress.match_xp(meta, new_waves, false, false)
 	xp_waves_awarded = waves_cleared
+	var fc := false
 	if won and not xp_win_awarded:
 		xp_win_awarded = true
-		xp += Progress.match_xp(meta, 0, true, first_clear)
+		fc = first_clear
 		scrap += Progress.match_scrap(meta, 0, true, first_clear)
 		shards += Progress.match_shards(meta, 0, true, first_clear)
-	if xp <= 0:
-		return ""
-	var sh0 := Progress.shards()
-	var lv: Array = Progress.add_xp(xp)
-	if shards > 0:
-		Progress.add_shards(shards)
-	var txt := ""
+	# hero XP: only from robots the hero destroyed itself
+	var hxp := int(sim.hero_kill_xp - hero_xp_awarded)
+	hero_xp_awarded = sim.hero_kill_xp
+	var hid := sim.hero_id
+	var hname := _short_name(str(sim.hero_def.get("name", hid)))
+	var lv := [Progress.hero_level(hid), Progress.hero_level(hid), 0]
+	if hxp > 0 and hid != "":
+		lv = Progress.add_hero_xp(hid, hxp)
 	if scrap > 0:
 		Progress.add_scrap(_era(), scrap)
-		txt += "\n+%d SCRAP  (%s: %d)" % [scrap, _era(), Progress.scrap(_era())]
-	txt += "\n+%d UPGRADE XP" % xp
-	if first_clear and won:
-		txt += " (first clear bonus!)"
-	if lv[1] > lv[0]:
-		txt += "\nUPGRADE LEVEL %d!" % lv[1]
-		_sfx("level_up", 0.0, 0.0, 0.0)
-	if Progress.shards() > sh0:
-		txt += "\n+%d TIME SHARDS  (you have %d)" % [Progress.shards() - sh0, Progress.shards()]
-	return txt
+		out.append({"title": "SCRAP", "icon": _res("res://assets/ui/icon_scrap.png"), "amount": "+%d" % scrap, "col": Color(0.8, 0.88, 1.0),
+			"text": "Salvaged robot parts from the %s. Spend Scrap on the TOWERS screen to unlock this age's next tower. You now have %d. Each age has its own Scrap." % [_era(), Progress.scrap(_era())]})
+	if hid != "" and (hxp > 0 or won):
+		var pr := Progress.hero_level_progress(hid)
+		var up: bool = lv[1] > lv[0]
+		var t := "%s destroyed robots worth %d hero XP. Heros only learn from robots they destroy themselves." % [hname, hxp] if hxp > 0 else "%s didn't destroy any robots this time. Heros only earn XP from their own kills: place them where the robots are." % hname
+		if up:
+			t = "%s reached LEVEL %d!  %s.  Level-up bonus: +%d Time Shards." % [hname, lv[1], Progress.hero_level_bonus_text(lv[1]), lv[2]]
+		var mx: bool = int(lv[1]) >= int(Progress.workshop.hero_levels.max)
+		out.append({"title": "%s  -  LEVEL %d%s" % [hname.to_upper(), lv[1], "  (MAX)" if mx else ""], "icon": _face_tex(hid), "amount": "+%d HERO XP" % hxp,
+			"text": t, "bar": [pr[0], pr[1]] if not mx else [1, 1], "fanfare": up, "col": Color(0.6, 0.9, 1.0)})
+	if shards > 0:
+		Progress.add_shards(shards)
+		out.append({"title": "TIME SHARDS", "icon": ICON_SHARD, "amount": "+%d" % shards, "col": Color(0.82, 0.74, 1.0),
+			"text": "Crystals from the time rift%s. Spend them on new heros on the HEROS screen. They never reset. You now have %d." % [" (includes the first-clear bonus)" if fc else "", Progress.shards()]})
+	return out
 
 
 func _open_legacy() -> void:
+	_reveal(legacy_panel)
 	_build_legacy_contents()
 	legacy_panel.get_parent().move_child(legacy_panel, -1)
 	legacy_panel.visible = true
@@ -5480,8 +5678,7 @@ func _open_legacy() -> void:
 
 func _build_legacy_contents() -> void:
 	var box: VBoxContainer = legacy_panel.get_meta("box")
-	for c in box.get_children():
-		c.queue_free()
+	_clear_box(box)
 	box.set_meta("want_w", 1560.0)
 	box.add_theme_constant_override("separation", 12)
 	# header
@@ -5489,26 +5686,14 @@ func _build_legacy_contents() -> void:
 	head.add_theme_constant_override("separation", 30)
 	box.add_child(head)
 	head.add_child(_label("UPGRADES", 64, C_GOLD, 14))
-	var lvbox := VBoxContainer.new()
-	lvbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lvbox.add_theme_constant_override("separation", 4)
-	head.add_child(lvbox)
-	var pr := Progress.legacy_progress()
-	lvbox.add_child(_label("LEVEL %d" % Progress.legacy_level(), 36, Color(0.6, 0.9, 1.0), 8))
-	var bar := ColorRect.new()
-	bar.color = Color(0.03, 0.05, 0.09)
-	bar.custom_minimum_size = Vector2(460, 18)
-	lvbox.add_child(bar)
-	var fill := ColorRect.new()
-	fill.color = Color(0.4, 0.8, 1.0)
-	fill.size = Vector2(460.0 * clampf(float(pr[0]) / maxf(float(pr[1]), 1.0), 0.0, 1.0), 18)
-	bar.add_child(fill)
-	lvbox.add_child(_label("%d / %d XP to the next level" % [pr[0], pr[1]], 19, Color(0.85, 0.85, 0.9), 5))
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(gap)
 	var pts := Progress.points_free()
 	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.6, 0.64, 0.7), 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
-	var intro_t := "Every battle raises your Upgrade level, which unlocks new heros. Upgrade Points are earned only by starting a New Timeline, and the perks you buy carry into every map and every timeline after that."
+	var intro_t := "Upgrade Points are earned only by starting a New Timeline. The perks you buy carry into every map and every timeline after that. (Heros level up on their own: each hero gets stronger from the robots it destroys.)"
 	if Progress.timeline() > 1:
 		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
 			Progress.timeline() - 1, "" if Progress.timeline() == 2 else "s"]
@@ -5532,10 +5717,6 @@ func _build_legacy_contents() -> void:
 		col.add_child(bl)
 		for p in br.perks:
 			col.add_child(_perk_card(p, bc))
-	var shl := _label("Every Upgrade level pays +%d Time Shards (spend them on heros).   You have %d." % [int(Progress.workshop.shards.earn.level_up), Progress.shards()], 22, Color(0.8, 0.72, 1.0), 6)
-	shl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	shl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(shl)
 	# footer
 	var foot := HBoxContainer.new()
 	foot.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -5549,24 +5730,12 @@ func _build_legacy_contents() -> void:
 		Progress.reset_perks()
 		_build_legacy_contents())
 	foot.add_child(reset)
-	if OS.is_debug_build():
-		var cheat := _button("+1000 XP (test)", Color(0.35, 0.3, 0.45), 20)
-		cheat.custom_minimum_size = Vector2(240, 70)
-		cheat.pressed.connect(func():
-			Progress.add_xp(1000)
-			_sfx("level_up")
-			_build_legacy_contents())
-		foot.add_child(cheat)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
 	done.custom_minimum_size = Vector2(320, 70)
 	done.pressed.connect(func():
 		_sfx("click")
 		legacy_panel.visible = false
-		if not started:
-			# rebuild menus so hero locks and point counts refresh
-			Progress.current_map = ""
-			Progress.open_map_select = map_select.visible
-			get_tree().reload_current_scene())
+		_refresh_menus())
 	foot.add_child(done)
 	_close_with(legacy_panel, done)
 	box.move_child(foot, 1)   # buttons right under the header so DONE never needs scrolling
@@ -5691,8 +5860,8 @@ func _run_autowin() -> void:
 			_on_hero_button()
 		await get_tree().process_frame
 		frames += 1
-	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s title=%s sub=%s next_visible=%s hero_lvl=%d" % [map_id, sim.state, sim.wave, sim.lives,
-		overlay.visible, lbl_overlay.text, lbl_overlay_sub.text.replace("\n", " | "), (overlay.get_meta("next") as Button).visible, sim.hero.level if sim.hero != null else 0])
+	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s results=%s pages=%d hero_rank=%d" % [map_id, sim.state, sim.wave, sim.lives,
+		overlay.visible, results_summary, results_pages.size(), sim.hero.level if sim.hero != null else 0])
 	print("AUTOWIN save=", JSON.stringify(Progress.data))
 	get_tree().quit()
 
@@ -5705,6 +5874,25 @@ func _shoot_menu() -> void:
 	for i in 4:
 		await get_tree().process_frame
 	await _shot("menu_workshop.png")
+	if "--test-refresh" in OS.get_cmdline_user_args():
+		var t0 := Time.get_ticks_msec()
+		for k in 3:
+			for c in modals.duplicate():
+				if is_instance_valid(c) and c.visible and c.has_meta("on_close") and c != map_select:
+					(c.get_meta("on_close") as Callable).call()
+			await get_tree().process_frame
+			_open_heroes()
+			await get_tree().process_frame
+			(heroes_panel.get_meta("on_close") as Callable).call()
+			await get_tree().process_frame
+			_open_legacy()
+			await get_tree().process_frame
+			(legacy_panel.get_meta("on_close") as Callable).call()
+			await get_tree().process_frame
+		print("REFRESH ok title_valid=%s ms=%d modals=%d" % [is_instance_valid(title_screen), Time.get_ticks_msec() - t0, modals.size()])
+		await _shot("menu_after_refresh.png")
+		get_tree().quit()
+		return
 	if "--shoot-robots" in OS.get_cmdline_user_args():
 		_robot_roster("railyard")
 		await get_tree().create_timer(1.0).timeout
@@ -5907,6 +6095,27 @@ func _run_demo() -> void:
 		for i in 3:
 			await get_tree().process_frame
 		await _shot("demo_menu.png")
+		get_tree().quit()
+		return
+	if "--shoot-results" in args:
+		_start_game()
+		_demo_build(4000)
+		sim.start_wave()
+		for i in int(40.0 / TICK):
+			sim.step()
+			if sim.can_start_wave():
+				sim.start_wave()
+		_handle_events()
+		demo = false
+		waves_cleared = 20
+		sim.hero_kill_xp = 900.0
+		_show_overlay(true)
+		for i in results_pages.size():
+			for f in 6:
+				await get_tree().process_frame
+			await _shot("results_%d.png" % i)
+			results_page = mini(results_page + 1, results_pages.size() - 1)
+			_show_results_page()
 		get_tree().quit()
 		return
 	if "--shoot-portal" in args:

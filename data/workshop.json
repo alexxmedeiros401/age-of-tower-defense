@@ -36,9 +36,29 @@
     "earn": {
       "per_wave": 0.25,
       "win": 10,
-      "first_clear": 25,
-      "level_up": 15
+      "first_clear": 25
     },
     "test_grant": 500
+  },
+  "hero_levels": {
+    "max": 10,
+    "need": [
+      250,
+      660,
+      1170,
+      1740,
+      2370,
+      3050,
+      3770,
+      4540,
+      5350
+    ],
+    "shards_per_level": 15,
+    "per_level": {
+      "damage": 0.06,
+      "range": 0.02,
+      "ability_cd": 0.03
+    },
+    "xp": "10 + the robot's gold bounty for every robot the hero itself destroys"
   }
 }
