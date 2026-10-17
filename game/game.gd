@@ -3555,9 +3555,9 @@ func _build_hud() -> void:
 	mid.add_child(tower_box)
 	var head := HBoxContainer.new()
 	tower_box.add_child(head)
-	tower_icon = _icon(_icon_tex(types[0]), 84)
+	tower_icon = _icon(_icon_tex(types[0]), 66)
 	head.add_child(tower_icon)
-	lbl_t_name = _label("", 30, Color(1, 0.88, 0.55))
+	lbl_t_name = _label("", 27, Color(1, 0.88, 0.55))
 	lbl_t_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_t_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl_t_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -4812,7 +4812,7 @@ func _tier_track(t: Dictionary) -> Control:
 
 
 ## A buyable upgrade, BTD6 style: its picture, name, what it does, and the price (red when you can't afford it).
-func _upgrade_card(tid: String, o: Dictionary, tier: int, tower_id: int) -> Button:
+func _upgrade_card(tid: String, o: Dictionary, tier: int, tower_id: int, tall := false) -> Button:
 	var key := str(o.key)
 	var pc := _path_color(key, tier)
 	var b := Button.new()
@@ -4821,35 +4821,45 @@ func _upgrade_card(tid: String, o: Dictionary, tier: int, tower_id: int) -> Butt
 	b.add_theme_stylebox_override("hover", _style(pc.darkened(0.4), 16, pc.lightened(0.3), 3))
 	b.add_theme_stylebox_override("pressed", _style(pc.darkened(0.3), 16, C_GOLD, 3))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	b.custom_minimum_size = Vector2(0, 116)
-	var hb := HBoxContainer.new()
-	hb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	b.custom_minimum_size = Vector2(0, 104)
+	b.clip_contents = true
+	var hb: BoxContainer = VBoxContainer.new() if tall else HBoxContainer.new()   # tall: the two path choices side by side
+	hb.set_anchors_preset(Control.PRESET_TOP_WIDE)        # full width; the card grows to fit the text
 	hb.offset_left = 8
 	hb.offset_top = 8
 	hb.offset_right = -8
-	hb.offset_bottom = -8
-	hb.add_theme_constant_override("separation", 10)
+	hb.add_theme_constant_override("separation", 4 if tall else 10)
 	b.add_child(hb)
-	hb.add_child(_upgrade_art(tid, key, tier, 100, "next"))
+	var art := _upgrade_art(tid, key, tier, 76 if tall else 88, "next")
+	art.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER if tall else Control.SIZE_FILL
+	hb.add_child(art)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.add_theme_constant_override("separation", 0)
 	hb.add_child(v)
-	var head := ("PATH %s  -  TIER %s" % [key, ROMAN[tier]]) if tier > 2 else ("TIER %s" % ROMAN[tier])
-	v.add_child(_label(head, 15, pc.lightened(0.5)))
-	var nm := _label(str(o.name), 24, C_GOLD)
-	nm.clip_text = true
+	# top line: which tier / path, and the price (always visible, red when you can't afford it)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 4)
+	v.add_child(top)
+	var head := ("PATH %s" % key) if tall else (("PATH %s  -  TIER %s" % [key, ROMAN[tier]]) if tier > 2 else ("TIER %s" % ROMAN[tier]))
+	var hl := _label(head, 15, pc.lightened(0.5))
+	hl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hl.clip_text = true
+	top.add_child(hl)
+	top.add_child(_icon(ICON_GOLD, 22 if tall else 24))
+	var cl := _label(str(int(o.cost)), 20 if tall else 22, Color(0.75, 1.0, 0.6))
+	top.add_child(cl)
+	var nm := _label(str(o.name), 19 if tall else 22, C_GOLD)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(nm)
-	var ds := _label(str(o.desc), 17, Color(0.86, 0.9, 0.95))
+	var ds := _label(str(o.desc), 14 if tall else 16, Color(0.86, 0.9, 0.95))
 	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ds.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(ds)
-	var cr := HBoxContainer.new()
-	cr.add_theme_constant_override("separation", 6)
-	cr.add_child(_icon(ICON_GOLD, 28))
-	var cl := _label(str(int(o.cost)), 24, Color(0.75, 1.0, 0.6))
-	cr.add_child(cl)
-	v.add_child(cr)
+	var fit := func():                                     # wrap first, then grow the card to fit
+		b.custom_minimum_size.y = maxf(104.0, hb.get_combined_minimum_size().y + 16.0)
+	hb.minimum_size_changed.connect(fit)
+	hb.resized.connect(fit)
 	_ignore_mouse(hb)
 	b.set_meta("cost", int(o.cost))
 	b.set_meta("cost_lbl", cl)
@@ -5771,12 +5781,21 @@ func _show_tower_panel(id: int) -> void:
 			var mx := _label("FULLY UPGRADED", 30, C_GOLD)
 			mx.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			up_box.add_child(mx)
-		if opts.size() == 2:
-			var ch := _label("PICK A PATH  -  the other one locks", 20, Color(1, 0.78, 0.45))
+		if opts.size() == 2:                    # the path choice: both paths side by side
+			var ch := _label("PICK A PATH  -  the other one locks", 17, Color(1, 0.78, 0.45))
 			ch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			ch.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			up_box.add_child(ch)
-		for o in opts:
-			up_box.add_child(_upgrade_card(str(t.type), o, int(t.level) + 1, id))
+			var pair := HBoxContainer.new()
+			pair.add_theme_constant_override("separation", 8)
+			up_box.add_child(pair)
+			for o in opts:
+				var tc := _upgrade_card(str(t.type), o, int(t.level) + 1, id, true)
+				tc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				pair.add_child(tc)
+		else:
+			for o in opts:
+				up_box.add_child(_upgrade_card(str(t.type), o, int(t.level) + 1, id))
 		btn_sell.visible = true
 		btn_sell.text = "SELL  +%d gold" % sim.sell_value(t)
 		aura_range.visible = false
@@ -5843,7 +5862,12 @@ func _update_hud(delta: float) -> void:
 	lbl_wave.text = ("%d/%d" % [sim.wave, sim.total_waves]) if not (sim.endless or sim.wave > sim.total_waves) else ("%d  ENDLESS" % sim.wave)
 	for type in shop_buttons:
 		shop_buttons[type].disabled = _tower_open(type) and sim.gold < sim.tower_cost(type)
-	for b in up_box.get_children():
+	var cards: Array = []
+	for c in up_box.get_children():
+		cards.append(c)
+		if c is HBoxContainer:
+			cards.append_array(c.get_children())
+	for b in cards:
 		if b is Button and b.has_meta("cost"):
 			var poor: bool = sim.gold < int(b.get_meta("cost"))
 			b.disabled = poor
@@ -6980,6 +7004,12 @@ func _run_demo() -> void:
 		await _shot("upgrade_poor.png")
 		sim.gold += 9000
 		sim.upgrade_tower(uid, "")
+		sim.gold = 145
+		_handle_events()
+		_show_tower_panel(uid)
+		await get_tree().create_timer(0.6).timeout
+		await _shot("upgrade_pick.png")
+		sim.gold += 9000
 		sim.upgrade_tower(uid, "A")
 		_handle_events()
 		_show_tower_panel(uid)
