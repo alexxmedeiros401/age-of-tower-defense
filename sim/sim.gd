@@ -15,7 +15,13 @@ var map: Dictionary
 var path := PackedVector2Array()       # first path (kept for visuals that only need one)
 var cum_len := PackedFloat32Array()
 var path_length := 0.0
-var paths: Array = []                    # [{pts, cum, length}] one per portal
+var paths: Array = []                    # [{pts, cum, length, legs, zones, rifts}] one per portal
+## Path mechanics (map JSON: a path is either a point list or {"pts": [...], "rift": [k...], "zones": [...]}):
+##   rift k  : the robot jumps from pts[k-1] straight to pts[k] (a time rift; that hop has no length and no road)
+##   zone    : {"k": "fast"|"slow"|"tunnel", "a": i, "b": j, "m": mult} covers pts[i]..pts[j]
+##             fast/slow multiply a ground robot's speed; inside a tunnel ground robots can't be targeted.
+##             Flying robots ignore zones (they fly over lanes, mud and tunnels).
+const ZONE_MULT := {"fast": 2.0, "slow": 0.55}
 var blockers: Array = []                 # [Vector3(x, z, r)] no-build circles (lakes, lava, dunes...)
 var rivers: Array = []                   # [{pts: PackedVector2Array, half: float}] no-build water
 var hp_mult := 1.0
@@ -75,13 +81,28 @@ func setup(p_defs: Dictionary, p_map: Dictionary, seed_value: int = 1337) -> voi
 	var raw_paths: Array = map.paths if map.has("paths") else [map.path]
 	paths.clear()
 	for rp in raw_paths:
-		var pts := _pts(rp)
+		var spec: Dictionary = rp if rp is Dictionary else {"pts": rp}
+		var pts := _pts(spec.pts)
+		var rift_idx: Array = []
+		for k in spec.get("rift", []):
+			rift_idx.append(int(k))
 		var cum := PackedFloat32Array([0.0])
 		var total := 0.0
+		var rifts: Array = []
 		for i in range(1, pts.size()):
-			total += pts[i].distance_to(pts[i - 1])
+			if i in rift_idx:
+				rifts.append({"d": total, "from": pts[i - 1], "to": pts[i]})
+			else:
+				total += pts[i].distance_to(pts[i - 1])
 			cum.append(total)
-		paths.append({"pts": pts, "cum": cum, "length": total})
+		var zones: Array = []
+		for z in spec.get("zones", []):
+			var kind := str(z.k)
+			zones.append({"k": kind, "d0": cum[int(z.a)], "d1": cum[int(z.b)], "a": int(z.a), "b": int(z.b),
+				"m": float(z.get("m", ZONE_MULT.get(kind, 1.0)))})
+		var P := {"pts": pts, "cum": cum, "length": total, "legs": [], "zones": zones, "rifts": rifts, "rift_idx": rift_idx}
+		P.legs = _solid_legs(P)
+		paths.append(P)
 	path = paths[0].pts
 	cum_len = paths[0].cum
 	path_length = paths[0].length
@@ -128,6 +149,69 @@ func _pts(raw: Array) -> PackedVector2Array:
 	return pts
 
 
+const TUNNEL_MOUTH := 0.9     # the road runs this far into a tunnel; past that the ground on top is open (buildable)
+
+
+## The solid road of a path (what blocks building and what the ground painter draws, tools/gen_ground.py):
+## everything except rift hops and tunnel interiors.
+func _solid_legs(P: Dictionary) -> Array:
+	var gaps: Array = []
+	for z in P.zones:
+		if z.k == "tunnel" and float(z.d1) - float(z.d0) > 2.0 * TUNNEL_MOUTH:
+			gaps.append([float(z.d0) + TUNNEL_MOUTH, float(z.d1) - TUNNEL_MOUTH])
+	gaps.sort_custom(func(a, b): return a[0] < b[0])
+	var out: Array = []
+	var d := 0.0
+	for g in gaps:
+		out.append_array(_sub_legs(P, d, g[0]))
+		d = g[1]
+	out.append_array(_sub_legs(P, d, float(P.length) + 1.0))
+	return out
+
+
+## The stretch of a path between distances d0 and d1, as polylines (rifts split it).
+func _sub_legs(P: Dictionary, d0: float, d1: float) -> Array:
+	var pts: PackedVector2Array = P.pts
+	var cum: PackedFloat32Array = P.cum
+	var out: Array = []
+	var cur := PackedVector2Array()
+	for i in range(1, pts.size()):
+		if i in P.rift_idx:
+			if cur.size() > 1:
+				out.append(cur)
+			cur = PackedVector2Array()
+			continue
+		var c0 := cum[i - 1]
+		var c1 := cum[i]
+		var lo := maxf(c0, d0)
+		var hi := minf(c1, d1)
+		if hi <= lo or c1 - c0 < 1e-6:
+			continue
+		var pa := pts[i - 1].lerp(pts[i], (lo - c0) / (c1 - c0))
+		var pb := pts[i - 1].lerp(pts[i], (hi - c0) / (c1 - c0))
+		if cur.is_empty() or cur[cur.size() - 1].distance_to(pa) > 1e-4:
+			if cur.size() > 1:
+				out.append(cur)
+			cur = PackedVector2Array([pa])
+		cur.append(pb)
+	if cur.size() > 1:
+		out.append(cur)
+	return out
+
+
+## Speed multiplier and tunnel cover at distance d along path pi, for a ground robot: [mult, hidden].
+func zone_at(d: float, pi: int) -> Array:
+	var mult := 1.0
+	var hidden := false
+	for z in paths[pi].zones:
+		if d >= float(z.d0) and d < float(z.d1):
+			if z.k == "tunnel":
+				hidden = true
+			else:
+				mult *= float(z.m)
+	return [mult, hidden]
+
+
 func _id() -> int:
 	_next_id += 1
 	return _next_id
@@ -167,7 +251,7 @@ func dir_at(d: float, pi: int = 0) -> Vector2:
 	var cum: PackedFloat32Array = P.cum
 	d = clampf(d, 0.0, P.length)
 	for i in range(1, pts.size()):
-		if d <= cum[i]:
+		if d <= cum[i] and cum[i] - cum[i - 1] > 0.0001:     # skip rift hops (no length)
 			return (pts[i] - pts[i - 1]).normalized()
 	return (pts[pts.size() - 1] - pts[pts.size() - 2]).normalized()
 
@@ -183,7 +267,8 @@ func _dist_to_polyline(p: Vector2, pts: PackedVector2Array) -> float:
 func dist_to_path(p: Vector2) -> float:
 	var best := INF
 	for P in paths:
-		best = minf(best, _dist_to_polyline(p, P.pts))
+		for leg in P.legs:
+			best = minf(best, _dist_to_polyline(p, leg))
 	return best
 
 
@@ -480,7 +565,7 @@ func use_ability() -> bool:
 	var dmg := (float(ab.get("damage", 0.0)) + float(ab.get("damage_per_level", 0.0)) * lv) * hero_scale()
 	match ability_type():
 		"rain":
-			var alive := _alive_enemies()
+			var alive := _alive_enemies().filter(func(x): return not x.hidden)
 			alive.sort_custom(func(a, b): return remaining(a) < remaining(b))
 			for i in mini(int(ab.targets), alive.size()):
 				hit_pos.append(alive[i].pos)
@@ -502,7 +587,7 @@ func use_ability() -> bool:
 			fury_speed = float(ab.speed)
 		"strike":
 			# huge hits on the toughest robots, with a splash around each
-			var alive2 := _alive_enemies()
+			var alive2 := _alive_enemies().filter(func(x): return not x.hidden)
 			alive2.sort_custom(func(a, b): return a.hp > b.hp)
 			var n := mini(int(ab.targets), alive2.size())
 			var splash := float(ab.get("splash", 0.0))
@@ -630,7 +715,7 @@ func _spawn_enemy(type: String, w: int, dist: float = SPAWN_DIST, pi: int = 0) -
 	var e := {
 		"id": _id(), "type": type, "wave": w, "pi": pi, "dist": dist, "pos": pos_at(dist, pi), "prev_pos": pos_at(dist, pi),
 		"hp": hp, "max_hp": hp, "speed": float(d.speed), "armor": float(d.armor) * armor_mult,
-		"flying": d.get("flying", false), "cloak": d.get("cloak", false), "revealed_until": 0,
+		"flying": d.get("flying", false), "cloak": d.get("cloak", false), "revealed_until": 0, "hidden": (not d.get("flying", false)) and bool(zone_at(dist, pi)[1]),
 		"burn_dps": 0.0, "burn_until": 0, "burn_src": -1, "enraged": false,
 		"emp_cd": float(d.emp.every) * 0.5 if d.has("emp") else 0.0,
 		"boss": d.get("boss", false), "alive": true,
@@ -779,6 +864,8 @@ func _find_targets(center: Vector2, rng_radius: float, limit: int = 1, mode: Str
 	var r2 := rng_radius * rng_radius
 	for e in enemies:
 		if e.alive and e.pos.distance_squared_to(center) <= r2:
+			if e.hidden:
+				continue        # inside a tunnel
 			if e.cloak and tick >= e.revealed_until:
 				continue        # invisible until a Control tower, a spotter or the hero sees it
 			if e.flying and not air:
@@ -927,10 +1014,13 @@ func step() -> void:
 			if e.emp_cd <= 0.0:
 				e.emp_cd = float(dd.emp.every)
 				_emp_blast(e.pos, float(dd.emp.radius), float(dd.emp.duration))
+		var d_before: float = e.dist
 		if tick >= e.stun_until:
 			var sp: float = e.speed
 			if tick < e.slow_until:
 				sp *= 1.0 - e.slow_amt
+			if not e.flying:
+				sp *= float(zone_at(e.dist, e.pi)[0])     # speed lanes and mud (flyers pass over them)
 			e.dist += sp * TICK
 		var d: Dictionary = defs.enemies[e.type]
 		if e.max_shield > 0.0 and e.shield < e.max_shield and tick - e.last_hit > int(float(d.get("shield_delay", 3.0)) / TICK):
@@ -968,6 +1058,11 @@ func step() -> void:
 				events.append({"e": "defeat"})
 				return
 		e.pos = pos_at(e.dist, e.pi)
+		for rf in paths[e.pi].rifts:            # stepped through a time rift: jump, no slide across the map
+			if d_before <= float(rf.d) and e.dist > float(rf.d):
+				e.prev_pos = e.pos
+				events.append({"e": "warp", "id": e.id, "from": rf.from, "to": rf.to})
+		e.hidden = (not e.flying) and bool(zone_at(e.dist, e.pi)[1])
 
 	_reveal_cloaked()
 
@@ -1055,7 +1150,7 @@ func _chain(first: Dictionary, p: Dictionary, src: Dictionary) -> void:
 		var best = null
 		var bd := reach
 		for e in enemies:
-			if e.alive and not (e.id in hit) and not (e.cloak and tick >= e.revealed_until):
+			if e.alive and not e.hidden and not (e.id in hit) and not (e.cloak and tick >= e.revealed_until):
 				var d: float = e.pos.distance_to(cur.pos)
 				if d <= bd:
 					bd = d

@@ -395,6 +395,7 @@ func _build_world() -> void:
 		_swap_baked_decor()
 		if not DECOR_V2.has(str(map.get("theme", ""))):
 			_ambient_fx(Vector3.INF)
+	_build_path_features()
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -713,6 +714,279 @@ func _portal_flash(pi: int, big := false) -> void:
 	wave.ring_segments = 6
 	var w := _mi(wave, _glow_mat("portal_wave", Color(0.6, 0.85, 1.0, 0.9)).duplicate(), n, Vector3(0, float(n.get_meta("hz")), 0), Vector3(PI * 0.5, 0, 0))
 	effects.append({"node": w, "life": 0.45, "t": 0.0, "kind": "portal_wave", "big": big})
+
+
+# ---------------------------------------------------------------- path features (layout v2)
+## Tunnel mouths, time-rift pads and moving arrows on speed lanes. Built after the scenery bake swap, so they
+## stay live nodes. Paths that share a stretch share its features (deduped by position).
+var lane_arrows: Array = []      # [{node, pi, d0, d1, off}] chevrons gliding down speed lanes
+var preview: Dictionary = {}     # the path-flow preview while it runs
+var rift_nodes := {}             # snapped position -> rift pad node
+var preview_spots: Array = []    # where preview labels already sit
+
+
+func _build_path_features() -> void:
+	var seen := {}
+	for pi in sim.paths.size():
+		var P: Dictionary = sim.paths[pi]
+		for z in P.zones:
+			var key := "%s|%s|%s" % [z.k, str(sim.pos_at(float(z.d0), pi).snapped(Vector2(0.1, 0.1))), str(sim.pos_at(float(z.d1), pi).snapped(Vector2(0.1, 0.1)))]
+			if seen.has(key):
+				continue
+			seen[key] = true
+			if z.k == "tunnel":
+				_tunnel_mouth(sim.pos_at(float(z.d0) + 0.55, pi), sim.dir_at(float(z.d0) + 0.3, pi), true)
+				_tunnel_mouth(sim.pos_at(float(z.d1) - 0.55, pi), sim.dir_at(float(z.d1) - 0.3, pi), false)
+			elif z.k == "fast":
+				_lane_arrows(pi, float(z.d0), float(z.d1))
+		for rf in P.rifts:
+			var key2 := "rift|%s" % str((rf.from as Vector2).snapped(Vector2(0.1, 0.1)))
+			if seen.has(key2):
+				continue
+			seen[key2] = true
+			_rift_pad(rf.from, sim.dir_at(float(rf.d) - 0.05, pi), true)
+			_rift_pad(rf.to, sim.dir_at(float(rf.d) + 0.05, pi), false)
+
+
+## Where a robot is drawn hidden: inside a tunnel, past the mouth arch (flyers stay visible above).
+func _tunnel_hides(e: Dictionary) -> bool:
+	if e.flying:
+		return false
+	for z in sim.paths[e.pi].zones:
+		if z.k == "tunnel" and float(e.dist) > float(z.d0) + 0.55 and float(e.dist) < float(z.d1) - 0.55:
+			return true
+	return false
+
+
+func _tunnel_look() -> Array:
+	## [arch colour, trim colour, style] by era: rock cave, cut stone, brick, concrete, tech
+	match sim.era():
+		"Stone Age":
+			return [Color(0.46, 0.43, 0.40), Color(0.34, 0.31, 0.28), "rock"]
+		"Bronze Age", "Classical Age":
+			return [Color(0.82, 0.70, 0.50), Color(0.66, 0.54, 0.36), "stone"]
+		"Iron Age", "Medieval Age":
+			return [Color(0.55, 0.55, 0.57), Color(0.40, 0.40, 0.43), "stone"]
+		"Gunpowder Age", "Industrial Age":
+			return [Color(0.58, 0.30, 0.22), Color(0.40, 0.38, 0.36), "brick"]
+		"Modern Age":
+			return [Color(0.66, 0.66, 0.64), Color(0.95, 0.75, 0.15), "concrete"]
+	return [Color(0.20, 0.22, 0.28), Color(0.25, 0.85, 1.0), "tech"]
+
+
+## A tunnel mouth, made to read from the top-down camera: a dark hole sloping into the ground, framed by low
+## walls, under a small arch. `entry` = robots walk in here (the hole lies ahead of the arch), else they come out.
+func _tunnel_mouth(p: Vector2, dir: Vector2, entry: bool) -> void:
+	var look := _tunnel_look()
+	var n := Node3D.new()
+	n.position = _v3(p)
+	add_child(n)
+	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))      # -Z points down the path
+	var body := _mat("tun_%s" % look[2], look[0], {"rough": 0.9})
+	var trim := _mat("tun_trim_%s" % look[2], look[1], {"rough": 0.6, "emit": look[1] if look[2] == "tech" else Color(0, 0, 0), "emit_e": 1.5 if look[2] == "tech" else 0.0})
+	var dark := _mat("tun_dark", Color(0.03, 0.025, 0.03), {"unshaded": true})
+	var fade := _mat("tun_fade", Color(0.03, 0.025, 0.03, 0.55), {"unshaded": true})
+	var inward := -1.0 if entry else 1.0          # local z of the tunnel side: ahead (-Z) of an entry, behind an exit
+	# the hole: solid dark where the road goes under, with a soft lip where it starts
+	_mi(_box(1.7, 0.02, 1.5), dark, n, Vector3(0, 0.03, inward * 0.95))
+	_mi(_box(1.7, 0.02, 0.35), fade, n, Vector3(0, 0.03, inward * 0.05))
+	# low retaining walls either side of the ramp and a back wall over the hole
+	for sgn in [-1.0, 1.0]:
+		_mi(_box(0.32, 0.42, 1.9), body, n, Vector3(sgn * 1.0, 0.21, inward * 0.75))
+		_mi(_box(0.36, 0.1, 1.94), trim, n, Vector3(sgn * 1.0, 0.45, inward * 0.75))
+	_mi(_box(2.32, 0.55, 0.4), body, n, Vector3(0, 0.27, inward * 1.75))
+	# the arch over the mouth
+	var r := 0.98
+	var segs := 7
+	for k in segs:
+		var a := PI * (float(k) + 0.5) / float(segs)
+		var w := 0.44 if look[2] != "rock" else 0.56
+		_mi(_box(w, 0.3, 0.5), body if (k % 2 == 0 or look[2] == "concrete") else trim, n,
+			Vector3(cos(a) * r, sin(a) * r * 0.85, inward * 0.25), Vector3(0, 0, a - PI * 0.5),
+			Vector3.ONE * (1.0 + (0.14 * sin(float(k) * 1.7) if look[2] == "rock" else 0.0)))
+	if look[2] == "tech" or look[2] == "concrete":
+		_mi(_box(1.9, 0.06, 0.06), trim, n, Vector3(0, 0.98, inward * 0.25 - 0.27 * inward))
+	var q := QuadMesh.new()                        # darkness inside the arch
+	q.size = Vector2(1.7, 0.9)
+	_mi(q, dark, n, Vector3(0, 0.45, inward * 0.45), Vector3(0, 0 if inward < 0 else PI, 0))
+
+
+## A time rift: a small portal ring over a swirling pad. Robots walk into the purple one and out of the cyan one.
+func _rift_pad(p: Vector2, dir: Vector2, entry: bool) -> void:
+	var n := Node3D.new()
+	n.position = _v3(p)
+	add_child(n)
+	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))
+	var col := Color(0.75, 0.3, 1.0) if entry else Color(0.25, 0.9, 1.0)
+	_mi(_cyl(1.05, 1.15, 0.08, 20), _mat("rift_pad", Color(0.08, 0.07, 0.12), {"metal": 0.5, "rough": 0.5}), n, Vector3(0, 0.04, 0))
+	var gq := QuadMesh.new()
+	gq.size = Vector2(2.1, 2.1)
+	var layers := []
+	layers.append(_mi(gq, _glow_mat("rift_ground_%s" % entry, Color(col.r, col.g, col.b, 0.9), _swirl_tex()), n, Vector3(0, 0.1, 0), Vector3(-PI * 0.5, 0, 0)))
+	var ring := Node3D.new()
+	ring.position = Vector3(0, 1.05, 0)
+	n.add_child(ring)
+	var tor := TorusMesh.new()
+	tor.inner_radius = 0.8
+	tor.outer_radius = 0.95
+	tor.rings = 28
+	tor.ring_segments = 6
+	_mi(tor, _mat("rift_ring_%s" % entry, col, {"emit": col, "emit_e": 2.5}), ring, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+	var vq := QuadMesh.new()
+	vq.size = Vector2(1.7, 1.7)
+	layers.append(_mi(vq, _glow_mat("rift_vortex_%s" % entry, Color(col.r, col.g, col.b, 0.85), _swirl_tex()), ring, Vector3.ZERO))
+	layers.append(_mi(vq, _glow_mat("rift_vortex_w", Color(1, 1, 1, 0.45), _swirl_tex()), ring, Vector3(0, 0, 0.03), Vector3.ZERO, Vector3.ONE * 0.6))
+	for sgn in [-1.0, 1.0]:
+		_mi(_box(0.18, 0.6, 0.3), _mat("rift_post", Color(0.2, 0.2, 0.26), {"metal": 0.7, "rough": 0.4}), n, Vector3(sgn * 0.95, 0.3, 0))
+	n.set_meta("layers", layers)
+	n.set_meta("ring", ring)
+	n.set_meta("flash", 0.0)
+	rift_nodes[str(p.snapped(Vector2(0.1, 0.1)))] = n
+	effects.append({"node": n, "life": INF, "t": 0.0, "kind": "rift"})
+
+
+## Glowing chevrons that glide down a speed lane, faster than robots walk, so the lane reads as "fast".
+func _lane_arrows(pi: int, d0: float, d1: float) -> void:
+	var length := d1 - d0
+	var count := maxi(2, int(length / 2.4))
+	var acc := Color(1.0, 0.9, 0.35, 0.75)
+	if sim.era() in ["Digital Age", "The Data Center"]:
+		acc = Color(0.3, 1.0, 1.0, 0.8)
+	elif str(map.get("theme", "")) == "snow":
+		acc = Color(1, 1, 1, 0.8)
+	var m := _glow_mat("lane_arrow_%s" % acc.to_html(), acc)
+	for i in count:
+		var c := Node3D.new()
+		add_child(c)
+		for sgn in [-1.0, 1.0]:      # a V made of two bars, tip leading
+			_mi(_box(0.09, 0.02, 0.62), m, c, Vector3(sgn * 0.2, 0.0, 0.2), Vector3(0, sgn * 0.75, 0))
+		lane_arrows.append({"node": c, "pi": pi, "d0": d0, "d1": d1, "off": float(i) / float(count)})
+
+
+func _tick_lanes(dt: float) -> void:
+	for la in lane_arrows:
+		var length: float = la.d1 - la.d0
+		la.off = fmod(float(la.off) + dt * 3.6 / maxf(length, 0.1), 1.0)
+		var d: float = la.d0 + la.off * length
+		var n: Node3D = la.node
+		n.position = _v3(sim.pos_at(d, la.pi), 0.07)
+		var dir := sim.dir_at(d, la.pi)
+		n.rotation.y = atan2(-dir.x, -dir.y)
+		var edge := minf(la.off, 1.0 - la.off) * length
+		n.scale = Vector3.ONE * clampf(edge / 0.8, 0.0, 1.0)
+
+
+## BTD6-style path flow: glowing runners travel every path from its portal to your base, speeding up on
+## lanes, slowing in mud, ducking into tunnels and blinking through rifts. Labels name each mechanic.
+func _path_preview() -> void:
+	_end_preview()
+	if attract or sim == null:
+		return
+	var runners := []
+	var mk := _glow_mat("preview_runner", Color(1.0, 0.95, 0.5, 0.95))
+	var mk2 := _glow_mat("preview_trail", Color(1.0, 0.75, 0.25, 0.6))
+	for wave_i in 2:
+		for pi in sim.paths.size():
+			for j in 7:
+				var n := _mi(_sph(0.24 if j == 0 else 0.17 - j * 0.012, 8), mk if j == 0 else mk2, self, _v3(sim.pos_at(0.0, pi), 0.45))
+				n.visible = false
+				runners.append({"node": n, "pi": pi, "d": -float(j) * 0.55, "delay": wave_i * 1.6, "done": false})
+	var labels := []
+	var seen := {}
+	preview_spots.clear()
+	for pi in sim.paths.size():
+		var P: Dictionary = sim.paths[pi]
+		for z in P.zones:
+			var txt: String = {"fast": "SPEED LANE", "slow": "SLOW GROUND", "tunnel": "TUNNEL: can't be hit"}.get(z.k, "")
+			var at_d: float = (float(z.d0) + float(z.d1)) * 0.5
+			if txt != "":
+				labels.append(_preview_label(sim.pos_at(at_d, pi), txt, {"fast": Color(1, 0.9, 0.35), "slow": Color(0.95, 0.65, 0.4), "tunnel": Color(0.8, 0.85, 0.95)}[z.k]))
+		for rf in P.rifts:
+			var key2 := str((rf.from as Vector2).snapped(Vector2(0.5, 0.5)))
+			if not seen.has(key2):
+				seen[key2] = true
+				labels.append(_preview_label(rf.from, "RIFT IN", Color(0.85, 0.5, 1.0)))
+				labels.append(_preview_label(rf.to, "RIFT OUT", Color(0.4, 0.95, 1.0)))
+		if sim.paths.size() > 1:
+			labels.append(_preview_label(sim.pos_at(3.2, pi), "PORTAL %d" % (pi + 1), Color(0.6, 0.9, 1.0)))
+	preview = {"runners": runners, "labels": labels.filter(func(x): return x != null), "t": 0.0}
+
+
+func _preview_label(p: Vector2, text: String, col: Color) -> Label3D:
+	var hw := 0.2 * float(text.length()) + 0.3     # rough half width of the text in world units
+	for o in preview_spots:                        # the same note twice close together: show it once
+		if o[1] == text and (o[0] as Vector2).distance_to(p) < 4.0:
+			return null
+	for _k in 6:                                   # overlapping another label: move up the screen until clear
+		var hit := false
+		for o in preview_spots:
+			var q: Vector2 = o[0]
+			if absf(q.x - p.x) < hw + float(o[2]) and absf(q.y - p.y) < 0.95:
+				hit = true
+		if not hit:
+			break
+		p.y -= 1.0
+	preview_spots.append([p, text, hw])
+	var l := Label3D.new()
+	l.text = text
+	l.font = FONT
+	l.font_size = 72
+	l.outline_size = 18
+	l.outline_modulate = Color(0.04, 0.06, 0.12)
+	l.pixel_size = 0.01
+	l.modulate = Color(col.r, col.g, col.b, 0.0)
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.no_depth_test = true
+	l.position = _v3(p, 1.9)
+	add_child(l)
+	return l
+
+
+func _end_preview() -> void:
+	for r in preview.get("runners", []):
+		if is_instance_valid(r.node):
+			(r.node as Node).queue_free()
+	for l in preview.get("labels", []):
+		if is_instance_valid(l):
+			(l as Node).queue_free()
+	preview = {}
+
+
+func _tick_preview(dt: float) -> void:
+	if preview.is_empty():
+		return
+	preview.t = float(preview.t) + dt
+	var alive := false
+	for r in preview.runners:
+		if r.done:
+			continue
+		alive = true
+		if r.delay > 0.0:
+			r.delay = float(r.delay) - dt
+			continue
+		var P: Dictionary = sim.paths[r.pi]
+		var zn := sim.zone_at(maxf(float(r.d), 0.0), r.pi)
+		var before: float = r.d
+		r.d = float(r.d) + dt * 9.0 * float(zn[0])
+		var n: MeshInstance3D = r.node
+		if float(r.d) >= float(P.length):
+			r.done = true
+			n.visible = false
+			continue
+		n.visible = r.d >= 0.0
+		n.position = _v3(sim.pos_at(maxf(float(r.d), 0.0), r.pi), 0.45)
+		n.transparency = 0.75 if bool(zn[1]) else 0.0          # dim while underground
+		for rf in P.rifts:
+			if before <= float(rf.d) and float(r.d) > float(rf.d) and n.mesh is SphereMesh and (n.mesh as SphereMesh).radius > 0.2:
+				_ring_fx(_v3(rf.from, 0.3), 1.2, Color(0.8, 0.4, 1.0, 0.9), 0.35)
+				_ring_fx(_v3(rf.to, 0.3), 1.2, Color(0.3, 0.95, 1.0, 0.9), 0.35)
+	var t: float = preview.t
+	var a := clampf(t / 0.4, 0.0, 1.0) * clampf((7.5 - t) / 0.8, 0.0, 1.0)
+	for l in preview.labels:
+		if is_instance_valid(l):
+			(l as Label3D).modulate.a = a
+	if (not alive and t > 2.0) or t > 8.5:
+		_end_preview()
 
 
 func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> void:
@@ -1157,11 +1431,15 @@ func _swap_baked_decor() -> void:
 	var list := _decor_static()
 	var baked := _inst(path)
 	var want := -1
+	var sig := -1
 	for c in [baked] + baked.get_children():
 		if str(c.name).begins_with("Decor_"):
-			want = int(str(c.name).trim_prefix("Decor_").get_slice(".", 0).get_slice("_", 0))
-	if want != list.size():
-		push_warning("baked decor for %s is stale (%d meshes, now %d): keeping runtime scenery" % [map_id, want, list.size()])
+			var tag := str(c.name).trim_prefix("Decor_").get_slice(".", 0)
+			want = int(tag.get_slice("_", 0))
+			if tag.get_slice_count("_") > 1:
+				sig = int(tag.get_slice("_", 1))
+	if want != list.size() or sig != _decor_sig(list):
+		push_warning("baked decor for %s is stale (%d meshes / sig %d, now %d / %d): keeping runtime scenery" % [map_id, want, sig, list.size(), _decor_sig(list)])
 		baked.free()
 		return
 	for mi in list:
@@ -1172,10 +1450,19 @@ func _swap_baked_decor() -> void:
 	add_child(baked)
 
 
+## Fingerprint of where the static scenery sits, so a bake made for an older layout is never swapped in.
+func _decor_sig(list: Array) -> int:
+	var h := 0
+	for mi in list:
+		var p: Vector3 = (mi as MeshInstance3D).global_position
+		h = (h * 31 + int(round(p.x * 10.0)) * 7 + int(round(p.z * 10.0)) * 13) % 1000003
+	return absi(h)
+
+
 func _export_decor(path: String) -> void:
 	var list := _decor_static()
 	var sc := Node3D.new()
-	sc.name = "Decor_%d" % list.size()
+	sc.name = "Decor_%d_%d" % [list.size(), _decor_sig(list)]
 	var cache := {}
 	for mi in list:
 		var src := (mi as MeshInstance3D).mesh
@@ -1900,6 +2187,17 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 					var p1 := n.global_transform * Vector3(cos(a1) * 1.4, hz2 + sin(a1) * 1.4, 0)
 					_portal_arc(p0, p1)
 				n.set_meta("arc_t", at)
+			"rift":
+				var rfl: float = n.get_meta("flash")
+				if rfl > 0.0:
+					rfl = maxf(0.0, rfl - dt * 3.0)
+					n.set_meta("flash", rfl)
+				var rl: Array = n.get_meta("layers")
+				for li in rl.size():
+					(rl[li] as Node3D).rotation.z += dt * (3.2 if li % 2 == 0 else -2.2) * (1.0 + rfl * 2.0)
+				var rr: Node3D = n.get_meta("ring")
+				rr.position.y = 1.05 + 0.06 * sin(time_s * 2.5 + n.position.x)
+				rr.scale = Vector3.ONE * (1.0 + 0.25 * rfl)
 			"portal_wave":
 				var sc := 1.0 + k * (2.4 if fx.get("big", false) else 1.6)
 				n.scale = Vector3(sc, sc, 1.0 + k)
@@ -1998,6 +2296,8 @@ func _process(delta: float) -> void:
 	_handle_events()
 	_confirm_bar_tick()
 	_sync_visuals(clampf(accum / TICK, 0.0, 1.0))
+	_tick_lanes(delta)
+	_tick_preview(delta)
 	_update_effects(delta)
 	_update_hud(delta)
 	shake = maxf(0.0, shake - delta * 2.5)
@@ -2109,6 +2409,13 @@ func _handle_events() -> void:
 				if enemy_nodes.has(ev.id):
 					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.3, 0), ev.radius, Color(0.3, 1.0, 0.4), 0.5)
 				_sfx("heal", -12.0, 0.05, 0.4)
+			"warp":
+				for wp in [ev.from, ev.to]:
+					var rn = rift_nodes.get(str((wp as Vector2).snapped(Vector2(0.1, 0.1))))
+					if rn != null:
+						(rn as Node3D).set_meta("flash", 1.0)
+				_ring_fx(_v3(ev.to, 0.4), 1.3, Color(0.4, 0.95, 1.0, 0.9), 0.35)
+				_sfx("cloak", -16.0, 0.1, 0.15)
 			"kill":
 				if enemy_nodes.has(ev.id):
 					var n2: Node3D = enemy_nodes[ev.id]
@@ -2487,6 +2794,7 @@ func _sync_visuals(alpha: float) -> void:
 		var n: Node3D = enemy_nodes[e.id]
 		var p: Vector2 = e.prev_pos.lerp(e.pos, alpha)
 		n.position = _v3(p)
+		n.visible = not _tunnel_hides(e)
 		if n.has_meta("emerge"):
 			# grows out of the vortex over its first steps
 			var ek := clampf((float(e.dist) - Sim.SPAWN_DIST) / 1.0, 0.0, 1.0)
@@ -3359,6 +3667,10 @@ func _build_hud() -> void:
 	overlay = _modal(root)
 	_on_close(overlay, func():
 		_sfx("click")
+		if results_page < results_pages.size() - 1:   # mid-rewards: skip ahead to "What next?" instead of leaving
+			results_page = results_pages.size() - 1
+			_show_results_page()
+			return
 		Progress.current_map = ""
 		Progress.open_map_select = false
 		get_tree().reload_current_scene())
@@ -4254,6 +4566,7 @@ func _robot_roster(mid: String, intro := false) -> void:
 		if intro:
 			_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 			toast_t = 4.5
+			_path_preview()
 	_on_close(dlg, close)
 	var ttl := _label(("INCOMING!  -  %s" if intro else "ROBOTS  -  %s") % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -5008,6 +5321,8 @@ func _start_game() -> void:
 		return
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 	toast_t = 4.5
+	if not demo:
+		_path_preview()
 
 
 ## True the first time this map is entered. Old saves first count robots from maps already beaten as met.
@@ -5453,6 +5768,9 @@ func _build_pause_menu(root: Control) -> void:
 		["RESUME", Color(0.2, 0.58, 0.18), func(): _set_paused(false)],
 		["SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()],
 		["ROBOTS ON THIS MAP", Color(0.55, 0.2, 0.22), func(): _robot_roster(map_id)],
+		["SHOW ROBOT PATHS", Color(0.42, 0.28, 0.62), func():
+			_set_paused(false)
+			_path_preview()],
 		["RESTART MAP", Color(0.24, 0.4, 0.62), func():
 			_award(false)
 			Progress.current_map = map_id
@@ -6260,12 +6578,34 @@ func _run_demo() -> void:
 		waves_cleared = 20
 		sim.hero_kill_xp = 900.0
 		_show_overlay(true)
+		if "--test-results-x" in args:
+			await get_tree().process_frame
+			(overlay.get_meta("on_close") as Callable).call()
+			await get_tree().process_frame
+			print("RESULTSX page=%d of %d overlay=%s scene_ok=%s" % [results_page + 1, results_pages.size(), overlay.visible, is_instance_valid(overlay)])
+			await _shot("results_after_x.png")
+			get_tree().quit()
+			return
 		for i in results_pages.size():
 			for f in 6:
 				await get_tree().process_frame
 			await _shot("results_%d.png" % i)
 			results_page = mini(results_page + 1, results_pages.size() - 1)
 			_show_results_page()
+		get_tree().quit()
+		return
+	if "--shoot-paths" in args:
+		_start_game()
+		_path_preview()
+		await get_tree().create_timer(1.2).timeout
+		await _shot("paths_preview_a.png")
+		await get_tree().create_timer(1.8).timeout
+		await _shot("paths_preview_b.png")
+		_end_preview()
+		_demo_build(3000)
+		sim.start_wave()
+		await _wait_ticks(int(9.0 / TICK))
+		await _shot("paths_play.png")
 		get_tree().quit()
 		return
 	if "--shoot-portal" in args:

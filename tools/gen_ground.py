@@ -202,9 +202,13 @@ def manhattan(g, p_on, w, seed):
 MASK = {}   # per-theme masks the scatter pass reuses (heather, sand, tarmac, ...)
 
 # ---- distance to every path (and distance travelled along it, for bridge planks / rail sleepers)
-def poly_dist(polylines):
+def poly_dist(polylines, margin=3.0, signed=False):
+    """Distance to the nearest polyline, distance travelled along it there and (signed) the side of the road.
+    Each segment only updates pixels within `margin` of it (far pixels keep 1e9), which keeps maps with many
+    rounded corners fast. Everything the painters do with road distance happens well inside 3 units."""
     dd = np.full(X.shape, 1e9)
     along = np.zeros(X.shape)
+    side = np.zeros(X.shape) if signed else None
     for pts in polylines:
         pts = np.array(pts, dtype=np.float64)
         cum = 0.0
@@ -212,16 +216,87 @@ def poly_dist(polylines):
             a, b = pts[i - 1], pts[i]
             ab = b - a
             L = np.hypot(*ab)
-            t = np.clip(((X - a[0]) * ab[0] + (Z - a[1]) * ab[1]) / (L * L), 0, 1)
-            d = np.hypot(X - (a[0] + t * ab[0]), Z - (a[1] + t * ab[1]))
-            closer = d < dd
-            dd = np.where(closer, d, dd)
-            along = np.where(closer, cum + t * L, along)
+            if L < 1e-9:
+                continue
+            j0 = max(0, int((min(a[0], b[0]) - margin - X0) * PX))
+            j1 = min(w_px, int((max(a[0], b[0]) + margin - X0) * PX) + 1)
+            i0 = max(0, int((min(a[1], b[1]) - margin - Z0) * PX))
+            i1 = min(h_px, int((max(a[1], b[1]) + margin - Z0) * PX) + 1)
+            if j1 > j0 and i1 > i0:
+                Xs, Zs = X[i0:i1, j0:j1], Z[i0:i1, j0:j1]
+                t = np.clip(((Xs - a[0]) * ab[0] + (Zs - a[1]) * ab[1]) / (L * L), 0, 1)
+                px, pz = Xs - (a[0] + t * ab[0]), Zs - (a[1] + t * ab[1])
+                d = np.hypot(px, pz)
+                sub = dd[i0:i1, j0:j1]
+                closer = d < sub
+                sub[closer] = d[closer]
+                al = along[i0:i1, j0:j1]
+                al[closer] = (cum + t * L)[closer]
+                if signed:
+                    sd_ = side[i0:i1, j0:j1]
+                    sd_[closer] = ((ab[0] * pz - ab[1] * px) / L)[closer]
             cum += L
-    return dd, along
+    return (dd, along, side) if signed else (dd, along)
 
 
-paths = m["paths"] if "paths" in m else [m["path"]]
+# ---- layout v2 path specs (tools/map_layouts.py): rifts, speed/slow lanes and tunnels
+TUN_MOUTH = 0.9   # the road runs this far into a tunnel mouth; past that the ground is open (and buildable)
+
+
+def spec_cum(sp):
+    pts, rf = sp["pts"], set(sp.get("rift", []))
+    cum = [0.0]
+    for i in range(1, len(pts)):
+        cum.append(cum[-1] + (0.0 if i in rf else float(np.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]))))
+    return cum
+
+
+def sub_polylines(sp, d0, d1):
+    """The stretch of a path between distances d0 and d1, as polylines (a rift splits it)."""
+    pts, rf, cum = sp["pts"], set(sp.get("rift", [])), spec_cum(sp)
+    out, cur = [], []
+    for i in range(1, len(pts)):
+        if i in rf:
+            if len(cur) > 1:
+                out.append(cur)
+            cur = []
+            continue
+        c0, c1 = cum[i - 1], cum[i]
+        lo, hi = max(c0, d0), min(c1, d1)
+        if hi <= lo or c1 - c0 < 1e-9:
+            if c0 >= d1 and len(cur) > 1:
+                out.append(cur)
+                cur = []
+            continue
+        a, b = np.array(pts[i - 1], float), np.array(pts[i], float)
+        pa = a + (b - a) * (lo - c0) / (c1 - c0)
+        pb = a + (b - a) * (hi - c0) / (c1 - c0)
+        if not cur or np.hypot(*(np.array(cur[-1]) - pa)) > 1e-6:
+            if len(cur) > 1:
+                out.append(cur)
+            cur = [list(pa)]
+        cur.append(list(pb))
+    if len(cur) > 1:
+        out.append(cur)
+    return out
+
+
+def visible_legs(sp):
+    """Painted road: the whole path minus rift hops and tunnel interiors."""
+    L_ = spec_cum(sp)[-1]
+    gaps = sorted((spec_cum(sp)[z["a"]] + TUN_MOUTH, spec_cum(sp)[z["b"]] - TUN_MOUTH)
+                  for z in sp.get("zones", []) if z["k"] == "tunnel")
+    gaps = [g for g in gaps if g[1] > g[0]]
+    out, d = [], 0.0
+    for g0, g1 in gaps:
+        out += sub_polylines(sp, d, g0)
+        d = g1
+    out += sub_polylines(sp, d, L_ + 1)
+    return out
+
+
+specs = [p if isinstance(p, dict) else {"pts": p} for p in (m["paths"] if "paths" in m else [m["path"]])]
+paths = [lg for sp in specs for lg in visible_legs(sp)]
 dist, along = poly_dist(paths)
 half = m["path_width"] / 2
 if theme not in OLD_THEMES:
@@ -237,15 +312,23 @@ if theme not in OLD_THEMES:
     # road would smear into a solid wedge; cornr masks them out
     cornr = np.zeros(X.shape)
     for p in paths:
-        for vx, vz in p[1:-1]:
-            dv = np.hypot(X - vx, Z - vz)
-            cornr = np.maximum(cornr, np.clip(1 - (dv - dist) / 0.03, 0, 1) * (dv > 0.02))
+        for k in range(1, len(p) - 1):      # real corners only (rounded corners are many small bends)
+            u = np.array(p[k], float) - np.array(p[k - 1], float)
+            v = np.array(p[k + 1], float) - np.array(p[k], float)
+            cosang = np.dot(u, v) / max(1e-9, np.hypot(*u) * np.hypot(*v))
+            if cosang > 0.9:
+                continue
+            vx, vz = p[k]
+            j0, j1 = max(0, int((vx - 2 - X0) * PX)), min(w_px, int((vx + 2 - X0) * PX))
+            i0, i1 = max(0, int((vz - 2 - Z0) * PX)), min(h_px, int((vz + 2 - Z0) * PX))
+            dv = np.hypot(X[i0:i1, j0:j1] - vx, Z[i0:i1, j0:j1] - vz)
+            cornr[i0:i1, j0:j1] = np.maximum(cornr[i0:i1, j0:j1], np.clip(1 - (dv - dist[i0:i1, j0:j1]) / 0.03, 0, 1) * (dv > 0.02))
 rivers = m.get("rivers", [])
 rdist = np.full(X.shape, 1e9)
 rhalf = np.zeros(X.shape)
 
 for rv in rivers:
-    d_r, _a = poly_dist([rv["pts"]])
+    d_r, _a = poly_dist([rv["pts"]], margin=9.0)
     wob = (noise(1.5, 3, 41) - 0.5) * 0.5
     closer = d_r < rdist
     rdist = np.where(closer, d_r + wob, rdist)
@@ -561,6 +644,8 @@ elif rivers:
     water = lerp(water, C([0.7, 0.9, 0.92]), np.clip((rip - 0.7) * 4, 0, 1) * 0.5)
     col = lerp(col, water, np.clip((rhalf - rdist) / 0.12, 0, 1))
 
+col_water = col.copy()     # ground + water before any road (fords show the stream through the road)
+
 # ---- path
 jag = (noise(0.7, 3, 4) - 0.5) * 0.28
 pd = dist - jag
@@ -776,7 +861,94 @@ if theme == "canyon":   # mine-cart rails down the middle of the road
     col = lerp(col, C([0.32, 0.2, 0.12]), (sleeper * inside).astype(float) * 0.8)
     rail = np.exp(-((dist - 0.32) ** 2) / (2 * 0.035 ** 2))
     col = lerp(col, C([0.3, 0.3, 0.32]), rail * inside * 0.95)
-if rivers:   # wooden bridge where the road crosses water
+# ---- layout v2 lanes: speed lanes (forward chevrons), slow ground (mud / drift / ford ...), tunnel hints, rifts
+FAST_ACCENT = {"snow": [1.0, 1.0, 1.0], "factory": [1.0, 0.82, 0.15], "railyard": [1.0, 0.7, 0.2],
+               "canyon": [1.0, 0.75, 0.25], "suburb": [1.0, 1.0, 1.0], "metro": [1.0, 1.0, 1.0],
+               "military": [1.0, 1.0, 1.0], "neon": [0.3, 1.0, 1.0], "server": [0.3, 0.8, 1.0],
+               "core": [1.0, 0.35, 0.25], "lab": [0.2, 0.85, 1.0], "cooling": [0.3, 0.9, 1.0],
+               "satellite": [0.3, 0.85, 1.0], "jungle": [1.0, 0.9, 0.35], "olive": [1.0, 0.95, 0.6]}
+GLOW = ("neon", "server", "core", "lab", "cooling", "satellite")
+SLOW_LOOK = {"snow": "drift", "lab": "decon", "cooling": "frost", "metro": "traffic", "castle": "moat",
+             "bog": "bog", "desert": "sand", "olive": "sand", "coast": "sand"}
+zf = {"fast": [], "slow": [], "tunnel": []}
+for sp in specs:
+    cum = spec_cum(sp)
+    for z in sp.get("zones", []):
+        d0, d1 = cum[z["a"]], cum[z["b"]]
+        if z["k"] == "tunnel":
+            if d1 - d0 > 2 * TUN_MOUTH:
+                zf["tunnel"] += sub_polylines(sp, d0 + TUN_MOUTH, d1 - TUN_MOUTH)
+        else:
+            zf[z["k"]] += sub_polylines(sp, d0, d1)
+ford = np.zeros(X.shape, bool)
+if zf["fast"]:
+    fd, fal, fsd = poly_dist(zf["fast"], signed=True)
+    lane = np.clip((half - 0.02 - fd) / 0.05, 0, 1) * inside
+    if theme == "snow":        # polished ice
+        ice = lerp(C([0.70, 0.86, 0.97]), C([0.92, 0.97, 1.0]), np.clip(noise(0.5, 2, 301) * 1.5 - 0.2, 0, 1))
+        ice = lerp(ice, C([1, 1, 1]), gline(gridd(fal * 0.15 + fsd * 0.9, 0.35), 0.03) * 0.5)
+        col = lerp(col, ice, lane * 0.92)
+    elif theme == "factory":   # conveyor belt with ribs
+        belt = C([0.16, 0.16, 0.17]) * (1 - 0.45 * gline(gridd(fal, 0.28), 0.03))[..., None]
+        col = lerp(col, belt, lane * 0.95)
+        col = lerp(col, C([0.95, 0.78, 0.1]), (np.sin((X + Z) * np.pi / 0.18) > 0) * gline(fd - (half - 0.08), 0.04) * lane)
+    elif theme in GLOW:
+        col = lerp(col, col * 0.55, lane * 0.6)
+    else:
+        col = lerp(col, col * 1.12 + 0.03, lane * 0.6)
+    acc = C(FAST_ACCENT.get(theme, [1.0, 0.88, 0.3]))
+    u = fal + np.abs(fsd) * 0.65          # V lines whose tip leads: arrows pointing the way robots go
+    chev = gline(gridd(u, 1.15), 0.075) * (np.abs(fsd) < half - 0.18)
+    if theme in GLOW:
+        col = col + acc * (chev * 0.9 + gline(gridd(u, 1.15), 0.22) * (np.abs(fsd) < half - 0.1) * 0.25)[..., None] * lane[..., None]
+    col = lerp(col, acc, chev * lane * 0.85)
+    col = lerp(col, acc, gline(fd - (half - 0.06), 0.03) * lane * 0.55)     # lane edge lines
+if zf["slow"]:
+    sd_, sal, ssd = poly_dist(zf["slow"], signed=True)
+    wob = (noise(0.45, 3, 311) - 0.5) * 0.3
+    patch = np.clip((half + 0.12 + wob - sd_) / 0.08, 0, 1)
+    ford = (rdist < rhalf + 1.5 * half + 0.45) & (sd_ < half + 0.3) if rivers else ford
+    look = SLOW_LOOK.get(theme, "mud")
+    n_ = noise(0.25, 3, 312)
+    if look == "drift":
+        c2 = lerp(C([0.80, 0.86, 0.95]), C([1.0, 1.0, 1.0]), np.clip(n_ * 1.6 - 0.2, 0, 1))
+    elif look == "sand":
+        c2 = lerp(C([0.80, 0.66, 0.42]), C([0.93, 0.82, 0.58]), np.clip(n_ * 1.6 - 0.2, 0, 1))
+        c2 = c2 * (1 - 0.12 * gline(gridd(sal * 0.7 + ssd * 0.4, 0.45), 0.06))[..., None]
+    elif look == "decon":
+        c2 = lerp(col, C([0.35, 0.75, 1.0]), 0.35 + 0.0 * n_)
+        c2 = lerp(c2, C([0.98, 0.82, 0.1]), ((np.sin((X + Z) * np.pi / 0.22) > 0) * gline(sd_ - (half - 0.12), 0.06)))
+        c2 = lerp(c2, C([0.1, 0.1, 0.1]), ((np.sin((X + Z) * np.pi / 0.22) <= 0) * gline(sd_ - (half - 0.12), 0.06)))
+    elif look == "frost":
+        c2 = lerp(C([0.78, 0.88, 0.97]), C([0.97, 0.99, 1.0]), np.clip(n_ * 1.6 - 0.2, 0, 1))
+        c2 = lerp(c2, C([1, 1, 1]), np.clip((noise(0.06, 1, 313) - 0.7) * 5, 0, 1) * 0.7)
+    elif look == "traffic":    # crosswalk zebra + red stop tint
+        c2 = lerp(col, C([0.55, 0.12, 0.10]), np.full(X.shape, 0.25))
+        zebra = (gridd(sal, 0.5) < 0.16) & (np.abs(ssd) < half - 0.12)
+        c2 = lerp(c2, C([0.95, 0.95, 0.92]), zebra.astype(float) * 0.9)
+    elif look == "moat":
+        c2 = lerp(C([0.20, 0.30, 0.24]), C([0.32, 0.42, 0.32]), np.clip(n_ * 1.6 - 0.2, 0, 1))
+        c2 = lerp(c2, C([0.75, 0.85, 0.8]), np.clip((noise(0.3, 2, 314) - 0.68) * 4, 0, 1) * 0.4)
+    else:                      # mud / bog
+        base_mud = C([0.25, 0.20, 0.12]) if look == "bog" else C([0.36, 0.25, 0.14])
+        c2 = lerp(base_mud * 0.8, base_mud * 1.25, np.clip(n_ * 1.6 - 0.2, 0, 1))
+        c2 = lerp(c2, C([0.75, 0.70, 0.62]), np.clip((noise(0.12, 1, 315) - 0.72) * 5, 0, 1) * 0.45)   # wet glints
+    col = lerp(col, c2, patch * (1 - ford) * 0.95)
+    col *= (1 - 0.18 * gline(sd_ - (half + 0.12 + wob), 0.05) * (1 - ford))[..., None]
+if zf["tunnel"]:   # buried tunnel: a faint dashed line where robots travel underground
+    td, tal = poly_dist(zf["tunnel"])
+    open_g = np.clip((dist - half - 0.1) / 0.1, 0, 1)
+    dash = (gridd(tal, 1.3) > 0.4) * 1.0
+    col *= (1 - 0.22 * gline(td, 0.3) * open_g)[..., None]
+    col = lerp(col, P["path_dark"], gline(td, 0.06) * dash * open_g * 0.45)
+for sp in specs:   # glow scorched into the ground under the rift pads
+    for k in sp.get("rift", []):
+        for q in (sp["pts"][k - 1], sp["pts"][k]):
+            dq = np.hypot(X - q[0], Z - q[1])
+            col *= (1 - 0.35 * np.clip(1 - dq / 1.3, 0, 1))[..., None]
+            col = col + C([0.65, 0.25, 1.0]) * (gline(dq - 1.05, 0.12) * 0.55)[..., None]
+
+if rivers:   # wooden bridge where the road crosses water (a slow zone in the water is a ford instead)
     on_water = (rdist < rhalf + 0.15) & (dist < half + 0.1)
     if NEW:   # the bridge spans the full road width: grow the water mask by the road half-width first
         k = 2
@@ -800,7 +972,18 @@ if rivers:   # wooden bridge where the road crosses water
     plank *= np.where(np.sin(along * 14.0) > 0.85, 0.6, 1.0)[..., None]
     rail_edge = np.abs(dist - half) < 0.09
     plank = np.where(rail_edge[..., None], C([0.3, 0.19, 0.1]), plank)
-    col = np.where(on_water[..., None], plank, col)
+    col = np.where((on_water & ~ford)[..., None], plank, col)
+    if ford.any():   # ford: the stream runs over the road; stepping stones show the way across
+        in_w = ford & (rdist < rhalf + 0.05)
+        bank_f = ford & ~in_w & (sd_ < half)
+        col = np.where(in_w[..., None], lerp(col_water, C([0.62, 0.84, 0.88]), 0.16 * np.clip((half + 0.1 - sd_) / 0.35, 0, 1)), col)
+        col = np.where(bank_f[..., None], col * 0.82, col)          # wet road where it runs down into the water
+        sid_ = np.floor(sal / 0.62)
+        lat = np.where(sid_ % 2 == 0, -0.28, 0.28)
+        stone = np.hypot(gridd(sal - 0.31, 0.62), ssd - lat) < 0.2
+        stone &= in_w & (np.abs(ssd) < half)
+        sc_ = C([0.62, 0.61, 0.57]) * (0.85 + 0.3 * noise(0.05, 1, 318))[..., None]
+        col = np.where((stone & (np.hypot(gridd(sal - 0.31, 0.62), ssd - lat) > 0.16))[..., None], sc_ * 0.6, np.where(stone[..., None], sc_, col))
 
 
 # ---- no-build zones

@@ -5,210 +5,210 @@
    "name": "Mammoth Valley",
    "era": "Stone Age",
    "difficulty": "Normal",
-   "blurb": "One long road through the meadow. Learn the robots."
+   "blurb": "One long winding trail that crosses itself. Towers at the crossing hit robots twice."
   },
   {
    "id": "glacier_pass",
    "name": "Glacier Pass",
    "era": "Stone Age",
    "difficulty": "Hard",
-   "blurb": "A shorter road and a frozen lake where you can't build. Tougher robots."
+   "blurb": "Robots skid fast down the ice slide, then wade slowly through deep snow. Kill them in the drift."
   },
   {
    "id": "volcano_ridge",
    "name": "Volcano Ridge",
    "era": "Stone Age",
    "difficulty": "Brutal",
-   "blurb": "Two portals. Lava everywhere. Two Prime Walkers at once."
+   "blurb": "Two portals. Their trails meet and dive into a lava tube where no tower can reach them."
   },
   {
    "id": "river_delta",
    "name": "River Delta",
    "era": "Bronze Age",
    "difficulty": "Normal",
-   "blurb": "The river splits the valley. Only one bridge crosses it, and you can't build on water."
+   "blurb": "Portals north and south. Both roads meet at the only bridge, then slog through the riverbank mud."
   },
   {
    "id": "desert_citadel",
    "name": "Desert Citadel",
    "era": "Bronze Age",
    "difficulty": "Hard",
-   "blurb": "Dunes and ruins crowd a short road. Shield Bots arrive early."
+   "blurb": "The road spirals into the citadel, then vanishes into the catacombs and bursts out at your gate."
   },
   {
    "id": "copper_canyon",
    "name": "Copper Canyon",
    "era": "Bronze Age",
    "difficulty": "Brutal",
-   "blurb": "Two portals in the mines. Two Siege Crawlers at the end."
+   "blurb": "Two mines. Robots ride minecart rails at double speed, and one trail runs through a mine shaft."
   },
   {
    "id": "highland_ford",
    "name": "Highland Ford",
    "era": "Iron Age",
    "difficulty": "Normal",
-   "blurb": "Heather hills and a cold stream. Ironclads march in armored lines."
+   "blurb": "The road fords the cold stream three times. Robots wade slowly through every crossing."
   },
   {
    "id": "ember_forge",
    "name": "Ember Forge",
    "era": "Iron Age",
    "difficulty": "Hard",
-   "blurb": "The tribe's forges glow. The Iron Colossus stomps and shuts down nearby towers."
+   "blurb": "A time rift flickers in the forge. Robots step in on the left and walk out on the right."
   },
   {
    "id": "mirefen_bog",
    "name": "Mirefen Bog",
    "era": "Iron Age",
    "difficulty": "Brutal",
-   "blurb": "Two plank roads through the marsh. Twin Colossi at the end."
+   "blurb": "Two plank roads cross in the marsh. Robots sink into the mud where they meet."
   },
   {
    "id": "olive_hills",
    "name": "Olive Hills",
    "era": "Classical Age",
    "difficulty": "Normal",
-   "blurb": "Hover Drones fly: Brute and Siege towers can't hit them."
+   "blurb": "Robots run fast downhill and trudge slowly back up. A second trail joins halfway down the slope."
   },
   {
    "id": "marble_coast",
    "name": "Marble Coast",
    "era": "Classical Age",
    "difficulty": "Hard",
-   "blurb": "A sea inlet cuts the coast. The Hydra splits into three heads."
+   "blurb": "Two roads pass under old aqueducts, where robots are out of reach, then cross the inlet bridge."
   },
   {
    "id": "acropolis",
    "name": "Acropolis",
    "era": "Classical Age",
    "difficulty": "Brutal",
-   "blurb": "Defend the temple hill from two sides."
+   "blurb": "The main road loops around the temple hill and crosses itself. A short back stair comes from the north."
   },
   {
    "id": "hedgerow_fields",
    "name": "Hedgerow Fields",
    "era": "Medieval Age",
    "difficulty": "Normal",
-   "blurb": "Cloakers are invisible until a Control tower or your hero spots them."
+   "blurb": "Two lanes cross each other twice between the hedges. Cloakers hide in the crowd."
   },
   {
    "id": "castle_siege",
    "name": "Castle Siege",
    "era": "Medieval Age",
    "difficulty": "Hard",
-   "blurb": "The Black Knight's shield regrows fast. Hit it hard and keep hitting."
+   "blurb": "Two armies circle the castle, one over the north wall and one under the south. They meet in the moat at the back gate."
   },
   {
    "id": "darkwood",
    "name": "Darkwood",
    "era": "Medieval Age",
    "difficulty": "Brutal",
-   "blurb": "Twisting forest roads full of cloakers."
+   "blurb": "The woods twist you around: near the end a rift throws the robots back to the start for a second lap."
   },
   {
    "id": "smugglers_harbor",
    "name": "Smuggler's Harbor",
    "era": "Gunpowder Age",
    "difficulty": "Normal",
-   "blurb": "Bombers fly in from the sea and knock out towers when they crash."
+   "blurb": "One road crosses the harbor bridge. The smugglers' road sneaks under the water in a tunnel."
   },
   {
    "id": "star_fort",
    "name": "Star Fort",
    "era": "Gunpowder Age",
    "difficulty": "Hard",
-   "blurb": "Hold the fort against the Dreadnought Walker."
+   "blurb": "The road traces the star fort's bastions, zigzagging around a walled field in the middle."
   },
   {
    "id": "jungle_outpost",
    "name": "Jungle Outpost",
    "era": "Gunpowder Age",
    "difficulty": "Brutal",
-   "blurb": "Two jungle trails, endless bombers."
+   "blurb": "Three trails out of the jungle. Robots zip down the vines fast before the trails meet."
   },
   {
    "id": "railyard",
    "name": "Railyard",
    "era": "Industrial Age",
    "difficulty": "Normal",
-   "blurb": "Steam Tanks repair themselves. Burst them down."
+   "blurb": "Robots ride the rails at double speed. Two lines cross in the middle of the yard."
   },
   {
    "id": "foundry_row",
    "name": "Foundry Row",
    "era": "Industrial Age",
    "difficulty": "Hard",
-   "blurb": "The Juggernaut speeds up when it's hurt."
+   "blurb": "An assembly line: conveyor belts rush robots along, and the smelter swallows them for a moment."
   },
   {
    "id": "smog_city",
    "name": "Smog City",
    "era": "Industrial Age",
    "difficulty": "Brutal",
-   "blurb": "Fog, soot and two Juggernauts."
+   "blurb": "Three portals in the smog. Two roads run through the sewers before everything meets downtown."
   },
   {
    "id": "suburbia",
    "name": "Suburbia",
    "era": "Modern Age",
    "difficulty": "Normal",
-   "blurb": "Stealth Jets fly and hide. You need spotters."
+   "blurb": "Robots drive a full lap around the block, then race down the highway. A second road joins the highway."
   },
   {
    "id": "airbase",
    "name": "Airbase",
    "era": "Modern Age",
    "difficulty": "Hard",
-   "blurb": "The Hunter-Killer is invisible unless spotted."
+   "blurb": "Robots taxi down the runway at full speed and cut through the hangar, where you can't hit them."
   },
   {
    "id": "downtown",
    "name": "Downtown",
    "era": "Modern Age",
    "difficulty": "Brutal",
-   "blurb": "Skyscrapers, two highways, no mercy."
+   "blurb": "Two highways cross downtown. Robots jam up in the traffic at the crossing, then take the subway."
   },
   {
    "id": "neon_grid",
    "name": "Neon Grid",
    "era": "Digital Age",
    "difficulty": "Normal",
-   "blurb": "Nano Swarms burst into mites when destroyed."
+   "blurb": "Data highways and three rifts. Robots blink across the grid; watch the arrows to see where they land."
   },
   {
    "id": "dish_array",
    "name": "Dish Array",
    "era": "Digital Age",
    "difficulty": "Hard",
-   "blurb": "The Orbital Uplink heals and shields every robot near it."
+   "blurb": "The road curls around the big dish and into its center, where the uplink beams robots to your gate."
   },
   {
    "id": "cleanroom",
    "name": "Cleanroom",
    "era": "Digital Age",
    "difficulty": "Brutal",
-   "blurb": "The lab where it all began."
+   "blurb": "Airlocks hide the robots, decontamination slows them, and a rift skips the last corridor."
   },
   {
    "id": "server_hall",
    "name": "Server Hall",
    "era": "The Data Center",
    "difficulty": "Normal",
-   "blurb": "You're inside. Sentinels shield and heal each other."
+   "blurb": "Two data streams braid together, crossing four times. They race down data lanes and duck into cable ducts."
   },
   {
    "id": "coolant_vaults",
    "name": "Coolant Vaults",
    "era": "The Data Center",
    "difficulty": "Hard",
-   "blurb": "Frozen pipes and a gauntlet of Sentinels."
+   "blurb": "Three portals in the vaults. Robots crawl through coolant pipes and slip on frozen floors."
   },
   {
    "id": "the_core",
    "name": "The Core",
    "era": "The Data Center",
    "difficulty": "Brutal",
-   "blurb": "End it. Destroy THE CORE."
+   "blurb": "Three portals, chained rifts and data highways spiral into THE CORE. End it."
   }
  ]
 }

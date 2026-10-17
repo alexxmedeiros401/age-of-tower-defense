@@ -509,12 +509,15 @@ for hid, h in heroes["heroes"].items():
 tables = bronze_tables()
 prev_hp = {}
 prev_boss = {}
+prev_layout = {}     # maps redrawn by tools/map_layouts.py ("layout": 2) keep their roads, blockers, rivers and blurb
 for m in maps_index["maps"]:
     if os.path.exists(os.path.join(D, "map_%s.json" % m["id"])):
         old = load("map_%s.json" % m["id"])
         prev_hp[m["id"]] = old.get("hp_mult")
         if "boss_hp_mult" in old:
             prev_boss[m["id"]] = old["boss_hp_mult"]
+        if old.get("layout") == 2:
+            prev_layout[m["id"]] = (old, m.get("blurb", ""))
 maps_index["maps"] = [m for m in maps_index["maps"] if m["era"] in ("Stone Age", "Bronze Age")]
 for mid, name, era_id, diff, theme, portals, blurb, extra in S.MAPS:
     era = ERA_BY_ID[era_id]
@@ -538,6 +541,11 @@ for mid, name, era_id, diff, theme, portals, blurb, extra in S.MAPS:
     }
     if rivers:
         m["rivers"] = rivers
+    if mid in prev_layout:
+        old, blurb = prev_layout[mid]
+        m["paths"], m["blockers"], m["layout"] = old["paths"], old["blockers"], 2
+        if "rivers" in old:
+            m["rivers"] = old["rivers"]
     if mid in prev_boss:
         m["boss_hp_mult"] = prev_boss[mid]
     if extra.get("final"):
@@ -552,7 +560,7 @@ for mid, name, era_id, diff, theme, portals, blurb, extra in S.MAPS:
         save("map_%s.json" % mid, m)
     save("waves_%s.json" % mid, {"waves": waves})
     maps_index["maps"].append({"id": mid, "name": name, "era": era["name"], "difficulty": diff, "blurb": blurb})
-    lens = [round(path_len(p)) for p in paths]
+    lens = [round(path_len(p if isinstance(p, list) else p["pts"])) for p in m["paths"]]
     print("%-18s %-16s %-6s hp=%.2f len=%s blockers=%d%s" % (mid, era["name"], diff, hp, lens, len(blockers), " river" if rivers else ""))
 
 for k, v in enemies_new.items():

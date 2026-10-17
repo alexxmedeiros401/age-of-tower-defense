@@ -9,6 +9,7 @@ const STONE := {"rock_slinger": "Ranged", "club_warrior": "Brute", "boulder_cata
 var defs: Dictionary
 var map: Dictionary
 var samples := PackedVector2Array()
+var weights := PackedFloat32Array()   # time a ground robot spends at each sample (0 inside tunnels)
 var era_ids := {}   # lineage -> tower id for this map's era
 var max_perks := {}  # every Legacy perk at max rank
 const KIT_ORDER := ["rock_slinger", "tar_shaman", "club_warrior", "boulder_catapult"]   # unlock order (data/workshop.json)
@@ -38,7 +39,9 @@ func _init() -> void:
 	for pi in s.paths.size():
 		var d := 0.0
 		while d < s.paths[pi].length:
+			var zn: Array = s.zone_at(d, pi)
 			samples.append(s.pos_at(d, pi))
+			weights.append(0.0 if zn[1] else 1.0 / float(zn[0]))
 			d += 0.25
 	var era_heroes := []
 	for h in defs.heroes.heroes:
@@ -178,18 +181,18 @@ func _spend_greedy(sim: Sim, placed: Array) -> void:
 					placed.append(id)
 
 
-func _coverage(p: Vector2, r: float) -> int:
-	var c := 0
-	for s in samples:
-		if s.distance_to(p) <= r:
-			c += 1
+func _coverage(p: Vector2, r: float) -> float:
+	var c := 0.0
+	for i in samples.size():
+		if samples[i].distance_to(p) <= r:
+			c += weights[i]
 	return c
 
 
 func _best_spot(sim: Sim, type: String, hero_spot := false) -> Vector2:
 	var r: float = float(sim.hero_def.base.range) if hero_spot else float(defs.towers[type].base.range)
 	var best := Vector2.INF
-	var best_score := -1
+	var best_score := -1.0
 	var x := -14.5
 	while x <= 14.5:
 		var z := -8.0
