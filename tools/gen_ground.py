@@ -941,12 +941,6 @@ if zf["tunnel"]:   # buried tunnel: a faint dashed line where robots travel unde
     dash = (gridd(tal, 1.3) > 0.4) * 1.0
     col *= (1 - 0.22 * gline(td, 0.3) * open_g)[..., None]
     col = lerp(col, P["path_dark"], gline(td, 0.06) * dash * open_g * 0.45)
-for sp in specs:   # glow scorched into the ground under the rift pads
-    for k in sp.get("rift", []):
-        for q in (sp["pts"][k - 1], sp["pts"][k]):
-            dq = np.hypot(X - q[0], Z - q[1])
-            col *= (1 - 0.35 * np.clip(1 - dq / 1.3, 0, 1))[..., None]
-            col = col + C([0.65, 0.25, 1.0]) * (gline(dq - 1.05, 0.12) * 0.55)[..., None]
 
 if rivers:   # wooden bridge where the road crosses water (a slow zone in the water is a ford instead)
     on_water = (rdist < rhalf + 0.15) & (dist < half + 0.1)

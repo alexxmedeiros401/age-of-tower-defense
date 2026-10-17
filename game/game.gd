@@ -597,19 +597,7 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	var cyan := _mat("portal_cyan", Color(0.4, 0.95, 1.0), {"emit": Color(0.25, 0.85, 1.0), "emit_e": 3.0})
 	var mag := _mat("portal_mag", Color(1.0, 0.3, 0.9), {"emit": Color(1.0, 0.2, 0.85), "emit_e": 3.0})
 	var hz := 1.55          # ring centre height
-	# scorched launch pad with hazard ring
-	_mi(_cyl(2.3, 2.5, 0.12, 24), dark, n, Vector3(0, 0.06, 0))
-	_mi(_cyl(2.05, 2.05, 0.03, 24), _mat("portal_pad_glow", Color(0.3, 0.8, 1.0, 0.55), {"emit": Color(0.2, 0.7, 1.0), "emit_e": 1.6, "unshaded": true}), n, Vector3(0, 0.13, 0))
-	_mi(_cyl(1.8, 1.8, 0.04, 24), steel, n, Vector3(0, 0.14, 0))
-	# swirl on the pad too, so the portal reads from the top-down game camera
-	var gq := QuadMesh.new()
-	gq.size = Vector2(3.5, 3.5)
-	var gsw := _mi(gq, _glow_mat("vortex_ground", Color(0.45, 0.3, 1.0, 0.9), _swirl_tex()), n, Vector3(0, 0.17, 0), Vector3(-PI * 0.5, 0, 0))
-	var gsw2 := _mi(gq, _glow_mat("vortex_ground2", Color(0.2, 0.9, 1.0, 0.6), _swirl_tex()), n, Vector3(0, 0.18, 0), Vector3(-PI * 0.5, 0, 0), Vector3.ONE * 0.7)
-	for k in 8:
-		var aa := TAU * k / 8.0
-		_mi(_box(0.5, 0.05, 0.16), _mat("portal_hazard", Color(1.0, 0.75, 0.1), {"emit": Color(1.0, 0.6, 0.05), "emit_e": 0.8}), n,
-			Vector3(cos(aa) * 2.15, 0.14, sin(aa) * 2.15), Vector3(0, -aa, 0))
+	# (no pad or swirl on the ground: only the standing portal, v0.9.12)
 	# the frame: a thick torus with armoured segments and running lights
 	var frame := Node3D.new()
 	frame.position = Vector3(0, hz, 0)
@@ -648,7 +636,7 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	n.add_child(vortex)
 	var q := QuadMesh.new()
 	q.size = Vector2(2.7, 2.7)
-	var layers := [gsw, gsw2]
+	var layers := []
 	var cols := [Color(0.35, 0.2, 1.0, 0.95), Color(0.2, 0.9, 1.0, 0.8), Color(1.0, 0.3, 0.9, 0.55), Color(1, 1, 1, 0.5)]
 	for i in 4:
 		var l := _mi(q, _glow_mat("vortex_%d" % i, cols[i], _swirl_tex()), vortex, Vector3(0, 0, -0.06 * i + 0.09), Vector3.ZERO, Vector3.ONE * (1.0 - 0.12 * i))
@@ -811,18 +799,14 @@ func _tunnel_mouth(p: Vector2, dir: Vector2, entry: bool) -> void:
 	_mi(q, dark, n, Vector3(0, 0.45, inward * 0.45), Vector3(0, 0 if inward < 0 else PI, 0))
 
 
-## A time rift: a small portal ring over a swirling pad. Robots walk into the purple one and out of the cyan one.
+## A time rift: a small standing portal ring. Robots walk into the purple one and out of the cyan one.
 func _rift_pad(p: Vector2, dir: Vector2, entry: bool) -> void:
 	var n := Node3D.new()
 	n.position = _v3(p)
 	add_child(n)
 	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))
 	var col := Color(0.75, 0.3, 1.0) if entry else Color(0.25, 0.9, 1.0)
-	_mi(_cyl(1.05, 1.15, 0.08, 20), _mat("rift_pad", Color(0.08, 0.07, 0.12), {"metal": 0.5, "rough": 0.5}), n, Vector3(0, 0.04, 0))
-	var gq := QuadMesh.new()
-	gq.size = Vector2(2.1, 2.1)
-	var layers := []
-	layers.append(_mi(gq, _glow_mat("rift_ground_%s" % entry, Color(col.r, col.g, col.b, 0.9), _swirl_tex()), n, Vector3(0, 0.1, 0), Vector3(-PI * 0.5, 0, 0)))
+	var layers := []                       # standing ring only: nothing on the ground
 	var ring := Node3D.new()
 	ring.position = Vector3(0, 1.05, 0)
 	n.add_child(ring)
@@ -3366,22 +3350,28 @@ func _button(text: String, col: Color, font := 28) -> Button:
 	b.add_theme_color_override("font_hover_color", Color.WHITE)
 	b.add_theme_color_override("font_pressed_color", Color.WHITE)
 	b.add_theme_color_override("font_disabled_color", Color(0.62, 0.58, 0.52))
-	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.55))
-	b.add_theme_constant_override("outline_size", 6)
+	b.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 0.9))
+	b.add_theme_constant_override("outline_size", _outline_for(font))
 	if "autowrap_mode" in b:
 		b.set("autowrap_mode", TextServer.AUTOWRAP_WORD_SMART)
 	return b
 
 
+## Every label gets a dark outline thick enough to read over anything (outline 0 = deliberately none,
+## e.g. dark text on a bright badge). Smaller numbers are raised to a floor that scales with the font.
 func _label(text: String, size := 28, col := C_TEXT, outline := 9) -> Label:
 	size = _fs(size)
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
-	l.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 0.95))
-	l.add_theme_constant_override("outline_size", outline)
+	l.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 1.0))
+	l.add_theme_constant_override("outline_size", 0 if outline == 0 else maxi(outline, _outline_for(size)))
 	return l
+
+
+func _outline_for(font_px: int) -> int:
+	return clampi(int(round(float(font_px) * 0.3)), 6, 18)
 
 
 func _icon(tex: Texture2D, size := 52) -> TextureRect:
@@ -3397,6 +3387,9 @@ func _build_hud() -> void:
 	var ui_theme := Theme.new()
 	ui_theme.default_font = FONT
 	ui_theme.default_font_size = 28
+	for tn in ["Label", "Button", "CheckBox", "CheckButton", "OptionButton", "LinkButton", "LineEdit", "RichTextLabel", "MenuButton"]:
+		ui_theme.set_color("font_outline_color", tn, Color(0.02, 0.04, 0.1, 0.95))     # outlined text everywhere
+		ui_theme.set_constant("outline_size", tn, 8)
 	for sbn in ["VScrollBar", "HScrollBar"]:
 		var track := _style(Color(0.03, 0.05, 0.09, 0.9), 10)
 		track.set_content_margin_all(11)
@@ -3579,23 +3572,28 @@ func _build_hud() -> void:
 	lbl_t_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tower_box.add_child(lbl_t_info)
 	up_box = VBoxContainer.new()
-	up_box.add_theme_constant_override("separation", 10)
+	up_box.add_theme_constant_override("separation", 8)
 	tower_box.add_child(up_box)
+	tower_box.move_child(up_box, 1)        # upgrades first, stats underneath
 	tower_actions = VBoxContainer.new()
 	tower_actions.add_theme_constant_override("separation", 8)
 	tower_actions.visible = false
 	col.add_child(tower_actions)
+	var act_row := HBoxContainer.new()          # TARGET and DETAILS share a row, so the upgrades get the room
+	act_row.add_theme_constant_override("separation", 8)
+	tower_actions.add_child(act_row)
 	btn_target = _button("", Color(0.3, 0.3, 0.42), 22)
 	btn_target.custom_minimum_size = Vector2(0, 56)
+	btn_target.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_target.tooltip_text = "First: closest to your base. Strong: toughest robot (use for bosses). Close: nearest. Last: furthest back."
 	btn_target.pressed.connect(func():
 		if selected != -1:
 			sim.cycle_target(selected)
 			_sfx("click", -6.0)
 			_show_tower_panel(selected))
-	tower_actions.add_child(btn_target)
+	act_row.add_child(btn_target)
 	btn_details = _button("DETAILS", Color(0.3, 0.36, 0.5), 22)
-	btn_details.custom_minimum_size = Vector2(0, 56)
+	btn_details.custom_minimum_size = Vector2(150, 56)
 	btn_details.pressed.connect(func():
 		var tt = sim.get_unit(selected) if selected != -1 else null
 		if tt != null and not tt.get("is_hero", false):
@@ -3604,9 +3602,9 @@ func _build_hud() -> void:
 		elif tt != null:
 			_sfx("click")
 			_hero_detail(sim.hero_id, VBoxContainer.new()))
-	tower_actions.add_child(btn_details)
+	act_row.add_child(btn_details)
 	btn_sell = _button("", Color(0.62, 0.22, 0.16), 24)
-	btn_sell.custom_minimum_size = Vector2(0, 64)
+	btn_sell.custom_minimum_size = Vector2(0, 58)
 	btn_sell.pressed.connect(func():
 		if selected != -1 and sim.get_tower(selected) != null:
 			sim.sell_tower(selected)
@@ -4054,6 +4052,7 @@ func _build_main_menu(root: Control) -> void:
 			Progress.current_map = cm
 			get_tree().reload_current_scene(), false, 0.5),
 		_round_button(_res("res://assets/ui/menu_upgrade.png"), "UPGRADES", Color(0.18, 0.42, 0.72), 150, func(): _open_legacy(), Progress.points_free() > 0),
+		_round_button(_res("res://assets/ui/emblem_damage.png"), "TECH TREE", Color(0.62, 0.32, 0.1), 150, func(): _open_techtree("", ""), false, 0.74),
 		_round_button(_res("res://assets/ui/menu_map.png"), "MAPS", Color(0.25, 0.5, 0.4), 150, func():
 			title_screen.visible = false
 			map_select.visible = true),
@@ -4687,6 +4686,395 @@ func _robot_traits(d: Dictionary) -> Array:
 	return out
 
 
+# ---------------------------------------------------------------- upgrade art, cards and trees (v0.9.12)
+## Every upgrade gets a picture: its path colour, a soft glow, the tower's portrait and an emblem for what the
+## upgrade mainly does (tools/blender/upgrade_emblems.py renders assets/ui/emblem_<kind>.png).
+const EMBLEM_BY_MOD := [["chain", "chain"], ["burn", "flame"], ["slow", "slow"], ["stun", "stun"], ["crit_chance", "crit"],
+	["shred", "shred"], ["expose", "expose"], ["armor_pierce", "pierce"], ["knockback", "push"], ["anti_air", "air"],
+	["air_mult", "air"], ["boss_mult", "boss"], ["shots", "volley"], ["max_targets", "multi"]]
+const EMBLEM_BY_DTYPE := {"fire": "flame", "blunt": "hammer", "energy": "energy", "pierce": "spear"}
+const ROMAN := ["", "I", "II", "III", "IV", "V"]
+var _radial: GradientTexture2D = null
+
+
+func _tier_def(tid: String, key: String, tier: int) -> Dictionary:
+	var d: Dictionary = defs.towers[tid]
+	if tier <= 2:
+		return d.tiers[tier - 1]
+	return d.branches[key].tiers[tier - 3]
+
+
+func _upgrade_emblem(u: Dictionary) -> String:
+	var m: Dictionary = u.get("mods", {})
+	for pr in EMBLEM_BY_MOD:
+		if m.has(pr[0]):
+			return pr[1]
+	if m.has("dtype"):
+		return str(EMBLEM_BY_DTYPE.get(str(m.dtype), "damage"))
+	for pr in [["splash", "splash"], ["damage", "damage"], ["cooldown_mult", "speed"], ["range", "range"]]:
+		if m.has(pr[0]):
+			return pr[1]
+	return "damage"
+
+
+func _path_color(key: String, tier: int) -> Color:
+	if tier <= 2:
+		return Color(0.14, 0.52, 0.46)
+	return Color(0.82, 0.42, 0.1) if key == "A" else Color(0.18, 0.44, 0.9)
+
+
+func _radial_tex() -> GradientTexture2D:
+	if _radial == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 0.9))
+		g.set_color(1, Color(1, 1, 1, 0.0))
+		_radial = GradientTexture2D.new()
+		_radial.gradient = g
+		_radial.fill = GradientTexture2D.FILL_RADIAL
+		_radial.fill_from = Vector2(0.62, 0.38)
+		_radial.fill_to = Vector2(1.15, 1.0)
+		_radial.width = 128
+		_radial.height = 128
+	return _radial
+
+
+func _ignore_mouse(c: Control) -> void:
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for ch in c.get_children():
+		if ch is Control:
+			_ignore_mouse(ch)
+
+
+## state: open | owned | next (buy it now) | locked (a later tier) | blocked (the other path was chosen)
+func _upgrade_art(tid: String, key: String, tier: int, sz: int, state := "open") -> Control:
+	var u := _tier_def(tid, key, tier)
+	var pc := _path_color(key, tier)
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(sz, sz)
+	var bg := Panel.new()
+	var border := C_GOLD if state in ["owned", "next"] else pc.lightened(0.35)
+	bg.add_theme_stylebox_override("panel", _style(pc.darkened(0.5), int(sz * 0.16), border, maxi(3, int(sz * (0.055 if state == "next" else 0.035)))))
+	bg.position = Vector2.ZERO
+	bg.size = Vector2(sz, sz)
+	root.add_child(bg)
+	var glow := TextureRect.new()
+	glow.texture = _radial_tex()
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.modulate = Color(pc.lightened(0.6).r, pc.lightened(0.6).g, pc.lightened(0.6).b, 0.5)
+	glow.position = Vector2(sz * 0.05, sz * 0.05)
+	glow.size = Vector2(sz * 0.9, sz * 0.9)
+	root.add_child(glow)
+	var ic := _icon(_icon_tex(tid), int(sz * 0.78))
+	ic.position = Vector2(-sz * 0.02, sz * 0.25)
+	ic.size = Vector2(sz * 0.78, sz * 0.72)
+	root.add_child(ic)
+	var em := _icon(_res("res://assets/ui/emblem_%s.png" % _upgrade_emblem(u)) as Texture2D, int(sz * 0.64))
+	em.position = Vector2(sz * 0.38, sz * 0.0)
+	em.size = Vector2(sz * 0.64, sz * 0.64)
+	root.add_child(em)
+	var num := _label(ROMAN[tier], maxi(14, int(sz * 0.2)), Color(1, 0.95, 0.8), 0)
+	num.add_theme_constant_override("outline_size", maxi(6, int(sz * 0.08)))
+	num.position = Vector2(sz * 0.07, sz * 0.02)
+	root.add_child(num)
+	if state == "locked":
+		root.modulate = Color(0.6, 0.6, 0.66)
+	elif state == "blocked":
+		root.modulate = Color(0.36, 0.36, 0.4)
+		var lk := _icon(ICON_LOCK, int(sz * 0.42))
+		lk.position = Vector2(sz * 0.29, sz * 0.29)
+		lk.size = Vector2(sz * 0.42, sz * 0.42)
+		root.add_child(lk)
+	_ignore_mouse(root)
+	return root
+
+
+## The five tiers of a placed tower as a row of small pictures: bought ones lit, the next one framed in gold.
+func _tier_track(t: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	var lvl := int(t.level)
+	var br := str(t.branch)
+	for tier in range(1, 6):
+		if tier > 2 and br == "":
+			var q := PanelContainer.new()            # path not chosen yet
+			q.custom_minimum_size = Vector2(52, 52)
+			q.add_theme_stylebox_override("panel", _style(Color(0.1, 0.12, 0.17), 10, Color(0.3, 0.34, 0.42), 2))
+			var ql := _label("A/B" if tier == 3 else ROMAN[tier], 17, Color(0.6, 0.65, 0.75))
+			ql.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			ql.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			q.add_child(ql)
+			row.add_child(q)
+			continue
+		var st := "owned" if tier <= lvl else ("next" if tier == lvl + 1 else "locked")
+		row.add_child(_upgrade_art(str(t.type), br, tier, 52, st))
+	return row
+
+
+## A buyable upgrade, BTD6 style: its picture, name, what it does, and the price (red when you can't afford it).
+func _upgrade_card(tid: String, o: Dictionary, tier: int, tower_id: int) -> Button:
+	var key := str(o.key)
+	var pc := _path_color(key, tier)
+	var b := Button.new()
+	for stn in ["normal", "disabled"]:
+		b.add_theme_stylebox_override(stn, _style(pc.darkened(0.55), 16, pc, 3))
+	b.add_theme_stylebox_override("hover", _style(pc.darkened(0.4), 16, pc.lightened(0.3), 3))
+	b.add_theme_stylebox_override("pressed", _style(pc.darkened(0.3), 16, C_GOLD, 3))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.custom_minimum_size = Vector2(0, 116)
+	var hb := HBoxContainer.new()
+	hb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	hb.offset_left = 8
+	hb.offset_top = 8
+	hb.offset_right = -8
+	hb.offset_bottom = -8
+	hb.add_theme_constant_override("separation", 10)
+	b.add_child(hb)
+	hb.add_child(_upgrade_art(tid, key, tier, 100, "next"))
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 0)
+	hb.add_child(v)
+	var head := ("PATH %s  -  TIER %s" % [key, ROMAN[tier]]) if tier > 2 else ("TIER %s" % ROMAN[tier])
+	v.add_child(_label(head, 15, pc.lightened(0.5)))
+	var nm := _label(str(o.name), 24, C_GOLD)
+	nm.clip_text = true
+	v.add_child(nm)
+	var ds := _label(str(o.desc), 17, Color(0.86, 0.9, 0.95))
+	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ds.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(ds)
+	var cr := HBoxContainer.new()
+	cr.add_theme_constant_override("separation", 6)
+	cr.add_child(_icon(ICON_GOLD, 28))
+	var cl := _label(str(int(o.cost)), 24, Color(0.75, 1.0, 0.6))
+	cr.add_child(cl)
+	v.add_child(cr)
+	_ignore_mouse(hb)
+	b.set_meta("cost", int(o.cost))
+	b.set_meta("cost_lbl", cl)
+	b.pressed.connect(func():
+		if not sim.upgrade_tower(tower_id, key):
+			_toast("Not enough gold", Color(1, 0.45, 0.4))
+			_sfx("error", -4.0, 0.0)
+		_handle_events())
+	return b
+
+
+## One node of an upgrade tree: picture, name, price and what it does (fixed size, so trees line up).
+func _tree_node(tid: String, key: String, tier: int, sz: int, state: String) -> Control:
+	var u := _tier_def(tid, key, tier)
+	var v := VBoxContainer.new()
+	v.custom_minimum_size = Vector2(sz + 78, 0)
+	v.add_theme_constant_override("separation", 2)
+	var art := _upgrade_art(tid, key, tier, sz, state)
+	art.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	v.add_child(art)
+	v.set_meta("art", art)
+	var nm := _label(str(u.name), 16, C_GOLD if state != "blocked" else Color(0.6, 0.6, 0.65))
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.custom_minimum_size = Vector2(sz + 78, 22)
+	v.add_child(nm)
+	var cr := HBoxContainer.new()
+	cr.alignment = BoxContainer.ALIGNMENT_CENTER
+	cr.add_theme_constant_override("separation", 4)
+	cr.add_child(_icon(ICON_GOLD, 20))
+	cr.add_child(_label(str(int(u.cost)), 17, Color(0.95, 0.85, 0.45)))
+	v.add_child(cr)
+	var ds := _label(str(u.desc), 14, Color(0.82, 0.86, 0.92))
+	ds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ds.custom_minimum_size = Vector2(sz + 78, 38)
+	v.add_child(ds)
+	return v
+
+
+## Arrow from the middle of one node's picture to the next (or, for the fork, to both paths).
+func _tree_link(w: float, from_node: Control, to_nodes: Array, col := Color(0.85, 0.88, 0.95, 0.85)) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = Vector2(w, 0)
+	c.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var inv := c.get_global_transform().affine_inverse()
+		var fa: Control = from_node.get_meta("art")
+		var p0: Vector2 = inv * (fa.get_global_rect().get_center())
+		p0.x = 2.0
+		for tn in to_nodes:
+			var ta: Control = (tn as Control).get_meta("art")
+			var p1: Vector2 = inv * (ta.get_global_rect().get_center())
+			p1.x = c.size.x - 4.0
+			var mid_x := c.size.x * 0.45
+			var pts := PackedVector2Array([p0, Vector2(mid_x, p0.y), Vector2(mid_x, p1.y), p1 - Vector2(10, 0)])
+			c.draw_polyline(pts, Color(0.02, 0.04, 0.1, 0.9), 9.0, true)
+			c.draw_polyline(pts, col, 5.0, true)
+			c.draw_colored_polygon(PackedVector2Array([p1, p1 + Vector2(-14, -9), p1 + Vector2(-14, 9)]), col))
+	return c
+
+
+## A tower's whole upgrade tree: tiers I and II, then the fork into Path A and Path B (tiers III to V).
+## With `t` (a placed tower) it shows what's bought, what's next and which path is locked.
+func _upgrade_tree(tid: String, sz: int, t = null) -> Control:
+	var d: Dictionary = defs.towers[tid]
+	var lvl := int(t.level) if t != null else 0
+	var br := str(t.branch) if t != null else ""
+	var st := func(key: String, tier: int) -> String:
+		if t == null:
+			return "open"
+		if tier > 2 and br != "" and key != br:
+			return "blocked"
+		if tier <= lvl:
+			return "owned"
+		if tier == lvl + 1:
+			return "next"
+		return "locked"
+	var root := HBoxContainer.new()
+	root.alignment = BoxContainer.ALIGNMENT_CENTER
+	root.add_theme_constant_override("separation", 0)
+	var n1 := _tree_node(tid, "", 1, sz, st.call("", 1))
+	var n2 := _tree_node(tid, "", 2, sz, st.call("", 2))
+	for n in [n1, n2]:
+		n.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	root.add_child(n1)
+	root.add_child(_tree_link(34, n1, [n2]))
+	root.add_child(n2)
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 6)
+	var firsts := []
+	var links := []
+	for key in ["A", "B"]:
+		var pc := _path_color(key, 3)
+		var hdr := _label("PATH %s:  %s" % [key, str(d.branches[key].name).to_upper()], 18, pc.lightened(0.45))
+		hdr.custom_minimum_size = Vector2(0, 26)
+		rows.add_child(hdr)
+		var r := HBoxContainer.new()
+		r.add_theme_constant_override("separation", 0)
+		rows.add_child(r)
+		var prev: Control = null
+		for tier in [3, 4, 5]:
+			var nd := _tree_node(tid, key, tier, sz, st.call(key, tier))
+			if prev != null:
+				var lk := _tree_link(34, prev, [nd], pc.lightened(0.35))
+				r.add_child(lk)
+				links.append(lk)
+			r.add_child(nd)
+			if tier == 3:
+				firsts.append(nd)
+			prev = nd
+	var fork := _tree_link(56, n2, firsts)
+	root.add_child(fork)
+	root.add_child(rows)
+	links.append(fork)
+	var redraw := func():
+		for l in links:
+			if is_instance_valid(l):
+				(l as Control).queue_redraw()
+	rows.resized.connect(redraw)
+	root.resized.connect(redraw)
+	for dly in [0.05, 0.2, 0.5]:                 # once the dialog has settled its layout
+		get_tree().create_timer(dly).timeout.connect(redraw)
+	return root
+
+
+## TECH TREE (main menu): every tower's full upgrade tree, age by age. Ages you haven't reached stay locked.
+func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
+	if era == "" or not Progress.is_unlocked(_first_map_of(era)):
+		era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
+	var towers: Array = Progress.era_towers(era)
+	if tid == "" or not (tid in towers):
+		tid = str(towers[0])
+	var dlg: Control = reuse if reuse != null and is_instance_valid(reuse) else _modal(ui_root, 0.6)
+	var box: VBoxContainer = dlg.get_meta("box")
+	_clear_box(box)
+	dlg.set_meta("full_h", true)
+	box.set_meta("want_w", 1500.0)
+	box.add_theme_constant_override("separation", 10)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 24)
+	box.add_child(head)
+	var ttl := _label("TECH TREE  -  %s" % era.to_upper(), 44, C_GOLD, 12)
+	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ttl.clip_text = true
+	head.add_child(ttl)
+	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
+	done.custom_minimum_size = Vector2(200, 62)
+	done.pressed.connect(func():
+		_sfx("click")
+		dlg.queue_free())
+	head.add_child(done)
+	_close_with(dlg, done)
+	var tabs := HBoxContainer.new()             # one row of short age names keeps the whole tree on screen
+	tabs.add_theme_constant_override("separation", 6)
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(tabs)
+	for en in _eras():
+		var open := Progress.is_unlocked(_first_map_of(en))
+		var short: String = str(en).to_upper().replace(" AGE", "").replace("THE ", "")
+		var tb := _button(short if open else "", Color(0.2, 0.36, 0.6) if en == era else (Color(0.16, 0.24, 0.38) if open else Color(0.12, 0.14, 0.18)), 15)
+		tb.custom_minimum_size = Vector2(126, 46)
+		tb.clip_text = true
+		if not open:
+			tb.disabled = true
+			tb.icon = ICON_LOCK
+			tb.add_theme_constant_override("icon_max_width", 26)
+		elif en == era:
+			tb.add_theme_color_override("font_color", C_GOLD)
+		tb.pressed.connect(func():
+			if en == era:
+				return
+			_sfx("click")
+			_open_techtree(en, "", dlg))
+		tabs.add_child(tb)
+	# the age's four towers: pick one to see its tree
+	var picks := HBoxContainer.new()
+	picks.alignment = BoxContainer.ALIGNMENT_CENTER
+	picks.add_theme_constant_override("separation", 14)
+	box.add_child(picks)
+	for ot in towers:
+		var sel: bool = ot == tid
+		var pb := _button("", Color(0.22, 0.4, 0.66) if sel else Color(0.14, 0.2, 0.3), 18)
+		pb.custom_minimum_size = Vector2(300, 72)
+		var ph := HBoxContainer.new()
+		ph.set_anchors_preset(Control.PRESET_FULL_RECT)
+		ph.offset_left = 8
+		ph.offset_right = -8
+		ph.add_theme_constant_override("separation", 8)
+		pb.add_child(ph)
+		ph.add_child(_icon(_icon_tex(str(ot)), 60))
+		var pv := VBoxContainer.new()
+		pv.alignment = BoxContainer.ALIGNMENT_CENTER
+		pv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ph.add_child(pv)
+		var pn := _label(str(defs.towers[ot].name), 20, C_GOLD if sel else C_TEXT)
+		pn.clip_text = true
+		pv.add_child(pn)
+		var lin := str(defs.towers[ot].lineage)
+		pv.add_child(_label(lin + ("" if Progress.tower_unlocked(str(ot)) else "  (locked)"), 15, Color(0.7, 0.76, 0.86)))
+		_ignore_mouse(ph)
+		pb.pressed.connect(func():
+			if sel:
+				return
+			_sfx("click")
+			_open_techtree(era, str(ot), dlg))
+		picks.add_child(pb)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _style(Color(0.06, 0.08, 0.12), 18, Color(0.22, 0.3, 0.44), 3))
+	panel.custom_minimum_size = Vector2(0, 470)
+	box.add_child(panel)
+	var pv2 := VBoxContainer.new()
+	pv2.add_theme_constant_override("separation", 6)
+	panel.add_child(pv2)
+	var d: Dictionary = defs.towers[tid]
+	var th := _label("%s  -  %s   Tiers I-II, then Path A or B (the other locks)." % [str(d.name).to_upper(), str(d.desc)], 19, C_TEXT)
+	th.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	th.clip_text = true
+	pv2.add_child(th)
+	var tree := _upgrade_tree(tid, 84)
+	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	pv2.add_child(tree)
+
+
 ## Tower card: model, attack stats, specials, upgrade paths, pros and cons.
 func _tower_detail(tid: String) -> void:
 	var d: Dictionary = defs.towers[tid]
@@ -4780,39 +5168,12 @@ func _tower_detail(tid: String) -> void:
 		var l2 := _label("-  " + str(t), 19, Color(1.0, 0.82, 0.78), 5)
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		cv2.add_child(l2)
-	# upgrade paths
-	box.add_child(_label("UPGRADES", 30, C_GOLD, 8))
-	var shared := ""
-	for tr in d.get("tiers", []):
-		shared += "%s (%d gold): %s.   " % [tr.name, int(tr.cost), tr.desc]
-	var sl := _label("Tiers 1-2:  " + shared, 19, C_TEXT, 5)
-	sl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(sl)
-	var paths := HBoxContainer.new()
-	paths.add_theme_constant_override("separation", 18)
-	box.add_child(paths)
-	for key in ["A", "B"]:
-		if not d.branches.has(key):
-			continue
-		var br: Dictionary = d.branches[key]
-		var bp := PanelContainer.new()
-		var bcol := Color(0.7, 0.36, 0.12) if key == "A" else Color(0.14, 0.42, 0.62)
-		bp.add_theme_stylebox_override("panel", _style(bcol.darkened(0.55), 16, bcol, 3))
-		bp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		paths.add_child(bp)
-		var bv := VBoxContainer.new()
-		bv.add_theme_constant_override("separation", 3)
-		bp.add_child(bv)
-		bv.add_child(_label("PATH %s: %s" % [key, str(br.name).to_upper()], 24, bcol.lightened(0.45), 6))
-		var bd := _label(str(br.desc), 18, C_TEXT, 4)
-		bd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		bv.add_child(bd)
-		var ti := 3
-		for tr in br.tiers:
-			var tl := _label("Tier %d  %s (%d gold): %s" % [ti, tr.name, int(tr.cost), tr.desc], 17, Color(0.81, 0.85, 0.91), 4)
-			tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			bv.add_child(tl)
-			ti += 1
+	# upgrade tree: tiers I-II, then Path A or Path B
+	box.add_child(_label("UPGRADE TREE", 30, C_GOLD, 8))
+	var tree_p := PanelContainer.new()
+	tree_p.add_theme_stylebox_override("panel", _style(Color(0.06, 0.08, 0.12), 18, Color(0.22, 0.3, 0.44), 3))
+	box.add_child(tree_p)
+	tree_p.add_child(_upgrade_tree(tid, 88))
 	var note := _label("At tier 3 you pick Path A or Path B. The other path locks for that tower.", 17, Color(1, 0.75, 0.5), 4)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
@@ -5095,6 +5456,12 @@ func _build_map_select(root: Control) -> void:
 		_sfx("click")
 		_open_legacy())
 	brow.add_child(m_legacy)
+	var m_tech := _button("TECH TREE", Color(0.55, 0.3, 0.12), 22)
+	m_tech.custom_minimum_size = Vector2(240, 60)
+	m_tech.pressed.connect(func():
+		_sfx("click")
+		_open_techtree("", ""))
+	brow.add_child(m_tech)
 	var m_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 22)
 	m_set.custom_minimum_size = Vector2(220, 60)
 	m_set.pressed.connect(func():
@@ -5398,24 +5765,18 @@ func _show_tower_panel(id: int) -> void:
 			lines += "\nBoosted by your hero!"
 		if t.branch != "":
 			lines += "\nPath %s: %s" % [t.branch, def.branches[t.branch].name]
+		up_box.add_child(_tier_track(t))
 		var opts := sim.upgrade_options(t)
 		if opts.is_empty():
-			up_box.add_child(_label("MAX TIER", 34, C_GOLD))
-		for o in opts:
-			var title: String = ("PATH %s: " % o.key) if o.get("branch_pick", false) else ""
-			var bcol := Color(0.7, 0.36, 0.12) if o.key == "A" else (Color(0.14, 0.42, 0.62) if o.key == "B" else Color(0.26, 0.5, 0.2))
-			var b := _button("%s%s\n%d gold  -  %s" % [title, o.name, o.cost, o.desc], bcol, 21)
-			b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-			b.custom_minimum_size = Vector2(0, 110)
-			b.set_meta("cost", o.cost)
-			b.pressed.connect(func():
-				if not sim.upgrade_tower(id, o.key):
-					_toast("Not enough gold", Color(1, 0.45, 0.4))
-					_sfx("error", -4.0, 0.0)
-				_handle_events())
-			up_box.add_child(b)
+			var mx := _label("FULLY UPGRADED", 30, C_GOLD)
+			mx.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			up_box.add_child(mx)
 		if opts.size() == 2:
-			up_box.add_child(_label("Choose one. The other path locks.", 20, Color(1, 0.72, 0.45), 6))
+			var ch := _label("PICK A PATH  -  the other one locks", 20, Color(1, 0.78, 0.45))
+			ch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			up_box.add_child(ch)
+		for o in opts:
+			up_box.add_child(_upgrade_card(str(t.type), o, int(t.level) + 1, id))
 		btn_sell.visible = true
 		btn_sell.text = "SELL  +%d gold" % sim.sell_value(t)
 		aura_range.visible = false
@@ -5483,8 +5844,11 @@ func _update_hud(delta: float) -> void:
 	for type in shop_buttons:
 		shop_buttons[type].disabled = _tower_open(type) and sim.gold < sim.tower_cost(type)
 	for b in up_box.get_children():
-		if b is Button:
-			b.disabled = sim.gold < int(b.get_meta("cost"))
+		if b is Button and b.has_meta("cost"):
+			var poor: bool = sim.gold < int(b.get_meta("cost"))
+			b.disabled = poor
+			b.modulate = Color(0.72, 0.72, 0.78) if poor else Color.WHITE
+			(b.get_meta("cost_lbl") as Label).add_theme_color_override("font_color", Color(1.0, 0.4, 0.35) if poor else Color(0.75, 1.0, 0.6))
 	if sim.can_start_wave():
 		btn_start.disabled = false
 		btn_start.text = ("START\nWAVE %d" if sim.enemies.is_empty() else "SEND\nWAVE %d") % (sim.wave + 1)
@@ -6338,6 +6702,12 @@ func _shoot_menu() -> void:
 		await _shot("menu_newbots.png")
 		get_tree().quit()
 		return
+	if "--shoot-tech" in OS.get_cmdline_user_args():
+		_open_techtree("", "")
+		await get_tree().create_timer(1.0).timeout
+		await _shot("menu_tech.png")
+		get_tree().quit()
+		return
 	if "--shoot-robots" in OS.get_cmdline_user_args():
 		_robot_roster("railyard")
 		await get_tree().create_timer(1.0).timeout
@@ -6592,6 +6962,32 @@ func _run_demo() -> void:
 			await _shot("results_%d.png" % i)
 			results_page = mini(results_page + 1, results_pages.size() - 1)
 			_show_results_page()
+		get_tree().quit()
+		return
+	if "--shoot-upgrade" in args:
+		_start_game()
+		sim.gold += 9000
+		var tt: String = sim.tower_types()[0]
+		var uid := sim.place_tower(tt, _demo_spot(tt))
+		sim.upgrade_tower(uid, "")
+		_handle_events()
+		_select(uid)
+		await get_tree().create_timer(0.8).timeout
+		await _shot("upgrade_tier2.png")
+		sim.gold = 100
+		_show_tower_panel(uid)
+		await get_tree().create_timer(0.5).timeout
+		await _shot("upgrade_poor.png")
+		sim.gold += 9000
+		sim.upgrade_tower(uid, "")
+		sim.upgrade_tower(uid, "A")
+		_handle_events()
+		_show_tower_panel(uid)
+		await get_tree().create_timer(0.5).timeout
+		await _shot("upgrade_pathA.png")
+		_tower_detail(tt)
+		await get_tree().create_timer(1.0).timeout
+		await _shot("upgrade_detail.png")
 		get_tree().quit()
 		return
 	if "--shoot-paths" in args:
