@@ -402,7 +402,7 @@ LOW_TARGETS = {"Ground": 1300, "Dais": 3600, "Amber": 600, "Quartz": 700, "Rocks
 FLAME_PIVOT = None
 MAT_OVERRIDES = {"Dais": ("stone", {"name": "HQ_DryStone", "moss": True, "paint": True}),
                  "Rocks": ("stone", {"name": "HQ_PaintedRock", "moss": True, "paint": True})}
-GLOW = {"Amber": ((1.0, 0.64, 0.14), 1.4), "Quartz": ((0.58, 0.26, 1.0), 1.05)}   # (stronger reads pastel in game)
+GLOW = {"Amber": ((1.0, 0.45, 0.05), 1.0, 0.5), "Quartz": ((0.58, 0.26, 1.0), 1.05)}   # (brighter reads pastel in game)
 
 
 def is_grass_face(c, n):

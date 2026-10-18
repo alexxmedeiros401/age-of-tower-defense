@@ -1,6 +1,7 @@
-"""Boulder Catapult base: a low grassy mound worn to bare, trampled earth where the sled turns, its runners' ruts and
-pebbles (distance fields) + grass and flowers round the rim (direct low-poly geometry). The whole catapult (sled,
-machine and operator) turns about the middle of the base, so the base stays clear of anything taller than a pebble."""
+"""Boulder Catapult base: a low grassy mound with the sled's runners' ruts worn to bare earth where it swings round, and
+pebbles (distance fields) + grass tufts and flowers round the rim (direct low-poly geometry). The whole catapult (sled,
+machine and operator) turns about the middle of the base, so the base stays clear of anything taller than a pebble, and
+the grass under it keeps the brown machine readable at game zoom."""
 import math
 import numpy as np
 from sdf import (Field, Sphere, Ellipsoid, RoundCone, RoundBox, Torus, Cylinder, Plane, Func, Chain, Prim,
@@ -48,12 +49,24 @@ def ground_field():
             on = np.clip(np.cos(a * 1.0 - 1.4) * 2.0 - 0.6, 0, 1)        # deepest at the back, fading round the sides
             return np.maximum(np.abs(r - F(rr)) - F(0.03), np.abs(P[:, 2] - F(GROUND_TOP + 0.03)) - F(0.03 * 1.0)) + F(0.02) * (1 - on)
         fd.sub(Func(rut, (-1.2, -1.2, 0.0), (1.2, 1.2, 0.4)), 0.02)
+    # bare earth only in the ruts (the rest stays grass, so the brown machine reads against green at game zoom)
     def work(P):
         r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
         a = np.arctan2(P[:, 1], P[:, 0])
-        return r - (F(WORK_R + 0.05) + F(0.035) * np.sin(a * 6 + 1.1) + F(0.025) * NOISE(P * F(6)))
+        on = np.clip(np.cos(a - F(1.4)) * F(2.0) - F(0.45), 0, 1)
+        d = np.minimum(np.abs(r - F(RUTS[0])), np.abs(r - F(RUTS[1]))) - F(RUT_W)
+        return d + F(0.09) * (F(1) - on) + F(0.012) * NOISE(P * F(9))
     fd.paint(Func(work, (-1.4, -1.4, -0.3), (1.4, 1.4, 0.5)), DIRT)
     return fd
+
+
+RUTS, RUT_W = (0.52, 0.86), 0.075
+
+
+def in_rut(x, y, pad=0.0):
+    r = math.hypot(x, y)
+    on = min(1.0, max(0.0, math.cos(math.atan2(y, x) - 1.4) * 2.0 - 0.45))
+    return on > 0.05 and min(abs(r - RUTS[0]), abs(r - RUTS[1])) < RUT_W + pad - 0.09 * (1 - on)
 
 
 def rocks_field():
@@ -186,4 +199,4 @@ MAT_OVERRIDES = {"Ground": ("ground", {"name": "HQ_WorkGround", "dirt_label": DI
 
 def is_grass_face(c, n):
     r = math.hypot(c.x, c.y)
-    return n.z > 0.55 and r > WORK_R + 0.1 and r < GROUND_R + 0.05 and abs(c.z - ground_height(c.x, c.y)) < 0.035
+    return n.z > 0.55 and r < GROUND_R + 0.05 and abs(c.z - ground_height(c.x, c.y)) < 0.035 and not in_rut(c.x, c.y, 0.02)

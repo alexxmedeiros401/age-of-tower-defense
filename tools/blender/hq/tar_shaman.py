@@ -760,7 +760,7 @@ MAT_OVERRIDES = {
     "Staff": ("club_wood", {"name": "HQ_StaffWood"}),
     "Orb": ("glow_ball", {"name": "HQ_SpiritStone"}),
 }
-GLOW = {"Orb": ((0.42, 1.0, 0.52), 1.5)}            # stronger washes out to white in game
+GLOW = {"Orb": ((0.2, 1.0, 0.25), 1.0, 0.5)}        # (colour, strength, albedo factor): brighter washes out in game
 LOW_TARGETS = {"Skin": 6600, "Hair": 1100, "Beard": 1900, "Skull": 1100, "Horns": 900, "Robe": 2600, "Mantle": 1800, "Rope": 600,
                "Leather": 360, "Bone": 600, "Teeth": 120, "Staff": 1000, "Orb": 320}
 AO_EXCLUDE = ["Bone", "Rope", "Staff", "Orb", "Leather"]

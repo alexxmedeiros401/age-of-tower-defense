@@ -263,7 +263,7 @@ REGION_PARTS = ("Dais", "Rocks")
 LOW_TARGETS = {"Ground": 1300, "Dais": 2600, "Amber": 700, "Rocks": 2400, "AmmoStones": 420, "Pebbles": 380}
 FLAME_PIVOT = None
 MAT_OVERRIDES = {"Rocks": ("stone", {"name": "HQ_PaintedRock", "moss": True, "paint": True})}
-GLOW = {"Amber": ((1.0, 0.64, 0.14), 1.4)}        # the hero ring: amber stones that glow in game
+GLOW = {"Amber": ((1.0, 0.45, 0.05), 1.0, 0.5)}   # the hero ring: amber stones that glow in game (brighter reads lemon)
 
 
 def is_grass_face(c, n):

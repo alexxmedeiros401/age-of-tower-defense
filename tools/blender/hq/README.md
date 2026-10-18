@@ -29,6 +29,7 @@ python3 icon_hq.py -- OUT/ugo_hq.blend ../../../assets/ui/icon_ugo.png Whirl 6 -
 python3 face_hq.py -- OUT/ugo_hq.blend ../../../assets/ui/face_ugo.png --target 0,0.03,2.2 --scale 0.86
 python3 reanim.py -- --character ugo --blend OUT/char_game.blend   # re-key the clips only (no re-bake), then:
 python3 build_game.py -- --character ugo --out OUT --stage export
+python3 lineup.py -- OUT.png 2400 860 64 A_hq.blend:RootName:Action:Frame:Scale ...   # group shot of finished units
 ```
 
 ## How it works
@@ -84,3 +85,20 @@ python3 build_game.py -- --character ugo --out OUT --stage export
   `_hq_outline` (grow + front-cull next pass), Idle playback in the card model viewers.
   Test: `--shoot-hq [--tower=<id>] [--hq-idx=N] [--hq-cam=x,y,z]` (three towers fighting + a close-up) and
   `--shoot-hero-hq [--hero=<id>]` (the hero fighting, cheer, ability), `--gif` for frames.
+
+## Gotchas
+
+- **Grid offset:** the meshing grid is offset by a fraction of a voxel (`sdf.Field.mesh`). Flat cuts that landed exactly on
+  grid planes made zero-area triangles, and decimation tore the mesh there (the Club Warrior's kilt).
+- **Degenerate geometry:** `lowpoly._clean` merges doubles and dissolves degenerate faces before decimating.
+- **Glows:** emissive strength above about 1.5, or a bright albedo under the emission, washes out to white or pastel in
+  game. `GLOW` specs are `(colour, strength[, albedo factor])`; orbs and hero rings use strength 1.0 with albedo 0.5.
+  Flames take `FLAME_COLOR` / `FLAME_STRENGTH` (default 2.5, fine for a yellow torch; the shaman's green flame uses 1.1).
+- **Valid meshes:** the joined character and base are validated before export (duplicate faces left by decimation make
+  the glTF exporter warn that the mesh is not valid).
+- **Texture imports:** after `godot --import`, set every extracted texture's `.import` to `compress/mode=2`,
+  `process/size_limit=1024` and `compress/normal_map` 1 for normal maps, 2 for the others, then import again.
+- **Materials added for the Stone Age set** (`mats.py`): `wolf`, `club_wood`, `flint`, `horn`, `robe`, `tar`, `quartz`,
+  `glow_ball`, plus extra skin labels (scars, lashes, tar) and light-hair options for `hair`.
+- **In game:** the HQ outline is a shader pass pushed slightly away from the camera, so it shows round the silhouette and
+  not as dark dashes in creases (eyes, brows, hair grooves).

@@ -36,11 +36,13 @@ def log(*a):
     print("[game]", *a, flush=True)
 
 
-def glow_material(name, col, strength):
+def glow_material(name, col, strength, base=1.0):
+    """Emissive material for Glow* meshes. `base` < 1 darkens the albedo under the glow, which keeps a saturated hue in
+    game (a bright albedo plus emission washes out to white or pastel)."""
     gm = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     gm.use_nodes = True
     b = gm.node_tree.nodes["Principled BSDF"]
-    b.inputs["Base Color"].default_value = mats.lin(col)
+    b.inputs["Base Color"].default_value = mats.lin(tuple(c * base for c in col))
     b.inputs["Roughness"].default_value = 0.25
     b.inputs["Emission Color"].default_value = mats.lin(col)
     b.inputs["Emission Strength"].default_value = strength
@@ -73,13 +75,13 @@ def char_stage():
     rig.sdf_weights(low["Skin"], CH.skin_field(), arm)
     rules = CH.weight_rules()
     glow_obs = []
-    for nm, (col, strength) in glow.items():
+    for nm, spec in glow.items():
         if nm not in hi:
             continue
         g = lp.decimated_copy(hi[nm], CH.LOW_TARGETS.get(nm, 500), "Glow" + nm)
         rig.rigid_weights(g, rules[nm][1])
         g.data.materials.clear()
-        g.data.materials.append(glow_material("Glow" + nm, col, strength))
+        g.data.materials.append(glow_material("Glow" + nm, *spec))
         glow_obs.append(g)
     for nm, o in low.items():
         if nm == "Skin":
@@ -241,12 +243,12 @@ def base_stage():
         bpy.context.scene.collection.objects.link(flowers)
         me2.materials.append(mat)
     keep = {"Base", "GrassBlades", "Flowers"}
-    for nm, (col, strength) in glow.items():
+    for nm, spec in glow.items():
         if nm not in hi:
             continue
         g = lp.decimated_copy(hi[nm], bs.LOW_TARGETS.get(nm, 600), "Glow" + nm)
         g.data.materials.clear()
-        g.data.materials.append(glow_material("Glow" + nm, col, strength))
+        g.data.materials.append(glow_material("Glow" + nm, *spec))
         for p in g.data.polygons:
             p.use_smooth = True
         keep.add(g.name)

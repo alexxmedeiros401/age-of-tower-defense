@@ -1734,7 +1734,24 @@ func _hq_anim_freeze() -> void:
 
 ## Cartoon outline for HQ models: a second pass that pushes the surface out along its normals and draws only the
 ## back faces (works with skinning; no duplicate geometry in the file). Off on MINIMAL graphics.
-var _hq_outline_mat: StandardMaterial3D
+## The shell is also pushed a few centimetres away from the camera, so it only shows round the silhouette and no
+## longer pokes through as dark dashes in tight creases (eyes, brows, hair grooves).
+const HQ_OUTLINE_SHADER := """
+shader_type spatial;
+render_mode unshaded, cull_front, depth_draw_opaque;
+uniform float grow = 0.022;
+uniform float push = 0.05;
+uniform vec3 color : source_color = vec3(0.09, 0.065, 0.05);
+void vertex() {
+	vec4 v = MODELVIEW_MATRIX * vec4(VERTEX + NORMAL * grow, 1.0);
+	v.z -= push;
+	POSITION = PROJECTION_MATRIX * v;
+}
+void fragment() {
+	ALBEDO = color;
+}
+"""
+var _hq_outline_mat: ShaderMaterial
 func _hq_outline(model: Node3D) -> void:
 	if Progress.gfx_level() >= 2:
 		return
@@ -1747,12 +1764,9 @@ func _hq_outline(model: Node3D) -> void:
 			if mat == null or mat.next_pass != null:
 				continue
 			if _hq_outline_mat == null:
-				_hq_outline_mat = StandardMaterial3D.new()
-				_hq_outline_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-				_hq_outline_mat.albedo_color = Color(0.09, 0.065, 0.05)
-				_hq_outline_mat.cull_mode = BaseMaterial3D.CULL_FRONT
-				_hq_outline_mat.grow = true
-				_hq_outline_mat.grow_amount = 0.022
+				_hq_outline_mat = ShaderMaterial.new()
+				_hq_outline_mat.shader = Shader.new()
+				_hq_outline_mat.shader.code = HQ_OUTLINE_SHADER
 			mat.next_pass = _hq_outline_mat
 
 
@@ -2664,6 +2678,13 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if utype == "tarek":
 		_mi(_box(0.26, 0.16, 0.16), _mat("hot_hammer", Color(0.9, 0.45, 0.15), {"emit": Color(1, 0.4, 0.1), "emit_e": 1.2}), root)
 		_mi(_box(0.05, 0.05, 0.3), _mat("wood_dark", Color(0.3, 0.17, 0.08)), root, Vector3(0, 0, 0.15))
+		root.set_meta("spin", true)
+		return root
+	if utype == "boulder_catapult" and dt != "fire":
+		# the HQ catapult's boulder: a smooth, slightly lumpy grey stone (the faceted ball looked cheap next to it)
+		var bm := _mi(_sph(0.21, 16), _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95}), root)
+		bm.scale = Vector3(1.08, 0.86, 0.97)
+		bm.rotation = Vector3(0.4, 0.9, 0.2)
 		root.set_meta("spin", true)
 		return root
 	var size := 0.11
@@ -5970,6 +5991,7 @@ func _update_hero_card() -> void:
 	btn_hero.modulate = Color.WHITE
 	lbl_hero_level.text = "Rank %d" % sim.hero.level
 	hero_xp_fill.size.x = 130.0 * sim.hero_xp_progress()
+	_fit_hero_button(str(ab.name).to_upper())
 	if not sim.ability_unlocked():
 		btn_hero.text = "%s\nRANK %d" % [str(ab.name).to_upper(), int(ab.get("unlock", 3))]
 		btn_hero.disabled = true
@@ -5980,6 +6002,20 @@ func _update_hero_card() -> void:
 		btn_hero.text = "%s\nREADY!" % str(ab.name).to_upper()
 		btn_hero.disabled = false
 		btn_hero.modulate = Color(1.0, 1.0, 1.0).lerp(Color(1.35, 1.25, 0.9), 0.5 + 0.5 * sin(time_s * 6.0))
+
+
+## Long ability names ("EARTHQUAKE") get a smaller font so they stay on one line instead of breaking mid-word.
+func _fit_hero_button(ab_name: String) -> void:
+	if str(btn_hero.get_meta("fit_for", "")) == ab_name:
+		return
+	btn_hero.set_meta("fit_for", ab_name)
+	var font: Font = btn_hero.get_theme_font("font")
+	var room: float = btn_hero.custom_minimum_size.x - 36.0      # 12 px content margin + 4 px border each side, + outline
+	var fsz := _fs(16)
+	while fsz > 10 and font.get_string_size(ab_name, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz).x > room:
+		fsz -= 1
+	btn_hero.add_theme_font_size_override("font_size", fsz)
+	btn_hero.add_theme_constant_override("outline_size", _outline_for(fsz))
 
 
 func _update_hud(delta: float) -> void:

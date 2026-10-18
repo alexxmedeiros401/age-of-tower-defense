@@ -681,7 +681,7 @@ MAT_OVERRIDES = {
     "Orb": ("glow_ball", {"name": "HQ_AmberOrb", "col": (1.0, 0.62, 0.16)}),
     "Orbit": ("stone", {"name": "HQ_OrbitStone", "paint": True, "scale": 0.5}),
 }
-GLOW = {"Orb": ((1.0, 0.55, 0.12), 1.3)}            # stronger washes out to white in game
+GLOW = {"Orb": ((1.0, 0.38, 0.03), 1.0, 0.5)}       # (colour, strength, albedo factor): brighter washes out in game
 SPLIT = {"Orbit": ("SpinSlowStones", tuple(ORBIT_C))}          # parts split off as their own (unskinned) mesh after baking
 LOW_TARGETS = {"Skin": 6600, "Hair": 2600, "Teeth": 60, "Antlers": 700, "Amber": 300, "Fur": 2000, "Cloth": 700, "Leather": 1300,
                "Bone": 500, "Staff": 900, "Orb": 300, "Orbit": 600}

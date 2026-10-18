@@ -209,8 +209,8 @@ def flame_field():
 
 
 FLAME_PIVOT = FLAME_TOP + np.array((0, 0, 0.0))
-FLAME_COLOR = (0.38, 1.0, 0.48)
-FLAME_STRENGTH = 1.5                  # a green flame stays green (2.5 reads white in game)
+FLAME_COLOR = (0.25, 1.0, 0.3)
+FLAME_STRENGTH = 1.1                  # a green flame stays green (2.5 reads white in game)
 
 
 def pebbles_field():
