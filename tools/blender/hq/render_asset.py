@@ -36,11 +36,13 @@ def add_outline(ob, width):
 
 if "--outline" in ARGS:
     for o in sc.objects:
-        if o.type == "MESH" and o.name in ("Caveman", "Base"):
-            add_outline(o, 0.012 if o.name == "Caveman" else 0.016)
+        if o.type == "MESH" and o.name in ("Caveman", "Ugo", "Base"):
+            add_outline(o, 0.016 if o.name == "Base" else 0.012)
     # the flame should glow, not be outlined
 look.setup(samples=SPP, res=(RES, int(RES * 1.12)) if MODE != "turntable" else (RES, RES))
 yaw = bpy.data.objects.get("Yaw")
+TOP = yaw.location.z if yaw is not None else 0.9          # where the character stands
+TZ = float(arg("--tz", "1.55"))
 
 
 def pose(action, frame):
@@ -56,12 +58,11 @@ def render(path):
 
 if MODE == "hero":
     pose(ACTION, FRAME)
-    look.camera((0.0, 0.15, 1.55), 10.0, 24, 15, lens=60)
+    look.camera((0.0, 0.15, TZ), float(arg("--dist", "10.0")), float(arg("--az", "24")), float(arg("--el", "15")), lens=60)
     render(os.path.join(OUTDIR, "hero_%s_%d.png" % (ACTION, FRAME)))
 elif MODE == "closeup":
     pose(ACTION, FRAME)
-    import base as bs
-    look.camera((-0.1, 0.0, bs.TOP_Z + 1.55), 4.0, 22, 9, lens=80)
+    look.camera((-0.1, 0.0, TOP + float(arg("--head", "1.55"))), float(arg("--dist", "4.0")), float(arg("--az", "22")), float(arg("--el", "9")), lens=80)
     render(os.path.join(OUTDIR, "close_%s_%d.png" % (ACTION, FRAME)))
 elif MODE == "game":
     pose(ACTION, FRAME)
@@ -71,7 +72,7 @@ elif MODE == "frames":
     # animation strip: every Nth frame of the action
     step = int(arg("--step", "1"))
     start, end = [int(x) for x in arg("--range", "0,24").split(",")]
-    look.camera((0.0, 0.15, 1.6), float(arg("--dist", "10.5")), float(arg("--az", "24")), float(arg("--el", "15")), lens=60)
+    look.camera((0.0, 0.15, float(arg("--tz", "1.6"))), float(arg("--dist", "10.5")), float(arg("--az", "24")), float(arg("--el", "15")), lens=60)
     for f in range(start, end + 1, step):
         pose(ACTION, f)
         sc.render.filepath = os.path.join(OUTDIR, "f_%s_%03d.png" % (ACTION, f))

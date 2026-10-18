@@ -60,7 +60,7 @@ class Shell(Prim):
         self.lo, self.hi = lo - pad - disp_amp, hi + pad + disp_amp
 
     def sdf(self, P):
-        d = self.f.eval(P) if isinstance(self.f, Field) else self.f(P)
+        d = self.f.eval(P, margin=abs(self.off) + self.t) if isinstance(self.f, Field) else self.f(P)
         return np.abs(d - F(self.off)) - F(self.t / 2)
 
 
@@ -768,3 +768,86 @@ def sling_field():
     stone = Field("SlingStone")
     stone.add(Stone(pouch + v3((0, 0, 0.03)), 0.062, seed=11, noise=0.04), 0.0)
     return fd, stone
+
+
+# ======================================================================================= painting
+def warm_points():
+    """Ruddy spots painted into the skin: nose, cheeks, ears, knuckles, elbows, knees, toes, sunburnt shoulders."""
+    pts = [(hp((0, -0.248, 1.604)), 0.075, 0.95)]
+    for sx in (-1, 1):
+        sd = "R" if sx < 0 else "L"
+        pts += [(hp((sx * 0.105, -0.15, 1.6)), 0.065, 0.55), (hp((sx * 0.19, 0.03, 1.665)), 0.07, 0.75),
+                (J["elbow_" + sd] + v3((0, 0.03, 0)), 0.08, 0.35),
+                (J["knee_" + sd] + v3((0, -0.04, 0)), 0.09, 0.4),
+                (J["shoulder_" + sd] + v3((0, 0, 0.11)), 0.13, 0.25)]
+    for side in ("R", "L"):
+        wr, f, n, t = hand_frame(side)
+        for o in (0.043, 0.0145, -0.0145, -0.043):
+            pts.append((wr + f * 0.138 + t * o - n * 0.012, 0.035, 0.5))
+        an = J["ankle_" + side]
+        pts.append((an + v3((0, -0.17, -0.07)), 0.07, 0.5))
+        pts.append((an + v3((0, 0.05, -0.07)), 0.06, 0.3))
+    return pts
+
+
+# ======================================================================================= build config (Rock Slinger)
+GLB_NAME = "rock_slinger"
+ROOT_NAME = "RockSlingerHQ"
+TEX_PREFIX = "caveman"
+MAT_NAME = "CavemanMat"
+BASE_MODULE = "base"
+ANIM_MODULE = "anim"
+PARTS = ["Skin", "Eyes", "Teeth", "Hair", "Beard", "Pelt", "Leather", "BagStones", "Cord", "Bone", "Sling", "SlingStone"]
+LOW_TARGETS = {"Skin": 6800, "Hair": 3000, "Beard": 1600, "Pelt": 2300, "Leather": 1100, "Teeth": 360, "Cord": 380,
+               "Bone": 420, "Sling": 700, "SlingStone": 140, "BagStones": 200}
+AO_EXCLUDE = ["Cord", "Bone", "Sling", "SlingStone", "BagStones", "Leather"]
+TORSO = {"root", "spine", "chest", "neck"}
+
+
+def weight_rules():
+    return {
+        "Pelt": ("transfer", TORSO | {"clavicle.L", "upperarm.L", "thigh.R", "thigh.L", "shin.R", "shin.L", "foot.R", "foot.L"},
+                 {"thigh.R": 0.3, "thigh.L": 0.3, "upperarm.L": 0.85}),
+        "Leather": ("transfer", TORSO | {"forearm.R", "forearm.L", "hand.R", "hand.L", "upperarm.R", "upperarm.L", "thigh.R"}, {"thigh.R": 0.3}),
+        "Cord": ("transfer", TORSO | {"head"}, None),
+        "Bone": ("transfer", TORSO | {"head"}, None),
+        "BagStones": ("transfer", TORSO | {"thigh.R"}, {"thigh.R": 0.3}),
+        "Hair": ("rigid", "head"), "Beard": ("rigid", "head"), "Eyes": ("rigid", "head"), "Teeth": ("rigid", "head"),
+        "Sling": ("rigid", "sling"), "SlingStone": ("rigid", "stone"),
+    }
+
+
+def uv_boost(c, part):
+    face_z = hp((0, 0, 1.45))[2]
+    if part == "Eyes":
+        return 2.0
+    if part in ("Cord", "Sling", "Bone", "SlingStone", "BagStones"):
+        return 0.6
+    if part in ("Skin", "Teeth") and c.z > face_z and c.y < 0.0:
+        return 1.9
+    if part == "Skin" and (abs(c.x) > 0.62 and c.z < 1.0):
+        return 1.35
+    return 1.0
+
+
+def sculpt_parts(fine=True):
+    """(name, field, voxel) for every high-poly part."""
+    skin = skin_field()
+    pelt = pelt_field()
+    leather, bc, bagR = leather_field(skin, pelt)
+    cord, bone = necklace(skin, pelt)
+    sling, sstone = sling_field()
+    return [
+        ("Skin", skin, 0.0032 if fine else 0.005),
+        ("Eyes", eyes_field(), 0.0015),
+        ("Teeth", teeth_field(), 0.0012),
+        ("Hair", hair_field(skin), 0.003 if fine else 0.0035),
+        ("Beard", beard_field(skin), 0.003 if fine else 0.0035),
+        ("Pelt", pelt, 0.0035 if fine else 0.005),
+        ("Leather", leather, 0.0025 if fine else 0.003),
+        ("BagStones", bag_stones(bc, bagR), 0.002),
+        ("Cord", cord, 0.0015 if fine else 0.002),
+        ("Bone", bone, 0.0015 if fine else 0.002),
+        ("Sling", sling, 0.0015 if fine else 0.002),
+        ("SlingStone", sstone, 0.002),
+    ]

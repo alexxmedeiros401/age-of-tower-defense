@@ -3,28 +3,9 @@ eye colours (sclera, iris, pupil, painted highlight) as vertex attributes; then 
 import math
 import numpy as np
 import bpy
-import caveman as cm
+import character as cm
 from sdf import v3, norm, axis_angle
 from mats import lin
-
-
-def warm_points():
-    hp = cm.hp
-    pts = [(hp((0, -0.248, 1.604)), 0.075, 0.95)]
-    for sx in (-1, 1):
-        pts += [(hp((sx * 0.105, -0.15, 1.6)), 0.065, 0.55), (hp((sx * 0.19, 0.03, 1.665)), 0.07, 0.75),
-                (cm.J["elbow_" + ("R" if sx < 0 else "L")] + v3((0, 0.03, 0)), 0.08, 0.35),
-                (cm.J["knee_" + ("R" if sx < 0 else "L")] + v3((0, -0.04, 0)), 0.09, 0.4),
-                (cm.J["shoulder_" + ("R" if sx < 0 else "L")] + v3((0, 0, 0.11)), 0.13, 0.25)]
-    for side in ("R", "L"):
-        wr, f, n, t = cm.hand_frame(side)
-        for o in (0.043, 0.0145, -0.0145, -0.043):
-            pts.append((wr + f * 0.138 + t * o - n * 0.012, 0.035, 0.5))
-        an = cm.J["ankle_" + side]
-        sx = -1 if side == "R" else 1
-        pts.append((an + v3((0, -0.17, -0.07)), 0.07, 0.5))
-        pts.append((an + v3((0, 0.05, -0.07)), 0.06, 0.3))
-    return pts
 
 
 def paint_skin(ob):
@@ -33,7 +14,7 @@ def paint_skin(ob):
     me.vertices.foreach_get("co", V)
     V = V.reshape(-1, 3) + np.array(ob.location, np.float32)
     w = np.zeros(len(V), np.float32)
-    for c, r, k in warm_points():
+    for c, r, k in cm.warm_points():
         d = np.linalg.norm(V - c.astype(np.float32), axis=1)
         w += k * np.exp(-(d / r) ** 2)
     a = me.attributes.get("warm") or me.attributes.new("warm", "FLOAT", "POINT")
@@ -69,3 +50,26 @@ def paint_eyes(ob):
         cols[i] = col
     a = me.color_attributes.get("eyecol") or me.color_attributes.new("eyecol", "FLOAT_COLOR", "POINT")
     a.data.foreach_set("color", cols.ravel())
+
+
+def region_masks(ob):
+    """Split the integer 'region' labels into one float mask per label (r0, r1, ...). Interpolating the integer
+    itself across a face would pass through the labels in between (fringes); masks blend cleanly."""
+    me = ob.data
+    a = me.attributes.get("region")
+    if a is None:
+        return []
+    lab = np.zeros(len(me.vertices), np.int32)
+    a.data.foreach_get("value", lab)
+    out = []
+    for L in np.unique(lab):
+        m = (lab == L).astype(np.float32)
+        pa = me.attributes.get("p%d" % int(L))
+        if pa is not None:                       # painted label: smooth ramp from the sculpt's paint distance
+            m = np.zeros(len(me.vertices), np.float32)
+            pa.data.foreach_get("value", m)
+        nm = "r%d" % int(L)
+        att = me.attributes.get(nm) or me.attributes.new(nm, "FLOAT", "POINT")
+        att.data.foreach_set("value", m)
+        out.append(nm)
+    return out

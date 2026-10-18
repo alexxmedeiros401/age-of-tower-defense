@@ -8,8 +8,10 @@ import look
 
 ARGS = sys.argv[sys.argv.index("--") + 1:]
 BLEND, OUT = ARGS[0], ARGS[1]
-ACTION = ARGS[2] if len(ARGS) > 2 else "Whirl"
-FRAME = int(ARGS[3]) if len(ARGS) > 3 else 4
+ACTION = ARGS[2] if len(ARGS) > 2 and not ARGS[2].startswith("--") else "Whirl"
+FRAME = int(ARGS[3]) if len(ARGS) > 3 and not ARGS[3].startswith("--") else 4
+ZOOM = float(ARGS[ARGS.index("--zoom") + 1]) if "--zoom" in ARGS else 4.5
+TZ = float(ARGS[ARGS.index("--tz") + 1]) if "--tz" in ARGS else 1.35
 bpy.ops.wm.open_mainfile(filepath=BLEND)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
@@ -20,8 +22,8 @@ cam = bpy.data.objects.new("IconCam", bpy.data.cameras.new("IconCam"))
 sc.collection.objects.link(cam)
 sc.camera = cam
 cam.data.type = "ORTHO"
-cam.data.ortho_scale = 4.5
-t = Vector((0, -0.1, 1.35))
+cam.data.ortho_scale = ZOOM
+t = Vector((0, -0.1, TZ))
 d = Vector((0.7, -1.2, 0.75)).normalized()
 cam.location = t + d * 20
 cam.rotation_euler = (t - cam.location).to_track_quat("-Z", "Y").to_euler()

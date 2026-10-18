@@ -289,3 +289,14 @@ def fields():
     return [("Ground", ground_field(), 0.008), ("Rocks", rocks_field(), 0.006), ("Tusks", tusks_field(), 0.004),
             ("BaseLeather", wraps_field(), 0.003), ("Basket", basket_field(), 0.003), ("AmmoStones", ammo_field(), 0.004),
             ("Wood", wood_field(), 0.003), ("Flame", flame_field(), 0.004), ("Pebbles", pebbles_field(), 0.004)]
+
+
+LOW_TARGETS = {"Ground": 1500, "Rocks": 3800, "Tusks": 1300, "BaseLeather": 420, "Basket": 900, "AmmoStones": 620,
+               "Wood": 300, "Pebbles": 420, "Flame": 160}
+FLAME_PIVOT = TORCH_TOP + np.array((0, 0, 0.02))
+
+
+def is_grass_face(c, n):
+    import math
+    r = math.hypot(c.x, c.y)
+    return n.z > 0.55 and 0.1 < c.z < 0.32 and r < GROUND_R + 0.05 and not (r < 0.95 and c.z > 0.28)

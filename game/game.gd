@@ -1675,7 +1675,9 @@ func _rig_model(root: Node3D, model: Node3D) -> void:
 
 ## HQ models (sculpted, texture-baked, skinned) ship Idle / Whirl / Throw clips: idle when nothing is in range,
 ## whirl while fighting, throw on every shot. The clip speed follows the game speed and the tower's fire rate.
+## HQ heroes add one-shot showpieces: Ability (their special) and Cheer (rank up).
 const HQ_LOOPS := ["Idle", "Whirl"]
+const HQ_ONESHOTS := ["Throw", "Ability", "Cheer"]
 func _hq_anim_setup(root: Node3D, ap: AnimationPlayer) -> void:
 	for nm in HQ_LOOPS:
 		if ap.has_animation(nm):
@@ -1691,11 +1693,27 @@ func _hq_anim_tick(tn: Node3D, stunned: bool) -> void:
 	var cur := ap.current_animation
 	var rate: float = float(tn.get_meta("throw_rate", 1.0)) if cur == "Throw" else 1.0
 	ap.speed_scale = 0.0 if stunned else float(speed) * rate
-	if cur == "Throw" and ap.is_playing():
+	if cur in HQ_ONESHOTS and ap.is_playing():
 		return
 	var want := "Whirl" if time_s - float(tn.get_meta("last_fire", -100.0)) < 2.2 else "Idle"
 	if cur != want:
 		ap.play(want, 0.25)
+
+
+## Plays a one-shot clip (Ability, Cheer) on an HQ model; false when the unit's model has no such clip.
+func _hq_play(id: int, clip: String) -> bool:
+	if not tower_nodes.has(id):
+		return false
+	var n: Node3D = tower_nodes[id]
+	if not n.has_meta("anim"):
+		return false
+	var ap: AnimationPlayer = n.get_meta("anim")
+	if not ap.has_animation(clip):
+		return false
+	ap.play(clip, 0.12)
+	ap.seek(0.0, true)
+	ap.speed_scale = float(speed)
+	return true
 
 
 func _hq_anim_freeze() -> void:
@@ -1712,7 +1730,7 @@ func _hq_outline(model: Node3D) -> void:
 		return
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
-		if m.mesh == null or str(m.name) in ["FlickerTorch", "GrassBlades", "Flowers"]:
+		if m.mesh == null or str(m.name) in ["FlickerTorch", "GrassBlades", "Flowers"] or str(m.name).begins_with("Glow"):
 			continue
 		for si in m.mesh.get_surface_count():
 			var mat := m.mesh.surface_get_material(si) as BaseMaterial3D
@@ -1807,6 +1825,7 @@ func _make_hero_visual(id: String) -> Node3D:
 	model.scale = Vector3.ONE * float(hd.get("model_scale", 0.55))
 	root.add_child(model)
 	_rig_model(root, model)
+	_retheme_base(model)
 	return root
 
 
@@ -2396,6 +2415,7 @@ func _handle_events() -> void:
 			"hero_level":
 				_refresh_hero_tag()
 				if sim.hero != null:
+					_hq_play(sim.hero.id, "Cheer")
 					_float_text(_v3(sim.hero.pos, 2.5), "RANK %d!" % ev.level, C_GOLD, 60)
 					_ring_fx(_v3(sim.hero.pos, 0.3), 1.6, C_GOLD, 0.6)
 					if sim.ability_unlocked() and ev.level == int(sim.hero_def.ability.get("unlock", 3)):
@@ -2403,6 +2423,8 @@ func _handle_events() -> void:
 						toast_t = 3.5
 				_sfx("level_up", -4.0, 0.0, 0.3)
 			"ability":
+				if sim.hero != null:
+					_hq_play(sim.hero.id, "Ability")
 				_ability_fx(ev)
 			"upgrade":
 				var t = sim.get_tower(ev.id)
@@ -2820,6 +2842,8 @@ func _animate_fire(id: int) -> void:
 		var uu = sim.get_unit(id)
 		var ap: AnimationPlayer = n.get_meta("anim")
 		n.set_meta("last_fire", time_s)
+		if ap.current_animation in ["Ability", "Cheer"] and ap.is_playing():
+			return                      # let the showpiece finish; the shot still happens
 		var cd: float = float(uu.stats.cooldown) if uu != null else 0.85
 		n.set_meta("throw_rate", clampf(0.8 / maxf(cd, 0.1), 1.0, 3.0))
 		ap.play("Throw", 0.05)
@@ -4514,6 +4538,10 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	env.environment.ambient_light_energy = 0.7
 	env.environment.background_mode = Environment.BG_CLEAR_COLOR
 	vp.add_child(env)
+	var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ap != null and ap.has_animation("Idle"):
+		ap.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
+		ap.play("Idle")
 	var tw := pivot.create_tween().set_loops()
 	tw.tween_property(pivot, "rotation:y", TAU, 9.0).from(0.0)
 	return svc
@@ -7209,6 +7237,55 @@ func _run_demo() -> void:
 		if "--gif" in args:
 			for i in 72:
 				await _shot("hq_gif_%03d.png" % i)
+		get_tree().quit()
+		return
+	if "--shoot-hero-hq" in args:
+		# HQ hero check: Ugo + two Rock Slingers fighting, close-up, rank-up cheer, Stone Rain (+ optional frames)
+		_start_game()
+		sim.gold += 8000
+		sim.place_hero(_demo_spot("", true))
+		for k in 2:
+			var spot := _demo_spot("rock_slinger")
+			if spot != Vector2.INF:
+				sim.place_tower("rock_slinger", spot)
+		_handle_events()
+		sim.wave = 2
+		var kinds := ["walker", "scout", "walker", "brute", "walker", "scout", "walker", "walker", "scout", "walker", "walker", "brute"]
+		sim.wave_remaining[2] = kinds.size()
+		for i in kinds.size():
+			sim._spawn_enemy(kinds[i], 2, 3.0 + i * 1.3, i % sim.paths.size())
+		_handle_events()
+		await _wait_ticks(int(3.4 / TICK))
+		await _shot("hero_battle.png")
+		var hn: Node3D = tower_nodes[sim.hero.id]
+		(hn.get_node("Tag") as Node3D).visible = false
+		var fwd := Vector3(0, 0, 1)
+		if hn.has_meta("yaw"):
+			fwd = (hn.get_meta("yaw") as Node3D).global_transform.basis.z
+		fwd.y = 0.0
+		fwd = fwd.normalized()
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov = 30
+		cam.global_position = hn.global_position + fwd * 4.0 + fwd.cross(Vector3.UP) * 1.6 + Vector3(0, 2.3, 0)
+		cam.look_at(hn.global_position + Vector3(0, 1.0, 0))
+		cam_base = cam.position
+		shake = 0.0
+		for i in 4:
+			await get_tree().process_frame
+		await _shot("hero_close.png")
+		sim._hero_gain_xp(float(sim.hero_levels[2]) - float(sim.hero.xp) + 1.0)
+		_handle_events()
+		await _wait_ticks(int(0.85 / TICK))          # second fist pump of the Cheer
+		await _shot("hero_cheer.png")
+		await _wait_ticks(int(1.2 / TICK))
+		sim.use_ability()
+		_handle_events()
+		if "--gif" in args:
+			for i in 60:
+				await _shot("hero_gif_%03d.png" % i)
+		else:
+			await _wait_ticks(int(0.6 / TICK))
+			await _shot("hero_ability.png")
 		get_tree().quit()
 		return
 	if "--shoot-showcase" in args:

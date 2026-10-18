@@ -176,7 +176,7 @@ def uv_mask(ob, size):
     d = ImageDraw.Draw(im)
     uv = ob.data.uv_layers.active.data
     for p in ob.data.polygons:
-        d.polygon([(uv[li].uv[0] * size, (1 - uv[li].uv[1]) * size) for li in p.loop_indices], fill=255)
+        d.polygon([(uv[li].uv[0] * size, (1 - uv[li].uv[1]) * size) for li in p.loop_indices], fill=255, outline=255)   # outline: tiny faces still get pixels
     a = np.asarray(im)[::-1] > 0          # flip to Blender's bottom-up pixel order
     return a
 

@@ -145,6 +145,10 @@ class NB:
         n.inputs["Detail"].default_value = detail
         return n.outputs["Fac"]
 
+    def reg(self, k):
+        """Smooth 0..1 mask of sculpt label k (float attribute r<k>, see prep.region_masks)."""
+        return self.smooth(self.attr("r%d" % k), 0.35, 0.65)
+
     def eq(self, x, k):
         """1 where x == k (integers stored as float)."""
         d = self.math("ABSOLUTE", self.math("SUBTRACT", x, float(k)))
@@ -192,14 +196,16 @@ def skin():
     freck = g.smooth(g.noise(p, 140.0, 2.0, 0.5), 0.62, 0.7)
     c = g.mix(g.math("MULTIPLY", freck, 0.1), c, g.rgb((0.66, 0.42, 0.3)))
     # painted regions
-    c = g.mix(g.math("MULTIPLY", g.eq(region, 2), 0.6), c, g.rgb((0.76, 0.42, 0.38)))   # lips
-    c = g.mix(g.eq(region, 3), c, g.rgb((0.22, 0.05, 0.05)))                      # mouth
-    c = g.mix(g.eq(region, 1), c, g.rgb((0.94, 0.82, 0.74)))                      # nails
+    c = g.mix(g.math("MULTIPLY", g.reg(2), 0.6), c, g.rgb((0.76, 0.42, 0.38)))   # lips
+    c = g.mix(g.reg(3), c, g.rgb((0.22, 0.05, 0.05)))                      # mouth
+    c = g.mix(g.reg(1), c, g.rgb((0.94, 0.82, 0.74)))                      # nails
     strands = g.noise(g.scale_vec(p, (40.0, 40.0, 140.0)), 1.0, 2.0, 0.5)
     brow = g.mix(g.remap(strands, 0.3, 0.7, 0.0, 1.0), g.rgb((0.15, 0.09, 0.06)), g.rgb((0.3, 0.19, 0.12)))
-    c = g.mix(g.eq(region, 4), c, brow)
-    rough = g.mixf(g.eq(region, 2), 0.55, 0.4)
-    h = g.math("ADD", g.math("MULTIPLY", g.noise(p, 180.0, 1.0, 0.5), 0.4), g.math("MULTIPLY", strands, g.eq(region, 4)))
+    c = g.mix(g.reg(4), c, brow)
+    paint = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 45.0, 3.0, 0.6), 0.3, 0.7, 0.72, 0.97))
+    c = g.mix(paint, c, g.rgb((0.62, 0.13, 0.07)))                                # red ochre war paint
+    rough = g.mixf(g.reg(2), g.mixf(g.reg(5), 0.55, 0.8), 0.4)
+    h = g.math("ADD", g.math("MULTIPLY", g.noise(p, 180.0, 1.0, 0.5), 0.4), g.math("MULTIPLY", strands, g.reg(4)))
     return g.finish(c, rough, g.bump(h, 0.12, 0.002))
 
 
@@ -294,7 +300,7 @@ def bone(name="HQ_Bone", banded=False):
     return g.finish(c, 0.45, g.bump(h, 0.25, 0.004))
 
 
-def stone(name="HQ_Stone", moss=False, scale=1.0):
+def stone(name="HQ_Stone", moss=False, scale=1.0, paint=False):
     g = new(name)
     p = g.obj()
     macro = g.noise(p, 2.2 / scale, 3.0, 0.55)
@@ -312,6 +318,9 @@ def stone(name="HQ_Stone", moss=False, scale=1.0):
         m = g.math("MULTIPLY", up, patch)
         mossc = g.mix(g.noise(p, 25.0, 3.0), g.rgb((0.3, 0.46, 0.15)), g.rgb((0.47, 0.6, 0.2)))
         c = g.mix(m, c, mossc)
+    if paint:
+        pm = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 30.0, 3.0, 0.6), 0.3, 0.7, 0.6, 0.92))
+        c = g.mix(pm, c, g.rgb((0.66, 0.16, 0.08)))
     h = g.math("ADD", g.math("MULTIPLY", speck, 0.5), g.noise(p, 14.0 / scale, 4.0, 0.6))
     return g.finish(c, 0.78, g.bump(h, 0.35, 0.006))
 
@@ -380,6 +389,126 @@ def flower(kind):
     return g.finish(g.rgb(cols[kind]), 0.6)
 
 
+def saber(name="HQ_Saber"):
+    """Sabertooth hide (hood + cape): tawny fur with broken dark stripes (across the cat's head, horizontal down the
+    cape), a darker dorsal line, cream muzzle, dark nose and paw pads, pink inner ears, amber stones for eyes and
+    tanned suede on the inside."""
+    g = new(name)
+    region = g.attr("region")
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    X, Y, Z = sep.outputs["X"], sep.outputs["Y"], sep.outputs["Z"]
+    base = g.mix(g.remap(g.noise(p, 3.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.82, 0.47, 0.16)), g.rgb((0.93, 0.62, 0.26)))
+    strands = g.noise(g.scale_vec(p, (60.0, 60.0, 15.0)), 1.0, 3.0, 0.55)
+    c = g.mix(g.remap(strands, 0.3, 0.7, 0.0, 0.32), base, g.rgb((0.58, 0.3, 0.1)))
+    warp = g.add_vec(p, g.scale_vec(g.noise(p, 3.5, 2.0, 0.5, out="Color"), 0.06))
+    head_b = g.wave(warp, 5.0, 3.0, 2.0, "BANDS", "X")
+    body_b = g.wave(warp, 3.2, 4.0, 2.0, "BANDS", "Z")
+    on_head = g.smooth(Z, 1.66, 1.76)
+    bands = g.mixf(on_head, body_b, head_b)
+    stripe = g.smooth(bands, 0.8, 0.9)
+    breakup = g.smooth(g.noise(p, 5.0, 2.0), 0.36, 0.52)
+    ax = g.math("ABSOLUTE", X)
+    edge_fade = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.smooth(ax, 0.24, 0.4), g.math("SUBTRACT", 1.0, on_head)))
+    stripe = g.math("MULTIPLY", g.math("MULTIPLY", stripe, breakup), edge_fade)
+    c = g.mix(g.math("MULTIPLY", stripe, 0.88), c, g.rgb((0.27, 0.13, 0.05)))
+    dorsal = g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.smooth(ax, 0.03, 0.12)), g.smooth(Y, 0.05, 0.2))
+    c = g.mix(g.math("MULTIPLY", dorsal, 0.45), c, g.rgb((0.42, 0.22, 0.08)))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    under = g.smooth(nz.outputs["Z"], -0.2, -0.75)
+    c = g.mix(g.math("MULTIPLY", under, 0.5), c, g.rgb((0.95, 0.82, 0.6)))
+    tips = g.smooth(g.geo("Pointiness"), 0.52, 0.6)
+    c = g.mix(g.math("MULTIPLY", tips, 0.35), c, g.rgb((1.0, 0.86, 0.62)))
+    c = g.mix(g.reg(6), c, g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.97, 0.91, 0.78)), g.rgb((0.9, 0.8, 0.64))))   # muzzle
+    c = g.mix(g.reg(7), c, g.rgb((0.22, 0.12, 0.1)))                                                       # nose pad
+    amber = g.mix(g.smooth(Z, 2.015, 2.037), g.rgb((0.95, 0.5, 0.05)), g.rgb((1.0, 0.82, 0.3)))
+    c = g.mix(g.reg(8), c, amber)                                                                          # amber eyes
+    c = g.mix(g.reg(9), c, g.rgb((0.86, 0.6, 0.52)))                                                       # inner ears
+    suede = g.mix(g.noise(p, 12.0, 3.0), g.rgb((0.62, 0.42, 0.26)), g.rgb((0.74, 0.54, 0.35)))
+    c = g.mix(g.reg(10), c, suede)                                                                         # tanned inside
+    c = g.mix(g.reg(11), c, g.rgb((0.3, 0.19, 0.16)))                                                      # paw pads
+    rough = g.mixf(g.reg(8), g.mixf(g.reg(7), 0.82, 0.45), 0.12)
+    furry = g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.math("ADD", g.reg(8), g.reg(10))), strands)
+    nrm = g.bump(g.math("ADD", furry, g.math("MULTIPLY", stripe, 0.15)), 0.4, 0.005)
+    return g.finish(c, rough, nrm)
+
+
+def fur(name="HQ_BrownFur", base=(0.34, 0.2, 0.11), tip=(0.6, 0.42, 0.26)):
+    """Plain shaggy fur (bear): dark roots, lighter tips, fine strands."""
+    g = new(name)
+    p = g.obj()
+    strands = g.noise(g.scale_vec(p, (60.0, 60.0, 14.0)), 1.0, 3.0, 0.55)
+    c = g.mix(g.remap(g.noise(p, 4.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    c = g.mix(g.remap(strands, 0.3, 0.7, 0.0, 0.45), c, g.rgb(tuple(x * 0.55 for x in base)))
+    tips = g.smooth(g.geo("Pointiness"), 0.51, 0.6)
+    c = g.mix(g.math("MULTIPLY", tips, 0.55), c, g.rgb(tip))
+    return g.finish(c, 0.85, g.bump(strands, 0.45, 0.006))
+
+
+def dais(name="HQ_Dais"):
+    """Carved granite: light speckled stone, darker in the chisel marks, red ochre paint (label 5)."""
+    g = new(name)
+    p = g.obj()
+    macro = g.noise(p, 2.6, 3.0, 0.55)
+    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb((0.58, 0.56, 0.54)), g.rgb((0.72, 0.69, 0.64)))
+    speck = g.noise(p, 90.0, 2.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.smooth(speck, 0.6, 0.66), 0.5), c, g.rgb((0.36, 0.35, 0.36)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(speck, 0.34, 0.28), 0.4), c, g.rgb((0.86, 0.84, 0.8)))
+    edge = g.smooth(g.geo("Pointiness"), 0.51, 0.57)
+    c = g.mix(g.math("MULTIPLY", edge, 0.5), c, g.rgb((0.88, 0.86, 0.82)))
+    groove = g.smooth(g.geo("Pointiness"), 0.47, 0.42)
+    c = g.mix(g.math("MULTIPLY", groove, 0.55), c, g.rgb((0.3, 0.28, 0.27)))
+    paint = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 30.0, 3.0, 0.6), 0.3, 0.7, 0.65, 0.95))
+    c = g.mix(paint, c, g.rgb((0.66, 0.16, 0.08)))
+    h = g.math("ADD", g.math("MULTIPLY", speck, 0.4), g.noise(p, 16.0, 4.0, 0.6))
+    return g.finish(c, g.mixf(paint, 0.72, 0.85), g.bump(h, 0.3, 0.005))
+
+
+def amber(name="HQ_Amber"):
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 40.0, 3.0), g.rgb((1.0, 0.62, 0.08)), g.rgb((1.0, 0.85, 0.35)))
+    return g.finish(c, 0.15, emit=c, emit_strength=0.6)
+
+
+def fang(name="HQ_Fang"):
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    c = g.mix(g.noise(p, 40.0, 2.0), g.rgb((0.97, 0.94, 0.86)), g.rgb((0.9, 0.84, 0.7)))
+    root = g.smooth(sep.outputs["Z"], 1.84, 1.93)
+    c = g.mix(g.math("MULTIPLY", root, 0.6), c, g.rgb((0.78, 0.66, 0.45)))
+    h = g.noise(g.scale_vec(p, (30.0, 30.0, 120.0)), 1.0, 2.0)
+    return g.finish(c, 0.32, g.bump(h, 0.15, 0.002))
+
+
+def feather(name="HQ_Feather"):
+    """White feathers with fine barbs, an ochre band and dark tips (position along the feather from its base)."""
+    g = new(name)
+    p = g.obj()
+    d = g.node("ShaderNodeVectorMath", operation="DISTANCE")
+    g.put(d.inputs[0], p)
+    d.inputs[1].default_value = (0.205, 0.085, 2.005)
+    t = g.math("DIVIDE", d.outputs["Value"], 0.27)
+    c = g.mix(g.noise(p, 25.0, 2.0), g.rgb((0.98, 0.97, 0.93)), g.rgb((0.9, 0.88, 0.82)))
+    band = g.math("MULTIPLY", g.smooth(t, 0.52, 0.56), g.math("SUBTRACT", 1.0, g.smooth(t, 0.66, 0.7)))
+    c = g.mix(band, c, g.rgb((0.85, 0.42, 0.12)))
+    c = g.mix(g.smooth(t, 0.8, 0.86), c, g.rgb((0.18, 0.11, 0.08)))
+    barbs = g.wave(g.scale_vec(p, 1.0), 120.0, 2.0, 1.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.math("MULTIPLY", g.smooth(barbs, 0.6, 0.9), 0.18), c, g.rgb((0.5, 0.45, 0.4)))
+    return g.finish(c, 0.6, g.bump(barbs, 0.2, 0.0015))
+
+
+def cloth(name="HQ_RedCloth", col=(0.78, 0.13, 0.08)):
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(g.scale_vec(p, (80.0, 80.0, 20.0)), 1.0, 2.0), g.rgb(col), g.rgb(tuple(x * 0.62 for x in col)))
+    return g.finish(c, 0.85, g.bump(g.noise(g.scale_vec(p, (200.0, 200.0, 40.0)), 1.0, 1.0), 0.2, 0.002))
+
+
 def outline_mat():
     """Inverted-hull outline for Cycles: black on back faces, invisible on front faces."""
     m = bpy.data.materials.get("HQ_Outline") or bpy.data.materials.new("HQ_Outline")
@@ -408,16 +537,23 @@ ASSIGN = {
     "SlingStone": lambda: stone("HQ_HandStone", scale=0.3), "AmmoStones": lambda: stone("HQ_AmmoStone", scale=0.3),
     "Pebbles": lambda: stone("HQ_Pebble", scale=0.3), "Rocks": lambda: stone("HQ_Rock", moss=True),
     "Ground": ground, "Basket": basket, "Wood": wood, "Flame": flame, "Grass": grass_blades,
+    "Hood": saber, "Cape": saber, "Fangs": fang, "Feather": feather, "Cloth": cloth, "Dais": dais, "Amber": amber,
 }
 
 
-def assign_all(objs):
+def assign_all(objs, overrides=None):
+    """overrides: part -> (recipe name in this module, kwargs), e.g. a darker beard for one character."""
     cache = {}
+    overrides = overrides or {}
     for o in objs:
         key = o.name.split(".")[0]
-        if key not in ASSIGN:
+        if key not in ASSIGN and key not in overrides:
             continue
         if key not in cache:
-            cache[key] = ASSIGN[key]()
+            if key in overrides:
+                fn, kw = overrides[key]
+                cache[key] = globals()[fn](**kw)
+            else:
+                cache[key] = ASSIGN[key]()
         o.data.materials.clear()
         o.data.materials.append(cache[key])

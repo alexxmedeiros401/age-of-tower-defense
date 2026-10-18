@@ -320,14 +320,16 @@ class Field:
         his = [p.hi for kind, p, k, l in self.ops if kind == "add"]
         return np.min(los, 0), np.max(his, 0)
 
-    def eval(self, P, labels=False):
+    def eval(self, P, labels=False, margin=0.0):
+        """Distance at P. Primitives are skipped for points outside their bounds (+ smoothing radius + `margin`),
+        so values farther than that from every shape read as 1.0; shells of a field pass their offset as `margin`."""
         P = np.asarray(P, dtype=F)
         n = len(P)
         d = np.full(n, F(1.0))
         lab = np.zeros(n, np.int16)
         plo, phi = P.min(0), P.max(0)
         for kind, prim, k, label in self.ops:
-            m = k + 1e-4
+            m = k + 1e-4 + margin
             if kind != "inter":
                 if np.any(prim.hi + m < plo) or np.any(prim.lo - m > phi):
                     continue
@@ -351,6 +353,44 @@ class Field:
                 b = prim(P)
                 d = smax(d, b, k)
         return (d, lab) if labels else d
+
+    def paint_dist(self, P, band=0.004):
+        """Signed distance to every painted label's region, {label: d}, following the same op order as eval():
+        a paint op makes the region grow by its shape (smooth edge); a later add op that takes over a point flips it
+        hard in or out (those edges are geometric creases anyway). Stored per vertex as a clamped ramp, painted edges
+        can be drawn crisply between vertices."""
+        P = np.asarray(P, dtype=F)
+        n = len(P)
+        painted = sorted({label for kind, prim, k, label in self.ops if kind == "paint"})
+        out = {L: np.full(n, F(1.0)) for L in painted}
+        d = np.full(n, F(1.0))
+        plo, phi = P.min(0), P.max(0)
+        for kind, prim, k, label in self.ops:
+            m = k + 1e-4
+            if kind == "inter":
+                d = smax(d, prim(P), k)
+                continue
+            if np.any(prim.hi + m < plo) or np.any(prim.lo - m > phi):
+                continue
+            sel = np.all((P >= (prim.lo - m).astype(F)) & (P <= (prim.hi + m).astype(F)), axis=1)
+            idx = np.nonzero(sel)[0]
+            if len(idx) == 0:
+                continue
+            b = prim(P[idx])
+            a = d[idx]
+            if kind == "add":
+                win = idx[b < a]
+                for L in painted:
+                    if L == label:
+                        out[L][win] = np.minimum(out[L][win], F(-band))
+                    else:
+                        out[L][win] = np.maximum(out[L][win], F(band))
+                d[idx] = smin(a, b, k)
+            elif kind == "sub":
+                d[idx] = smax(a, -b, k)
+            elif kind == "paint" and label in out:
+                out[label][idx] = np.minimum(out[label][idx], b)
+        return out
 
     # --------------------------------------------------------------------- meshing
     def mesh(self, voxel, lo=None, hi=None, chunk=24, verbose=True):

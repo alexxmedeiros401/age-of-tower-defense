@@ -6,9 +6,8 @@ import math
 import numpy as np
 import bpy
 from mathutils import Vector, Matrix, Quaternion, kdtree
-import caveman as cm
+import character as cm
 
-J = cm.J
 V = lambda p: Vector((float(p[0]), float(p[1]), float(p[2])))
 
 
@@ -17,29 +16,37 @@ def bone_specs():
     wrR, fR, nR, tR = cm.hand_frame("R")
     wrL, fL, nL, tL = cm.hand_frame("L")
     fist, attach, pouch = cm.sling_points()
+    tb = {"spine": ((0, 0.03, 0.93), (0, 0.045, 1.13)), "chest": ((0, 0.045, 1.13), (0, 0.06, 1.38)),
+          "neck": ((0, 0.06, 1.38), hp((0, 0.02, 1.56))), "head": (hp((0, 0.02, 1.56)), hp((0, 0.0, 1.95))), "clavicle_z": 1.37}
+    if hasattr(cm.module(), "torso_bones"):
+        tb.update(cm.torso_bones())
+    cz = tb["clavicle_z"]
     specs = [
-        ("root", J["root"], J["root"] + np.array((0, 0, 0.13)), None),
-        ("spine", (0, 0.03, 0.93), (0, 0.045, 1.13), "root"),
-        ("chest", (0, 0.045, 1.13), (0, 0.06, 1.38), "spine"),
-        ("neck", (0, 0.06, 1.38), hp((0, 0.02, 1.56)), "chest"),
-        ("head", hp((0, 0.02, 1.56)), hp((0, 0.0, 1.95)), "neck"),
-        ("clavicle.R", (-0.07, 0.06, 1.37), J["shoulder_R"], "chest"),
-        ("upperarm.R", J["shoulder_R"], J["elbow_R"], "clavicle.R"),
-        ("forearm.R", J["elbow_R"], J["wrist_R"], "upperarm.R"),
+        ("root", cm.J["root"], cm.J["root"] + np.array((0, 0, 0.13)), None),
+        ("spine", tb["spine"][0], tb["spine"][1], "root"),
+        ("chest", tb["chest"][0], tb["chest"][1], "spine"),
+        ("neck", tb["neck"][0], tb["neck"][1], "chest"),
+        ("head", tb["head"][0], tb["head"][1], "neck"),
+        ("clavicle.R", (-0.07, 0.06, cz), cm.J["shoulder_R"], "chest"),
+        ("upperarm.R", cm.J["shoulder_R"], cm.J["elbow_R"], "clavicle.R"),
+        ("forearm.R", cm.J["elbow_R"], cm.J["wrist_R"], "upperarm.R"),
         ("hand.R", wrR, wrR + fR * 0.17, "forearm.R"),
-        ("clavicle.L", (0.07, 0.06, 1.37), J["shoulder_L"], "chest"),
-        ("upperarm.L", J["shoulder_L"], J["elbow_L"], "clavicle.L"),
-        ("forearm.L", J["elbow_L"], J["wrist_L"], "upperarm.L"),
+        ("clavicle.L", (0.07, 0.06, cz), cm.J["shoulder_L"], "chest"),
+        ("upperarm.L", cm.J["shoulder_L"], cm.J["elbow_L"], "clavicle.L"),
+        ("forearm.L", cm.J["elbow_L"], cm.J["wrist_L"], "upperarm.L"),
         ("hand.L", wrL, wrL + fL * 0.17, "forearm.L"),
-        ("thigh.R", J["hip_R"], J["knee_R"], "root"),
-        ("shin.R", J["knee_R"], J["ankle_R"], "thigh.R"),
-        ("foot.R", J["ankle_R"], J["toe_R"], "shin.R"),
-        ("thigh.L", J["hip_L"], J["knee_L"], "root"),
-        ("shin.L", J["knee_L"], J["ankle_L"], "thigh.L"),
-        ("foot.L", J["ankle_L"], J["toe_L"], "shin.L"),
+        ("thigh.R", cm.J["hip_R"], cm.J["knee_R"], "root"),
+        ("shin.R", cm.J["knee_R"], cm.J["ankle_R"], "thigh.R"),
+        ("foot.R", cm.J["ankle_R"], cm.J["toe_R"], "shin.R"),
+        ("thigh.L", cm.J["hip_L"], cm.J["knee_L"], "root"),
+        ("shin.L", cm.J["knee_L"], cm.J["ankle_L"], "thigh.L"),
+        ("foot.L", cm.J["ankle_L"], cm.J["toe_L"], "shin.L"),
         ("sling", attach, pouch, "hand.R"),
         ("stone", pouch + np.array((0, 0, 0.03)), pouch + np.array((0, 0, -0.09)), "sling"),
     ]
+    extra = getattr(cm.module(), "extra_bones", None)
+    if extra is not None:
+        specs += extra()
     return specs
 
 
@@ -182,7 +189,7 @@ def fix_skin_weights(skin_ob):
             set_weights(skin_ob, v.index, {n: x / s for n, x in nw.items()})
             continue
         for side, sx in (("R", -1), ("L", 1)):
-            c = Vector(J["shoulder_" + side]) + Vector((sx * 0.03, 0.0, 0.02))
+            c = Vector(cm.J["shoulder_" + side]) + Vector((sx * 0.03, 0.0, 0.02))
             d = (p - c).length
             if d < 0.17 and p.x * sx > abs(c.x) - 0.02 and p.z > c.z - 0.06:
                 k = (1 - d / 0.17) ** 1.5 * 0.5
@@ -332,9 +339,10 @@ def sdf_weights(skin_ob, field, arm_ob, sigma=0.032, exclude=("sling", "stone"))
     takes its weights from the shapes it lies on (soft blend where shapes were smooth-unioned)."""
     import numpy as np
     from sdf import F
-    names = [b.name for b in arm_ob.data.bones if b.name not in exclude]
+    names = [b.name for b in arm_ob.data.bones if b.name not in exclude and not b.name.startswith("cape")]
     segs = [(np.array(arm_ob.data.bones[n].head_local), np.array(arm_ob.data.bones[n].tail_local)) for n in names]
     penalty = {n: (0.02 if n.startswith("clavicle") else 0.0) for n in names}
+    tz = getattr(cm.module(), "TORSO_Z", (0.7, 0.88, 1.06, 1.47))
 
     def seg_dist(p, a, b):
         ab = b - a
@@ -348,8 +356,8 @@ def sdf_weights(skin_ob, field, arm_ob, sigma=0.032, exclude=("sling", "stone"))
         c = (np.asarray(prim.lo) + np.asarray(prim.hi)) / 2
         best = min(names, key=lambda n: seg_dist(c, *segs[names.index(n)]) + penalty[n])
         # torso shapes on the centre line: by height
-        if abs(c[0]) < 0.12 and 0.7 < c[2] < 1.47 and best not in ("neck", "head"):
-            best = "root" if c[2] < 0.88 else ("spine" if c[2] < 1.06 else "chest")
+        if abs(c[0]) < 0.12 and tz[0] < c[2] < tz[3] and best not in ("neck", "head"):
+            best = "root" if c[2] < tz[1] else ("spine" if c[2] < tz[2] else "chest")
         owners.append((prim, best))
     P = np.zeros((len(skin_ob.data.vertices), 3), np.float32)
     skin_ob.data.vertices.foreach_get("co", P.ravel())

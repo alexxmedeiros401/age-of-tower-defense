@@ -3,7 +3,7 @@ import math
 import numpy as np
 import bpy, bmesh
 from mathutils import Vector
-import caveman as cm
+import character as cm
 
 CHAR_TARGETS = {"Skin": 6800, "Hair": 3000, "Beard": 1600, "Pelt": 2300, "Leather": 1100, "Teeth": 360, "Cord": 380,
                 "Bone": 420, "Sling": 700, "SlingStone": 140, "BagStones": 200}
@@ -95,8 +95,15 @@ def unwrap(ob, boost=None, margin=0.004, angle=76.0, smooth_iters=80):
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
     bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=margin)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    n_fix = _repair_collapsed(ob, angle, margin)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.average_islands_scale()
     bpy.ops.object.mode_set(mode="OBJECT")
+    if n_fix:
+        print("[uv] re-unwrapped %d collapsed faces (small closed parts)" % n_fix)
     if boost is not None:
         _boost_islands(ob, boost)
     bpy.ops.object.mode_set(mode="EDIT")
@@ -104,6 +111,117 @@ def unwrap(ob, boost=None, margin=0.004, angle=76.0, smooth_iters=80):
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.pack_islands(rotate=True, margin=margin, shape_method="CONCAVE")
     bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def _repair_collapsed(ob, angle, margin):
+    """Small closed parts (claws, teeth, beads) shrink to a point on the smoothed copy, so their islands come out with
+    no seams and the relax collapses them to zero area: they would never get baked. Re-unwrap every compact 3D
+    component that mostly collapsed with smart project on the real shape (unless that shatters it into slivers)."""
+    me = ob.data
+    uv = me.uv_layers.active.data
+    nf = len(me.polygons)
+    area = np.zeros(nf)
+    for p in me.polygons:
+        pts = [uv[li].uv for li in p.loop_indices]
+        a = 0.0
+        for i in range(1, len(pts) - 1):
+            a += abs((pts[i][0] - pts[0][0]) * (pts[i + 1][1] - pts[0][1]) - (pts[i + 1][0] - pts[0][0]) * (pts[i][1] - pts[0][1])) / 2
+        area[p.index] = a
+    ref = np.median(area[area > 0]) if np.any(area > 0) else 1.0
+    bad = area < ref * 1e-3
+    if not bad.any():
+        return 0
+    parent = list(range(len(me.vertices)))
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+    for p in me.polygons:
+        vs = list(p.vertices)
+        for v in vs[1:]:
+            ra, rb = find(vs[0]), find(v)
+            if ra != rb:
+                parent[ra] = rb
+    root = np.array([find(p.vertices[0]) for p in me.polygons])
+    co = np.zeros(len(me.vertices) * 3)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(-1, 3)
+    vroot = np.array([find(i) for i in range(len(me.vertices))])
+    comps = set()
+    for r in set(root[bad].tolist()):
+        inside = root == r
+        pts = co[vroot == r]
+        compact = np.linalg.norm(pts.max(0) - pts.min(0)) < 0.15     # claws, teeth, beads (long cords keep theirs)
+        if compact and bad[inside].mean() > 0.25:
+            comps.add(r)
+    if not comps:
+        return 0
+    sel = np.array([r in comps for r in root])
+    old = np.zeros(len(me.loops) * 2)
+    me.uv_layers.active.data.foreach_get("uv", old)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+    bm = bmesh.from_edit_mesh(me)
+    bm.faces.ensure_lookup_table()
+    for v in bm.verts:
+        v.select = False
+    for e in bm.edges:
+        e.select = False
+    for f in bm.faces:
+        f.select = False
+    for i in np.nonzero(sel)[0]:
+        bm.faces[int(i)].select_set(True)
+    bmesh.update_edit_mesh(me)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=margin, scale_to_bounds=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    # thin cords shatter into slivers under smart project (worse than before): keep their old layout
+    uvd = me.uv_layers.active.data
+    new = np.zeros(len(me.loops) * 2)
+    uvd.foreach_get("uv", new)
+    new2 = new.reshape(-1, 2)
+    loop_face = np.zeros(len(me.loops), np.int64)
+    for p in me.polygons:
+        loop_face[p.loop_start:p.loop_start + p.loop_total] = p.index
+    edge_faces = {}
+    for p in me.polygons:
+        if not sel[p.index]:
+            continue
+        for li in range(p.loop_start, p.loop_start + p.loop_total):
+            a_v, b_v = me.loops[li].vertex_index, me.loops[p.loop_start + (li - p.loop_start + 1) % p.loop_total].vertex_index
+            edge_faces.setdefault((min(a_v, b_v), max(a_v, b_v)), []).append((p.index, li, a_v))
+    fparent = {i: i for i in np.nonzero(sel)[0]}
+    def ffind(a):
+        while fparent[a] != a:
+            fparent[a] = fparent[fparent[a]]
+            a = fparent[a]
+        return a
+    vuv = {}
+    for p in me.polygons:
+        if sel[p.index]:
+            for li in range(p.loop_start, p.loop_start + p.loop_total):
+                vuv[(p.index, me.loops[li].vertex_index)] = new2[li]
+    for (va, vb), lst in edge_faces.items():
+        if len(lst) != 2:
+            continue
+        (f0, _, _), (f1, _, _) = lst
+        if all(np.linalg.norm(vuv[(f0, v)] - vuv[(f1, v)]) < 1e-6 for v in (va, vb)):
+            fparent[ffind(f0)] = ffind(f1)
+    reverted = 0
+    for r in comps:
+        fidx = [i for i in np.nonzero(sel)[0] if root[i] == r]
+        n_isl = len({ffind(i) for i in fidx})
+        if len(fidx) / max(n_isl, 1) < 2.0:    # shattered into slivers: restore
+            for i in fidx:
+                p = me.polygons[int(i)]
+                for li in range(p.loop_start, p.loop_start + p.loop_total):
+                    new2[li] = old.reshape(-1, 2)[li]
+            reverted += len(fidx)
+    if reverted:
+        uvd.foreach_set("uv", new2.ravel())
+        me.update()
+        print("[uv] kept the old layout on %d faces (thin parts shatter into slivers)" % reverted)
+    return int(sel.sum()) - reverted
 
 
 def _boost_islands(ob, boost):

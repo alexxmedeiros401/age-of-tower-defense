@@ -1,28 +1,35 @@
-"""HQ Rock Slinger: high-poly sculpt -> rigged, animated, texture-baked game asset (GLB).
+"""HQ model: high-poly sculpt -> rigged, animated, texture-baked game asset (GLB).
 
-    python3 build_game.py -- --char char_hi.blend --base base_hi.blend --out DIR [--tex 2048] [--stage char|base|export|all]
+    python3 build_game.py -- --character caveman|ugo --char char_hi.blend --base base_hi.blend --out DIR
+                             [--tex 2048] [--ao 40] [--stage char|base|export|all]
+The character module (caveman.py, ugo.py) supplies parts, decimation targets, weight rules, UV boosts, its base
+module and its animation module.
 """
-import sys, os, time, math
+import sys, os, time, math, importlib
 HQ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HQ)
 import numpy as np
 import bpy, bmesh
-from mathutils import Vector
-import caveman as cm, base as bs, lowpoly as lp, rig, anim, mats, prep, bake as bk
+from mathutils import Vector, Matrix
 
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
 def arg(n, d=None):
     return ARGS[ARGS.index(n) + 1] if n in ARGS else d
-CHAR = arg("--char", "/home/claude/work/hq/char_hi.blend")
-BASE = arg("--base", "/home/claude/work/hq/base_hi.blend")
-OUT = arg("--out", "/home/claude/work/hq/game")
+
+import character
+CH = character.use(arg("--character", "caveman"))
+import lowpoly as lp, rig, mats, prep, bake as bk, sdf
+bs = importlib.import_module(CH.BASE_MODULE)
+an = importlib.import_module(CH.ANIM_MODULE)
+
+CHAR = arg("--char", "char_hi.blend")
+BASE = arg("--base", "base_hi.blend")
+OUT = arg("--out", "out")
 TEX = int(arg("--tex", "2048"))
 STAGE = arg("--stage", "all")
 AO_SPP = int(arg("--ao", "32"))
 os.makedirs(OUT, exist_ok=True)
-
-PART_IDS = {n: i for i, n in enumerate(["Skin", "Eyes", "Teeth", "Hair", "Beard", "Pelt", "Leather", "BagStones", "Cord", "Bone", "Sling", "SlingStone"])}
-TORSO = {"root", "spine", "chest", "neck"}
+PART_IDS = {n: i for i, n in enumerate(CH.PARTS)}
 
 
 def log(*a):
@@ -33,33 +40,36 @@ def char_stage():
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=CHAR)
     hi = {o.name: o for o in bpy.context.scene.objects if o.type == "MESH"}
-    import sdf
     for o in hi.values():
         sdf.fix_winding(o)
+    for o in hi.values():
+        prep.region_masks(o)
     prep.paint_skin(hi["Skin"])
     prep.paint_eyes(hi["Eyes"])
-    mats.assign_all(list(hi.values()))
+    if hasattr(CH, "paint_extra"):
+        CH.paint_extra(hi)
+    mats.assign_all(list(hi.values()), getattr(CH, "MAT_OVERRIDES", None))
     low = {}
-    for nm, tgt in lp.CHAR_TARGETS.items():
-        low[nm] = lp.decimated_copy(hi[nm], tgt, nm + "_low")
+    for nm, tgt in CH.LOW_TARGETS.items():
+        if nm in hi:
+            low[nm] = lp.decimated_copy(hi[nm], tgt, nm + "_low")
     low["Eyes"] = lp.eyes_low()
     for nm, o in low.items():
         lp.tag_part(o, PART_IDS[nm])
     log("lowpoly", {k: len(v.data.polygons) for k, v in low.items()}, "%.0fs" % (time.time() - T))
-    # rig + weights on the separate parts
     arm = rig.build_armature()
-    rig.sdf_weights(low["Skin"], cm.skin_field(), arm)
-    rig.transfer_weights(low["Skin"], low["Pelt"], allowed=TORSO | {"clavicle.L", "upperarm.L", "thigh.R", "thigh.L", "shin.R", "shin.L", "foot.R", "foot.L"},
-                         caps={"thigh.R": 0.3, "thigh.L": 0.3, "upperarm.L": 0.85})
-    rig.transfer_weights(low["Skin"], low["Leather"], allowed=TORSO | {"forearm.R", "forearm.L", "hand.R", "hand.L", "upperarm.R", "upperarm.L", "thigh.R"},
-                         caps={"thigh.R": 0.3})
-    rig.transfer_weights(low["Skin"], low["Cord"], allowed=TORSO | {"head"})
-    rig.transfer_weights(low["Skin"], low["Bone"], allowed=TORSO | {"head"})
-    rig.transfer_weights(low["Skin"], low["BagStones"], allowed=TORSO | {"thigh.R"}, caps={"thigh.R": 0.3})
-    for nm in ("Hair", "Beard", "Eyes", "Teeth"):
-        rig.rigid_weights(low[nm], "head")
-    rig.rigid_weights(low["Sling"], "sling")
-    rig.rigid_weights(low["SlingStone"], "stone")
+    rig.sdf_weights(low["Skin"], CH.skin_field(), arm)
+    rules = CH.weight_rules()
+    for nm, o in low.items():
+        if nm == "Skin":
+            continue
+        r = rules.get(nm, ("transfer", None, None))
+        if r[0] == "rigid":
+            rig.rigid_weights(o, r[1])
+        elif r[0] == "custom":
+            r[1](o, low["Skin"], arm)
+        else:
+            rig.transfer_weights(low["Skin"], o, allowed=r[1], caps=r[2])
     for o in low.values():
         rig.limit_and_normalize(o)
     for o in low.values():
@@ -67,37 +77,25 @@ def char_stage():
             o.modifiers.remove(m)
         o.parent = None
     order = [low["Skin"]] + [o for n, o in low.items() if n != "Skin"]
-    cav = lp.join(order, "Caveman")
-    # UV atlas: more pixels for the face, eyes and hands
-    hp = cm.hp
-    face_z = hp((0, 0, 1.45))[2]
-    def boost(c, part):
-        if part == PART_IDS["Eyes"]:
-            return 2.0
-        if part in (PART_IDS["Cord"], PART_IDS["Sling"], PART_IDS["Bone"], PART_IDS["SlingStone"], PART_IDS["BagStones"]):
-            return 0.6
-        if part in (PART_IDS["Skin"], PART_IDS["Teeth"]) and c.z > face_z and c.y < 0.0:
-            return 1.9
-        if part == PART_IDS["Skin"] and (abs(c.x) > 0.62 and c.z < 1.0):
-            return 1.35
-        return 1.0
-    lp.unwrap(cav, boost=boost, margin=0.0035)
+    cav = lp.join(order, "Character")
+    cav.data.validate(clean_customdata=False)          # drop duplicate faces left by decimation (glTF warns otherwise)
+    names = {v: k for k, v in PART_IDS.items()}
+    lp.unwrap(cav, boost=lambda c, pid: CH.uv_boost(c, names.get(pid, "")), margin=0.0035)
     log("uv done %.0fs" % (time.time() - T))
-    # bake (rest pose): each part only from its own sculpt; AO sees everything
-    names = list(PART_IDS.keys())
-    groups = [([PART_IDS[n]], [hi[n]]) for n in names if n in hi]
+    groups = [([PART_IDS[n]], [hi[n]]) for n in CH.PARTS if n in hi]
     maps = bk.bake_groups(cav, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.16,
-                         ao_exclude=[hi[n] for n in ("Cord", "Bone", "Sling", "SlingStone", "BagStones", "Leather") if n in hi])
+                         ao_exclude=[hi[n] for n in CH.AO_EXCLUDE if n in hi])
     log("bakes %.0fs" % (time.time() - T))
-    pa, pn, po = bk.save_maps(maps, OUT, "caveman", ao_strength=0.7)
-    mat = bk.game_material("CavemanMat", pa, pn, po)
+    pa, pn, po = bk.save_maps(maps, OUT, CH.TEX_PREFIX, ao_strength=0.7)
+    mat = bk.game_material(CH.MAT_NAME, pa, pn, po)
     cav.data.materials.clear()
     cav.data.materials.append(mat)
-    # skin it and animate
+    cav.name = getattr(CH, "MESH_NAME", "Caveman")
+    cav.data.name = cav.name
     m = cav.modifiers.new("Armature", "ARMATURE")
     m.object = arm
     cav.parent = arm
-    anim.make_all(arm)
+    an.make_all(arm)
     for o in hi.values():
         bpy.data.objects.remove(o)
     for me in [me for me in bpy.data.meshes if me.users == 0]:
@@ -113,32 +111,31 @@ def base_stage():
         if o.name in ("Grass", "Flowers"):
             bpy.data.objects.remove(o)
     hi = {o.name: o for o in bpy.context.scene.objects if o.type == "MESH"}
-    import sdf
     for o in hi.values():
         sdf.fix_winding(o)
-    mats.assign_all(list(hi.values()))
+        prep.region_masks(o)
+    mats.assign_all(list(hi.values()), getattr(bs, "MAT_OVERRIDES", None))
     low = []
-    for nm, tgt in lp.BASE_TARGETS.items():
-        if nm == "Flame":
+    glow = getattr(bs, "GLOW", {})                  # parts kept as their own glowing mesh (not baked into the base)
+    for nm, tgt in bs.LOW_TARGETS.items():
+        if nm == "Flame" or nm not in hi or nm in glow:
             continue
-        o = lp.decimated_copy(hi[nm], tgt, nm + "_low")
-        low.append(o)
+        low.append(lp.decimated_copy(hi[nm], tgt, nm + "_low"))
     baseob = lp.join(low, "Base")
     lp.unwrap(baseob, margin=0.003)
-    # leave a free column on the right of the atlas for the grass/flower swatches
     uv = baseob.data.uv_layers.active.data
     co = np.zeros(len(uv) * 2, np.float32)
     uv.foreach_get("uv", co)
-    co *= 0.94
+    co *= 0.94                                   # free column on the right for grass/flower swatches
     uv.foreach_set("uv", co)
     hi_list = [o for n, o in hi.items() if n != "Flame"]
     imgs = {}
-    imgs["albedo"] = bk.bake(baseob, hi_list, bk.new_image("base_albedo", TEX), "DIFFUSE", samples=4, extrusion=0.02, maxdist=0.05)
-    imgs["normal"] = bk.bake(baseob, hi_list, bk.new_image("base_normal", TEX, non_color=True), "NORMAL", samples=4, extrusion=0.02, maxdist=0.05)
-    imgs["rough"] = bk.bake(baseob, hi_list, bk.new_image("base_rough", TEX, non_color=True), "ROUGHNESS", samples=2, extrusion=0.02, maxdist=0.05)
-    imgs["ao"] = bk.bake(baseob, hi_list, bk.new_image("base_ao", TEX, non_color=True), "AO", samples=AO_SPP, extrusion=0.02, maxdist=0.05)
+    kw = dict(extrusion=0.02, maxdist=0.05)
+    imgs["albedo"] = bk.bake(baseob, hi_list, bk.new_image("base_albedo", TEX), "DIFFUSE", samples=4, **kw)
+    imgs["normal"] = bk.bake(baseob, hi_list, bk.new_image("base_normal", TEX, non_color=True), "NORMAL", samples=4, **kw)
+    imgs["rough"] = bk.bake(baseob, hi_list, bk.new_image("base_rough", TEX, non_color=True), "ROUGHNESS", samples=2, **kw)
+    imgs["ao"] = bk.bake(baseob, hi_list, bk.new_image("base_ao", TEX, non_color=True), "AO", samples=AO_SPP, **kw)
     log("base bakes %.0fs" % (time.time() - T))
-    # swatches (linear colours) in the free column: grass gradient + flower colours
     from mats import lin
     def paint(a):
         h, w, _ = a.shape
@@ -161,22 +158,16 @@ def base_stage():
     baseob.data.materials.clear()
     baseob.data.materials.append(mat)
     baseob.data.materials.append(grass_mat)
-    # grass-top faces of the ground use the "Grass" material (the game swaps it on snow/ash maps)
-    part_ground = None
     for p in baseob.data.polygons:
-        c = p.center
-        r = math.hypot(c.x, c.y)
-        if p.normal.z > 0.55 and c.z > 0.1 and c.z < 0.32 and r < bs.GROUND_R + 0.05 and not (r < 0.95 and c.z > 0.28):
+        if bs.is_grass_face(p.center, p.normal):
             p.material_index = 1
-    # grass blades + flowers: geometry with swatch UVs
     V, Fc, UV, TUFT = bs.grass_geometry()
     me = bpy.data.meshes.new("GrassBlades")
     me.from_pydata([tuple(v) for v in V], [], Fc)
     uvl = me.uv_layers.new(name="UVMap")
     for poly in me.polygons:
         for li in poly.loop_indices:
-            vi = me.loops[li].vertex_index
-            t = UV[vi][1]
+            t = UV[me.loops[li].vertex_index][1]
             uvl.data[li].uv = (0.975, 0.05 + 0.6 * t)
         poly.use_smooth = True
     blades = bpy.data.objects.new("GrassBlades", me)
@@ -189,26 +180,45 @@ def base_stage():
         allf += [tuple(b + i for i in q) for q in f]
         sw = 4 if kind == 0 else (3 if kind == 2 else ck)
         alluv += [(0.975, 0.7 + 0.055 * sw + 0.02)] * len(v)
-    me2 = bpy.data.meshes.new("Flowers")
-    me2.from_pydata(allv, [], allf)
-    uvl2 = me2.uv_layers.new(name="UVMap")
-    for poly in me2.polygons:
-        for li in poly.loop_indices:
-            uvl2.data[li].uv = alluv[me2.loops[li].vertex_index]
-    flowers = bpy.data.objects.new("Flowers", me2)
-    bpy.context.scene.collection.objects.link(flowers)
-    me2.materials.append(mat)
-    # flame: own emissive object, origin at the torch head so flicker scales it upward
-    fl = lp.decimated_copy(hi["Flame"], lp.BASE_TARGETS["Flame"], "FlickerTorch")
-    pivot = bs.TORCH_TOP + np.array((0, 0, 0.02))
-    fl.data.transform(__import__("mathutils").Matrix.Translation(-Vector(pivot)))
-    fl.location = Vector(pivot)
-    fl.data.materials.clear()
-    fl.data.materials.append(bk.flame_material())
+    if allv:
+        me2 = bpy.data.meshes.new("Flowers")
+        me2.from_pydata(allv, [], allf)
+        uvl2 = me2.uv_layers.new(name="UVMap")
+        for poly in me2.polygons:
+            for li in poly.loop_indices:
+                uvl2.data[li].uv = alluv[me2.loops[li].vertex_index]
+        flowers = bpy.data.objects.new("Flowers", me2)
+        bpy.context.scene.collection.objects.link(flowers)
+        me2.materials.append(mat)
+    keep = {"Base", "GrassBlades", "Flowers"}
+    for nm, (col, strength) in glow.items():
+        if nm not in hi:
+            continue
+        g = lp.decimated_copy(hi[nm], bs.LOW_TARGETS.get(nm, 600), "Glow" + nm)
+        gm = bpy.data.materials.new("Glow" + nm)
+        gm.use_nodes = True
+        b = gm.node_tree.nodes["Principled BSDF"]
+        b.inputs["Base Color"].default_value = mats.lin(col)
+        b.inputs["Roughness"].default_value = 0.25
+        b.inputs["Emission Color"].default_value = mats.lin(col)
+        b.inputs["Emission Strength"].default_value = strength
+        g.data.materials.clear()
+        g.data.materials.append(gm)
+        for p in g.data.polygons:
+            p.use_smooth = True
+        keep.add(g.name)
+    if "Flame" in hi and getattr(bs, "FLAME_PIVOT", None) is not None:
+        fl = lp.decimated_copy(hi["Flame"], bs.LOW_TARGETS.get("Flame", 160), "FlickerTorch")
+        pivot = bs.FLAME_PIVOT
+        fl.data.transform(Matrix.Translation(-Vector(pivot)))
+        fl.location = Vector(pivot)
+        fl.data.materials.clear()
+        fl.data.materials.append(bk.flame_material())
+        keep.add("FlickerTorch")
     for o in list(hi.values()):
         bpy.data.objects.remove(o)
     for o in list(bpy.context.scene.objects):
-        if o.type == "MESH" and o.name not in ("Base", "GrassBlades", "Flowers", "FlickerTorch"):
+        if o.type == "MESH" and o.name not in keep:
             bpy.data.objects.remove(o)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "base_game.blend"))
     log("base done %.0fs, tris %d" % (time.time() - T, sum(len(o.data.polygons) for o in bpy.context.scene.objects if o.type == "MESH")))
@@ -230,13 +240,13 @@ def export_stage():
         if o.type == "ARMATURE":
             o.parent = yaw
             o.location = (0, 0, 0)
-    root = bpy.data.objects.new("RockSlingerHQ", None)
+    root = bpy.data.objects.new(CH.ROOT_NAME, None)
     sc.collection.objects.link(root)
     for o in sc.objects:
         if o.parent is None and o is not root:
             o.parent = root
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "rock_slinger_hq.blend"))
-    path = os.path.join(OUT, "rock_slinger.glb")
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, CH.GLB_NAME + "_hq.blend"))
+    path = os.path.join(OUT, CH.GLB_NAME + ".glb")
     bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_animations=True, export_animation_mode="ACTIONS",
                               export_skins=True, export_tangents=True, export_apply=False, export_yup=True,
                               export_force_sampling=True, export_image_format="JPEG", export_jpeg_quality=93, export_materials="EXPORT")
