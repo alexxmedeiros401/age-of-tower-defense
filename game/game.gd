@@ -1666,7 +1666,66 @@ func _rig_model(root: Node3D, model: Node3D) -> void:
 	var orb := model.find_child("Orb", true, false)
 	if orb != null:
 		root.set_meta("orb", orb)
+	var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ap != null and ap.has_animation("Idle"):
+		_hq_anim_setup(root, ap)
+		_hq_outline(model)
 	_rig_extras(root, model)
+
+
+## HQ models (sculpted, texture-baked, skinned) ship Idle / Whirl / Throw clips: idle when nothing is in range,
+## whirl while fighting, throw on every shot. The clip speed follows the game speed and the tower's fire rate.
+const HQ_LOOPS := ["Idle", "Whirl"]
+func _hq_anim_setup(root: Node3D, ap: AnimationPlayer) -> void:
+	for nm in HQ_LOOPS:
+		if ap.has_animation(nm):
+			ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
+	root.set_meta("anim", ap)
+	root.set_meta("last_fire", -100.0)
+	ap.play("Idle")
+	ap.seek(randf() * ap.current_animation_length, true)
+
+
+func _hq_anim_tick(tn: Node3D, stunned: bool) -> void:
+	var ap: AnimationPlayer = tn.get_meta("anim")
+	var cur := ap.current_animation
+	var rate: float = float(tn.get_meta("throw_rate", 1.0)) if cur == "Throw" else 1.0
+	ap.speed_scale = 0.0 if stunned else float(speed) * rate
+	if cur == "Throw" and ap.is_playing():
+		return
+	var want := "Whirl" if time_s - float(tn.get_meta("last_fire", -100.0)) < 2.2 else "Idle"
+	if cur != want:
+		ap.play(want, 0.25)
+
+
+func _hq_anim_freeze() -> void:
+	for n in tower_nodes.values():
+		if (n as Node3D).has_meta("anim"):
+			((n as Node3D).get_meta("anim") as AnimationPlayer).speed_scale = 0.0
+
+
+## Cartoon outline for HQ models: a second pass that pushes the surface out along its normals and draws only the
+## back faces (works with skinning; no duplicate geometry in the file). Off on MINIMAL graphics.
+var _hq_outline_mat: StandardMaterial3D
+func _hq_outline(model: Node3D) -> void:
+	if Progress.gfx_level() >= 2:
+		return
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null or str(m.name) in ["FlickerTorch", "GrassBlades", "Flowers"]:
+			continue
+		for si in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(si) as BaseMaterial3D
+			if mat == null or mat.next_pass != null:
+				continue
+			if _hq_outline_mat == null:
+				_hq_outline_mat = StandardMaterial3D.new()
+				_hq_outline_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				_hq_outline_mat.albedo_color = Color(0.09, 0.065, 0.05)
+				_hq_outline_mat.cull_mode = BaseMaterial3D.CULL_FRONT
+				_hq_outline_mat.grow = true
+				_hq_outline_mat.grow_amount = 0.022
+			mat.next_pass = _hq_outline_mat
 
 
 ## v2 art: Spin* nodes whirl (slings, rotors, orbiting stones), Flicker* nodes flicker (fires),
@@ -2265,6 +2324,7 @@ func _process(delta: float) -> void:
 	_fit_modals()
 	if paused or (started and detail_open > 0):
 		_update_hud(0.0)
+		_hq_anim_freeze()
 		return
 	_auto_start(delta)
 	_attract_tick()
@@ -2756,6 +2816,16 @@ func _animate_fire(id: int) -> void:
 	if not tower_nodes.has(id):
 		return
 	var n: Node3D = tower_nodes[id]
+	if n.has_meta("anim"):
+		var uu = sim.get_unit(id)
+		var ap: AnimationPlayer = n.get_meta("anim")
+		n.set_meta("last_fire", time_s)
+		var cd: float = float(uu.stats.cooldown) if uu != null else 0.85
+		n.set_meta("throw_rate", clampf(0.8 / maxf(cd, 0.1), 1.0, 3.0))
+		ap.play("Throw", 0.05)
+		ap.seek(0.0, true)
+		ap.speed_scale = float(speed) * float(n.get_meta("throw_rate"))
+		return
 	if not n.has_meta("arm"):
 		return
 	var u = sim.get_unit(id)
@@ -2874,6 +2944,8 @@ func _sync_visuals(alpha: float) -> void:
 			var yaw_node: Node3D = tn.get_meta("yaw")
 			yaw_node.rotation.y = lerp_angle(yaw_node.rotation.y, _yaw(t.facing), 0.2)
 		_spin_flicker(tn, pdt, 0.0 if sim.tick < int(t.get("stun_until", 0)) else 9.0)
+		if tn.has_meta("anim"):
+			_hq_anim_tick(tn, sim.tick < int(t.get("stun_until", 0)))
 		if tn.has_meta("orb"):
 			var orb: Node3D = tn.get_meta("orb")
 			orb.scale = orb.scale.lerp(Vector3.ONE * (1.0 + 0.1 * sin(time_s * 4.0)), 0.1)
@@ -7102,6 +7174,41 @@ func _run_demo() -> void:
 		return
 	if "--test-place" in args:
 		await _test_place()
+		get_tree().quit()
+		return
+	if "--shoot-hq" in args:
+		# HQ model check: a few Rock Slingers fighting, a battle shot, a close-up and an optional frame sequence
+		_start_game()
+		sim.gold += 8000
+		var hq_ids := []
+		for k in 3:
+			var spot := _demo_spot("rock_slinger")
+			if spot != Vector2.INF:
+				var hid := sim.place_tower("rock_slinger", spot)
+				if hid != -1:
+					hq_ids.append(hid)
+		_handle_events()
+		sim.wave = 2
+		var hq_kinds := ["walker", "scout", "walker", "brute", "walker", "scout", "walker", "walker", "scout", "walker"]
+		sim.wave_remaining[2] = hq_kinds.size()
+		for i in hq_kinds.size():
+			sim._spawn_enemy(hq_kinds[i], 2, 3.0 + i * 1.5, i % sim.paths.size())
+		_handle_events()
+		await _wait_ticks(int(3.2 / TICK))
+		await _shot("hq_battle.png")
+		var htn: Node3D = tower_nodes[hq_ids[0]]
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov = 30
+		cam.global_position = htn.global_position + Vector3(3.2, 3.0, 4.6)
+		cam.look_at(htn.global_position + Vector3(0, 0.95, 0))
+		cam_base = cam.position
+		shake = 0.0
+		for i in 4:
+			await get_tree().process_frame
+		await _shot("hq_close.png")
+		if "--gif" in args:
+			for i in 72:
+				await _shot("hq_gif_%03d.png" % i)
 		get_tree().quit()
 		return
 	if "--shoot-showcase" in args:
