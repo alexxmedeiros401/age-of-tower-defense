@@ -226,7 +226,7 @@
    }
   },
   "era": "Stone Age",
-  "model_scale": 0.56,
+  "model_scale": 0.7,
   "swing": [
    -0.7,
    1.6
@@ -340,7 +340,7 @@
    }
   },
   "era": "Stone Age",
-  "model_scale": 0.58,
+  "model_scale": 0.72,
   "swing": [
    -0.15,
    2.0
@@ -453,7 +453,7 @@
    }
   },
   "era": "Stone Age",
-  "model_scale": 0.56,
+  "model_scale": 0.7,
   "swing": [
    -0.5,
    0.35

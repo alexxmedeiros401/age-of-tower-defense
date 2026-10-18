@@ -11,11 +11,28 @@ import character as cm
 V = lambda p: Vector((float(p[0]), float(p[1]), float(p[2])))
 
 
+def prop_specs():
+    """Bones for what the character holds (not skinned to the body). Default: the sling and its stone."""
+    if hasattr(cm.module(), "prop_bones"):
+        return cm.prop_bones()
+    fist, attach, pouch = cm.sling_points()
+    return [("sling", attach, pouch, "hand.R"),
+            ("stone", pouch + np.array((0, 0, 0.03)), pouch + np.array((0, 0, -0.09)), "sling")]
+
+
+def non_body_bones():
+    """Bones the sculpt's skin weights must never use: props, plus extra bones (cape, machine parts...)."""
+    names = {s[0] for s in prop_specs()}
+    extra = getattr(cm.module(), "extra_bones", None)
+    if extra is not None:
+        names |= {s[0] for s in extra()}
+    return names
+
+
 def bone_specs():
     hp = cm.hp
     wrR, fR, nR, tR = cm.hand_frame("R")
     wrL, fL, nL, tL = cm.hand_frame("L")
-    fist, attach, pouch = cm.sling_points()
     tb = {"spine": ((0, 0.03, 0.93), (0, 0.045, 1.13)), "chest": ((0, 0.045, 1.13), (0, 0.06, 1.38)),
           "neck": ((0, 0.06, 1.38), hp((0, 0.02, 1.56))), "head": (hp((0, 0.02, 1.56)), hp((0, 0.0, 1.95))), "clavicle_z": 1.37}
     if hasattr(cm.module(), "torso_bones"):
@@ -41,9 +58,7 @@ def bone_specs():
         ("thigh.L", cm.J["hip_L"], cm.J["knee_L"], "root"),
         ("shin.L", cm.J["knee_L"], cm.J["ankle_L"], "thigh.L"),
         ("foot.L", cm.J["ankle_L"], cm.J["toe_L"], "shin.L"),
-        ("sling", attach, pouch, "hand.R"),
-        ("stone", pouch + np.array((0, 0, 0.03)), pouch + np.array((0, 0, -0.09)), "sling"),
-    ]
+    ] + prop_specs()
     extra = getattr(cm.module(), "extra_bones", None)
     if extra is not None:
         specs += extra()
@@ -231,27 +246,38 @@ class Poser:
             if b.parent is None:
                 visit(b)
 
-    def solve(self, aims, root_off=Vector((0, 0, 0)), root_rot=Quaternion(), scales=None):
+    def solve(self, aims, root_off=Vector((0, 0, 0)), root_rot=Quaternion(), scales=None, offsets=None):
         """aims: bone -> world direction Vector, or callable(P, base)->direction, or ('rot', Quaternion world).
+        root_off/root_rot move the body ("root"); other parentless bones (machines) stay put unless `offsets` moves them.
+        scales: bone -> uniform factor or (x, y, z) in bone space (y = along the bone: stretch a rope).
         Returns {bone: (loc, quat, scale)} local pose channels and the posed matrices P."""
         P, out = {}, {}
         for nm in self.order:
             b = self.bones[nm]
             if b.parent is not None:
                 base = P[b.parent.name] @ (self.rest[b.parent.name].inverted() @ self.rest[nm])
-            else:
+            elif nm == "root":
                 r = self.rest[nm]
                 head = r.translation
                 rot = root_rot.to_matrix().to_4x4()
                 base = Matrix.Translation(head + root_off) @ rot @ Matrix.Translation(-head) @ r
+            else:
+                base = Matrix.Translation(Vector((offsets or {}).get(nm, (0, 0, 0)))) @ self.rest[nm]
             M = base
             a = aims.get(nm)
+            if callable(a):
+                a = a(P, base)                 # may return a direction, (direction, twist), ("rot", q) or ("frame", ...)
             if a is not None:
-                if isinstance(a, tuple) and a[0] == "rot":
+                if isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "rot":
                     R = a[1].to_matrix() @ base.to_3x3()
                     M = Matrix.Translation(base.translation) @ R.to_4x4()
+                elif isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "frame":
+                    # full world orientation: rest-pose direction r1 -> w1 exactly, r2 -> w2 (as near as possible)
+                    _, r1, w1, r2, w2 = a
+                    R = frame_map(r1, w1, r2, w2) @ self.rest[nm].to_3x3()
+                    M = Matrix.Translation(base.translation) @ R.to_4x4()
                 else:
-                    d = a(P, base) if callable(a) else a
+                    d = a
                     twist = 0.0
                     if isinstance(d, tuple):
                         d, twist = d
@@ -263,7 +289,9 @@ class Poser:
                         R = Quaternion(d, twist).to_matrix() @ R
                     M = Matrix.Translation(base.translation) @ R.to_4x4()
             P[nm] = M
-            basis = base.inverted() @ M
+            # pose = parent pose @ (parent rest^-1 @ rest) @ basis; a parentless bone's pose = rest @ basis, so its
+            # channels must carry the root offset / rotation too (measured from the rest pose, not from `base`)
+            basis = (base if b.parent is not None else self.rest[nm]).inverted() @ M
             loc, quat, _ = basis.decompose()
             sc = (scales or {}).get(nm, 1.0)
             out[nm] = (loc if b.parent is None else Vector((0, 0, 0)), quat, sc)
@@ -277,8 +305,18 @@ class Poser:
             if self.bones[nm].parent is None:
                 pb.location = loc
                 pb.keyframe_insert("location", frame=frame)
-            pb.scale = (sc, sc, sc)
+            pb.scale = tuple(sc) if isinstance(sc, (tuple, list, Vector)) else (sc, sc, sc)
             pb.keyframe_insert("scale", frame=frame)
+
+
+def frame_map(r1, w1, r2, w2):
+    """Rotation taking direction r1 to w1 and the plane (r1, r2) to the plane (w1, w2)."""
+    def basis(a, b):
+        a = Vector(a).normalized()
+        b = Vector(b)
+        b = (b - a * b.dot(a)).normalized()
+        return Matrix((a, b, a.cross(b))).transposed()       # columns a, b, a x b
+    return basis(w1, w2) @ basis(r1, r2).transposed()
 
 
 def head_of(P, nm):
@@ -339,7 +377,8 @@ def sdf_weights(skin_ob, field, arm_ob, sigma=0.032, exclude=("sling", "stone"))
     takes its weights from the shapes it lies on (soft blend where shapes were smooth-unioned)."""
     import numpy as np
     from sdf import F
-    names = [b.name for b in arm_ob.data.bones if b.name not in exclude and not b.name.startswith("cape")]
+    skip = set(exclude) | non_body_bones()
+    names = [b.name for b in arm_ob.data.bones if b.name not in skip and not b.name.startswith("cape")]
     segs = [(np.array(arm_ob.data.bones[n].head_local), np.array(arm_ob.data.bones[n].tail_local)) for n in names]
     penalty = {n: (0.02 if n.startswith("clavicle") else 0.0) for n in names}
     tz = getattr(cm.module(), "TORSO_Z", (0.7, 0.88, 1.06, 1.47))

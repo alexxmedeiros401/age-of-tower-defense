@@ -11,11 +11,22 @@ BASE_TARGETS = {"Ground": 1500, "Rocks": 3800, "Tusks": 1300, "BaseLeather": 420
                 "Wood": 300, "Pebbles": 420, "Flame": 160}
 
 
+def _clean(me):
+    """Weld coincident vertices and drop zero-area faces (marching-cubes leftovers the decimator chokes on)."""
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+    bmesh.ops.dissolve_degenerate(bm, dist=1e-7, edges=bm.edges)
+    bm.to_mesh(me)
+    bm.free()
+
+
 def decimated_copy(src, target_tris, name=None):
-    tris = sum(len(p.vertices) - 2 for p in src.data.polygons)
-    ratio = min(1.0, target_tris / max(1, tris))
     tmp = src.copy()
     tmp.data = src.data.copy()
+    _clean(tmp.data)
+    tris = sum(len(p.vertices) - 2 for p in tmp.data.polygons)
+    ratio = min(1.0, target_tris / max(1, tris))
     bpy.context.scene.collection.objects.link(tmp)
     m = tmp.modifiers.new("Dec", "DECIMATE")
     m.decimate_type = "COLLAPSE"

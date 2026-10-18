@@ -1,4 +1,4 @@
-"""Same camera + light for v1 (original), v2 (previous) and the HQ model; rendered as v1.png, v2.png, v3.png.
+"""Same camera + light for v1 (original, or "-" to skip), v2 (previous) and the HQ model; rendered as v1.png, v2.png, v3.png.
 
     python3 compare.py -- V1.glb V2.glb HQ.blend OUTDIR [RES] [SPP] [--root RockSlingerHQ] [--scale 1.143]
                           [--action Whirl] [--frame 6] [--height 3.3]
@@ -45,7 +45,8 @@ def glb(path, out):
     cam_shot(out, HEIGHT)
 
 
-glb(V1, os.path.join(OUTDIR, "v1.png"))
+if V1 != "-":                                     # "-" skips the original v1 model
+    glb(V1, os.path.join(OUTDIR, "v1.png"))
 glb(V2, os.path.join(OUTDIR, "v2.png"))
 bpy.ops.wm.open_mainfile(filepath=HQBLEND)
 arm = next(o for o in bpy.context.scene.objects if o.type == "ARMATURE")

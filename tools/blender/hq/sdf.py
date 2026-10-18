@@ -398,7 +398,9 @@ class Field:
         from skimage import measure
         t0 = time.time()
         blo, bhi = self.bounds()
-        lo = blo - 2 * voxel if lo is None else v3(lo)
+        # the grid is nudged off round numbers: a flat cut (e.g. a hem at z = 0.95) lying exactly on a grid plane makes
+        # zero-area triangles, which the decimator cannot collapse (the low-poly then caves in)
+        lo = blo - 2 * voxel + voxel * np.array([0.3183, 0.2718, 0.1414]) if lo is None else v3(lo)
         hi = bhi + 2 * voxel if hi is None else v3(hi)
         dims = np.ceil((hi - lo) / voxel).astype(int) + 1
         xs = (lo[0] + np.arange(dims[0]) * voxel).astype(F)

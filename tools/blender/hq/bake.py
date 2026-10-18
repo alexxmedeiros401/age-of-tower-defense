@@ -135,7 +135,7 @@ def game_material(name, albedo_path, normal_path, orm_path, emission=None):
     return m
 
 
-def flame_material(name="Flame"):
+def flame_material(name="Flame", color=(1.0, 0.62, 0.16), strength=2.5):
     from mats import lin
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.use_nodes = True
@@ -143,8 +143,8 @@ def flame_material(name="Flame"):
     nt.nodes.clear()
     out = nt.nodes.new("ShaderNodeOutputMaterial")
     em = nt.nodes.new("ShaderNodeEmission")
-    em.inputs["Color"].default_value = lin((1.0, 0.62, 0.16))
-    em.inputs["Strength"].default_value = 2.5
+    em.inputs["Color"].default_value = lin(color)
+    em.inputs["Strength"].default_value = strength
     nt.links.new(em.outputs[0], out.inputs["Surface"])
     return m
 

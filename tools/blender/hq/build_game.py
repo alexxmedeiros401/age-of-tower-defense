@@ -36,6 +36,17 @@ def log(*a):
     print("[game]", *a, flush=True)
 
 
+def glow_material(name, col, strength):
+    gm = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    gm.use_nodes = True
+    b = gm.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = mats.lin(col)
+    b.inputs["Roughness"].default_value = 0.25
+    b.inputs["Emission Color"].default_value = mats.lin(col)
+    b.inputs["Emission Strength"].default_value = strength
+    return gm
+
+
 def char_stage():
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=CHAR)
@@ -49,9 +60,10 @@ def char_stage():
     if hasattr(CH, "paint_extra"):
         CH.paint_extra(hi)
     mats.assign_all(list(hi.values()), getattr(CH, "MAT_OVERRIDES", None))
+    glow = getattr(CH, "GLOW", {})                   # parts shipped as their own glowing mesh (spirit orb...), not baked
     low = {}
     for nm, tgt in CH.LOW_TARGETS.items():
-        if nm in hi:
+        if nm in hi and nm not in glow:
             low[nm] = lp.decimated_copy(hi[nm], tgt, nm + "_low")
     low["Eyes"] = lp.eyes_low()
     for nm, o in low.items():
@@ -60,6 +72,15 @@ def char_stage():
     arm = rig.build_armature()
     rig.sdf_weights(low["Skin"], CH.skin_field(), arm)
     rules = CH.weight_rules()
+    glow_obs = []
+    for nm, (col, strength) in glow.items():
+        if nm not in hi:
+            continue
+        g = lp.decimated_copy(hi[nm], CH.LOW_TARGETS.get(nm, 500), "Glow" + nm)
+        rig.rigid_weights(g, rules[nm][1])
+        g.data.materials.clear()
+        g.data.materials.append(glow_material("Glow" + nm, col, strength))
+        glow_obs.append(g)
     for nm, o in low.items():
         if nm == "Skin":
             continue
@@ -82,7 +103,7 @@ def char_stage():
     names = {v: k for k, v in PART_IDS.items()}
     lp.unwrap(cav, boost=lambda c, pid: CH.uv_boost(c, names.get(pid, "")), margin=0.0035)
     log("uv done %.0fs" % (time.time() - T))
-    groups = [([PART_IDS[n]], [hi[n]]) for n in CH.PARTS if n in hi]
+    groups = [([PART_IDS[n]], [hi[n]]) for n in CH.PARTS if n in hi and n not in glow]
     maps = bk.bake_groups(cav, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.16,
                          ao_exclude=[hi[n] for n in CH.AO_EXCLUDE if n in hi])
     log("bakes %.0fs" % (time.time() - T))
@@ -92,9 +113,30 @@ def char_stage():
     cav.data.materials.append(mat)
     cav.name = getattr(CH, "MESH_NAME", "Caveman")
     cav.data.name = cav.name
+    for nm, (oname, origin) in getattr(CH, "SPLIT", {}).items():
+        # parts that ship as their own unskinned mesh (e.g. stones orbiting a hero, spun in game): same atlas and UVs
+        pid = PART_IDS[nm]
+        so = bk._group_object(cav, {pid}, oname)
+        so.data.name = oname
+        bm = bmesh.new()
+        bm.from_mesh(cav.data)
+        lay = bm.faces.layers.int.get("part")
+        bmesh.ops.delete(bm, geom=[f for f in bm.faces if f[lay] == pid], context="FACES")
+        bm.to_mesh(cav.data)
+        bm.free()
+        so.vertex_groups.clear()
+        so.data.transform(Matrix.Translation(-Vector(origin)))
+        so.location = Vector(origin)
+        log("split", nm, "->", oname, len(so.data.polygons), "faces")
     m = cav.modifiers.new("Armature", "ARMATURE")
     m.object = arm
     cav.parent = arm
+    for g in glow_obs:
+        for p in g.data.polygons:
+            p.use_smooth = True
+        gm = g.modifiers.new("Armature", "ARMATURE")
+        gm.object = arm
+        g.parent = arm
     an.make_all(arm)
     for o in hi.values():
         bpy.data.objects.remove(o)
@@ -105,6 +147,11 @@ def char_stage():
 
 
 def base_stage():
+    global G0, G1, S0
+    if getattr(bs, "EXTRA_SWATCHES", None):
+        G0, G1, S0 = 0.04, 0.54, 0.62                  # grass gradient 0.04-0.58, up to 7 swatches from 0.62
+    else:
+        G0, G1, S0 = 0.05, 0.6, 0.7                    # the layout the first bases were baked with
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=BASE)
     for o in list(bpy.context.scene.objects):
@@ -122,6 +169,7 @@ def base_stage():
             continue
         low.append(lp.decimated_copy(hi[nm], tgt, nm + "_low"))
     baseob = lp.join(low, "Base")
+    baseob.data.validate(clean_customdata=False)          # duplicate faces from decimation (glTF warns otherwise)
     lp.unwrap(baseob, margin=0.003)
     uv = baseob.data.uv_layers.active.data
     co = np.zeros(len(uv) * 2, np.float32)
@@ -137,15 +185,17 @@ def base_stage():
     imgs["ao"] = bk.bake(baseob, hi_list, bk.new_image("base_ao", TEX, non_color=True), "AO", samples=AO_SPP, **kw)
     log("base bakes %.0fs" % (time.time() - T))
     from mats import lin
+    swatches = [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (1.0, 0.68, 0.14), (0.3, 0.5, 0.18)] + \
+               list(getattr(bs, "EXTRA_SWATCHES", []))
     def paint(a):
         h, w, _ = a.shape
         x0 = int(w * 0.955)
-        for y in range(int(h * 0.05), int(h * 0.65)):
-            t = (y - h * 0.05) / (h * 0.6)
+        for y in range(int(h * G0), int(h * (G0 + G1))):
+            t = (y - h * G0) / (h * G1)
             c0, c1 = np.array(lin((0.17, 0.34, 0.09))[:3]), np.array(lin((0.6, 0.78, 0.3))[:3])
             a[y, x0:w - 4] = c0 * (1 - t) + c1 * t
-        for i, c in enumerate(((0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (1.0, 0.68, 0.14), (0.3, 0.5, 0.18))):
-            y0 = int(h * (0.7 + 0.055 * i))
+        for i, c in enumerate(swatches):
+            y0 = int(h * (S0 + 0.055 * i))
             a[y0:y0 + int(h * 0.045), x0:w - 4] = np.array(lin(c)[:3])
         return a
     pa, po = bk.compose(imgs["albedo"], imgs["ao"], imgs["rough"], OUT, "base", ao_strength=0.75, extra_paint=paint)
@@ -168,7 +218,7 @@ def base_stage():
     for poly in me.polygons:
         for li in poly.loop_indices:
             t = UV[me.loops[li].vertex_index][1]
-            uvl.data[li].uv = (0.975, 0.05 + 0.6 * t)
+            uvl.data[li].uv = (0.975, G0 + G1 * t)
         poly.use_smooth = True
     blades = bpy.data.objects.new("GrassBlades", me)
     bpy.context.scene.collection.objects.link(blades)
@@ -178,8 +228,8 @@ def base_stage():
         b = len(allv)
         allv += [tuple(x) for x in v]
         allf += [tuple(b + i for i in q) for q in f]
-        sw = 4 if kind == 0 else (3 if kind == 2 else ck)
-        alluv += [(0.975, 0.7 + 0.055 * sw + 0.02)] * len(v)
+        sw = {0: 4, 2: 3, 3: 5}.get(kind, ck)           # stem, centre, extra (e.g. cattail heads), else petal colour
+        alluv += [(0.975, S0 + 0.055 * sw + 0.022)] * len(v)
     if allv:
         me2 = bpy.data.meshes.new("Flowers")
         me2.from_pydata(allv, [], allf)
@@ -195,25 +245,42 @@ def base_stage():
         if nm not in hi:
             continue
         g = lp.decimated_copy(hi[nm], bs.LOW_TARGETS.get(nm, 600), "Glow" + nm)
-        gm = bpy.data.materials.new("Glow" + nm)
-        gm.use_nodes = True
-        b = gm.node_tree.nodes["Principled BSDF"]
-        b.inputs["Base Color"].default_value = mats.lin(col)
-        b.inputs["Roughness"].default_value = 0.25
-        b.inputs["Emission Color"].default_value = mats.lin(col)
-        b.inputs["Emission Strength"].default_value = strength
         g.data.materials.clear()
-        g.data.materials.append(gm)
+        g.data.materials.append(glow_material("Glow" + nm, col, strength))
         for p in g.data.polygons:
             p.use_smooth = True
         keep.add(g.name)
+    for i, ((bx, by), br) in enumerate(getattr(bs, "BUBBLES", [])):
+        # tar bubbles: little domes with their origin on the tar, swollen and popped in game (Bubble*)
+        bmb = bmesh.new()
+        bmesh.ops.create_uvsphere(bmb, u_segments=12, v_segments=8, radius=br)
+        for v in list(bmb.verts):
+            if v.co.z < -1e-6:
+                v.co.z = 0.0
+        bmesh.ops.remove_doubles(bmb, verts=bmb.verts, dist=1e-5)
+        meb = bpy.data.meshes.new("Bubble%d" % i)
+        bmb.to_mesh(meb)
+        bmb.free()
+        ob = bpy.data.objects.new("Bubble%d" % i, meb)
+        bpy.context.scene.collection.objects.link(ob)
+        ob.location = (bx, by, bs.TAR_Z)
+        for p in meb.polygons:
+            p.use_smooth = True
+        tm = bpy.data.materials.get("TarBubble") or bpy.data.materials.new("TarBubble")
+        tm.use_nodes = True
+        pb = tm.node_tree.nodes["Principled BSDF"]
+        pb.inputs["Base Color"].default_value = mats.lin((0.07, 0.06, 0.06))
+        pb.inputs["Roughness"].default_value = 0.12
+        meb.materials.append(tm)
+        keep.add(ob.name)
     if "Flame" in hi and getattr(bs, "FLAME_PIVOT", None) is not None:
         fl = lp.decimated_copy(hi["Flame"], bs.LOW_TARGETS.get("Flame", 160), "FlickerTorch")
         pivot = bs.FLAME_PIVOT
         fl.data.transform(Matrix.Translation(-Vector(pivot)))
         fl.location = Vector(pivot)
         fl.data.materials.clear()
-        fl.data.materials.append(bk.flame_material())
+        fl.data.materials.append(bk.flame_material(color=getattr(bs, "FLAME_COLOR", (1.0, 0.62, 0.16)),
+                                                  strength=getattr(bs, "FLAME_STRENGTH", 2.5)))
         keep.add("FlickerTorch")
     for o in list(hi.values()):
         bpy.data.objects.remove(o)
@@ -232,14 +299,17 @@ def export_stage():
     sc = bpy.context.scene
     yaw = bpy.data.objects.new("Yaw", None)
     sc.collection.objects.link(yaw)
-    yaw.location = Vector(bs.STAND)
+    pivot = Vector(getattr(CH, "YAW_PIVOT", (0, 0, 0)))   # the tower turns about this point (character space)
+    yaw.location = Vector(bs.STAND) + pivot
     for o in dst.objects:
         if o is None:
             continue
         sc.collection.objects.link(o)
         if o.type == "ARMATURE":
             o.parent = yaw
-            o.location = (0, 0, 0)
+            o.location = -pivot
+        elif o.name in [v[0] for v in getattr(CH, "SPLIT", {}).values()]:
+            o.location = Vector(bs.STAND) + Vector(o.location)          # unskinned split parts sit where she stands
     root = bpy.data.objects.new(CH.ROOT_NAME, None)
     sc.collection.objects.link(root)
     for o in sc.objects:

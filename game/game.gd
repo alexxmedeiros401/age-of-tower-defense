@@ -168,7 +168,13 @@ func _ready() -> void:
 	sim.setup(defs, map)
 	var hid := Progress.hero()
 	test_mode = "--demo" in OS.get_cmdline_user_args() or "--autowin" in OS.get_cmdline_user_args()
-	if not defs.heroes.heroes.has(hid) or not (test_mode or Progress.hero_unlocked(defs.heroes.heroes[hid])):
+	var forced_hero := ""
+	for ua in OS.get_cmdline_user_args():
+		if ua.begins_with("--hero="):
+			forced_hero = ua.trim_prefix("--hero=")          # screenshot runs: play as this hero
+	if forced_hero != "" and defs.heroes.heroes.has(forced_hero):
+		hid = forced_hero
+	elif not defs.heroes.heroes.has(hid) or not (test_mode or Progress.hero_unlocked(defs.heroes.heroes[hid])):
 		hid = "ugo"
 	sim.set_hero(hid)
 	sim.hero_plevel = 1 if (demo or test_mode) else Progress.hero_level(hid)
@@ -1673,17 +1679,20 @@ func _rig_model(root: Node3D, model: Node3D) -> void:
 	_rig_extras(root, model)
 
 
-## HQ models (sculpted, texture-baked, skinned) ship Idle / Whirl / Throw clips: idle when nothing is in range,
-## whirl while fighting, throw on every shot. The clip speed follows the game speed and the tower's fire rate.
+## HQ models (sculpted, texture-baked, skinned) ship an Idle loop, a combat loop and an attack clip: idle when nothing
+## is in range, the combat loop while fighting, the attack on every shot. Slingers call them Whirl / Throw, the other
+## towers Combat / Attack. The clip speed follows the game speed, and the attack speeds up to fit the fire rate.
 ## HQ heroes add one-shot showpieces: Ability (their special) and Cheer (rank up).
-const HQ_LOOPS := ["Idle", "Whirl"]
-const HQ_ONESHOTS := ["Throw", "Ability", "Cheer"]
+const HQ_LOOPS := ["Idle", "Whirl", "Combat"]
+const HQ_ONESHOTS := ["Throw", "Attack", "Ability", "Cheer"]
 func _hq_anim_setup(root: Node3D, ap: AnimationPlayer) -> void:
 	for nm in HQ_LOOPS:
 		if ap.has_animation(nm):
 			ap.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
 	root.set_meta("anim", ap)
 	root.set_meta("last_fire", -100.0)
+	root.set_meta("clip_combat", "Combat" if ap.has_animation("Combat") else "Whirl")
+	root.set_meta("clip_attack", "Attack" if ap.has_animation("Attack") else "Throw")
 	ap.play("Idle")
 	ap.seek(randf() * ap.current_animation_length, true)
 
@@ -1691,11 +1700,12 @@ func _hq_anim_setup(root: Node3D, ap: AnimationPlayer) -> void:
 func _hq_anim_tick(tn: Node3D, stunned: bool) -> void:
 	var ap: AnimationPlayer = tn.get_meta("anim")
 	var cur := ap.current_animation
-	var rate: float = float(tn.get_meta("throw_rate", 1.0)) if cur == "Throw" else 1.0
+	var rate: float = float(tn.get_meta("throw_rate", 1.0)) if cur == tn.get_meta("clip_attack") else 1.0
 	ap.speed_scale = 0.0 if stunned else float(speed) * rate
 	if cur in HQ_ONESHOTS and ap.is_playing():
 		return
-	var want := "Whirl" if time_s - float(tn.get_meta("last_fire", -100.0)) < 2.2 else "Idle"
+	var hold: float = float(tn.get_meta("combat_hold", 2.2))
+	var want: String = tn.get_meta("clip_combat") if time_s - float(tn.get_meta("last_fire", -100.0)) < hold else "Idle"
 	if cur != want:
 		ap.play(want, 0.25)
 
@@ -1730,7 +1740,7 @@ func _hq_outline(model: Node3D) -> void:
 		return
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
-		if m.mesh == null or str(m.name) in ["FlickerTorch", "GrassBlades", "Flowers"] or str(m.name).begins_with("Glow"):
+		if m.mesh == null or str(m.name) in ["FlickerTorch", "GrassBlades", "Flowers"] or str(m.name).begins_with("Glow") or str(m.name).begins_with("Bubble"):
 			continue
 		for si in m.mesh.get_surface_count():
 			var mat := m.mesh.surface_get_material(si) as BaseMaterial3D
@@ -1755,6 +1765,9 @@ func _rig_extras(root: Node3D, model: Node3D) -> void:
 	var flick := model.find_children("Flicker*", "Node3D", true, false)
 	if not flick.is_empty():
 		root.set_meta("flicker", flick)
+	var bub := model.find_children("Bubble*", "Node3D", true, false)
+	if not bub.is_empty():
+		root.set_meta("bubbles", bub)
 	var body_mis := []
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		if not str(mi.name).ends_with("_Outline"):
@@ -1799,13 +1812,26 @@ func _hit_flash(n: Node3D) -> void:
 func _spin_flicker(n: Node3D, dt: float, rate := 9.0) -> void:
 	if n.has_meta("spins"):
 		for sp in n.get_meta("spins"):
-			(sp as Node3D).rotation.y += dt * rate
+			(sp as Node3D).rotation.y += dt * rate * (0.22 if str(sp.name).begins_with("SpinSlow") else 1.0)
 	if n.has_meta("flicker"):
 		var i := 0
 		for f in n.get_meta("flicker"):
 			var k := 1.0 + 0.14 * sin(time_s * 13.0 + i * 2.1) + 0.06 * sin(time_s * 29.0 + i)
 			(f as Node3D).scale = Vector3(2.0 - k, k, 2.0 - k)
 			i += 1
+	if n.has_meta("bubbles") and rate > 0.0:
+		# tar bubbles: each swells slowly, then pops and starts again
+		var j := 0
+		for b in n.get_meta("bubbles"):
+			var ph := fmod(time_s * 0.45 + j * 0.37 + float(n.get_instance_id() % 97) * 0.013, 1.0)
+			var sc := 0.0
+			if ph < 0.8:
+				var g := ph / 0.8
+				sc = g * g * (3.0 - 2.0 * g)
+			elif ph < 0.86:
+				sc = 1.15 * (1.0 - (ph - 0.8) / 0.06)
+			(b as Node3D).scale = Vector3.ONE * maxf(sc, 0.001)
+			j += 1
 
 
 func _make_tower_visual(type: String) -> Node3D:
@@ -2845,8 +2871,11 @@ func _animate_fire(id: int) -> void:
 		if ap.current_animation in ["Ability", "Cheer"] and ap.is_playing():
 			return                      # let the showpiece finish; the shot still happens
 		var cd: float = float(uu.stats.cooldown) if uu != null else 0.85
-		n.set_meta("throw_rate", clampf(0.8 / maxf(cd, 0.1), 1.0, 3.0))
-		ap.play("Throw", 0.05)
+		var clip: String = n.get_meta("clip_attack")
+		# play the whole attack between two shots (speed it up when the tower fires faster than the clip)
+		n.set_meta("throw_rate", clampf(ap.get_animation(clip).length / maxf(cd, 0.1), 1.0, 3.0))
+		n.set_meta("combat_hold", maxf(2.2, cd * 1.25 + 0.3))
+		ap.play(clip, 0.05)
 		ap.seek(0.0, true)
 		ap.speed_scale = float(speed) * float(n.get_meta("throw_rate"))
 		return
@@ -7205,14 +7234,22 @@ func _run_demo() -> void:
 		get_tree().quit()
 		return
 	if "--shoot-hq" in args:
-		# HQ model check: a few Rock Slingers fighting, a battle shot, a close-up and an optional frame sequence
+		# HQ model check: a few towers fighting (--tower=<id>, or --towers=a,b,c for a mix; Rock Slingers by default),
+		# a battle shot, a close-up of the first one and an optional frame sequence
 		_start_game()
-		sim.gold += 8000
+		sim.gold += 20000
+		var hq_types: Array = ["rock_slinger", "rock_slinger", "rock_slinger"]
+		for a3 in args:
+			if a3.begins_with("--tower="):
+				var tt := a3.trim_prefix("--tower=")
+				hq_types = [tt, tt, tt]
+			elif a3.begins_with("--towers="):
+				hq_types = Array(a3.trim_prefix("--towers=").split(","))
 		var hq_ids := []
-		for k in 3:
-			var spot := _demo_spot("rock_slinger")
+		for tt2 in hq_types:
+			var spot := _demo_spot(tt2)
 			if spot != Vector2.INF:
-				var hid := sim.place_tower("rock_slinger", spot)
+				var hid := sim.place_tower(tt2, spot)
 				if hid != -1:
 					hq_ids.append(hid)
 		_handle_events()
@@ -7224,10 +7261,19 @@ func _run_demo() -> void:
 		_handle_events()
 		await _wait_ticks(int(3.2 / TICK))
 		await _shot("hq_battle.png")
-		var htn: Node3D = tower_nodes[hq_ids[0]]
+		var hq_idx := 0
+		var hq_off := Vector3(3.2, 3.0, 4.6)
+		for a4 in args:
+			if a4.begins_with("--hq-idx="):
+				hq_idx = clampi(int(a4.trim_prefix("--hq-idx=")), 0, hq_ids.size() - 1)
+			elif a4.begins_with("--hq-cam="):
+				var cc := a4.trim_prefix("--hq-cam=").split(",")
+				if cc.size() == 3:
+					hq_off = Vector3(float(cc[0]), float(cc[1]), float(cc[2]))
+		var htn: Node3D = tower_nodes[hq_ids[hq_idx]]
 		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 		cam.fov = 30
-		cam.global_position = htn.global_position + Vector3(3.2, 3.0, 4.6)
+		cam.global_position = htn.global_position + hq_off
 		cam.look_at(htn.global_position + Vector3(0, 0.95, 0))
 		cam_base = cam.position
 		shake = 0.0
