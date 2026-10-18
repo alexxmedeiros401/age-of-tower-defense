@@ -3196,14 +3196,14 @@ func _begin_placing(type: String) -> void:
 	var foot := 0.0
 	if type == HERO_PLACING:
 		r = float(sim.hero_def.base.range)
-		foot = Sim.HERO_RADIUS
+		foot = sim.hero_footprint()
 	else:
 		if sim.gold < sim.tower_cost(type):
 			_toast("Not enough gold", Color(1, 0.45, 0.4))
 			_sfx("error", -4.0, 0.0)
 			return
 		r = float(defs.towers[type].base.range)
-		foot = float(defs.towers[type].radius)
+		foot = sim.footprint_of(type)
 	placing = type
 	for c in ghost.get_children():
 		if c != ghost_range and c != ghost_foot:

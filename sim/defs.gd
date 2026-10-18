@@ -16,6 +16,7 @@ static func load_all(map: Dictionary = {}) -> Dictionary:
 		"enemies": _load("res://data/enemies.json"),
 		"waves": _load("res://data/" + str(map.get("waves_file", "waves.json"))).waves,
 		"heroes": load_heroes(),
+		"footprints": _load("res://data/footprints.json") if FileAccess.file_exists("res://data/footprints.json") else {},
 	}
 
 

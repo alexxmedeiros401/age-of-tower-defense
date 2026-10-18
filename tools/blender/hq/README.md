@@ -24,6 +24,7 @@ python3 sculpt_base.py --module ugo_base --fine --out ugo_base_hi.blend         
 python3 build_game.py -- --character ugo --char ugo_hi.blend --base ugo_base_hi.blend --out OUT --tex 2048 --ao 40
 cp OUT/ugo.glb ../../../assets/heroes/            # (rock_slinger.glb goes to assets/towers/)
 godot --headless --path ../../.. --import        # extracts the textures (keep compress/mode=2, size_limit=1024)
+(cd ../../.. && python3 tools/blender/footprints.py)   # re-measure every unit's footprint (data/footprints.json)
 python3 render_asset.py -- --blend OUT/ugo_hq.blend --out DIR --mode hero|closeup|game|frames
 python3 icon_hq.py -- OUT/ugo_hq.blend ../../../assets/ui/icon_ugo.png Whirl 6 --zoom 3.2 --tz 1.45
 python3 face_hq.py -- OUT/ugo_hq.blend ../../../assets/ui/face_ugo.png --target 0,0.03,2.2 --scale 0.86

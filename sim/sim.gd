@@ -277,7 +277,23 @@ func remaining(e: Dictionary) -> float:
 
 
 # ---------------------------------------------------------------- placement
-func _spot_error(p: Vector2, r: float) -> String:
+## Unit spacing: two units can't stand closer than the sum of their footprints (the radius of the base each model
+## stands on, data/footprints.json, measured from the models by tools/blender/footprints.py), so bases never clip into
+## each other. A unit without a measured footprint uses its placement radius.
+func footprint_of(type: String) -> float:
+	var fp: Dictionary = defs.get("footprints", {}).get("towers", {})
+	return maxf(float(defs.towers[type].radius), float(fp.get(type, 0.0)))
+
+
+func hero_footprint() -> float:
+	var fp: Dictionary = defs.get("footprints", {}).get("heroes", {})
+	return maxf(HERO_RADIUS, float(fp.get(hero_id, 0.0)))
+
+
+## r: placement radius (map edge, path, blockers, water); foot: footprint (spacing from other units).
+func _spot_error(p: Vector2, r: float, foot := -1.0) -> String:
+	if foot < 0.0:
+		foot = r
 	var b: Array = map.bounds
 	if p.x - r < b[0] or p.x + r > b[2] or p.y - r < b[1] or p.y + r > b[3]:
 		return "Can't build off the map"
@@ -290,16 +306,16 @@ func _spot_error(p: Vector2, r: float) -> String:
 		if _dist_to_polyline(p, rv.pts) < float(rv.half) + r * 0.9:
 			return "Can't build on water"
 	for t in towers:
-		if t.pos.distance_to(p) < float(t.radius) + r:
+		if t.pos.distance_to(p) < float(t.get("footprint", t.radius)) + foot:
 			return "Too close to another tower"
-	if hero != null and hero.pos.distance_to(p) < HERO_RADIUS + r:
+	if hero != null and hero.pos.distance_to(p) < float(hero.get("footprint", HERO_RADIUS)) + foot:
 		return "Too close to your hero"
 	return ""
 
 
 func placement_error(type: String, p: Vector2) -> String:
 	var def: Dictionary = defs.towers[type]
-	var err := _spot_error(p, float(def.radius))
+	var err := _spot_error(p, float(def.radius), footprint_of(type))
 	if err != "":
 		return err
 	if max_per_type > 0 and count_of(type) >= max_per_type:
@@ -322,7 +338,7 @@ func place_tower(type: String, p: Vector2) -> int:
 		return -1
 	var def: Dictionary = defs.towers[type]
 	var t := {
-		"id": _id(), "type": type, "pos": p, "radius": float(def.radius),
+		"id": _id(), "type": type, "pos": p, "radius": float(def.radius), "footprint": footprint_of(type),
 		"level": 0, "branch": "", "spent": tower_cost(type), "cd": 0.0,
 		"facing": Vector2(0, 1), "kills": 0, "target": "first", "buffed": false, "dealt": 0.0,
 	}
@@ -495,14 +511,14 @@ func hero_placement_error(p: Vector2) -> String:
 		return "Your hero is already on the field"
 	if state == "lost":
 		return "Game over"
-	return _spot_error(p, HERO_RADIUS)
+	return _spot_error(p, HERO_RADIUS, hero_footprint())
 
 
 func place_hero(p: Vector2) -> bool:
 	if hero_placement_error(p) != "":
 		return false
 	var lv0 := clampi(1 + int(perk("hero_level")), 1, hero_levels.size())
-	hero = {"id": _id(), "type": hero_id, "pos": p, "radius": HERO_RADIUS, "level": lv0, "xp": float(hero_levels[lv0 - 1]), "cd": 0.0,
+	hero = {"id": _id(), "type": hero_id, "pos": p, "radius": HERO_RADIUS, "footprint": hero_footprint(), "level": lv0, "xp": float(hero_levels[lv0 - 1]), "cd": 0.0,
 		"facing": Vector2(0, 1), "kills": 0, "target": "first", "ability_cd": 0.0, "is_hero": true, "buffed": false}
 	hero.stats = _hero_stats(lv0)
 	events.append({"e": "hero_place", "id": hero.id})
