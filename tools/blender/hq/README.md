@@ -132,16 +132,21 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
 - `anim.py` (Rock Slinger): Idle, Whirl (sling on a tilted circle), Throw (the stone bone scales to 0 at release).
   `anim_ugo.py` (Ugo): Idle (fist on hip), Whirl, Throw, Ability (Stone Rain call), Cheer (rank up).
   `anim_club.py`: club on the shoulder / cocked high / overhead smash. `anim_shaman.py`: leaning on the staff and
-  stroking his beard / chanting / staff slam with the orb flaring. `anim_catapult.py`: hand on the trigger / ready /
+  stroking his beard / chanting / Attack (v0.9.20): draws back and thrusts the spirit stone, the tar leaves it at
+  `RELEASE` (frame 8). `anim_catapult.py`: hand on the trigger / ready /
   yank, the arm whips into the stop bar, four pulls on the windlass, a boulder heaved from the basket into the bucket.
-  `anim_mara.py`: staff planted / calling the earth / staff thump (orb flares) / Earthquake (both hands, staff driven
-  down in a deep crouch) / Cheer.
+  `anim_mara.py`: staff planted / calling the earth / Attack (v0.9.20): crouches and sweeps her palm over the earth,
+  then flings it up and out to her side, the spikes burst up at `RELEASE` (frame 10) / Earthquake (both hands, staff
+  driven down in a deep crouch) / Cheer.
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),
-  `_hq_outline` (grow + front-cull next pass), Idle playback in the card model viewers.
+  `_hq_outline` (grow + front-cull next pass), Idle playback in the card model viewers. The attack effects are timed
+  to the clips: `game.gd` `ATTACK_FRAME` must match each module's `RELEASE` (`SMASH` for the club).
   Test: `--shoot-hq [--tower=<id>] [--hq-idx=N] [--hq-cam=x,y,z]` (three towers fighting + a close-up) and
-  `--shoot-hero-hq [--hero=<id>]` (the hero fighting, cheer, ability), `--gif` for frames.
+  `--shoot-hero-hq [--hero=<id>]` (the hero fighting, cheer, ability), `--gif` for frames; `--shoot-attacks
+  --unit=<tower>|hero` (frames of one attack, with `--fixed-fps 30`). Render a clip as a strip with `render_asset.py
+  -- --blend <unit>_hq.blend --mode frames --action Attack --range 0,24 --step 2`.
 
 ## Gotchas
 

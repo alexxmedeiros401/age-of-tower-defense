@@ -1,9 +1,7 @@
 """Tar Pit Shaman clips (30 fps): Idle (leaning on his staff, stroking his beard, muttering), Combat (chanting: staff up,
-his tarry left hand clawing over the pit, swaying) and Attack (he lifts the staff and slams its butt down: the spirit
-stone flares, his left hand thrusts out at the robots).
-
-The staff is rigid in his right fist, so the fist is posed by the staff's direction ("frame" aims); when the staff is
-planted, the grip is placed so its butt sits on the ground. The spirit stone has its own bone ("orb") whose scale pulses."""
+his tarry left hand clawing over the pit, swaying) and Attack (v0.9.20: he draws the staff back, then thrusts the
+spirit stone at the robots like a spear: a glob of tar shoots from it at RELEASE, his tarry left hand flung after it).
+"""
 import math
 from mathutils import Vector, Quaternion
 import tar_shaman as cm
@@ -113,67 +111,52 @@ def make_combat(arm, frames=40):
     return act
 
 
-SLAM = 4
+RELEASE = 8           # the frame the tar shoots from the spirit stone (game.gd times the tar globs to it)
+ORB_LEN = 0.72        # grip -> spirit stone, along the staff
 
 
-def make_attack(arm, frames=30):
-    """Lift the staff (frames 0-2), slam its butt into the ground (SLAM): the stone flares, his left hand thrusts out;
-    then he eases back into the chant."""
+def make_attack(arm, frames=32):
+    """Draw back (0-6), thrust the spirit stone at the robots (6-9; the tar leaves it at RELEASE), hold the lunge a
+    moment (9-15), and settle back into the chant. The staff's long butt end swings back past his right hip."""
     P = Poser(arm)
     act = new_action(arm, "Attack")
     c_wr, c_sd = V(-0.33, -0.3, 1.22), V(0.06, -0.12, 1.0)
-    up_wr, up_sd = V(-0.34, -0.36, 1.48), V(0.05, -0.2, 1.0)
-    butt = V(-0.36, -0.5, 0.0)
-    slam_sd = V(0.02, -0.1, 1.0).normalized()
-    fing = V(0.5, -0.85, 0.0)
+    b_wr, b_sd = V(-0.37, -0.1, 1.32), V(0.02, 0.14, 1.0)
+    t_wr, t_sd = V(-0.42, -0.58, 1.3), V(0.0, -0.95, 0.32)
+    h_wr, h_sd = V(-0.41, -0.52, 1.3), V(0.0, -0.9, 0.42)
+    claw_l, claw_hd = V(0.3, -0.62, 1.02), V(0.05, -1.0, -0.45)
+    back_l, back_hd = V(0.24, -0.38, 1.16), V(0.0, -1.0, 0.25)
+    out_l, out_hd = V(0.36, -0.8, 1.26), V(0.1, -0.5, 1.0)
     for f in range(frames + 1):
-        aims = legs(arm, wide=1.2)
-        if f <= 2:
-            k = ease(f / 2)
-            hand = ("free", lerp(c_wr, up_wr, k), lerp(c_sd, up_sd, k))
-            hunch, head, lean_l = lerp(0.25, 0.05, k), lerp(0.1, 0.3, k), 0.0
-            orb = 1.0 + 0.15 * k
-        elif f <= SLAM:
-            k = ease((f - 2) / (SLAM - 2))
-            hand = ("blend", up_wr, up_sd, k)
-            hunch, head, lean_l = lerp(0.05, 0.45, k), lerp(0.3, 0.0, k), k
-            orb = 1.15 + 0.75 * k
-        elif f <= 12:
-            k = (f - SLAM) / (12 - SLAM)
-            hand = ("planted",)
-            hunch, head, lean_l = 0.45 - 0.05 * k, 0.0 + 0.35 * ease(min(1.0, k * 2)), 1.0
-            orb = 1.9 - 0.6 * ease(k)
-        else:
-            k = ease((f - 12) / (frames - 12))
-            hand = ("unplant", k)
-            hunch, head, lean_l = lerp(0.4, 0.25, k), lerp(0.35, 0.1, k), 1.0 - k
-            orb = lerp(1.3, 1.0, k)
-        ro = V(0.0, -0.05 * hunch, -0.03 - 0.05 * max(0.0, hunch - 0.25))
+        aims = legs(arm, wide=1.25)
+        if f <= 6:                                       # draw back, gathering
+            k = ease(f / 6)
+            wr, sd = lerp(c_wr, b_wr, k), lerp(c_sd.normalized(), b_sd.normalized(), k).normalized()
+            wl, hd = lerp(claw_l, back_l, k), lerp(claw_hd, back_hd, k)
+            hunch, head, twist, orb = lerp(0.25, 0.12, k), lerp(0.1, 0.22, k), 0.12 * k, 1.0 + 0.3 * k
+        elif f <= 9:                                     # thrust: the stone at the robots
+            k = (f - 6) / 3
+            k = k * k * (3 - 2 * k)
+            wr, sd = lerp(b_wr, t_wr, k), lerp(b_sd.normalized(), t_sd.normalized(), k).normalized()
+            wl, hd = lerp(back_l, out_l, k), lerp(back_hd, out_hd, k)
+            hunch, head, twist, orb = lerp(0.12, 0.45, k), lerp(0.22, 0.12, k), lerp(0.12, -0.1, k), 1.3 + 0.75 * k
+        elif f <= 15:                                    # hold the lunge, a little recoil
+            k = ease((f - 9) / 6)
+            wr, sd = lerp(t_wr, h_wr, k), lerp(t_sd.normalized(), h_sd.normalized(), k).normalized()
+            wl, hd = out_l, out_hd
+            hunch, head, twist, orb = lerp(0.45, 0.4, k), 0.12, -0.1, lerp(2.05, 1.4, k)
+        else:                                            # back into the chant
+            k = ease((f - 15) / (frames - 15))
+            wr, sd = lerp(h_wr, c_wr, k), lerp(h_sd.normalized(), c_sd.normalized(), k).normalized()
+            wl, hd = lerp(out_l, claw_l, k), lerp(out_hd, claw_hd, k)
+            hunch, head, twist, orb = lerp(0.4, 0.25, k), lerp(0.12, 0.1, k), lerp(-0.1, 0.0, k), lerp(1.4, 1.0, k)
+        ro = V(0.0, -0.06 * hunch, -0.03 - 0.04 * max(0.0, hunch - 0.25))
         rr = Quaternion((0, 0, 1), math.radians(-4))
-        torso(aims, hunch=hunch, head_up=head, look=0.0)
-        aims["clavicle.R"] = V(-1.0, -0.1, 0.25)
-        aims["clavicle.L"] = V(1.0, -0.3, 0.1 + 0.15 * lean_l)
-        if hand[0] == "free":
-            aims.update(grip(arm, hand[1], hand[2], pole=V(-1.0, 0.3, -0.5)))
-        elif hand[0] == "blend":
-            # from the raised pose straight down until the butt meets the ground
-            k = hand[3]
-            sd = lerp(up_sd.normalized(), slam_sd, k).normalized()
-            R = frame_map(T_REST, sd, F_REST, fing)
-            g_end = butt + slam_sd * BELOW
-            wr_end = g_end - R @ FIST_OFF
-            aims.update(grip(arm, lerp(up_wr, wr_end, k), sd, pole=V(-1.0, 0.3, -0.5), finger=fing))
-        elif hand[0] == "planted":
-            aims.update(planted(arm, butt, slam_sd, fing, pole=V(-1.0, 0.3, -0.5)))
-        else:
-            k = hand[1]
-            R = frame_map(T_REST, slam_sd, F_REST, fing)
-            wr0 = butt + slam_sd * BELOW - R @ FIST_OFF
-            aims.update(grip(arm, lerp(wr0, c_wr, k), lerp(slam_sd, c_sd.normalized(), k), pole=V(-1.0, 0.3, -0.5),
-                             finger=lerp(fing, V(0.3, -0.9, 0.3), k)))
-        # left hand: thrust forward, palm out, at the slam
-        wl = lerp(V(0.3, -0.62, 1.02), V(0.34, -0.78, 1.2), lean_l)
-        aims.update(arm_aims(arm, "L", wl, pole=V(1.0, 0.4, -0.5), hand_dir=lerp(V(0.05, -1.0, -0.45), V(0.1, -0.55, 1.0), lean_l).normalized()))
+        torso(aims, hunch=hunch, twist=twist, head_up=head, look=0.0)
+        aims["clavicle.R"] = V(-1.0, -0.1 - 0.3 * max(0.0, -wr.y - 0.35), 0.25)
+        aims["clavicle.L"] = V(1.0, -0.3, 0.1)
+        aims.update(grip(arm, wr, sd, pole=V(-1.0, 0.3, -0.5)))
+        aims.update(arm_aims(arm, "L", wl, pole=V(1.0, 0.4, -0.5), hand_dir=Vector(hd).normalized()))
         ch, _ = P.solve(aims, ro, rr, scales={"orb": orb})
         P.key(ch, f)
     finish_action(arm, act, frames, False)

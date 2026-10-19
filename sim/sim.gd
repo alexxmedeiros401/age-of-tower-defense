@@ -578,6 +578,7 @@ func use_ability() -> bool:
 	var lv := float(hero.level - 1)
 	var src := {"hero": true, "tower_id": -1}
 	var hit_pos := []
+	var hit_ids := []                     # (for the visuals: the boulders / spikes land on these robots)
 	var dmg := (float(ab.get("damage", 0.0)) + float(ab.get("damage_per_level", 0.0)) * lv) * hero_scale()
 	match ability_type():
 		"rain":
@@ -585,12 +586,14 @@ func use_ability() -> bool:
 			alive.sort_custom(func(a, b): return remaining(a) < remaining(b))
 			for i in mini(int(ab.targets), alive.size()):
 				hit_pos.append(alive[i].pos)
+				hit_ids.append(alive[i].id)
 				_damage(alive[i], dmg, "blunt", src)
 		"quake":
 			var st := float(ab.stun) + float(ab.get("stun_per_level", 0.0)) * lv
 			for e in enemies.duplicate():
 				if e.alive:
 					e.stun_until = maxi(e.stun_until, tick + int(st * (0.25 if e.boss else 1.0) / TICK))
+					hit_ids.append(e.id)
 					_damage(e, dmg, "blunt", src)
 		"flare":
 			var fsrc := {"hero": true, "tower_id": -1, "expose": float(ab.expose), "expose_time": float(ab.expose_time)}
@@ -635,7 +638,8 @@ func use_ability() -> bool:
 						events.append({"e": "shield_break", "id": e.id})
 					_damage(e, dmg, "energy", src)
 	hero.ability_cd = ability_cooldown()
-	events.append({"e": "ability", "ability": str(ab.id), "type": ability_type(), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos})
+	events.append({"e": "ability", "ability": str(ab.id), "type": ability_type(), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos,
+		"ids": hit_ids})
 	return true
 
 
@@ -984,18 +988,22 @@ func _unit_attack(t: Dictionary) -> void:
 			if tg3.is_empty():
 				return
 			t.facing = (tg3[0].pos - t.pos).normalized()
+			var hit3 := []
 			for e3 in tg3:
+				hit3.append(e3.id)
 				_damage(e3, float(s.damage), s.dtype, src)
 			t.cd = float(s.cooldown)
-			events.append({"e": "slam", "id": t.id, "radius": float(s.range)})
+			events.append({"e": "slam", "id": t.id, "radius": float(s.range), "targets": hit3})    # (targets: for the visuals)
 		"pulse":
 			var tg4 := _find_targets(t.pos, s.range, 0, "first", air)
 			if tg4.is_empty():
 				return
+			var hit4 := []
 			for e4 in tg4:
+				hit4.append(e4.id)
 				_damage(e4, float(s.damage), s.dtype, src)
 			t.cd = float(s.cooldown)
-			events.append({"e": "pulse", "id": t.id, "radius": float(s.range)})
+			events.append({"e": "pulse", "id": t.id, "radius": float(s.range), "targets": hit4})
 
 
 # ---------------------------------------------------------------- main step
@@ -1199,4 +1207,5 @@ func _impact(p: Dictionary, direct) -> void:
 		for e in _find_targets(p.pos, splash, 0, "first", bool(src.get("air", true))):
 			if direct == null or e.id != direct.id:
 				_damage(e, p.damage * (1.0 if direct == null else 0.6), src.dtype, src)
-	events.append({"e": "impact", "pid": p.id, "pos": p.pos, "splash": splash, "crit": p.get("crit", false)})
+	events.append({"e": "impact", "pid": p.id, "pos": p.pos, "splash": splash, "crit": p.get("crit", false),
+		"tower": int(src.get("tower_id", -1)), "dtype": str(src.get("dtype", ""))})        # (tower, dtype: for the visuals)

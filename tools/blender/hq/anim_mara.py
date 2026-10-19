@@ -1,5 +1,6 @@
 """Mara's clips (30 fps): Idle (staff planted at her side, her left hand turned palm-down to feel the earth), Combat
-(staff up, her left hand reaching out over the ground, calling), Attack (a thump of the staff: the amber orb flares),
+(staff up, her left hand reaching out over the ground, calling), Attack (v0.9.20: she crouches, her palm sweeping
+low over the earth, then flings it up and out to her side: the stone spikes erupt at RELEASE; no staff thump),
 Ability (Earthquake: the staff raised high and her left hand to the sky, then the staff driven into the ground in a
 deep crouch, her left palm to the earth) and Cheer (rank up: staff thrust overhead, a fist pump and a hop).
 
@@ -119,41 +120,55 @@ def make_combat(arm, frames=40):
     return act
 
 
-def make_attack(arm, frames=30, slam=4):
-    """Lift the staff, thump it down (the orb flares, her left hand pushes down at the ground), ease back."""
+RELEASE = 10          # the frame the spikes erupt (game.gd times them to it)
+
+
+def make_attack(arm, frames=30):
+    """Raise the earth: she crouches and sweeps her left palm low over the ground in front of her (0-7), then flings
+    it up and out to her left side, arm straight, as she straightens (7-10): the spikes burst up at RELEASE under the
+    robots she is facing. She holds a moment and eases back into her calling stance. The staff never strikes the
+    ground and her hand stays well clear of her face (out to the side, not in front of it)."""
     P = Poser(arm)
     act = new_action(arm, "Attack")
     c_wr, c_sd = V(-0.36, -0.22, 1.18), V(0.05, -0.1, 1.0)
-    up_wr, up_sd = V(-0.37, -0.28, 1.42), V(0.04, -0.16, 1.0)
-    butt = V(-0.38, -0.42, 0.0)
-    sd_s = V(0.02, -0.08, 1.0).normalized()
+    g_wr, g_sd = V(-0.36, -0.3, 1.04), V(0.05, -0.3, 1.0)
+    u_wr, u_sd = V(-0.38, -0.27, 1.3), V(0.0, -0.18, 1.0)
+    c_l, c_hd = V(0.3, -0.56, 1.05), V(0.05, -1.0, -0.4)
+    g_l, g_hd = V(0.27, -0.44, 0.72), V(0.05, -0.6, -0.8)
+    u_l, u_hd = V(0.74, -0.3, 1.55), V(0.55, -0.35, 0.75)
     for f in range(frames + 1):
+        if f <= 7:                                       # gather: crouched, palm sweeping low over the earth
+            k = ease(f / 7)
+            wr, sd = lerp(c_wr, g_wr, k), lerp(c_sd.normalized(), g_sd.normalized(), k).normalized()
+            wl, hd = lerp(c_l, g_l, k), lerp(c_hd, g_hd, k)
+            lean, crouch, head, orb, tw = lerp(0.15, 0.45, k), lerp(0.035, 0.11, k), lerp(0.08, -0.12, k), 1.0 + 0.3 * k, -0.15
+        elif f <= RELEASE:                               # lift: arm out in front, palm up, she straightens
+            k = (f - 7) / (RELEASE - 7)
+            k = k * k * (3 - 2 * k)
+            wr, sd = lerp(g_wr, u_wr, k), lerp(g_sd.normalized(), u_sd.normalized(), k).normalized()
+            wl, hd = lerp(g_l, u_l, k), lerp(g_hd, u_hd, k)
+            lean, crouch, head, orb = lerp(0.45, -0.06, k), lerp(0.11, 0.0, k), lerp(-0.12, 0.12, k), 1.3 + 0.75 * k
+            tw = lerp(-0.15, 0.06, k)
+        elif f <= 17:                                    # hold, a little overshoot
+            k = (f - RELEASE) / (17 - RELEASE)
+            s_ = math.sin(k * math.pi) * 0.015
+            wr, sd = u_wr + V(0, 0, s_), u_sd.normalized()
+            wl, hd = u_l + V(0, -s_, s_), u_hd
+            lean, crouch, head, orb, tw = -0.06, 0.0, 0.12, 2.05 - 0.5 * k, 0.06
+        else:                                            # back to calling
+            k = ease((f - 17) / (frames - 17))
+            wr, sd = lerp(u_wr, c_wr, k), lerp(u_sd.normalized(), c_sd.normalized(), k).normalized()
+            wl, hd = lerp(u_l, c_l, k), lerp(u_hd, c_hd, k)
+            lean, crouch, head, orb = lerp(-0.06, 0.15, k), lerp(0.0, 0.035, k), lerp(0.12, 0.08, k), lerp(1.55, 1.0, k)
+            tw = lerp(0.06, -0.15, k)
         aims = legs(arm, wide=1.15)
-        if f <= 2:
-            k = ease(f / 2)
-            aims.update(grip(arm, lerp(c_wr, up_wr, k), lerp(c_sd, up_sd, k), pole=V(-1.0, 0.3, -0.5)))
-            lean, push, orb = lerp(0.15, 0.0, k), 0.0, 1.0 + 0.15 * k
-        elif f <= slam:
-            k = ease((f - 2) / (slam - 2))
-            sd = lerp(up_sd.normalized(), sd_s, k).normalized()
-            aims.update(grip(arm, lerp(up_wr, planted_wrist(butt, sd_s, FING), k), sd, pole=V(-1.0, 0.3, -0.5), finger=FING))
-            lean, push, orb = lerp(0.0, 0.35, k), k, 1.15 + 0.7 * k
-        elif f <= 12:
-            k = (f - slam) / (12 - slam)
-            aims.update(planted(arm, butt, sd_s, FING, pole=V(-1.0, 0.3, -0.5)))
-            lean, push, orb = 0.35 - 0.05 * k, 1.0, 1.85 - 0.6 * ease(k)
-        else:
-            k = ease((f - 12) / (frames - 12))
-            aims.update(grip(arm, lerp(planted_wrist(butt, sd_s, FING), c_wr, k), lerp(sd_s, c_sd.normalized(), k), pole=V(-1.0, 0.3, -0.5),
-                             finger=lerp(FING, V(0.3, -0.9, 0.3), k)))
-            lean, push, orb = lerp(0.3, 0.15, k), 1.0 - k, lerp(1.25, 1.0, k)
-        ro = V(0.0, -0.04 * lean, -0.035 - 0.06 * max(0.0, lean - 0.15))
+        ro = V(0.0, -0.04 * max(0.0, lean), -crouch)
         rr = Quaternion((0, 0, 1), math.radians(-6))
-        torso(aims, lean=lean, twist=-0.15, head_up=0.08 - 0.1 * push, look=0.15)
-        aims["clavicle.R"] = V(-1.0, -0.1, 0.2)
-        aims["clavicle.L"] = V(1.0, -0.25, 0.1)
-        wl = lerp(V(0.3, -0.56, 1.05), V(0.32, -0.6, 0.82), push)
-        aims.update(arm_aims(arm, "L", wl, pole=V(1.0, 0.4, -0.5), hand_dir=lerp(V(0.05, -1.0, -0.4), V(0.1, -0.5, -1.0), push).normalized()))
+        torso(aims, lean=lean, twist=tw, head_up=head, look=0.15)
+        aims["clavicle.R"] = V(-1.0, -0.1, 0.2 + 0.3 * max(0.0, wr.z - 1.3))
+        aims["clavicle.L"] = V(1.0, -0.25 - 0.2 * max(0.0, -wl.y - 0.4), 0.1 + 0.3 * max(0.0, wl.z - 1.3))
+        aims.update(grip(arm, wr, sd, pole=V(-1.0, 0.3, -0.5)))
+        aims.update(arm_aims(arm, "L", wl, pole=V(1.0, 0.3, -0.6), hand_dir=Vector(hd).normalized()))
         ch, _ = P.solve(aims, ro, rr, scales={"orb": orb})
         P.key(ch, f)
     finish_action(arm, act, frames, False)

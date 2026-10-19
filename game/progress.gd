@@ -11,6 +11,7 @@ const UI_SCALES := [1.0, 1.15, 1.3]
 var current_map := ""          # set before reloading the game scene; "" = show title
 var open_map_select := false   # jump straight to map select on the next load
 var open_legacy := false    # jump straight to the Legacy tree on the next load
+var fx_cache := {}             # game.gd's attack-effect meshes, materials and textures, kept across scene reloads
 var data := {"unlocked": ["mammoth_valley"], "stars": {}, "hero": "ugo", "tab": "", "legacy_xp": 0, "perks": {},
 	"settings": DEFAULT_SETTINGS.duplicate(), "cleared": [], "timeline": 1}
 var legacy: Dictionary = {}       # data/legacy.json

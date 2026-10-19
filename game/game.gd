@@ -384,7 +384,17 @@ func _build_world() -> void:
 	gm.albedo_color = Color(0.9, 0.9, 0.88)
 	gm.roughness = 1.0
 	gm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_mi(pm, gm, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
+	var gmat: Material = gm
+	var lava_path := "res://assets/textures/ground_%s_lava.png" % map_id
+	if ResourceLoader.exists(lava_path):
+		# v0.9.21: the painted lava (cracks, molten pools) glows and flows (tools/lava_mask.py makes the mask)
+		var lg := ShaderMaterial.new()
+		lg.shader = load("res://game/shaders/ground_lava.gdshader")
+		lg.set_shader_parameter("ground", gm.albedo_texture)
+		lg.set_shader_parameter("lava_mask", load(lava_path))
+		lg.set_shader_parameter("tint", gm.albedo_color)
+		gmat = lg
+	_mi(pm, gmat, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
 	var far := PlaneMesh.new()
 	far.size = Vector2(160, 120)
 	# (the ground's albedo tint applies to the far plane too, so the two meet without a step in brightness)
@@ -416,6 +426,8 @@ func _build_world() -> void:
 		if not DECOR_V2.has(str(map.get("theme", ""))):
 			_ambient_fx(Vector3.INF)
 	_build_path_features()
+	if not attract and (_era_index() == 0 or str(sim.hero_id) in ["ugo", "mara"]):
+		_prewarm_attack_fx()
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -1015,7 +1027,7 @@ func _tick_preview(dt: float) -> void:
 			continue
 		n.visible = r.d >= 0.0
 		n.position = _v3(sim.pos_at(maxf(float(r.d), 0.0), r.pi), 0.45)
-		n.transparency = 0.75 if bool(zn[1]) else 0.0          # dim while underground
+		_fade(n, 0.75 if bool(zn[1]) else 0.0)                  # dim while underground
 		for rf in P.rifts:
 			if before <= float(rf.d) and float(r.d) > float(rf.d) and n.mesh is SphereMesh and (n.mesh as SphereMesh).radius > 0.2:
 				_ring_fx(_v3(rf.from, 0.3), 1.2, Color(0.8, 0.4, 1.0, 0.9), 0.35)
@@ -1034,7 +1046,7 @@ func _tick_preview(dt: float) -> void:
 		a *= clampf(1.0 - (t - float(preview.end_t)) / 0.6, 0.0, 1.0)
 		for r in preview.runners:
 			var rn: MeshInstance3D = r.node
-			rn.transparency = maxf(rn.transparency, 1.0 - a)
+			_fade(rn, maxf(float(rn.get_meta("fade_k", 0.0)), 1.0 - a))
 	elif not loop:
 		a *= clampf((7.5 - t) / 0.8, 0.0, 1.0)
 	for l in preview.labels:
@@ -1369,6 +1381,7 @@ func _decor_mesh(name: String) -> Mesh:
 			var mesh: Mesh = (mi as MeshInstance3D).mesh
 			if hq and mesh != null:
 				mesh = _kit_outline(mesh, str(mi.name) in ["Tuft", "Flowers"])
+				mesh = _kit_lava(mesh, str(mi.name) == "Volcano")
 			_decor_lib[str(mi.name)] = mesh
 		src.free()
 	return _decor_lib.get(name)
@@ -1397,6 +1410,36 @@ func _kit_outline(mesh: Mesh, thin: bool) -> Mesh:
 			_kit_mats[key] = mc
 		m2.surface_set_material(si, _kit_mats[key])
 	return m2
+
+
+## v0.9.21: lava never stands still. The kit's flat glowing lava gets a shader where molten streaks slide down slopes and
+## (on the volcano) crust plates drift on the crater pool; lava pools on the map get a molten surface with drifting
+## crust, glowing cracks and bubbles that swell and burst (game/shaders/).
+var _lava_mats := {}
+func _kit_lava(mesh: Mesh, plates: bool) -> Mesh:
+	var m2: Mesh = null
+	for si in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(si)
+		if mat == null or not str(mat.resource_name).begins_with("Glow_glow_lava"):
+			continue
+		var key := "flow_plates" if plates else "flow"
+		if not _lava_mats.has(key):
+			var lm := ShaderMaterial.new()
+			lm.shader = load("res://game/shaders/lava_flow.gdshader")
+			lm.set_shader_parameter("plates", plates)
+			_lava_mats[key] = lm
+		if m2 == null:
+			m2 = mesh.duplicate()
+		m2.surface_set_material(si, _lava_mats[key])
+	return m2 if m2 != null else mesh
+
+
+func _lava_pool_mat(radius: float, seed: float) -> ShaderMaterial:
+	var lm := ShaderMaterial.new()
+	lm.shader = load("res://game/shaders/lava_pool.gdshader")
+	lm.set_shader_parameter("radius", radius)
+	lm.set_shader_parameter("seed", seed)
+	return lm
 
 
 ## One MultiMesh (one draw call) per prop type, plus one for its outline shell.
@@ -1680,7 +1723,8 @@ func _build_blockers() -> void:
 			if _blocker_v2(kind, n, rad, r):
 				continue
 			if kind == "lava":
-				var lava2 := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("pool_lava", Color(1, 0.55, 0.15, 0.45), {"emit": Color(1, 0.42, 0.05), "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
+				var lava2 := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _lava_pool_mat(rad * 0.85, r.randf() * 10.0), n, Vector3(0, 0.04, 0))
+				lava2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				var ll2 := OmniLight3D.new()
 				ll2.light_color = Color(1, 0.45, 0.15)
 				ll2.light_energy = 0.9
@@ -1967,6 +2011,17 @@ func _rig_extras(root: Node3D, model: Node3D) -> void:
 		root.set_meta("outlines", outlines)
 
 
+## A tarred robot that takes a hit: the tar coat with the white flash drawn over it (cached pairs).
+var _coat_flash_mats := {}
+func _coat_flash(coat: Material, lvl: int) -> Material:
+	var key := "%d_%d" % [coat.get_instance_id(), lvl]
+	if not _coat_flash_mats.has(key):
+		var c2: Material = coat.duplicate()
+		c2.next_pass = _flash_mats[lvl]
+		_coat_flash_mats[key] = c2
+	return _coat_flash_mats[key]
+
+
 ## A robot that takes a hit flashes white for a moment (three shared overlay strengths, no per-robot materials).
 var _flash_mats: Array = []
 func _hit_flash(n: Node3D) -> void:
@@ -1984,8 +2039,11 @@ func _hit_flash(n: Node3D) -> void:
 	if f > 0.0:
 		lvl = 0 if f > 0.66 else (1 if f > 0.33 else 2)
 		n.set_meta("flash", maxf(0.0, f - get_process_delta_time() * 7.0))
-	var want: Material = _flash_mats[lvl] if lvl >= 0 else null
-	if want == null:
+	var coat: Material = n.get_meta("tar_mat") if n.has_meta("tar_mat") else null
+	var want: Material = coat
+	if lvl >= 0:
+		want = _flash_mats[lvl] if coat == null else _coat_flash(coat, lvl)
+	if lvl < 0:
 		n.remove_meta("flash_on")
 	else:
 		n.set_meta("flash_on", true)
@@ -2404,6 +2462,749 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 			"v": Vector3(cos(a) * 1.6, randf_range(2.5, 4.0), sin(a) * 1.6)})
 
 
+# ---------------------------------------------------------------- Stone Age attacks (v0.9.20)
+# The pulse and melee units used to draw an expanding ring. Now their hits land on the robots they hit (the sim's
+# "pulse" and "slam" events list them): the Tar Pit Shaman flings tar globs that splat and leave puddles, Mara makes
+# stone and quartz spikes burst up under them, the Club Warrior's smash sends a shock of dirt out to each one, and
+# boulders smash into dust, flying rock and a crater. Timed to the units' clips (the RELEASE / SMASH frames in
+# tools/blender/hq/anim_shaman.py, anim_mara.py, anim_club.py).
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4}
+var _fx_queue: Array = []
+var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
+                                                 # autoload, so they outlive scene reloads and are freed cleanly at exit)
+var _hide_bars := false                      # test captures only
+var _atk_pending := {}                       # robot id -> true: a delayed hit is coming this frame's events
+var _doomed := {}                            # robot id -> its kill event, held until the hit lands
+
+
+## Real seconds until frame `frame` of the attack clip that just started on unit `id` (0 for models without clips).
+func _clip_delay(id: int, frame: int) -> float:
+	if not tower_nodes.has(id) or not (tower_nodes[id] as Node3D).has_meta("anim"):
+		return 0.0
+	var rate := float((tower_nodes[id] as Node3D).get_meta("throw_rate", 1.0)) * float(speed)
+	return float(frame) / 30.0 / maxf(rate, 0.01)
+
+
+## A pulse unit turns to fling at the robots it hits (it faces the camera again a moment after its last attack).
+func _face_targets(id: int, u: Dictionary, targets: Array) -> void:
+	if not tower_nodes.has(id):
+		return
+	for tid in targets:
+		var e = sim._enemy_by_id(int(tid))
+		if e != null:
+			var d: Vector2 = (e.pos as Vector2) - (u.pos as Vector2)
+			if d.length() > 0.05:
+				(tower_nodes[id] as Node3D).set_meta("face_to", d.normalized())
+				(tower_nodes[id] as Node3D).set_meta("face_t", time_s)
+			return
+
+
+## Where robot `tid` is now (its model if it has one, else the sim), lifted by `up`; INF when it's gone.
+func _robot_point(tid: int, up: float) -> Vector3:
+	if enemy_nodes.has(tid) and is_instance_valid(enemy_nodes[tid]):
+		return (enemy_nodes[tid] as Node3D).position + Vector3(0, up, 0)
+	var e = sim._enemy_by_id(tid)
+	return _v3(e.pos, up) if e != null else Vector3.INF
+
+
+func _atk_mat(key: String) -> StandardMaterial3D:
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var m := StandardMaterial3D.new()
+	match key:
+		"tar":                                       # glossy black tar
+			m.albedo_color = Color(0.05, 0.038, 0.03)
+			m.roughness = 0.2
+			m.metallic_specular = 0.75
+		"tar_hot":                                   # burning tar (Path B): red-hot, glowing
+			m.albedo_color = Color(0.22, 0.06, 0.02)
+			m.roughness = 0.25
+			m.emission_enabled = true
+			m.emission = Color(1.0, 0.33, 0.05)
+			m.emission_energy_multiplier = 0.9
+		"puddle", "puddle_hot":
+			# painted, not lit: a lit glossy plane mirrors the sky at the game's low angles and reads as a pale patch
+			m.albedo_texture = _puddle_tex(key == "puddle_hot")
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		"crack", "crater":
+			m.albedo_texture = _crack_tex(key == "crater")
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color = Color(0.17, 0.12, 0.08, 0.9)
+			m.roughness = 1.0
+		"spike_stone":
+			m.albedo_color = Color(0.56, 0.46, 0.36)
+			m.roughness = 0.9
+			m.vertex_color_use_as_albedo = true
+		"spike_quartz":
+			m.albedo_color = Color(0.72, 0.5, 1.0)
+			m.roughness = 0.25
+			m.vertex_color_use_as_albedo = true
+			m.emission_enabled = true
+			m.emission = Color(0.45, 0.2, 0.85)
+			m.emission_energy_multiplier = 0.55
+		"chunk":
+			m.albedo_color = Color(0.55, 0.52, 0.48)
+			m.roughness = 0.95
+		"clod":                                      # earth thrown up by a smash
+			m.albedo_color = Color(0.42, 0.31, 0.21)
+			m.roughness = 1.0
+	_atk_cache[key] = m
+	return m
+
+
+## A tar puddle, painted: a black pool with a few satellite drops, a brown rim and a glossy highlight. The burning
+## kind (Path B) is darker red-black with glowing embers and a hot rim.
+func _puddle_tex(hot: bool) -> Texture2D:
+	var key := "tex_puddle_hot" if hot else "tex_puddle"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var w := 64
+	var img := Image.create(w, w, false, Image.FORMAT_RGBA8)
+	var drops := [Vector3(0.62, 0.2, 0.09), Vector3(-0.55, 0.45, 0.07), Vector3(0.1, -0.7, 0.08), Vector3(-0.3, -0.62, 0.05)]
+	var r := RandomNumberGenerator.new()
+	r.seed = 5
+	var embers := []
+	for i in 22:
+		embers.append(Vector3(r.randf_range(-0.48, 0.48), r.randf_range(-0.48, 0.48), r.randf_range(0.025, 0.06)))
+	var body := Color(0.075, 0.03, 0.015) if hot else Color(0.04, 0.032, 0.027)
+	var rimc := Color(1.0, 0.45, 0.1) if hot else Color(0.16, 0.115, 0.075)
+	for y in w:
+		for x in w:
+			var px := (x + 0.5) / w * 2.0 - 1.0
+			var py := (y + 0.5) / w * 2.0 - 1.0
+			var rr := sqrt(px * px + py * py)
+			var a := atan2(py, px)
+			var edge := 0.6 + 0.08 * sin(a * 3.0 + 1.0) + 0.06 * sin(a * 5.0 + 2.3) + 0.03 * sin(a * 9.0)
+			var cov := clampf((edge - rr) / 0.05, 0.0, 1.0)
+			var inner := edge - rr                             # distance inside the main pool
+			var col := body
+			var rim := clampf(1.0 - absf(inner - 0.04) / 0.035, 0.0, 1.0) * (0.85 if hot else 0.7)
+			col = col.lerp(rimc, rim * cov)
+			for d in drops:
+				var dr := Vector2(px - d.x, py - d.y).length()
+				var dv := clampf((d.z - dr) / 0.025, 0.0, 1.0)
+				if dv > cov:
+					cov = dv
+					col = body.lerp(rimc, 0.35)
+			if hot:
+				for e in embers:
+					var ev := clampf((e.z - Vector2(px - e.x, py - e.y).length()) / 0.02, 0.0, 1.0)
+					col = col.lerp(Color(1.0, 0.62, 0.18), ev * cov)
+			else:
+				# a glossy crescent of reflected sky near one side
+				var hl := Vector2(px + 0.2, py + 0.22)
+				var hv := clampf((0.17 - hl.length()) / 0.05, 0.0, 1.0) * clampf((Vector2(px + 0.14, py + 0.16).length() - 0.12) / 0.04, 0.0, 1.0)
+				col = col.lerp(Color(0.55, 0.52, 0.5), hv * 0.75 * cov)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, cov * 0.96))
+	img.generate_mipmaps()
+	var t := ImageTexture.create_from_image(img)
+	_atk_cache[key] = t
+	return t
+
+
+## Ground cracks radiating from a point (a club smash); `crater` adds a dark dished centre (a boulder's landing).
+func _crack_tex(crater: bool) -> Texture2D:
+	var key := "tex_crater" if crater else "tex_crack"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var w := 128
+	var img := Image.create(w, w, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1, 0))
+	var r := RandomNumberGenerator.new()
+	r.seed = 7 if crater else 3
+	var stamp := func(cx: float, cy: float, rad: float, a: float) -> void:
+		for yy in range(int(cy - rad) - 1, int(cy + rad) + 2):
+			for xx in range(int(cx - rad) - 1, int(cx + rad) + 2):
+				if xx < 0 or yy < 0 or xx >= w or yy >= w:
+					continue
+				var dd := Vector2(xx + 0.5 - cx, yy + 0.5 - cy).length()
+				var v := clampf((rad - dd) / 0.8, 0.0, 1.0) * a
+				if v > img.get_pixel(xx, yy).a:
+					img.set_pixel(xx, yy, Color(1, 1, 1, v))
+	var arms := 8 if crater else 7
+	for i in arms:
+		var ang := TAU * i / arms + r.randf_range(-0.3, 0.3)
+		var p := Vector2(w * 0.5, w * 0.5)
+		var length := r.randf_range(0.32, 0.46) * w
+		var steps := int(length / 1.5)
+		for st in steps:
+			ang += r.randf_range(-0.35, 0.35)
+			p += Vector2(cos(ang), sin(ang)) * 1.5
+			var f := float(st) / steps
+			stamp.call(p.x, p.y, lerpf(2.4, 0.6, f), 1.0 - 0.4 * f)
+			if r.randf() < 0.06:              # a short branch
+				var bp := p
+				var ba := ang + r.randf_range(-1.2, 1.2)
+				for bs in 8:
+					bp += Vector2(cos(ba), sin(ba)) * 1.5
+					stamp.call(bp.x, bp.y, 0.8, 0.7)
+	if crater:
+		for yy in w:
+			for xx in w:
+				var dd := Vector2(xx + 0.5 - w * 0.5, yy + 0.5 - w * 0.5).length() / (w * 0.5)
+				var v := clampf((0.3 - dd) / 0.12, 0.0, 1.0) * 0.85
+				if v > img.get_pixel(xx, yy).a:
+					img.set_pixel(xx, yy, Color(1, 1, 1, v))
+	img.generate_mipmaps()
+	var t := ImageTexture.create_from_image(img)
+	_atk_cache[key] = t
+	return t
+
+
+## Builds the attack effects' textures, meshes and materials while the map loads, and draws each material once out of
+## sight (under the ground, for two frames, including the tar coat on a robot) so their shaders are compiled before the
+## first shot instead of hitching it.
+func _prewarm_attack_fx() -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, -0.6, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5)
+	add_child(holder)
+	if not _atk_cache.has("plane"):
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(1, 1)
+		_atk_cache["plane"] = pm
+	var q: Mesh = _atk_cache["plane"]
+	for key in ["tar", "tar_hot", "puddle", "puddle_hot", "crack", "crater", "spike_stone", "spike_quartz", "chunk", "clod"]:
+		var mi := _mi(q, _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for v in 3:
+		_spike_mesh(v)
+	if not defs.enemies.has("walker"):
+		return
+	var bot := _make_robot("walker")
+	holder.add_child(bot)
+	var coats: Array = _tar_mats(false) + _tar_mats(true)
+	var mis: Array = bot.get_meta("body_mis", [])
+	for i in mis.size():
+		(mis[i] as MeshInstance3D).material_overlay = coats[i % coats.size()]
+	_fx_after(0.12, func() -> void:
+		if is_instance_valid(holder):
+			holder.queue_free())
+
+
+## A flat decal lying on the ground (puddle, cracks, crater) that pops in and fades.
+func _ground_decal(pos: Vector3, key: String, size: float, life: float, delay := 0.0) -> void:
+	if not _fx_room(1):
+		return
+	if not _atk_cache.has("plane"):
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(1, 1)
+		_atk_cache["plane"] = pm
+	var d := _mi(_atk_cache["plane"], _atk_mat(key), self, Vector3(pos.x, 0.025 + randf() * 0.01, pos.z), Vector3(0, randf() * TAU, 0))
+	d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	d.visible = false
+	effects.append({"node": d, "t": -delay, "life": life, "kind": "decal", "size": Vector3(size, 1.0, size)})
+
+
+## Jagged stone spikes (flat-shaded, a few shapes), base radius 1 and height 1; scaled per use.
+func _spike_mesh(v: int) -> Mesh:
+	var key := "spike_%d" % v
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var r := RandomNumberGenerator.new()
+	r.seed = 11 + v * 7
+	var n := 5
+	var base := []
+	var mid := []
+	for i in n:
+		var a := TAU * i / n + r.randf_range(-0.2, 0.2)
+		var rr := r.randf_range(0.8, 1.1)
+		base.append(Vector3(cos(a) * rr, -0.1, sin(a) * rr))
+		var a2 := a + PI / n
+		var rm := r.randf_range(0.45, 0.6)
+		mid.append(Vector3(cos(a2) * rm, r.randf_range(0.4, 0.5), sin(a2) * rm))
+	var tip := Vector3(r.randf_range(-0.12, 0.12), 1.0, r.randf_range(-0.12, 0.12))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)                          # flat faces: chipped stone
+	for i in n:
+		var j := (i + 1) % n
+		for tri in [[base[i], base[j], mid[i]], [base[j], mid[j], mid[i]], [mid[i], mid[j], tip]]:
+			for vtx in tri:
+				var sh := lerpf(0.55, 1.0, clampf((vtx as Vector3).y, 0.0, 1.0))     # darker at the root
+				st.set_color(Color(sh, sh, sh))
+				st.add_vertex(vtx)
+	st.generate_normals()
+	var m := st.commit()
+	_atk_cache[key] = m
+	return m
+
+
+## One spike bursting out of the ground at `pos` after `delay`: up fast, holds, sinks back. `lean` is a flat vector:
+## its direction is where the tip leans, its length the angle (radians). A `burst` spike throws dust and pebbles and
+## lands the hit on robot `tid` (flash, knock-up, its death if the pulse killed it).
+func _spike(pos: Vector3, delay: float, w: float, h: float, quartz: bool, hold: float, lean := Vector3.ZERO, burst := false,
+		tid := -1) -> void:
+	if not _fx_room(1):
+		if tid >= 0:
+			_fx_after(delay, func() -> void: _land_hit(tid, 0.3))
+		return
+	var sp := _mi(_spike_mesh(randi() % 3), _atk_mat("spike_quartz" if quartz else "spike_stone"), self, Vector3(pos.x, 0.0, pos.z))
+	var b := Basis(Vector3.UP, randf() * TAU)
+	lean.y = 0.0
+	if lean.length() > 0.001:
+		b = Basis(Vector3.UP.cross(lean.normalized()).normalized(), lean.length()) * b
+	sp.basis = b
+	sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if Progress.gfx_level() >= 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	sp.visible = false
+	sp.scale = Vector3(w, 0.01, w)
+	effects.append({"node": sp, "t": -delay, "life": 0.07 + hold + 0.2, "kind": "spike", "w": w, "h": h, "hold": hold, "burst": burst,
+		"tid": tid})
+
+
+func _tick_spike(fx: Dictionary, n: Node3D) -> void:
+	n.visible = fx.t >= 0.0
+	if fx.t < 0.0:
+		return
+	if fx.burst and not fx.get("fired", false):
+		fx.fired = true
+		var at: Vector3 = n.position
+		var tid := int(fx.get("tid", -1))
+		_fx_queue.append(func() -> void:
+			_dust_fx(at + Vector3(0, 0.2, 0), 3, 0.7)
+			_pebble_fx(at + Vector3(0, 0.35, 0), 2)
+			if tid >= 0:
+				_land_hit(tid, 0.3))
+	var hold: float = fx.hold
+	var y: float
+	if fx.t < 0.07:
+		var a: float = fx.t / 0.07
+		y = a * (2.0 - a)
+	elif fx.t < 0.07 + hold:
+		y = 1.0
+	else:
+		var b: float = clampf((fx.t - 0.07 - hold) / 0.2, 0.0, 1.0)
+		y = 1.0 - b * b
+	n.scale = Vector3(fx.w, maxf(float(fx.h) * y, 0.01), fx.w)
+
+
+## Tar Pit Shaman: he thrusts his spirit stone and it spits tar; a glob arcs onto every robot the pulse hit (capped).
+func _tar_volley(u: Dictionary, targets: Array) -> void:
+	var delay := _clip_delay(u.id, ATTACK_FRAME.tar_shaman)
+	var hot := str(u.get("branch", "")) == "B"
+	var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
+	var face: Vector2 = u.facing
+	if tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("face_to"):
+		face = (tower_nodes[u.id] as Node3D).get_meta("face_to")      # (he turns to face it as he winds up)
+	var from := _orb_point(u, face)
+	var i := 0
+	for tid in targets:
+		if i >= cap or not _fx_room(2):
+			_resolve_doom(int(tid))
+			continue
+		var to := _robot_point(int(tid), 0.55)
+		if to == Vector3.INF:
+			continue
+		var g := Node3D.new()
+		add_child(g)
+		g.position = from
+		g.visible = false
+		var gs := randf_range(0.75, 1.0) if i > 0 else 1.05
+		g.scale = Vector3.ONE * gs
+		var tm := _atk_mat("tar_hot" if hot else "tar")
+		var core := _mi(_sph_c(0.1, 12), tm, g)
+		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		g.set_meta("core", core)
+		# a string of shrinking beads trailing behind it (local +Z points back along the flight): sticky tar
+		for k in 3:
+			var dm := _mi(_sph_c(0.1, 8), tm, g, Vector3(0, 0.0, 0.11 + 0.085 * k + 0.01 * k * k), Vector3.ZERO,
+				Vector3.ONE * (0.52 - 0.14 * k))
+			dm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if hot:
+			_fire_halo(g, 0.6)
+		var dist := _v3(u.pos, 0.0).distance_to(Vector3(to.x, 0.0, to.z))
+		var dur := 0.26 + dist * 0.045
+		effects.append({"node": g, "t": -delay - 0.04 * i, "life": dur, "kind": "glob", "src": u.id, "tid": int(tid),
+			"from": from, "to": to, "dur": dur, "arc": (0.4 + dist * 0.12) * randf_range(0.8, 1.2), "hot": hot})
+		_hold_hit(int(tid), delay + 0.04 * i + dur)
+		i += 1
+	if i > 0:
+		var uid := int(u.id)
+		_fx_after(delay, func() -> void: _orb_spit(uid, from, hot))
+
+
+func _tick_glob(fx: Dictionary, n: Node3D) -> void:
+	n.visible = fx.t >= 0.0
+	if fx.t < 0.0:
+		return
+	var live := _robot_point(int(fx.tid), 0.55)
+	if live != Vector3.INF:
+		fx.to = live
+	var k: float = clampf(fx.t / float(fx.dur), 0.0, 1.0)
+	var p: Vector3 = (fx.from as Vector3).lerp(fx.to, k) + Vector3(0, float(fx.arc) * 4.0 * k * (1.0 - k), 0)
+	var vel := p - n.position
+	n.position = p
+	if vel.length_squared() > 0.000001 and absf(vel.normalized().y) < 0.97:
+		n.look_at(p + vel, Vector3.UP)              # -Z leads, so the beads (local +Z) trail behind
+	var dt := maxf(get_process_delta_time(), 0.001)
+	var st := 1.0 + clampf(vel.length() / dt * 0.07, 0.0, 0.6)        # stretched by its speed, like a blob of goo
+	var wob := 0.09 * sin(float(fx.t) * 38.0)
+	if n.has_meta("core"):
+		(n.get_meta("core") as Node3D).scale = Vector3((1.0 + wob) / sqrt(st), (1.0 - wob) / sqrt(st), st)
+	if fx.t + get_process_delta_time() >= float(fx.life) and not fx.get("landed", false):
+		fx.landed = true
+		var at: Vector3 = fx.to
+		var hot: bool = fx.hot
+		var tid := int(fx.tid)
+		_fx_queue.append(func() -> void:
+			_tar_splat(Vector3(at.x, 0.0, at.z), at.y, hot)
+			_tar_mark(tid, hot)
+			_land_hit(tid))
+
+
+func _splits_on_death(type: String) -> bool:
+	var d: Dictionary = defs.enemies.get(type, {})
+	return d.has("on_death") or bool((d.get("emp", {}) as Dictionary).get("on_death", false))
+
+
+## A robot is destroyed: its parts fly, the bounty pops up.
+func _robot_killed(ev: Dictionary) -> void:
+	if not enemy_nodes.has(ev.id):
+		return
+	var n2: Node3D = enemy_nodes[ev.id]
+	var big: bool = defs.enemies[ev.type].get("boss", false)
+	if _style2():
+		_robot_death_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), big)
+	else:
+		_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
+	_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_COIN, 46 if not big else 90)
+	n2.queue_free()
+	enemy_nodes.erase(ev.id)
+	if big:
+		shake = 1.3
+		_sfx("boss_death", 0.0, 0.0)
+	else:
+		_sfx("robot_death", -4.0, 0.15, 0.03)
+		_sfx("coin", -14.0, 0.05, 0.06)
+
+
+## A doomed robot's hit arrived (or never will): now it blows up.
+func _resolve_doom(tid: int) -> void:
+	if _doomed.has(tid):
+		var ev: Dictionary = _doomed[tid]
+		_doomed.erase(tid)
+		_robot_killed(ev)
+
+
+## The pulse already hurt robot `tid`; keep its hit flash for when the tar (or spike, or shock) reaches it.
+## `eta`: real seconds until it lands. A robot the hit destroyed (doomed) blows up then, or a moment later at most.
+func _hold_hit(tid: int, eta: float) -> void:
+	if enemy_nodes.has(tid) and is_instance_valid(enemy_nodes[tid]):
+		var n: Node3D = enemy_nodes[tid]
+		n.set_meta("flash", 0.0)
+		if float(n.get_meta("punch", 0.0)) > 0.0:
+			n.set_meta("punch", 0.0)
+			var e = sim._enemy_by_id(tid)
+			if e != null:
+				(n.get_node("Model") as Node3D).scale = Vector3.ONE * float(defs.enemies[e.type].get("model_scale", 0.9))
+	if _doomed.has(tid):
+		_fx_after(eta + 0.4, func() -> void: _resolve_doom(tid))
+
+
+func _land_hit(tid: int, hop := 0.0) -> void:
+	if enemy_nodes.has(tid) and is_instance_valid(enemy_nodes[tid]):
+		(enemy_nodes[tid] as Node3D).set_meta("flash", 1.0)
+		(enemy_nodes[tid] as Node3D).set_meta("punch", 1.0)
+		if hop > 0.0:
+			(enemy_nodes[tid] as Node3D).set_meta("hop", time_s)       # thrown up a little (spikes, a club's ripple)
+			(enemy_nodes[tid] as Node3D).set_meta("hop_h", hop)
+			(enemy_nodes[tid] as Node3D).set_meta("hop_y0", (enemy_nodes[tid] as Node3D).position.y)
+	if hop > 0.0 and _doomed.has(tid):
+		_fx_after(0.16, func() -> void: _resolve_doom(tid))            # blows up at the top of the throw
+	else:
+		_resolve_doom(tid)
+
+
+## Where the shaman's spirit stone is when he thrusts at `face` (in front of him, at his right side).
+func _orb_point(u: Dictionary, face: Vector2) -> Vector3:
+	var fwd := Vector3(face.x, 0.0, face.y).normalized() if face.length() > 0.01 else Vector3(0, 0, 1)
+	var right := Vector3(-fwd.z, 0.0, fwd.x)
+	return _v3(u.pos, 0.0) + fwd * 0.57 + right * 0.34 + Vector3(0, 1.25, 0)
+
+
+## The spirit stone spits: a few drops of tar spray off it as the volley leaves (not if he was sold meanwhile).
+func _orb_spit(uid: int, at: Vector3, hot: bool) -> void:
+	if sim.get_unit(uid) == null:
+		return
+	var drops: int = [4, 2, 0][clampi(Progress.gfx_level(), 0, 2)]
+	if drops == 0 or not _fx_room(drops):
+		return
+	for i in drops:
+		var sz := randf_range(0.035, 0.06)
+		var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else "tar"), self, at, Vector3.ZERO, Vector3.ONE * sz)
+		dp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a := randf() * TAU
+		effects.append({"node": dp, "t": 0.0, "life": randf_range(0.3, 0.45), "kind": "debris", "s": sz,
+			"v": Vector3(cos(a) * randf_range(0.6, 1.4), randf_range(0.8, 2.0), sin(a) * randf_range(0.6, 1.4))})
+
+
+## A robot a glob hit wears the tar (glossy black splotches and drips oozing down it) until its slow wears off.
+func _tar_mark(tid: int, hot: bool) -> void:
+	var e = sim._enemy_by_id(tid)
+	if e == null or not enemy_nodes.has(tid) or not is_instance_valid(enemy_nodes[tid]):
+		return
+	var n: Node3D = enemy_nodes[tid]
+	n.set_meta("tar_until", maxi(int(e.slow_until), sim.tick + int(0.6 / TICK)))
+	n.set_meta("tar_hot", hot)
+
+
+const TAR_COAT_SHADER := """
+shader_type spatial;
+render_mode blend_mix, depth_draw_never, cull_back, specular_schlick_ggx;
+uniform float thr = 0.5;
+uniform vec3 tint : source_color = vec3(0.06, 0.042, 0.03);
+uniform vec3 glow : source_color = vec3(0.0);
+uniform float scale = 5.0;
+varying vec3 op;
+void vertex() {
+	op = VERTEX;
+}
+float hash(vec3 p) {
+	p = fract(p * 0.3183099 + 0.1);
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float noise(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+void fragment() {
+	vec3 p = op * scale;
+	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;              // tar lands from above and runs down
+	float blobs = noise(p) * 0.6 + noise(p * 2.3 + 7.1) * 0.4;
+	float c = blobs * 0.55 + 0.3 * smoothstep(-0.1, 0.8, up);
+	float drips = noise(vec3(p.x * 2.6, p.y * 0.32 + TIME * 0.22, p.z * 2.6));   // tall streaks oozing down the sides
+	c = max(c, drips * 0.92 - 0.06 + 0.1 * smoothstep(0.0, 0.6, up));
+	float a = smoothstep(thr, thr + 0.035, c);
+	ALBEDO = tint;
+	ROUGHNESS = 0.28;
+	SPECULAR = 0.6;
+	EMISSION = glow * (1.0 - smoothstep(thr + 0.02, thr + 0.12, c));
+	ALPHA = a * 0.97;
+}
+"""
+
+
+## Shared tar-coat overlays: full, wearing off, almost gone (and the burning set for Path B).
+func _tar_mats(hot: bool) -> Array:
+	var key := "coat_hot" if hot else "coat"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	if not _atk_cache.has("coat_shader"):
+		var sh := Shader.new()
+		sh.code = TAR_COAT_SHADER
+		_atk_cache["coat_shader"] = sh
+	var arr := []
+	for thr in [0.5, 0.58, 0.66]:
+		var m := ShaderMaterial.new()
+		m.shader = _atk_cache["coat_shader"]
+		m.set_shader_parameter("thr", thr)
+		if hot:
+			m.set_shader_parameter("tint", Color(0.16, 0.05, 0.02))
+			m.set_shader_parameter("glow", Color(1.0, 0.35, 0.06))
+		arr.append(m)
+	_atk_cache[key] = arr
+	return arr
+
+
+## Called every frame for each robot: picks its tar overlay (none once the slow is over). The hit flash wins while it lasts.
+func _tar_coat(n: Node3D, gl: int) -> void:
+	var want: Material = null
+	if n.has_meta("tar_until"):
+		var left := float(int(n.get_meta("tar_until")) - sim.tick) * TICK
+		if left <= 0.0:
+			n.remove_meta("tar_until")
+		elif gl < 2:
+			want = _tar_mats(bool(n.get_meta("tar_hot", false)))[0 if left > 0.5 else (1 if left > 0.25 else 2)]
+	var had: Material = n.get_meta("tar_mat") if n.has_meta("tar_mat") else null
+	if had == want:
+		return
+	if want == null:
+		n.remove_meta("tar_mat")
+	else:
+		n.set_meta("tar_mat", want)
+	if not n.has_meta("flash_on"):
+		for mi in n.get_meta("body_mis", []):
+			(mi as MeshInstance3D).material_overlay = want
+
+
+## A glob hits: black drops fly, a dark splash, and a puddle of tar spreads on the ground and fades.
+func _tar_splat(ground: Vector3, h: float, hot: bool) -> void:
+	_ground_decal(ground, "puddle_hot" if hot else "puddle", randf_range(0.8, 1.05), 1.7)
+	var drops: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if _fx_room(drops):
+		for i in drops:
+			var sz := randf_range(0.05, 0.09)
+			var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else "tar"), self, ground + Vector3(0, minf(h, 0.6), 0), Vector3.ZERO,
+				Vector3.ONE * sz)
+			dp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var a := randf() * TAU
+			effects.append({"node": dp, "t": 0.0, "life": randf_range(0.35, 0.55), "kind": "debris", "s": sz,
+				"v": Vector3(cos(a) * randf_range(1.2, 2.4), randf_range(1.5, 3.0), sin(a) * randf_range(1.2, 2.4))})
+	_dust_fx(ground + Vector3(0, 0.3, 0), 2, 0.5, Color(0.12, 0.1, 0.08, 0.55))
+	if hot and _fx_room(1):
+		var fl := _mi(_flame_quad(0.4, 0.58), _campfire_mat("outer"), self, ground + Vector3(0, 0.02, 0))
+		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fl.visible = false
+		effects.append({"node": fl, "t": 0.0, "life": 0.6, "kind": "pop", "s": 1.0})
+
+
+## Mara: she lifts her palm and the earth answers. A fissure of spikes races out from her to the first few robots hit,
+## then three stone and quartz spikes burst up round every robot hit, leaning in over it, and throw it up a little.
+func _earth_spikes(u: Dictionary, targets: Array, delay := -1.0) -> void:
+	if delay < 0.0:
+		delay = _clip_delay(u.id, ATTACK_FRAME.mara)
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var cap: int = [6, 4, 2][gl]
+	var fissures: int = [3, 2, 1][gl]
+	var origin := _v3(u.pos, 0.0)
+	var i := 0
+	for tid in targets:
+		if i >= cap:
+			_resolve_doom(int(tid))
+			continue
+		var tp := _robot_point(int(tid), 0.0)
+		if tp == Vector3.INF:
+			continue
+		tp.y = 0.0
+		var dv := tp - origin
+		var dist := dv.length()
+		var dn := dv / maxf(dist, 0.01)
+		var side := Vector3(-dn.z, 0, dn.x)
+		var travel := 0.0
+		if i < fissures and dist > 1.3:
+			# from the edge of her dais to just short of the robot
+			var run := dist - 1.05
+			var steps := clampi(int(run / 0.45), 1, 4)
+			for st in steps:
+				var f := (st + 0.5) / steps
+				var at0 := origin + dn * (0.75 + run * f) + side * randf_range(-0.09, 0.09)
+				_spike(at0, delay + f * 0.16, randf_range(0.1, 0.13), randf_range(0.4, 0.52), st % 2 == 1, 0.12,
+					Vector3(randf_range(-0.2, 0.2), 0, randf_range(-0.2, 0.2)))
+			travel = 0.16
+		_spike_cluster(tp, delay + travel + 0.03, int(tid))
+		_hold_hit(int(tid), delay + travel + 0.03)
+		i += 1
+
+
+## Three spikes burst up round a point, tips leaning in over it, on a patch of cracked ground. The first one lands the
+## hit on robot `tid` (if any).
+func _spike_cluster(c: Vector3, delay: float, tid := -1, k := 1.0) -> void:
+	var a0 := randf() * TAU
+	var q := randi() % 3
+	for j in 3:
+		var a := a0 + TAU * j / 3.0 + randf_range(-0.3, 0.3)
+		var off := Vector3(cos(a), 0, sin(a)) * randf_range(0.45, 0.52) * k
+		_spike(c + off, delay + j * 0.025, randf_range(0.19, 0.23) * k, randf_range(0.95, 1.2) * k, j == q, 0.26,
+			-off.normalized() * randf_range(0.18, 0.28), j == 0, tid if j == 0 else -1)
+	_ground_decal(c, "crack", 1.3 * k, 1.1, delay)
+
+
+## Club Warrior: the club smashes the ground in front of him (cracks, dust, flying clods) and a ripple of bursting
+## earth races out to every robot it hit; each one is bounced up off the ground when it arrives.
+func _club_smash(u: Dictionary, targets: Array) -> void:
+	var delay := _clip_delay(u.id, ATTACK_FRAME.club_warrior)
+	if delay <= 0.0:
+		delay = 0.12
+	var origin := _v3(u.pos, 0.0)
+	var fwd := Vector3(u.facing.x, 0.0, u.facing.y)
+	var hit := origin + fwd * 0.72
+	_ground_decal(hit, "crack", 1.25, 1.2, delay)
+	_fx_after(delay, func() -> void:
+		_dust_fx(hit + Vector3(0, 0.15, 0), 5, 0.9)
+		_pebble_fx(hit + Vector3(0, 0.3, 0), 3)
+		_clods(hit, 4, 1.0)
+		shake = maxf(shake, 0.12))
+	var cap: int = [5, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	var i := 0
+	for tid in targets:
+		if i >= cap:
+			_resolve_doom(int(tid))
+			continue
+		var tp := _robot_point(int(tid), 0.0)
+		if tp == Vector3.INF:
+			continue
+		tp.y = 0.0
+		var dv := tp - hit
+		var steps := clampi(int(dv.length() / 0.32), 0, 5)
+		for st in steps:
+			var f := (st + 1.0) / (steps + 1.0)
+			var at := hit + dv * f
+			_fx_after(delay + 0.03 * (st + 1), func() -> void:
+				_clods(at, 2 if i == 0 else 1, 0.75)
+				_dust_fx(at + Vector3(0, 0.12, 0), 1, 0.4))
+		var htid := int(tid)
+		_fx_after(delay + 0.03 * (steps + 1), func() -> void:
+			_dust_fx(tp + Vector3(0, 0.2, 0), 3, 0.7)
+			_pebble_fx(tp + Vector3(0, 0.3, 0), 2)
+			_clods(tp, 2, 1.0)
+			_land_hit(htid, 0.18))
+		_ground_decal(tp, "crack", 0.75, 0.9, delay + 0.03 * (steps + 1))
+		_hold_hit(htid, delay + 0.03 * (steps + 1))
+		i += 1
+
+
+## Clods of earth thrown up from the ground at `at` (a club's ripple, a smash).
+func _clods(at: Vector3, n: int, force: float) -> void:
+	if not _fx_room(n):
+		return
+	for i in n:
+		var sz := randf_range(0.07, 0.12) * (0.8 + 0.3 * force)
+		var c := _mi(_sph_c(0.5, 5), _atk_mat("clod"), self, Vector3(at.x, 0.08, at.z) + Vector3(randf_range(-0.08, 0.08), 0, randf_range(-0.08, 0.08)),
+			Vector3(randf(), randf(), randf()) * 3.0, Vector3.ONE * sz)
+		c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a := randf() * TAU
+		effects.append({"node": c, "t": 0.0, "life": randf_range(0.35, 0.5), "kind": "debris", "s": sz,
+			"v": Vector3(cos(a) * randf_range(0.4, 1.0), randf_range(2.2, 3.4) * force, sin(a) * randf_range(0.4, 1.0))})
+
+
+## Runs `fn` after `sec` real seconds (game time paused while the match is paused). No node, and not counted against the
+## effects cap, so many timers never crowd out the visible effects.
+var _timers: Array = []                      # [[seconds left, Callable], ...]
+func _fx_after(sec: float, fn: Callable) -> void:
+	_timers.append([sec, fn])
+
+
+## A boulder lands: a crater with cracks, a burst of dust and rock chunks flying out.
+func _boulder_impact(ground: Vector3, r: float) -> void:
+	_ground_decal(ground, "crater", 1.25 * r + 0.3, 1.8)
+	_dust_fx(ground + Vector3(0, 0.25, 0), 7, 0.9 * r)
+	var chunks: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if _fx_room(chunks):
+		for i in chunks:
+			var sz := randf_range(0.08, 0.15) * (0.7 + 0.3 * r)
+			var c := _mi(_sph_c(0.5, 5), _atk_mat("chunk"), self, ground + Vector3(0, 0.25, 0), Vector3(randf(), randf(), randf()) * 3.0,
+				Vector3.ONE * sz)
+			c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var a := randf() * TAU
+			effects.append({"node": c, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "debris", "s": sz,
+				"v": Vector3(cos(a) * randf_range(1.8, 3.2), randf_range(3.0, 5.0), sin(a) * randf_range(1.8, 3.2))})
+
+
+## A burning boulder (Fire Pot) bursts: flames leap up round the crater for a moment and embers fly.
+func _fire_splash(ground: Vector3, r: float) -> void:
+	var n: int = [4, 3, 1][clampi(Progress.gfx_level(), 0, 2)]
+	if not _fx_room(n + 4):
+		return
+	for i in n:
+		var a := TAU * i / n + randf() * 0.8
+		var at := ground + Vector3(cos(a), 0, sin(a)) * (0.25 + randf() * 0.35) * r + Vector3(0, 0.02, 0)
+		var fl := _mi(_flame_quad(0.45, 0.7), _campfire_mat("outer"), self, at)
+		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fl.visible = false
+		effects.append({"node": fl, "t": -0.03 * i, "life": randf_range(0.5, 0.8), "kind": "pop", "s": randf_range(0.8, 1.2) * r})
+	for i in 4:
+		var sz := randf_range(0.04, 0.07)
+		var e := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot"), self, ground + Vector3(0, 0.3, 0), Vector3.ZERO, Vector3.ONE * sz)
+		e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a2 := randf() * TAU
+		effects.append({"node": e, "t": 0.0, "life": randf_range(0.4, 0.6), "kind": "debris", "s": sz,
+			"v": Vector3(cos(a2) * randf_range(1.0, 2.2), randf_range(2.5, 4.0), sin(a2) * randf_range(1.0, 2.2))})
+
+
 ## v2 robot death: white armor plates fly and red sparks burst. Nothing is left on the ground.
 func _robot_death_fx(pos: Vector3, big: bool) -> void:
 	_debris_fx(pos, 14 if big else 5, big)
@@ -2462,10 +3263,12 @@ func _ambient_fx(fire_pos: Vector3) -> void:
 		m.set_meta("seed", randf() * 100.0)
 
 
-func _boulder_drop_fx(target: Vector3, delay: float) -> void:
-	var b := _mi(_sph(0.35, 6), _mat("drop_rock", Color(0.5, 0.48, 0.45)), self, target + Vector3(0, 9, 0))
+func _boulder_drop_fx(target: Vector3, delay: float, tid := -1) -> void:
+	var b := _mi(_sph_c(0.35, 16), _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95}), self, target + Vector3(0, 9, 0))
+	b.scale = Vector3(1.08, 0.86, 0.97)
 	b.visible = false
-	effects.append({"node": b, "t": -delay, "life": 0.45, "kind": "fall", "from": target + Vector3(0.6, 9, -0.4), "to": target + Vector3(0, 0.3, 0)})
+	effects.append({"node": b, "t": -delay, "life": 0.45, "kind": "fall", "from": target + Vector3(0.6, 9, -0.4), "to": target + Vector3(0, 0.3, 0),
+		"tid": tid})
 
 
 func _update_effects(dt: float) -> void:
@@ -2478,9 +3281,54 @@ func _update_effects(dt: float) -> void:
 		elif is_instance_valid(fx.node):
 			(fx.node as Node).queue_free()
 	effects = keep
+	if not _timers.is_empty():
+		var later := []
+		for tm in _timers:
+			tm[0] = float(tm[0]) - dt
+			if float(tm[0]) <= 0.0:
+				_fx_queue.append(tm[1])
+			else:
+				later.append(tm)
+		_timers = later
 	for p in landed:
-		_dust_fx(p, 7, 1.0)
+		_boulder_impact(Vector3(p.x, 0.0, p.z), 1.0)
 		shake = maxf(shake, 0.35)
+	# effects that spawn effects (a tar glob landing, a spike bursting up) queue them here, after the loop
+	if not _fx_queue.is_empty():
+		var q := _fx_queue
+		_fx_queue = []
+		for c in q:
+			(c as Callable).call()
+
+
+## Fades a mesh: k = 0 as made, 1 gone. The Compatibility renderer ignores GeometryInstance3D.transparency, so it swaps
+## between cached alpha steps of the mesh's own material (10 steps; one material per step, shared by every user).
+var _fade_mats := {}
+func _fade(n: Node, k: float) -> void:
+	var gi := n as GeometryInstance3D
+	if gi == null:
+		return
+	gi.set_meta("fade_k", k)
+	var base: BaseMaterial3D = gi.get_meta("fade0") if gi.has_meta("fade0") else gi.material_override as BaseMaterial3D
+	if base == null:
+		return
+	if not gi.has_meta("fade0"):
+		gi.set_meta("fade0", base)
+	var lvl := clampi(int(round(k * 10.0)), 0, 10)
+	if lvl >= 10:
+		gi.visible = false
+		return
+	var key := "%d_%d" % [base.get_instance_id(), lvl]
+	if not _fade_mats.has(key):
+		if lvl == 0:
+			_fade_mats[key] = base
+		else:
+			var m: BaseMaterial3D = base.duplicate()
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.albedo_color.a = base.albedo_color.a * (1.0 - lvl / 10.0)
+			_fade_mats[key] = m
+	if gi.material_override != _fade_mats[key]:
+		gi.material_override = _fade_mats[key]
 
 
 ## Advances one effect; returns false when it's finished (or broke) and its node should go.
@@ -2545,8 +3393,9 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 			"lava":
 				var pulse := 0.5 + 0.5 * sin((time_s + fx.t) * 2.2)
 				fx.light.light_energy = 0.6 + 0.5 * pulse
-				var pm: StandardMaterial3D = fx.pool.material_override
-				pm.emission_energy_multiplier = 0.7 + 0.6 * pulse
+				var pm := (fx.pool as GeometryInstance3D).material_override as StandardMaterial3D
+				if pm != null:                  # (a lava-pool shader animates itself)
+					pm.emission_energy_multiplier = 0.7 + 0.6 * pulse
 				fx.t -= dt
 			"ring":
 				var r: float = fx.r * (0.3 + 0.7 * sqrt(k))
@@ -2587,26 +3436,42 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 			"smoke":
 				n.position += fx.v * dt
 				n.scale = Vector3.ONE * (0.8 + k * 2.6)
-				n.transparency = 0.35 + 0.65 * k
+				_fade(n, 0.35 + 0.65 * k)
 			"spark":
 				fx.v.y -= 10.0 * dt
 				n.position += fx.v * dt
 				n.scale = Vector3.ONE * (1.0 - k)
 			"flash":
 				n.scale = Vector3.ONE * fx.s * (0.6 + k * 1.2)
-				n.transparency = k * k
+				_fade(n, k * k)
 				n.visible = k < 0.95
 			"dust":
+				n.visible = fx.t >= 0.0             # (a puff can wait for its moment: a shock of dirt running out)
 				n.position += fx.v * dt
 				fx.v *= 0.9
 				n.scale = Vector3.ONE * (0.6 + k * 1.6)
-				n.transparency = k
+				_fade(n, k)
+			"glob":
+				_tick_glob(fx, n)
+			"spike":
+				_tick_spike(fx, n)
+			"decal":
+				n.visible = fx.t >= 0.0
+				var dk: float = clampf(fx.t / 0.08, 0.0, 1.0)
+				n.scale = fx.size * (0.55 + 0.45 * dk * (2.0 - dk))
+				_fade(n, clampf((k - 0.6) / 0.4, 0.0, 1.0))
+			"pop":
+				n.visible = fx.t >= 0.0
+				n.scale = Vector3.ONE * float(fx.s) * sin(clampf(k, 0.0, 1.0) * PI)
 			"fall":
 				n.visible = fx.t >= 0.0
 				n.position = fx.from.lerp(fx.to, k * k)
 				n.rotation += Vector3(5, 3, 2) * dt
 				if fx.t >= fx.life:
 					landed.append(fx.to)
+					if int(fx.get("tid", -1)) >= 0:
+						var ltid := int(fx.tid)
+						_fx_queue.append(func() -> void: _land_hit(ltid))
 	return fx.t < fx.life
 
 
@@ -2681,6 +3546,17 @@ func _fire_sfx(u: Dictionary) -> void:
 
 
 func _handle_events() -> void:
+	# robots that a tar glob, earth spike or club shock will reach a moment from now (their death waits for it)
+	_atk_pending.clear()
+	for ev0 in sim.events:
+		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
+			var u0 = sim.get_unit(ev0.id)
+			if u0 != null and u0.type in ["tar_shaman", "mara", "club_warrior"]:
+				for t0 in ev0.targets:
+					_atk_pending[int(t0)] = true
+		elif ev0.e == "ability" and str(ev0.get("type", "")) in ["rain", "quake"]:
+			for t0 in ev0.get("ids", []):                # Stone Rain's boulders and the Earthquake's spikes
+				_atk_pending[int(t0)] = true
 	for ev in sim.events:
 		match ev.e:
 			"place":
@@ -2757,22 +3633,19 @@ func _handle_events() -> void:
 				_ring_fx(_v3(ev.to, 0.4), 1.3, Color(0.4, 0.95, 1.0, 0.9), 0.35)
 				_sfx("cloak", -16.0, 0.1, 0.15)
 			"kill":
-				if enemy_nodes.has(ev.id):
-					var n2: Node3D = enemy_nodes[ev.id]
-					var big: bool = defs.enemies[ev.type].get("boss", false)
-					if _style2():
-						_robot_death_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), big)
-					else:
-						_debris_fx(n2.position + Vector3(0, 0.7 if not big else 2.0, 0), 14 if big else 5, big)
-					_float_text(n2.position + Vector3(0, 1.5, 0), "+%d" % ev.bounty, C_COIN, 46 if not big else 90)
-					n2.queue_free()
-					enemy_nodes.erase(ev.id)
-					if big:
-						shake = 1.3
-						_sfx("boss_death", 0.0, 0.0)
-					else:
-						_sfx("robot_death", -4.0, 0.15, 0.03)
-						_sfx("coin", -14.0, 0.05, 0.06)
+				if _atk_pending.has(int(ev.id)) and enemy_nodes.has(ev.id) and not _splits_on_death(str(ev.type)):
+					# killed by a tar glob / spike / shock that is still on its way: it freezes and blows up when that
+					# lands (the effect's _hold_hit sets the time; 4 s is only a safety net). Robots that burst into
+					# others or blast an EMP when they die go at once, so nothing comes out of an intact robot.
+					_doomed[int(ev.id)] = ev
+					var dn: Node3D = enemy_nodes[ev.id]
+					if dn.has_meta("anim"):
+						(dn.get_meta("anim") as AnimationPlayer).speed_scale = 0.0
+					(dn.get_node("Bar") as Node3D).visible = false
+					var did := int(ev.id)
+					_fx_after(4.0, func() -> void: _resolve_doom(did))
+				else:
+					_robot_killed(ev)
 			"leak":
 				if enemy_nodes.has(ev.id):
 					enemy_nodes[ev.id].queue_free()
@@ -2788,11 +3661,14 @@ func _handle_events() -> void:
 			"slam":
 				_animate_fire(ev.id)
 				var u2 = sim.get_unit(ev.id)
-				if u2 != null:
+				if u2 != null and u2.type == "club_warrior":
+					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
+				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
 					if _style2():
 						_pebble_fx(_v3(u2.pos + u2.facing * 1.0, 0.3), 3)
+				if u2 != null:
 					var slam_col := Color(1, 0.8, 0.45)
 					var ss := "club"
 					if u2.type in ["spear_guard", "kira", "brenna", "cassia", "legionary"]:
@@ -2812,7 +3688,15 @@ func _handle_events() -> void:
 			"pulse":
 				_animate_fire(ev.id)
 				var u3 = sim.get_unit(ev.id)
-				if u3 != null:
+				var tg3: Array = ev.get("targets", [])
+				if u3 != null and u3.type in ["tar_shaman", "mara"] and not tg3.is_empty():
+					# v0.9.20: real attacks instead of a ring: tar globs / stone spikes on the robots hit
+					_face_targets(ev.id, u3, tg3)
+					if u3.type == "tar_shaman":
+						_tar_volley(u3, tg3)
+					else:
+						_earth_spikes(u3, tg3)
+				elif u3 != null:
 					var pcol := Color(0.4, 1.0, 0.5)
 					if u3.type == "sun_priest":
 						pcol = Color(1.0, 0.85, 0.3)
@@ -2836,10 +3720,26 @@ func _handle_events() -> void:
 				if p != null:
 					proj_nodes[ev.id] = _make_projectile(p)
 			"impact":
+				var boulder := false
+				var hot_b := false
 				if proj_nodes.has(ev.pid):
+					boulder = (proj_nodes[ev.pid] as Node3D).has_meta("boulder")
+					hot_b = (proj_nodes[ev.pid] as Node3D).has_meta("hot")
+				else:                                   # (it flew and landed within one frame: no node was made)
+					var su = sim.get_unit(int(ev.get("tower", -1)))
+					if su != null and (su.type == "boulder_catapult" or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
+						boulder = true
+						hot_b = su.type == "boulder_catapult" and str(ev.get("dtype", "")) == "fire"
 					proj_nodes[ev.pid].queue_free()
 					proj_nodes.erase(ev.pid)
-				if ev.splash > 0.0:
+				if boulder:
+					# v0.9.20: the catapult's (and the Boulder Hurler's) boulder smashes down: crater, dust, flying rock
+					_boulder_impact(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
+					if hot_b:
+						_fire_splash(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
+					_sfx("boulder_land", -8.0, 0.15, 0.08)
+					shake = maxf(shake, 0.2)
+				elif ev.splash > 0.0:
 					_ring_fx(_v3(ev.pos, 0.2), ev.splash, Color(1, 0.65, 0.3), 0.3)
 					_dust_fx(_v3(ev.pos, 0.2), 6, ev.splash)
 					_sfx("explosion" if _era_index() >= 5 else "boulder_land", -8.0, 0.15, 0.08)
@@ -2929,7 +3829,16 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		bm.rotation = Vector3(0.4, 0.9, 0.2)
 		if hot:
 			_fire_halo(root, 0.7)
+			root.set_meta("hot", true)
 		root.set_meta("spin", true)
+		root.set_meta("boulder", true)
+		return root
+	if utype == "rock_slinger" and float(src.get("splash", 0.0)) > 0.0:
+		# Boulder Hurler (Path A): a heavy lumpy rock that smashes down like the catapult's (crater, dust, no ring)
+		var rm := _mi(_sph_c(0.16, 12), _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95}), root)
+		rm.scale = Vector3(1.1, 0.85, 0.95)
+		root.set_meta("spin", true)
+		root.set_meta("boulder", true)
 		return root
 	var size := 0.11
 	var col := Color(0.6, 0.58, 0.55)
@@ -3042,23 +3951,55 @@ func _chain_fx(pts: Array) -> void:
 			effects.append({"node": bolt, "t": 0.0, "life": 0.15, "kind": "flash", "s": 1.0})
 
 
+## Earthquake (v0.9.20; was two big rings): cracks open round the hero and the quake rolls out across the map,
+## bursting a spike (and dust) under every robot as it passes.
+## Earthquake: the ground cracks round Mara and the quake rolls out across the map; spikes burst up round every robot
+## (the nearest first) and each one is hit as the quake reaches it.
+func _quake_fx(hp: Vector3, ids: Array) -> void:
+	var ground := Vector3(hp.x, 0.0, hp.z)
+	_ground_decal(ground, "crack", 3.2, 2.2)
+	_ground_decal(ground, "crack", 2.0, 2.2, 0.08)
+	var cap: int = [12, 8, 4][clampi(Progress.gfx_level(), 0, 2)]
+	var hits := []
+	for t in ids:
+		var p := _robot_point(int(t), 0.0)
+		if p != Vector3.INF:
+			p.y = 0.0
+			hits.append([p.distance_to(ground), p, int(t)])
+	hits.sort_custom(func(a, b): return a[0] < b[0])
+	var i := 0
+	for h in hits:
+		var d: float = float(h[0]) / 14.0                 # the quake rolls out at 14 units a second
+		var p: Vector3 = h[1]
+		var eid: int = h[2]
+		_hold_hit(eid, d)
+		if i < cap:
+			_spike_cluster(p, d, eid, 1.1)
+			i += 1
+		else:
+			_fx_after(d, func() -> void:
+				_dust_fx(p + Vector3(0, 0.2, 0), 2, 0.6)
+				_land_hit(eid))
+
+
 func _ability_fx(ev: Dictionary) -> void:
 	var hp := _v3(ev.pos, 0.3)
 	var aname := str(sim.hero_def.ability.name).to_upper() + "!"
 	match str(ev.get("type", "")):
 		"rain":
 			var i := 0
+			var ids: Array = ev.get("ids", [])
 			for p in ev.hits:
-				_boulder_drop_fx(_v3(p), i * 0.06)
+				var rid := int(ids[i]) if i < ids.size() else -1
+				_boulder_drop_fx(_v3(p), i * 0.06, rid)
+				if rid >= 0:
+					_hold_hit(rid, i * 0.06 + 0.45)
 				i += 1
 			_banner(aname, Color(0.9, 0.8, 0.6))
 			_sfx("ab_stone_rain" if _era_index() < 4 else "airstrike", 0.0, 0.0, 0.5)
 			return
 		"quake":
-			_ring_fx(hp, 26.0, Color(0.75, 0.55, 0.3), 1.0)
-			_ring_fx(hp, 14.0, Color(0.85, 0.65, 0.35), 0.7)
-			for e in sim.enemies:
-				_dust_fx(_v3(e.pos, 0.2), 3, 0.6)
+			_quake_fx(hp, ev.get("ids", []))
 			shake = 1.4
 			_banner(aname, Color(0.85, 0.6, 1.0))
 			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
@@ -3107,21 +4048,6 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("emp", 0.0, 0.0, 0.5)
 			return
 	match str(ev.ability):
-		"stone_rain":
-			var i := 0
-			for p in ev.hits:
-				_boulder_drop_fx(_v3(p), i * 0.06)
-				i += 1
-			_banner("STONE RAIN!", Color(0.9, 0.8, 0.6))
-			_sfx("ab_stone_rain", 0.0, 0.0, 0.5)
-		"earthquake":
-			_ring_fx(hp, 26.0, Color(0.75, 0.55, 0.3), 1.0)
-			_ring_fx(hp, 14.0, Color(0.85, 0.65, 0.35), 0.7)
-			for e in sim.enemies:
-				_dust_fx(_v3(e.pos, 0.2), 3, 0.6)
-			shake = 1.4
-			_banner("EARTHQUAKE!", Color(0.85, 0.6, 1.0))
-			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
 		"solar_flare":
 			_ring_fx(hp, float(ev.radius), Color(1, 0.85, 0.3), 0.7)
 			_ring_fx(hp, float(ev.radius) * 0.6, Color(1, 0.95, 0.6), 0.5)
@@ -3205,8 +4131,17 @@ func _robot_anim_tick(n: Node3D, e: Dictionary, stunned: bool) -> void:
 
 
 func _sync_visuals(alpha: float) -> void:
+	var gl_now := Progress.gfx_level()
+	for did in _doomed:                          # a doomed robot (frozen, waiting for its hit) still flashes and is thrown up
+		if not enemy_nodes.has(did):
+			continue
+		var dn: Node3D = enemy_nodes[did]
+		_hit_flash(dn)
+		if dn.has_meta("hop"):
+			var dk := clampf((time_s - float(dn.get_meta("hop"))) / 0.34, 0.0, 1.0)
+			dn.position.y = float(dn.get_meta("hop_y0", 0.0)) + float(dn.get_meta("hop_h", 0.3)) * sin(PI * dk)
 	for e in sim.enemies:
-		if not enemy_nodes.has(e.id):
+		if not enemy_nodes.has(e.id) or not e.alive or _doomed.has(e.id):
 			continue
 		var n: Node3D = enemy_nodes[e.id]
 		var p: Vector2 = e.prev_pos.lerp(e.pos, alpha)
@@ -3221,6 +4156,12 @@ func _sync_visuals(alpha: float) -> void:
 			if ek >= 1.0:
 				n.remove_meta("emerge")
 				n.scale = Vector3.ONE
+		if n.has_meta("hop"):
+			var hk := (time_s - float(n.get_meta("hop"))) / 0.34
+			if hk >= 1.0 or hk < 0.0:
+				n.remove_meta("hop")
+			else:
+				n.position.y += float(n.get_meta("hop_h", 0.3)) * sin(PI * hk)
 		var dir := sim.dir_at(e.dist, e.pi)
 		n.rotation.y = lerp_angle(n.rotation.y, _yaw(dir), 0.25)
 		var stunned: bool = sim.tick < e.stun_until
@@ -3235,6 +4176,7 @@ func _sync_visuals(alpha: float) -> void:
 		for l in n.get_meta("legsB"):
 			l.rotation.x = -swing
 		_spin_flicker(n, get_process_delta_time(), 0.0 if stunned else 24.0)
+		_tar_coat(n, gl_now)
 		_hit_flash(n)
 		var body = n.get_meta("body")
 		if body != null:
@@ -3272,7 +4214,7 @@ func _sync_visuals(alpha: float) -> void:
 		if mark.visible:
 			mark.rotation.y = time_s * 3.0
 		var bar: Node3D = n.get_node("Bar")
-		if e.hp < e.max_hp and not attract:
+		if e.hp < e.max_hp and not attract and not _hide_bars:
 			bar.visible = true
 			bar.global_rotation = Vector3.ZERO     # don't swing around when the robot turns a corner
 			var fg: MeshInstance3D = bar.get_node("Fg")
@@ -3307,7 +4249,10 @@ func _sync_visuals(alpha: float) -> void:
 		var tn: Node3D = tower_nodes[t.id]
 		if tn.has_meta("yaw"):
 			var yaw_node: Node3D = tn.get_meta("yaw")
-			yaw_node.rotation.y = lerp_angle(yaw_node.rotation.y, _yaw(t.facing), 0.2)
+			var fdir: Vector2 = t.facing
+			if tn.has_meta("face_to") and time_s - float(tn.get_meta("face_t", -99.0)) < 2.5:
+				fdir = tn.get_meta("face_to")           # a pulse unit faces what it's flinging at, then the camera again
+			yaw_node.rotation.y = lerp_angle(yaw_node.rotation.y, _yaw(fdir), 0.2)
 		_spin_flicker(tn, pdt, 0.0 if sim.tick < int(t.get("stun_until", 0)) else 9.0)
 		if tn.has_meta("anim"):
 			_hq_anim_tick(tn, sim.tick < int(t.get("stun_until", 0)))
@@ -7812,6 +8757,144 @@ func _run_demo() -> void:
 		return
 	if "--test-place" in args:
 		await _test_place()
+		get_tree().quit()
+		return
+	if "--shoot-attacks" in args:
+		# Stone Age attacks (v0.9.20): one unit (--unit=tar_shaman|club_warrior|boulder_catapult|rock_slinger) or the hero
+		# (--hero=mara|ugo with --unit=hero) against a stream of robots; frames of its next attack from a camera beside
+		# it (--frames=N, one per frame). Run Godot with --fixed-fps 30 so frames are evenly spaced in game time.
+		# --high films from higher up, --wide keeps the game camera, --branch=A|B upgrades a tower fully down a path,
+		# --ability (hero) casts the hero's ability instead and films the whole field.
+		var unit := "tar_shaman"
+		var nframes := 16
+		var skip := 1                               # attacks to let pass first (the placement puff, robots still emerging)
+		var branch := ""
+		for a5 in args:
+			if a5.begins_with("--unit="):
+				unit = a5.trim_prefix("--unit=")
+			elif a5.begins_with("--frames="):
+				nframes = int(a5.trim_prefix("--frames="))
+			elif a5.begins_with("--skip="):
+				skip = int(a5.trim_prefix("--skip="))
+			elif a5.begins_with("--branch="):
+				branch = a5.trim_prefix("--branch=")
+		_start_game()
+		_end_preview()
+		sim.gold += 20000
+		var uid := -1
+		if unit == "hero":
+			sim.place_hero(_demo_spot("", true))
+			uid = sim.hero.id
+		else:
+			uid = sim.place_tower(unit, _demo_spot(unit))
+			if branch != "":
+				# fully upgraded down one path (--branch=A|B), to see that path's look
+				for k5 in 8:
+					if not sim.upgrade_tower(uid, ""):
+						sim.upgrade_tower(uid, branch)
+				var tu = sim.get_unit(uid)
+				print("ATTACKS branch=%s level=%d" % [str(tu.get("branch", "")), int(tu.level)])
+		_handle_events()
+		toast_t = 0.0
+		toast.modulate.a = 0.0
+		_hide_bars = true
+		sim.wave = 2
+		var akinds := ["walker", "walker", "brute", "walker", "walker", "carrier", "walker", "walker", "brute", "walker", "walker", "walker"]
+		sim.wave_remaining[2] = akinds.size()
+		for i in akinds.size():
+			sim._spawn_enemy(akinds[i], 2, 2.0 + i * 0.9, i % sim.paths.size())
+		_handle_events()
+		var an: Node3D = tower_nodes[uid]
+		var waited := 0
+		for sk in skip + 1:
+			var lf0 := float(an.get_meta("last_fire", -100.0))
+			while float(an.get_meta("last_fire", -100.0)) == lf0 and waited < 900:
+				await get_tree().process_frame
+				waited += 1
+		var ab_mode := "--ability" in args and unit == "hero"
+		if ab_mode:
+			sim.hero.ability_cd = 0.0
+			sim.hero.level = maxi(int(sim.hero.level), int(sim.hero_def.ability.get("unlock", 3)))
+			sim.use_ability()
+			_handle_events()
+		var u5 = sim.get_unit(uid)
+		# frame the unit and the robots in its reach from the side
+		var upos := _v3(u5.pos, 0.0) if u5 != null else an.global_position
+		var cen := Vector3.ZERO
+		var nin := 0
+		var far_shot := u5 != null and str(u5.stats.kind) in ["lob", "projectile"]
+		var lead = null
+		for e5 in sim.enemies:
+			if u5 != null and (ab_mode or (e5.pos as Vector2).distance_to(u5.pos) <= float(u5.stats.range) + 0.3):
+				cen += _v3(e5.pos, 0.0)
+				nin += 1
+				if lead == null or float(e5.dist) > float(lead.dist):
+					lead = e5
+		if far_shot and lead != null:
+			cen = _v3(lead.pos, 0.0) * float(nin)       # a shooter: frame it and the robot it's aiming at
+		var tdir := Vector3(0, 0, 1)
+		if nin > 0:
+			cen /= nin
+			tdir = cen - upos
+		elif u5 != null:
+			tdir = Vector3(u5.facing.x, 0, u5.facing.y)
+		tdir.y = 0.0
+		var span := clampf(tdir.length(), 1.2, 7.0 if ab_mode else 4.0)
+		tdir = tdir.normalized()
+		var sidev := tdir.cross(Vector3.UP).normalized()
+		if (sidev.z < 0.0):
+			sidev = -sidev                          # stay on the camera's usual (south) side of the action
+		var mid := upos + tdir * span * 0.5
+		if not "--wide" in args:                    # --wide keeps the game's own camera
+			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+			cam.fov = 40
+			var hi := 1.0 if ("--high" in args or ab_mode) else 0.0     # --high: from above, nearer the game's own angle
+			cam.global_position = mid + sidev * (3.2 + span * 0.9 - hi * 1.2) + Vector3(0, 2.4 + span * 0.35 + hi * 2.6, 0) - tdir * 0.4
+			cam.look_at(mid + Vector3(0, 0.75, 0))
+		cam_base = cam.position
+		shake = 0.0
+		for i in nframes:
+			cam.global_position = cam_base
+			await _shot("atk_%s_%02d.png" % [unit, i])
+			await get_tree().process_frame
+		print("ATTACKS unit=%s waited=%d frames" % [unit, waited])
+		get_tree().quit()
+		return
+	if "--shoot-lava" in args:
+		# moving lava and water (v0.9.21): frames of the whole map from the game camera, then of the first pool and of the
+		# volcano up close (--frames=N per view, a shot every --every=K frames; run Godot with --fixed-fps 30)
+		var lframes := 12
+		var every := 6
+		for a6 in args:
+			if a6.begins_with("--frames="):
+				lframes = int(a6.trim_prefix("--frames="))
+			elif a6.begins_with("--every="):
+				every = int(a6.trim_prefix("--every="))
+		_start_game()
+		_end_preview()
+		toast_t = 0.0
+		toast.modulate.a = 0.0
+		var views := [["wide", Vector3.INF, 0.0]]
+		for bl in map.get("blockers", []):
+			if bl.size() > 3 and str(bl[3]) in ["lava", "lake", "pond"]:
+				views.append(["pool", Vector3(bl[0], 0, bl[1]), float(bl[2])])
+				break
+		for mk in _decor_theme().get("marks", []):
+			if str(mk[0]) == "Volcano":
+				views.append(["volcano", Vector3(mk[1].x, 0, mk[1].y), 4.0])
+		for v in views:
+			if v[1] != Vector3.INF:
+				cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+				cam.fov = 40
+				var rr: float = maxf(float(v[2]), 1.0)
+				cam.global_position = (v[1] as Vector3) + Vector3(0, rr * 2.6 + 1.5, rr * 2.4 + 2.0)
+				cam.look_at((v[1] as Vector3) + Vector3(0, 0.5 if v[0] != "volcano" else 1.5, 0))
+				cam_base = cam.position
+			for i in lframes:
+				for k6 in every:
+					await get_tree().process_frame
+				await _shot("lava_%s_%02d.png" % [v[0], i])
+		print("LAVA views=%d" % views.size())
 		get_tree().quit()
 		return
 	if "--shoot-hq" in args:
