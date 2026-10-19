@@ -62,6 +62,9 @@ python3 robot_icon.py -- D/brute_hq.blend D/strip --strip                       
 | Brute Bot | `robot_brute` | Walk (heavy stomp) | `walk_speed` 0.57 |
 | Carrier | `robot_carrier` | Fly (hover sled, pods bob) | hover |
 | Prime Walker (boss) | `robot_prime_walker` | Walk, Summon | `walk_speed` 0.7, Summon on its summon event |
+| Shield Bot (v0.9.27) | `robot_shield_bot` | Walk (shield arm held up) | `walk_speed` 0.83; `GlowShieldPanel` see-through, shown while its shield holds |
+| Repair Drone (v0.9.27) | `robot_repair_drone` | Fly (rotors spin in pairs, arms twitch) | hovers on its own (no `flying`) |
+| Siege Crawler (boss, v0.9.27) | `robot_siege_crawler` | Walk (tripod gait), Summon (rear up, hatch open) | `walk_speed` 0.5 |
 
 Each part is weighted 100% to one bone (machines don't bend). `robot_mats.py`: white armour with painted labels
 (hazard stripes, panel lines), gunmetal frames, chrome, rubber, lens sockets; glows (eyes, cores) ship as emissive meshes.

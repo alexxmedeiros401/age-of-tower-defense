@@ -2231,6 +2231,11 @@ func _make_robot(type: String) -> Node3D:
 		root.set_meta("anim", ap)
 		root.set_meta("loop", loop)
 		_hq_outline(model)
+		var panel := model.find_child("GlowShieldPanel", true, false) as MeshInstance3D
+		if panel != null:              # v0.9.27: the HQ Shield Bot's energy shield: see-through, and down with its shield
+			panel.material_override = _atk_mat("shield_panel")
+			panel.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			root.set_meta("shield_panel", panel)
 	var h: float = float(d.get("bar_h", 1.4))
 	if d.get("flying", false):
 		model.position.y = 0.9           # flyers hover above the road (only some towers can reach them)
@@ -2277,17 +2282,17 @@ func _make_robot(type: String) -> Node3D:
 		tag.no_depth_test = true
 		tag.position = Vector3(0, h + 0.6, 0)
 		root.add_child(tag)
-	if d.has("shield"):
-		var bm := StandardMaterial3D.new()
-		bm.albedo_color = Color(0.4, 0.85, 1.0, 0.22)
-		bm.emission_enabled = true
-		bm.emission = Color(0.2, 0.7, 1.0)
-		bm.emission_energy_multiplier = 0.8
-		bm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		bm.cull_mode = BaseMaterial3D.CULL_DISABLED
-		var br: float = 0.75 if not d.get("boss", false) else 2.2
-		var bubble := _mi(_sph(br, 16), bm, root, Vector3(0, br * 0.85, 0))
+	if d.has("shield") and not root.has_meta("shield_panel"):   # (the HQ Shield Bot shows its shield on its panel)
+		# v0.9.27: a glowing rim instead of a milky sphere, so the robot inside stays readable
+		var bm := ShaderMaterial.new()
+		bm.shader = load("res://game/shaders/shield_bubble.gdshader")
+		var boss: bool = d.get("boss", false)
+		var br: float = 0.75 if not boss else 2.2
+		var bubble := _mi(_sph(br, 24), bm, root, Vector3(0, br * 0.85, 0))
+		if boss and root.has_meta("anim"):         # (an HQ boss: a dome hugging its body, not a ball over it)
+			bubble.scale = Vector3(1.0, 0.62, 1.0)
+			bubble.position.y = 0.95
+		bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		bubble.name = "Bubble"
 	var mark := TorusMesh.new()
 	mark.inner_radius = 0.28
@@ -2613,6 +2618,20 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			m.albedo_color = Color(1.0, 0.5, 0.16) if key == "fury_wave" else Color(1.0, 0.42, 0.1)
+		"shield_panel", "shield_shard":               # the Shield Bot's energy shield, and its shards when it breaks
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = Color(0.3, 0.85, 1.0, 0.5) if key == "shield_panel" else Color(0.5, 0.95, 1.0, 0.9)
+		"heal_mote":                                  # green motes off a mended robot
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = Color(0.4, 1.0, 0.5)
+			m.albedo_texture = _mote_tex()
 		"hammer_spark":                               # sparks off the red-hot hammer and the anvil
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.albedo_color = Color(1.0, 0.74, 0.32)
@@ -3811,12 +3830,16 @@ func _handle_events() -> void:
 			"shield_break":
 				if enemy_nodes.has(ev.id):
 					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.7, 0), 1.0, Color(0.4, 0.9, 1.0), 0.3)
+					if (enemy_nodes[ev.id] as Node3D).has_meta("shield_panel"):
+						_shield_shatter(enemy_nodes[ev.id])
 				_sfx("shield_break", -10.0, 0.1, 0.15)
 			"shield_up":
 				_sfx("shield_up", -16.0, 0.1, 0.5)
 			"heal":
 				if enemy_nodes.has(ev.id):
 					_ring_fx(enemy_nodes[ev.id].position + Vector3(0, 0.3, 0), ev.radius, Color(0.3, 1.0, 0.4), 0.5)
+					if (enemy_nodes[ev.id] as Node3D).has_meta("anim"):
+						_drone_heal(int(ev.id), float(ev.radius))
 				_sfx("heal", -12.0, 0.05, 0.4)
 			"warp":
 				for wp in [ev.from, ev.to]:
@@ -3925,6 +3948,8 @@ func _handle_events() -> void:
 			"impact":
 				if _hammers.has(int(ev.pid)):
 					_tarek_impact(ev)                       # it strikes when the flying hammer gets there
+					continue
+				if _tarek_unseen(ev):
 					continue
 				var boulder := false
 				var hot_b := false
@@ -4556,8 +4581,9 @@ func _on_clip(uid: int, clip: String, at: float, left: float, fn: Callable, last
 		var ap: AnimationPlayer = (tn as Node3D).get_meta("anim")
 		if ap.is_playing() and ap.current_animation == clip:
 			pos = ap.current_animation_position
-			# (the player moves on after this, in this frame)
-			due = pos + get_process_delta_time() * ap.speed_scale >= at or pos < last or left <= -maxf(0.1, 1.5 * step)
+			# (the player moves on after this, in this frame; its time, summed frame by frame, can land a hair short of a
+			# frame it reaches: 14 x 1/30 + 1/30 < 0.5 put Forge Fury's first sparks a frame after the blow)
+			due = pos + get_process_delta_time() * ap.speed_scale >= at - 0.001 or pos < last or left <= -maxf(0.1, 1.5 * step)
 	if due:
 		fn.call()
 	else:
@@ -4730,6 +4756,7 @@ const TAREK_THROW_T := 0.1                          # anim_tarek.py RELEASE (fra
 const TAREK_HEAD := 0.42                            # the hammer's head: this far along its bone from his grip (tarek.py)
 const TAREK_STRIKES := [12, 22, 36]                 # anim_tarek.py STRIKES (clip frames of the blows on the anvil)
 const TAREK_AB_LEN := 66                            # anim_tarek.py AB_FR
+const TAREK_TURN := 9.0 / CLIP_FPS                  # anim_tarek.py: squared up to the anvil by frame 9 of the Ability
 const TAREK_ANVIL := Vector3(-0.495, 0.889, 0.523)  # the red-hot bar on his anvil (model units, Godot axes, model root)
 const TAREK_ANVIL_DIR := Vector2(-0.7071, 0.7071)   # from where he stands to the anvil (world x, z: the model isn't turned)
 const TAREK_FLY := 1.3                              # the flying hammer's size (of the one in his hand)
@@ -4748,11 +4775,15 @@ func _tarek_hq(p: Dictionary) -> bool:
 ## The thrown hammer: an ash handle bound with red cord and a bronze head, its striking face red-hot and glowing.
 ## Its handle runs along +Y from the butt (-0.36) to the head (+0.12), the hot face toward -Z.
 func _hammer_model(root: Node3D) -> void:
-	for part in [[_cyl(0.022, 0.024, 0.46, 8), "hammer_wood", Vector3(0, -0.13, 0), Vector3.ZERO],
-			[_cyl(0.027, 0.027, 0.12, 8), "hammer_cord", Vector3(0, -0.27, 0), Vector3.ZERO],
-			[_box(0.1, 0.09, 0.16), "hammer_bronze", Vector3(0, 0.12, 0.03), Vector3.ZERO],
-			[_cyl(0.034, 0.046, 0.05, 8), "hammer_bronze", Vector3(0, 0.12, 0.13), Vector3(PI * 0.5, 0, 0)],
-			[_box(0.106, 0.096, 0.06), "hammer_hot", Vector3(0, 0.12, -0.075), Vector3.ZERO]]:
+	if not _atk_cache.has("hammer_parts"):                 # (built once: five new meshes a throw before)
+		_atk_cache["hammer_parts"] = [_cyl(0.022, 0.024, 0.46, 8), _cyl(0.027, 0.027, 0.12, 8), _box(0.1, 0.09, 0.16),
+			_cyl(0.034, 0.046, 0.05, 8), _box(0.106, 0.096, 0.06)]
+	var pm: Array = _atk_cache["hammer_parts"]
+	for part in [[pm[0], "hammer_wood", Vector3(0, -0.13, 0), Vector3.ZERO],
+			[pm[1], "hammer_cord", Vector3(0, -0.27, 0), Vector3.ZERO],
+			[pm[2], "hammer_bronze", Vector3(0, 0.12, 0.03), Vector3.ZERO],
+			[pm[3], "hammer_bronze", Vector3(0, 0.12, 0.13), Vector3(PI * 0.5, 0, 0)],
+			[pm[4], "hammer_hot", Vector3(0, 0.12, -0.075), Vector3.ZERO]]:
 		var mi := _mi(part[0], _atk_mat(part[1]), root, part[2], part[3])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var glow := Node3D.new()
@@ -4796,34 +4827,14 @@ func _tarek_throw(p: Dictionary) -> void:
 	_hammers[int(p.id)] = fx
 
 
-## The hammer's flight: in his fist (hidden) until his clip reaches the release, then end over end at its robot (following
-## it as it walks), as long as the sim's shot has left to fly (at least 0.12 s; the hit waits for it).
+## The hammer's flight: in his fist (hidden) until the clip hides the one in his fist (_tarek_release), then end over end at
+## its robot (following it as it walks), as long as the sim's shot has left to fly (at least 0.12 s; the hit waits for it).
 func _tick_hammer(fx: Dictionary, n: Node3D) -> void:
 	if not bool(fx.launched):
-		var hid := int(fx.hid)
-		var go := float(fx.t) >= 0.45 / maxf(float(speed), 0.01)             # (never later than this)
-		if _hq_clips(hid):
-			var tn: Node3D = tower_nodes[hid]
-			var ap: AnimationPlayer = tn.get_meta("anim")
-			var step := get_process_delta_time() * float(speed) * float(tn.get_meta("throw_rate", 1.0))
-			go = go or ap.current_animation != str(tn.get_meta("clip_attack")) \
-				or ap.current_animation_position + step >= TAREK_THROW_T
-			if go:
-				fx.from = _tarek_head(tn)
-				fx.s = TAREK_FLY * ((tn.get_meta("yaw") as Node3D).global_transform.basis.get_scale().x)
-		else:
-			go = true
-			fx.from = (fx.to as Vector3) + Vector3(0, 1.2, 0)
-		if not go:
-			return
-		fx.launched = true
-		fx.t0 = fx.t
-		var rem := 0.0
-		var sp = _proj_by_id(int(fx.pid))
-		if sp != null:
-			rem = ((sp.aim as Vector2) - (sp.pos as Vector2)).length() / maxf(float(sp.speed), 0.1) / maxf(float(speed), 0.01)
-		fx.dur = maxf(rem, 0.12)
-		n.visible = true
+		if not bool(fx.get("asked", false)):        # (judged once this frame's animation is applied)
+			fx.asked = true
+			_tarek_release.call_deferred(fx)
+		return
 	if bool(fx.landed):
 		if float(fx.t) - float(fx.t0) - float(fx.dur) > 0.5:
 			_hammers.erase(int(fx.pid))                 # (no hit came for it)
@@ -4833,15 +4844,7 @@ func _tick_hammer(fx: Dictionary, n: Node3D) -> void:
 	var live := _robot_point(int(fx.tid), float(fx.h))
 	if live != Vector3.INF:
 		fx.to = live
-	var from: Vector3 = fx.from
-	var to: Vector3 = fx.to
-	var d := to - from
-	var pos := from.lerp(to, k) + Vector3(0, 0.4 * minf(d.length() / 4.0, 1.0) * 4.0 * k * (1.0 - k), 0)
-	var fl := Vector3(d.x, 0.0, d.z)
-	fl = fl.normalized() if fl.length() > 0.01 else Vector3(0, 0, 1)
-	# head up and its hot face leading as it leaves, tumbling forward to strike head first
-	n.basis = (Basis.looking_at(fl, Vector3.UP) * Basis(Vector3.RIGHT, -TAU * 1.25 * k)).scaled(Vector3.ONE * float(fx.s))
-	n.position = pos
+	_hammer_pose(fx, n, k)
 	_hammer_embers(fx, n)
 	if k >= 1.0:
 		fx.landed = true
@@ -4850,6 +4853,69 @@ func _tick_hammer(fx: Dictionary, n: Node3D) -> void:
 			fx.life = 0.0
 		else:
 			n.visible = false                           # (the sim's hit is a moment behind: _tarek_impact strikes then)
+
+
+## Where the flying hammer is at `k` of its flight: an arc from `from` to `to`, head up and its hot face leading as it
+## leaves, tumbling forward to strike head first.
+func _hammer_pose(fx: Dictionary, n: Node3D, k: float) -> void:
+	var from: Vector3 = fx.from
+	var to: Vector3 = fx.to
+	var d := to - from
+	n.position = from.lerp(to, k) + Vector3(0, 0.4 * minf(d.length() / 4.0, 1.0) * 4.0 * k * (1.0 - k), 0)
+	var fl := Vector3(d.x, 0.0, d.z)
+	fl = fl.normalized() if fl.length() > 0.01 else Vector3(0, 0, 1)
+	n.basis = (Basis.looking_at(fl, Vector3.UP) * Basis(Vector3.RIGHT, -TAU * 1.25 * k)).scaled(Vector3.ONE * float(fx.s))
+
+
+## How big the hammer in his fist is drawn now (its bone's scale: 0 while his clip has it thrown).
+func _tarek_fist(tn: Node3D) -> float:
+	if not tn.has_meta("hammer_sk"):
+		_tarek_head(tn)                                 # (finds his skeleton)
+	var sk := tn.get_meta("hammer_sk") as Skeleton3D
+	if sk == null or not is_instance_valid(sk) or sk.find_bone("hammer") < 0:
+		return 0.0
+	return sk.get_bone_pose_scale(sk.find_bone("hammer")).x
+
+
+## Deferred from _tick_hammer, so it runs after this frame's animation is applied: the thrown hammer leaves his hand on
+## the frame his clip hides the one in his fist (the `hammer` bone's scale key at RELEASE) and starts where that one's
+## head is drawn this frame. Judged from the pose, not the clip's clock (TAREK_THROW_T): the pose read while the game
+## runs is last frame's (the flying one started up to 0.7 behind it at 2x), a clip restarted after it had stopped holds
+## its first pose a frame or two (two hammers at 3x), and a clip time summed frame by frame lands a hair short of the key
+## (no hammer at all for a frame at 60 fps). If his clip isn't the throw (a showpiece took over) or 0.45 s have passed,
+## it goes at once.
+func _tarek_release(fx: Dictionary) -> void:
+	fx.asked = false
+	if bool(fx.launched) or float(fx.life) <= 0.0 or not is_instance_valid(fx.node):
+		return
+	var n: Node3D = fx.node
+	var hid := int(fx.hid)
+	var go := float(fx.t) >= 0.45 / maxf(float(speed), 0.01)             # (never later than this)
+	if _hq_clips(hid):
+		var tn: Node3D = tower_nodes[hid]
+		var ap: AnimationPlayer = tn.get_meta("anim")
+		if ap.is_playing() and ap.current_animation in ["Ability", "Cheer"]:
+			_tarek_still(fx, n, tn)
+			return
+		go = go or ap.current_animation != str(tn.get_meta("clip_attack")) or _tarek_fist(tn) < 0.5
+		if go:
+			fx.s = TAREK_FLY * ((tn.get_meta("yaw") as Node3D).global_transform.basis.get_scale().x)
+			# (its head, 0.12 up its handle from the node, where the one in his fist had its head)
+			fx.from = _tarek_head(tn) - Vector3(0, 0.12 * float(fx.s), 0)
+	else:
+		go = true
+		fx.from = (fx.to as Vector3) + Vector3(0, 1.2, 0)
+	if not go:
+		return
+	fx.launched = true
+	fx.t0 = fx.t
+	var rem := 0.0
+	var sp = _proj_by_id(int(fx.pid))
+	if sp != null:
+		rem = ((sp.aim as Vector2) - (sp.pos as Vector2)).length() / maxf(float(sp.speed), 0.1) / maxf(float(speed), 0.01)
+	fx.dur = maxf(rem, 0.12)
+	n.visible = true
+	_hammer_pose(fx, n, 0.0)
 
 
 ## The hot head trails embers (FULL graphics).
@@ -4868,6 +4934,35 @@ func _hammer_embers(fx: Dictionary, n: Node3D) -> void:
 	em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": em, "t": 0.0, "life": randf_range(0.25, 0.4), "kind": "glint", "s": randf_range(0.6, 0.9),
 		"v": Vector3(randf_range(-0.3, 0.3), randf_range(0.5, 1.2), randf_range(-0.3, 0.3))})
+
+
+## A throw while a showpiece has his hammer (Forge Fury's blows on the anvil, a rank-up Cheer): the clip keeps the hammer
+## in his fist, so none leaves it (one flew out of the very hammer he was striking the anvil with); the hit lands on the
+## robot in a burst of sparks when the sim's does (_tarek_impact).
+func _tarek_still(fx: Dictionary, n: Node3D, tn: Node3D) -> void:
+	fx.launched = true
+	fx.landed = true
+	fx.still = true
+	fx.t0 = fx.t
+	fx.from = tn.global_position + Vector3(0, 1.2, 0)       # (its sparks fly back toward him)
+	var sp = _proj_by_id(int(fx.pid))                       # (the wait for the sim's hit counts from when it lands)
+	fx.dur = ((sp.aim as Vector2) - (sp.pos as Vector2)).length() / maxf(float(sp.speed), 0.1) / maxf(float(speed), 0.01) if sp != null else 0.0
+	n.visible = false
+	if not (fx.impact as Dictionary).is_empty():            # (the sim's hit came already)
+		_tarek_impact(fx.impact)
+
+
+## A hammer the sim threw and landed between two frames (10x, or a robot right at his feet) was never drawn flying: it
+## strikes with its sparks and clang (it fell through to the generic shell burst and boulder thud).
+func _tarek_unseen(ev: Dictionary) -> bool:
+	if sim.hero == null or int(ev.get("tower", -1)) != int(sim.hero.id) or str(sim.hero.type) != "tarek" or not _hq_clips(int(sim.hero.id)):
+		return false
+	var eid := int(ev.get("eid", -1))
+	var h := _hit_height_of(_robot_type(eid))
+	var live := _robot_point(eid, h) if eid >= 0 else Vector3.INF
+	_hammer_strike({"pid": int(ev.pid), "from": _v3(sim.hero.pos, 1.2), "to": live if live != Vector3.INF else _v3(ev.pos, h), "impact": ev,
+		"ids": [eid] if live != Vector3.INF else []})
+	return true
 
 
 ## The sim's hammer hit: the robots it hurt (and the ones its splash destroyed, held back) take it when the flying hammer
@@ -4890,6 +4985,9 @@ func _tarek_impact(ev: Dictionary) -> void:
 	fx.impact = ev
 	fx.ids = ids
 	if bool(fx.landed):
+		if bool(fx.get("still", false)):                 # (not drawn flying: it strikes where the robot is now)
+			var live := _robot_point(eid, float(fx.h)) if eid >= 0 else Vector3.INF
+			fx.to = live if live != Vector3.INF else _v3(ev.pos, float(fx.h))
 		_hammer_strike(fx)
 		fx.life = 0.0
 		return
@@ -4936,15 +5034,27 @@ func _hammer_strike(fx: Dictionary) -> void:
 func _tarek_fury() -> void:
 	var hid := int(sim.hero.id)
 	var tn: Node3D = tower_nodes[hid]
-	var spd := maxf(float(speed), 0.01)
-	var clip := float(TAREK_AB_LEN) / CLIP_FPS / spd
-	tn.set_meta("face_to", TAREK_ANVIL_DIR)
-	tn.set_meta("face_t", time_s + clip - 2.5)             # (the turn holds for 2.5 s after face_t: the whole clip)
+	# the turn follows his clip (_clip_face): squared up to the anvil as the clip squares his body up to it (TAREK_TURN)
+	# and facing it while the clip plays, at any game speed and through a pause (a lock timed in real seconds ran out
+	# mid-clip after a pause or a slow-down, and a turn at the fixed per-frame rate was still 59 degrees off at 3x)
+	tn.set_meta("clip_face", ["Ability", (tn.get_meta("yaw") as Node3D).rotation.y, _yaw(TAREK_ANVIL_DIR), TAREK_TURN])
 	for i in TAREK_STRIKES.size():
 		var big: bool = i == TAREK_STRIKES.size() - 1
 		var at := float(TAREK_STRIKES[i]) / CLIP_FPS
 		# on the frame his clip reaches the blow, whatever the game speed does meanwhile (_on_clip)
 		_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void: _anvil_strike(hid, big)))
+
+
+## A unit turning with one of its clips (Tarek to his anvil in Forge Fury): from the yaw it had to the clip's own, done
+## `turn` seconds into the clip by the clip's clock (so right at any game speed and through a pause); it lets go when the
+## clip ends.
+func _clip_face(tn: Node3D, yaw_node: Node3D) -> void:
+	var cf: Array = tn.get_meta("clip_face")
+	var ap: AnimationPlayer = tn.get_meta("anim") if tn.has_meta("anim") else null
+	if ap == null or not ap.is_playing() or ap.current_animation != str(cf[0]):
+		tn.remove_meta("clip_face")
+		return
+	yaw_node.rotation.y = lerp_angle(float(cf[1]), float(cf[2]), smoothstep(0.0, float(cf[3]), ap.current_animation_position))
 
 
 ## Where the red-hot bar on his anvil is (world).
@@ -4960,22 +5070,28 @@ func _anvil_strike(hid: int, big: bool) -> void:
 	var at := _tarek_anvil(tower_nodes[hid])
 	var gl := clampi(Progress.gfx_level(), 0, 2)
 	var n: int = ([18, 11, 5] if big else [10, 6, 3])[gl]
-	if _fx_room(n + 4):
-		var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, at)
-		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		effects.append({"node": f, "t": 0.0, "life": 0.3 if big else 0.2, "kind": "flash", "s": 1.3 if big else 0.7})
-		for i in n:
-			var sk := _mi(_fx_mesh("spark"), _atk_mat("hammer_spark"), self, at)
-			sk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			var a := randf() * TAU
-			var v := Vector3(cos(a) * randf_range(0.6, 2.2), randf_range(2.4, 4.6) * (1.25 if big else 1.0), sin(a) * randf_range(0.6, 2.2))
-			sk.look_at_from_position(sk.position, sk.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
-			effects.append({"node": sk, "t": 0.0, "life": randf_range(0.3, 0.5), "kind": "spark", "v": v})
-		for i in ([4, 3, 1] if big else [2, 1, 1])[gl]:
-			var em := _mi(_fx_mesh("mote"), _atk_mat("ember"), self, at + Vector3(randf_range(-0.1, 0.1), 0.05, randf_range(-0.1, 0.1)))
-			em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			effects.append({"node": em, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "glint", "s": randf_range(0.7, 1.0),
-				"v": Vector3(randf_range(-0.4, 0.4), randf_range(1.2, 2.0), randf_range(-0.4, 0.4))})
+	var ne: int = ([4, 3, 1] if big else [2, 1, 1])[gl]
+	# the blow itself is always drawn (its flash and three sparks; three blows a cast): the effects cap dropped it whole
+	# on a busy field and now only thins out the rest of the fountain
+	while n > 3 and not _fx_room(n + ne + 1):
+		n -= 1
+	if not _fx_room(n + ne + 1):
+		ne = 0
+	var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, at)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.3 if big else 0.2, "kind": "flash", "s": 1.3 if big else 0.7})
+	for i in n:
+		var sk := _mi(_fx_mesh("spark"), _atk_mat("hammer_spark"), self, at)
+		sk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a := randf() * TAU
+		var v := Vector3(cos(a) * randf_range(0.6, 2.2), randf_range(2.4, 4.6) * (1.25 if big else 1.0), sin(a) * randf_range(0.6, 2.2))
+		sk.look_at_from_position(sk.position, sk.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+		effects.append({"node": sk, "t": 0.0, "life": randf_range(0.3, 0.5), "kind": "spark", "v": v})
+	for i in ne:
+		var em := _mi(_fx_mesh("mote"), _atk_mat("ember"), self, at + Vector3(randf_range(-0.1, 0.1), 0.05, randf_range(-0.1, 0.1)))
+		em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": em, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "glint", "s": randf_range(0.7, 1.0),
+			"v": Vector3(randf_range(-0.4, 0.4), randf_range(1.2, 2.0), randf_range(-0.4, 0.4))})
 	_sfx("anvil", -3.0 if big else -7.0, 0.05, 0.05)
 	shake = maxf(shake, 0.5 if big else 0.14)
 	if big:
@@ -4987,10 +5103,12 @@ func _anvil_strike(hid: int, big: bool) -> void:
 func _fury_wave(at: Vector3) -> void:
 	var spd := maxf(float(speed), 0.01)
 	var R := 24.0
-	if _fx_room(1):
-		var w := _mi(_wave_mesh(), _atk_mat("fury_wave"), self, Vector3(at.x, 0.12, at.z), Vector3.ZERO, Vector3(0.4, 1.0, 0.4))
-		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		effects.append({"node": w, "t": 0.0, "life": R / FURY_SPEED / spd + 0.15, "kind": "wave", "r": R, "speed": FURY_SPEED * spd})
+	for t in sim.towers:                                    # (out past the farthest tower: it glows as the wave gets there)
+		R = maxf(R, Vector2(float(t.pos.x) - at.x, float(t.pos.y) - at.z).length() + 1.0)
+	# always drawn (one node, once a cast; the effects cap dropped it on a busy field)
+	var w := _mi(_wave_mesh(), _atk_mat("fury_wave"), self, Vector3(at.x, 0.12, at.z), Vector3.ZERO, Vector3(0.4, 1.0, 0.4))
+	w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": w, "t": 0.0, "life": R / FURY_SPEED / spd + 0.15, "kind": "wave", "r": R, "speed": FURY_SPEED * spd})
 	for t in sim.towers:
 		var tid := int(t.id)
 		var tp := _v3(t.pos, 0.0)
@@ -5039,6 +5157,50 @@ func _tick_fury(fx: Dictionary, n: Node3D) -> void:
 	em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": em, "t": 0.0, "life": randf_range(0.6, 0.9), "kind": "glint", "s": randf_range(0.6, 0.9),
 		"v": Vector3(randf_range(-0.2, 0.2), randf_range(0.8, 1.4), randf_range(-0.2, 0.2))})
+
+
+# ---------------------------------------------------------------- Bronze Age robots (v0.9.27)
+## The Shield Bot's shield breaks: its panel bursts into cyan shards that tumble down.
+func _shield_shatter(n: Node3D) -> void:
+	var spn: MeshInstance3D = n.get_meta("shield_panel")
+	var at: Vector3 = spn.global_transform * Vector3.ZERO if is_instance_valid(spn) else n.position + Vector3(0, 0.8, 0)
+	var k: int = [8, 5, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if not _fx_room(k):
+		return
+	for i in k:
+		var sh := _mi(_fx_mesh("cube"), _atk_mat("shield_shard"), self, at + Vector3(randf_range(-0.2, 0.2), randf_range(-0.25, 0.25), randf_range(-0.1, 0.1)),
+			Vector3(randf(), randf(), randf()) * 3.0, Vector3(randf_range(0.06, 0.12), randf_range(0.06, 0.14), 0.012))
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": sh, "t": 0.0, "life": randf_range(0.4, 0.6), "kind": "debris", "s": 0.1,
+			"v": Vector3(randf_range(-1.6, 1.6), randf_range(1.0, 2.6), randf_range(-1.6, 1.6))})
+
+
+## A Repair Drone's heal pulse: its lens flashes, green motes lift off the robots round it.
+func _drone_heal(did: int, radius: float) -> void:
+	var dn: Node3D = enemy_nodes[did]
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	if _fx_room(2):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("heal_mote"), self, dn.position + Vector3(0, 0.55, 0))
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.7})
+	var per: int = [3, 2, 0][gl]
+	if per == 0:
+		return
+	var de = sim._enemy_by_id(did)
+	if de == null:
+		return
+	var shown := 0
+	for e in sim.enemies:
+		if shown >= 6 or not _fx_room(per):
+			break
+		if e.alive and int(e.id) != did and (e.pos as Vector2).distance_to(de.pos) <= radius and enemy_nodes.has(e.id):
+			shown += 1
+			var base := (enemy_nodes[e.id] as Node3D).position
+			for j in per:
+				var m := _mi(_fx_mesh("mote"), _atk_mat("heal_mote"), self, base + Vector3(randf_range(-0.3, 0.3), randf_range(0.3, 1.0), randf_range(-0.3, 0.3)))
+				m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": m, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "glint", "s": randf_range(0.6, 0.9),
+					"v": Vector3(0, randf_range(0.8, 1.4), 0)})
 
 
 ## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
@@ -5493,7 +5655,10 @@ func _animate_fire(id: int) -> void:
 		# play the whole attack between two shots (speed it up when the tower fires faster than the clip)
 		n.set_meta("throw_rate", clampf(ap.get_animation(clip).length / maxf(cd, 0.1), 1.0, 3.0))
 		n.set_meta("combat_hold", maxf(2.2, cd * 1.25 + 0.3))
-		ap.play(clip, 0.05)
+		# (Tarek's throw cuts straight in from his Combat stance, its first pose: a cross-fade also kept Combat's own blend
+		# in, still running from his last throw, and so that throw's end pose, a full-size fresh hammer in his fist, mixed
+		# into the release for 0.2 s while the thrown one flew)
+		ap.play(clip, 0.0 if uu != null and str(uu.type) == "tarek" else 0.05)
 		ap.seek(0.0, true)
 		ap.speed_scale = float(speed) * float(n.get_meta("throw_rate"))
 		return
@@ -5599,12 +5764,17 @@ func _sync_visuals(alpha: float) -> void:
 			var model: Node3D = n.get_node("Model")
 			var sc: float = float(defs.enemies[e.type].get("model_scale", 0.9)) * (1.0 + punch * 0.12)
 			model.scale = Vector3(sc, sc * (1.0 - punch * 0.08), sc)
+		if n.has_meta("shield_panel"):
+			var spn: MeshInstance3D = n.get_meta("shield_panel")
+			var held: bool = e.shield > 0.0
+			if spn.visible != held:
+				spn.visible = held
 		var bubble: MeshInstance3D = n.get_node_or_null("Bubble")
 		if bubble != null:
 			bubble.visible = e.shield > 0.0
 			if bubble.visible:
-				var bmat: StandardMaterial3D = bubble.material_override
-				bmat.albedo_color.a = 0.1 + 0.2 * clampf(e.shield / maxf(e.max_shield, 1.0), 0.0, 1.0)
+				var bmat := bubble.material_override as ShaderMaterial
+				bmat.set_shader_parameter("strength", 0.45 + 0.55 * clampf(e.shield / maxf(e.max_shield, 1.0), 0.0, 1.0))
 		if e.cloak:
 			var want := 0.78 if sim.tick >= e.revealed_until else 0.0
 			if float(n.get_meta("cloak_t", -1.0)) != want:
@@ -5669,6 +5839,8 @@ func _sync_visuals(alpha: float) -> void:
 			if tn.has_meta("face_to") and time_s - float(tn.get_meta("face_t", -99.0)) < 2.5:
 				fdir = tn.get_meta("face_to")           # a pulse unit faces what it's flinging at, then the camera again
 			yaw_node.rotation.y = lerp_angle(yaw_node.rotation.y, _yaw(fdir), 0.2)
+			if tn.has_meta("clip_face"):
+				_clip_face(tn, yaw_node)
 		_spin_flicker(tn, pdt, 0.0 if sim.tick < int(t.get("stun_until", 0)) else 9.0)
 		if tn.has_meta("anim"):
 			_hq_anim_tick(tn, sim.tick < int(t.get("stun_until", 0)))
@@ -9703,6 +9875,7 @@ func _demo_build(gold: int) -> Array:
 ## Plays the current map like a real player (one wave at a time) and reports the win flow.
 func _run_autowin() -> void:
 	await get_tree().process_frame
+	Progress.mark_seen(Progress.current_map, [], false)    # (no first-visit robot popup: it would pause the match)
 	_start_game()
 	var ids := _demo_build(20000)
 	for id in ids:
@@ -10375,14 +10548,23 @@ func _run_demo() -> void:
 		_end_preview()
 		sim.wave = 2
 		var kinds := ["walker", "scout", "brute", "carrier", "walker", "walker", "scout", "brute", "walker", "prime_walker"]
+		var gap := 2.4
+		for a in args:
+			if str(a).begins_with("--bots="):
+				kinds = Array(str(a).trim_prefix("--bots=").split(","))
+				gap = 1.0                         # (closer: a Repair Drone mends the robots near it)
+		var close := []
+		for kd in kinds:
+			if not kd in close:
+				close.append(kd)
 		sim.wave_remaining[2] = kinds.size()
 		for i in kinds.size():
-			sim._spawn_enemy(kinds[i], 2, 3.0 + i * 2.4, i % sim.paths.size())
+			sim._spawn_enemy(kinds[i], 2, 3.0 + i * gap, i % sim.paths.size())
 		_handle_events()
 		await _wait_ticks(int(2.5 / TICK))
 		await _shot("bots_battle.png")
 		var frames_dir := "--gif" in args
-		for type in ["walker", "scout", "brute", "carrier", "prime_walker"]:
+		for type in close:
 			var be = null
 			for e in sim.enemies:
 				if e.type == type:
@@ -10395,7 +10577,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type == "prime_walker" else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler"] else 1.0
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 			cam.fov = 30
 			for k in (6 if frames_dir else 1):
@@ -10405,6 +10587,22 @@ func _run_demo() -> void:
 				shake = 0.0
 				await _wait_ticks(2 if k == 0 else 3)
 				await _shot("bots_close_%s%s.png" % [type, ("_%d" % k) if frames_dir else ""])
+			if type == "shield_bot":              # v0.9.27: its shield shatters
+				sim._damage(be, 1.0, "pierce", {"shield_break": 1.0})
+				_handle_events()
+				for k in 3:
+					await _wait_ticks(2)
+					await _shot("bots_shield_break_%d.png" % k)
+			if type == "repair_drone":            # v0.9.27: it mends the robots round it
+				for o in sim.enemies:
+					if o.alive and o.id != be.id and not o.boss and (o.pos as Vector2).distance_to(be.pos) < 4.0:
+						o.hp = o.max_hp * 0.5
+				for k in 10:                          # (a pulse comes within its heal period)
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.2, 0)) * 1.4
+					cam.look_at(bn.global_position + Vector3(0, 0.6, 0))
+					cam_base = cam.position
+					await _wait_ticks(int(0.35 / TICK))
+					await _shot("bots_heal_%d.png" % k)
 		get_tree().quit()
 		return
 	if "--shoot-buff" in args:
