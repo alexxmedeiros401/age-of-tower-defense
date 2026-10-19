@@ -697,7 +697,7 @@
   "name": "Torsion Catapult",
   "lineage": "Siege",
   "era": "Bronze Age",
-  "model_scale": 0.58,
+  "model_scale": 0.735,
   "swing": [
    -0.15,
    2.0

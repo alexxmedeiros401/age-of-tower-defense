@@ -2174,6 +2174,8 @@ func _refresh_tower_node(t: Dictionary) -> void:
 		col = Color(1.0, 0.45, 0.15)
 	elif t.branch == "B":
 		col = Color(0.25, 0.8, 1.0)
+	if t.type == "torsion_catapult" and n.has_meta("anim"):
+		_torsion_ammo(n, str(t.stats.get("dtype", "")) == "fire")
 	var r: float = float(defs.towers[t.type].get("model_scale", 0.56)) * 1.62
 	if t.level >= 3:
 		var tor := TorusMesh.new()
@@ -2473,7 +2475,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # (Blender's 24 fps; Godot re-samples them at 30 Hz on import), so a frame inside a held pose is picked where there is one
 # (the spear's full reach holds over frames 6-10: 7), where the 30 Hz samples either side of it agree.
 const CLIP_FPS := 24.0
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7}
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "torsion_catapult": 7}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2556,6 +2558,15 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"chunk":
 			m.albedo_color = Color(0.55, 0.52, 0.48)
 			m.roughness = 0.95
+		"stone_ball":                                # the Torsion Catapult's dressed limestone ball (v0.9.23)
+			m.albedo_color = Color(0.86, 0.8, 0.68)
+			m.roughness = 0.9
+		"pot":                                       # its pitch pots: fired clay, black bands, straw (vertex colours)
+			m.vertex_color_use_as_albedo = true
+			m.roughness = 0.75
+		"shard":
+			m.albedo_color = Color(0.7, 0.36, 0.2)
+			m.roughness = 0.8
 		"clod":                                      # earth thrown up by a smash
 			m.albedo_color = Color(0.42, 0.31, 0.21)
 			m.roughness = 1.0
@@ -2718,9 +2729,9 @@ func _prewarm_attack_fx() -> void:
 			holder.queue_free())
 
 
-## The arrows (v0.9.21) and the Spear Guard's lance (v0.9.22): any map can have their units (archers include the Cretan
-## Archer and heroes that shoot arrows), so their meshes and materials are drawn once under the ground at load, like the
-## Stone Age attacks'.
+## The arrows (v0.9.21), the Spear Guard's lance (v0.9.22), the Torsion Catapult's balls, pots and shards (v0.9.23): any
+## map can have their units (archers include the Cretan Archer and heroes that shoot arrows), so their meshes and
+## materials are drawn once under the ground at load, like the Stone Age attacks'.
 func _prewarm_arrows() -> void:
 	var holder := Node3D.new()
 	holder.position = Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, -0.6, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5)
@@ -2731,6 +2742,9 @@ func _prewarm_arrows() -> void:
 		var mi := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mi(_lance_mesh(), _atk_mat("lance"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_pot_mesh(), _atk_mat("pot"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_sph_c(0.17, 14), _atk_mat("stone_ball"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_fx_mesh("cube"), _atk_mat("shard"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_fx_after(0.12, func() -> void:
 		if is_instance_valid(holder):
 			holder.queue_free())
@@ -3795,11 +3809,13 @@ func _handle_events() -> void:
 			"impact":
 				var boulder := false
 				var hot_b := false
+				var pot := false
 				var arrow := false
 				if proj_nodes.has(ev.pid):
 					var pnode: Node3D = proj_nodes[ev.pid]
 					boulder = pnode.has_meta("boulder")
 					hot_b = pnode.has_meta("hot")
+					pot = pnode.has_meta("pot")
 					if pnode.has_meta("arrow_hq"):
 						arrow = true
 						_arrow_hit(pnode, ev)
@@ -3807,9 +3823,10 @@ func _handle_events() -> void:
 					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
 					var su = sim.get_unit(int(ev.get("tower", -1)))
-					if su != null and (su.type == "boulder_catapult" or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
+					if su != null and (su.type in ["boulder_catapult", "torsion_catapult"] or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
 						boulder = true
-						hot_b = su.type == "boulder_catapult" and str(ev.get("dtype", "")) == "fire"
+						hot_b = su.type in ["boulder_catapult", "torsion_catapult"] and str(ev.get("dtype", "")) == "fire"
+						pot = hot_b and su.type == "torsion_catapult"
 					elif su != null and (su.type == "bronze_archer" or str(su.stats.get("proj", "")) == "arrow"):
 						arrow = true
 						_arrow_hit_unseen(su, ev)
@@ -3822,6 +3839,8 @@ func _handle_events() -> void:
 					_boulder_impact(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
 					if hot_b:
 						_fire_splash(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
+					if pot:
+						_pot_shards(_v3(ev.pos, 0.0))
 					_sfx("boulder_land", -8.0, 0.15, 0.08)
 					shake = maxf(shake, 0.2)
 				elif ev.splash > 0.0:
@@ -4224,6 +4243,132 @@ func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
 	_land_hit(tid, 0.07)
 
 
+## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
+## cup at the top of the swing (ATTACK_FRAME): it flies from there in a high arc and lands when the sim's shot does.
+## Path A throws burning pitch pots (riding on the balls in the cup and the heap too) that shatter where they land.
+const TORSION_BALL := Vector3(0.301, 1.58, 0.354)  # the ball at the top of the arm's swing (model units, Godot axes, Yaw node)
+const TORSION_BALL_R := 0.078                       # its radius (model units: torsion.py BALL_R)
+const TORSION_FLY := 0.75                           # the shot's size in flight (of its 0.17 mesh)
+
+
+func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
+	if dt == "fire":
+		_mi(_pot_mesh(), _atk_mat("pot"), root)
+		_fire_halo(root, 0.62)
+		root.set_meta("hot", true)
+		root.set_meta("pot", true)
+		root.set_meta("fire", true)
+	else:
+		var bm := _mi(_sph_c(0.17, 14), _atk_mat("stone_ball"), root)
+		bm.rotation = Vector3(0.4, 0.9, 0.2)
+	root.set_meta("spin", true)
+	root.set_meta("boulder", true)
+	var launch := root.position
+	var delay := 0.0
+	if u != null and tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("anim") and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		var tn: Node3D = tower_nodes[u.id]
+		var yt := (tn.get_meta("yaw") as Node3D).global_transform
+		launch = yt * TORSION_BALL
+		# it leaves the cup the size it was in it (the ball, or the pot riding on it at 0.56), and grows to its flight
+		# size as it climbs, so it reads at the game's zoom
+		var su := yt.basis.get_scale().x
+		root.set_meta("s0", (0.56 * su) if dt == "fire" else (TORSION_BALL_R * su / 0.17))
+		# sim seconds until the arm's swing throws it (the attack clip runs at throw_rate)
+		delay = float(ATTACK_FRAME.torsion_catapult) / CLIP_FPS / maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
+	root.position = launch
+	root.set_meta("lob_from", launch)
+	# (the sim already moved the shot one tick on in the step that fired it, while the clip starts now)
+	root.set_meta("lob_delay", minf(float(p.t) + delay, float(p.flight) * 0.6))
+	root.visible = delay <= 0.0
+
+
+## Where a Torsion Catapult shot is this frame: still in the cup (hidden) until the swing throws it, then on its arc.
+func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
+	var t: float = float(p.t) + alpha * TICK
+	var d0: float = pn.get_meta("lob_delay")
+	var from: Vector3 = pn.get_meta("lob_from")
+	if t < d0:
+		pn.visible = false
+		return from
+	pn.visible = true
+	var k := clampf((t - d0) / maxf(float(p.flight) - d0, 0.05), 0.0, 1.0)
+	pn.scale = Vector3.ONE * lerpf(float(pn.get_meta("s0", TORSION_FLY)), TORSION_FLY, smoothstep(0.0, 0.3, k))
+	var to := _v3(p.aim, 0.2)
+	var h := 2.4 * minf(from.distance_to(to) / 6.0, 1.0) + 0.7
+	return from.lerp(to, k) + Vector3(0, h * 4.0 * k * (1.0 - k), 0)
+
+
+## A pitch pot: a round-bellied jar of fired clay with black bands and a straw plug (vertex colours), radius ~0.17.
+func _pot_mesh() -> ArrayMesh:
+	if _atk_cache.has("pot_mesh"):
+		return _atk_cache["pot_mesh"]
+	var prof := [Vector2(0.0, -0.15), Vector2(0.09, -0.145), Vector2(0.15, -0.08), Vector2(0.168, -0.01), Vector2(0.155, 0.06),
+		Vector2(0.1, 0.12), Vector2(0.058, 0.15), Vector2(0.066, 0.175), Vector2(0.05, 0.19), Vector2(0.034, 0.215), Vector2(0.0, 0.225)]
+	var nrm := []                                       # the profile's outward normals (radius, height)
+	for i in prof.size():
+		var tg: Vector2 = prof[mini(i + 1, prof.size() - 1)] - prof[maxi(i - 1, 0)]
+		nrm.append(Vector2(tg.y, -tg.x).normalized())
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var seg := 14
+	for i in prof.size() - 1:
+		for j in seg:
+			var q := [[i, TAU * j / seg], [i + 1, TAU * j / seg], [i + 1, TAU * (j + 1) / seg], [i, TAU * (j + 1) / seg]]
+			for tri in [[0, 2, 1], [0, 3, 2]]:              # clockwise seen from outside (Godot's front faces)
+				for k in tri:
+					var ix: int = q[k][0]
+					var an: float = q[k][1]
+					var pr: Vector2 = prof[ix]
+					var nr: Vector2 = nrm[ix]
+					var col := Color(0.72, 0.37, 0.2)
+					if absf(pr.y - 0.01) < 0.016 or absf(pr.y + 0.06) < 0.008 or absf(pr.y - 0.085) < 0.006:
+						col = Color(0.12, 0.08, 0.06)
+					elif pr.y > 0.18:
+						col = Color(0.86, 0.72, 0.4)
+					st.set_color(col)
+					st.set_normal(Vector3(cos(an) * nr.x, nr.y, sin(an) * nr.x))
+					st.add_vertex(Vector3(cos(an) * pr.x, pr.y, sin(an) * pr.x))
+	var m := st.commit()
+	_atk_cache["pot_mesh"] = m
+	return m
+
+
+## A pitch pot shatters: shards of fired clay fly (the fire and the crater come with them).
+func _pot_shards(ground: Vector3) -> void:
+	var n: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if not _fx_room(n):
+		return
+	for i in n:
+		var sz := randf_range(0.07, 0.12)
+		var c := _mi(_fx_mesh("cube"), _atk_mat("shard"), self, ground + Vector3(0, 0.3, 0), Vector3(randf(), randf(), randf()) * 3.0,
+			Vector3(sz, sz * 0.3, sz * 0.8))
+		c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var a := randf() * TAU
+		effects.append({"node": c, "t": 0.0, "life": randf_range(0.5, 0.75), "kind": "debris", "s": sz, "flat": true,
+			"v": Vector3(cos(a) * randf_range(2.0, 3.5), randf_range(2.5, 4.5), sin(a) * randf_range(2.0, 3.5))})
+
+
+## Path A's pitch pots in the HQ model: a pot rides on the ball in the cup and on the one he lifts from the heap (they
+## share those bones, so it leaves with the shot and comes back when he loads).
+func _torsion_ammo(n: Node3D, hot: bool) -> void:
+	if not hot or n.has_meta("pots"):
+		return
+	var sks := n.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return
+	var sk := sks[0] as Skeleton3D
+	var pots := []
+	for bone in ["stone", "carry"]:
+		if sk.find_bone(bone) < 0:
+			continue
+		var ba := BoneAttachment3D.new()
+		ba.bone_name = bone
+		sk.add_child(ba)
+		_mi(_pot_mesh(), _atk_mat("pot"), ba, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.56)
+		pots.append(ba)
+	n.set_meta("pots", pots)
+
+
 func _make_projectile(p: Dictionary) -> Node3D:
 	var src: Dictionary = p.src
 	var u = sim.get_unit(int(src.get("tower_id", -1)))
@@ -4238,6 +4383,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		return root
 	if utype == "bronze_archer" or pj == "arrow":
 		_arrow_proj(root, p, u, dt)            # v0.9.21: a real arrow, loosed from the HQ archer's bow
+		return root
+	if utype == "torsion_catapult":
+		_torsion_proj(root, p, u, dt)          # v0.9.23: a dressed stone ball (or a burning pitch pot) from the cup
 		return root
 	if utype == "tarek":
 		_mi(_box(0.26, 0.16, 0.16), _mat("hot_hammer", Color(0.9, 0.45, 0.15), {"emit": Color(1, 0.4, 0.1), "emit_e": 1.2}), root)
@@ -4656,6 +4804,10 @@ func _sync_visuals(alpha: float) -> void:
 		if pn.has_meta("off"):
 			newp = _arrow_flight(pn, p, alpha)
 			if pn.has_meta("fire"):
+				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
+		elif pn.has_meta("lob_from"):
+			newp = _torsion_flight(pn, p, alpha)
+			if pn.has_meta("fire") and pn.visible:
 				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
 		elif p.kind == "lob":
 			var k: float = clampf((p.t + alpha * TICK) / p.flight, 0.0, 1.0)
@@ -9193,7 +9345,8 @@ func _run_demo() -> void:
 		# Stone Age attacks (v0.9.20): one unit (--unit=tar_shaman|club_warrior|boulder_catapult|rock_slinger) or the hero
 		# (--hero=mara|ugo with --unit=hero) against a stream of robots; frames of its next attack from a camera beside
 		# it (--frames=N, one per frame). Run Godot with --fixed-fps 30 so frames are evenly spaced in game time.
-		# --high films from higher up, --wide keeps the game camera, --branch=A|B upgrades a tower fully down a path,
+		# --high films from higher up, --wide keeps the game camera, --focus frames the unit itself up close,
+		# --branch=A|B upgrades a tower fully down a path,
 		# --ability (hero) casts the hero's ability instead and films the whole field.
 		var unit := "tar_shaman"
 		var nframes := 16
@@ -9275,6 +9428,9 @@ func _run_demo() -> void:
 		if (sidev.z < 0.0):
 			sidev = -sidev                          # stay on the camera's usual (south) side of the action
 		var mid := upos + tdir * span * 0.5
+		if "--focus" in args:                       # --focus: the unit itself up close (a siege engine's whole throw)
+			span = 1.6
+			mid = upos + tdir * 0.35
 		if not "--wide" in args:                    # --wide keeps the game's own camera
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 			cam.fov = 40

@@ -1,8 +1,8 @@
 # HQ model pipeline
 
 Sculpted, rigged, animated and texture-baked game models made entirely in code with Blender (bpy) + numpy.
-Models so far: the Bronze Archer and the Spear Guard (`assets/towers/bronze_archer.glb`, v0.9.21, and
-`spear_guard.glb`, v0.9.22, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
+Models so far: the Bronze Archer, the Spear Guard and the Torsion Catapult (`assets/towers/bronze_archer.glb`,
+v0.9.21, `spear_guard.glb`, v0.9.22, and `torsion_catapult.glb`, v0.9.23, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
 `mara.glb`), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
@@ -19,6 +19,7 @@ by `../map_ground_hq.py` (below).
 | Mara (hero) | `mara` | `mara_base` | `anim_mara` (Idle, Combat, Attack, Ability, Cheer) |
 | Bronze Archer (v0.9.21) | `archer` | `archer_base` | `anim_archer` (Idle, Combat, Attack) |
 | Spear Guard (v0.9.22) | `spear` | `spear_base` | `anim_spear` (Idle, Combat, Attack) |
+| Torsion Catapult (v0.9.23) | `torsion` | `torsion_base` | `anim_torsion` (Idle, Combat, Attack) |
 
 ## Steps
 
@@ -114,7 +115,9 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
 - `base.py` / `ugo_base.py`: grassy mound plus props (rock pedestal and tusk arch / carved two-tier dais with an
   amber ring and painted standing stones); grass blades and flowers are direct low-poly geometry.
 - `mats.py`: procedural hand-painted materials (Cycles); bump detail ends up in the normal map. `saber()` =
-  tiger-striped hide with muzzle/nose/amber/suede regions.
+  tiger-striped hide with muzzle/nose/amber/suede regions. `siege()` (v0.9.23): a war engine's timber with the grain
+  along Y (label 0), X (10) or Z (11), red (5) and blue (7) paint chipped on the edges, bronze fittings (6), rope and
+  twisted sinew (8), leather (9); `limestone()` takes worn red paint (5) and worn, polished tracks (6).
 - `lowpoly.py`: decimation targets, UV atlas (islands picked on a smoothed copy, relaxed on the real shape,
   concave packing, more texels for face/eyes/hands).
 - `bake.py`: Cycles high->low bakes. The character is baked per part (each part only sees its own sculpt;
@@ -123,14 +126,16 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   deform nothing of the body: a catapult's beam, counterweight, windlass, the boulder she carries), `GLOW` (parts
   shipped as their own emissive mesh, not baked: spirit orbs), `SPLIT` (parts split off after baking as their own
   unskinned mesh, e.g. Mara's orbiting stones `SpinSlowStones`, turned in game), `YAW_PIVOT` (the point the tower turns
-  about, when the character isn't at the middle of its base).
+  about, when the character isn't at the middle of its base), `BAKE_APART = (parts, offset)` (those parts are moved
+  `offset` away for the bake and back after it, so a crew member's rest pose casts no ambient occlusion on his machine:
+  the torsion engineer's hand hangs over the cart at rest).
 - Optional base hooks: `GLOW` (amber hero rings, quartz), `BUBBLES` (tar bubbles `Bubble*` that swell and pop in game),
   `FLAME_COLOR`, `EXTRA_SWATCHES` (extra flat colours for direct geometry such as cattails).
 - `rig.py`: armature from `J`; skin weights come straight from the sculpt (`sdf_weights`: each body shape
   belongs to its nearest bone); clothing/accessory weights are transferred with per-part allowed-bone sets.
   `Poser` = FK with world-space aims + analytic two-bone IK. Ugo adds two cape bones aimed in world space, so
   the cape trails his motion. A `("frame", ...)` aim sets a bone's whole orientation (a club or staff held rigidly in
-  the fist); parentless extra bones move by `offsets`; scales may be per-axis (a stretched rope). The root offset is
+  the fist), a `("world", matrix)` aim its whole world rotation (the torsion engine's parts, posed directly); parentless extra bones move by `offsets`; scales may be per-axis (a stretched rope). The root offset is
   keyed relative to rest (before v0.9.16 it was dropped, so crouches lifted the feet: Ugo and the Rock Slinger were
   re-keyed with `reanim.py`).
 - `anim.py` (Rock Slinger): Idle, Whirl (sling on a tilted circle), Throw (the stone bone scales to 0 at release).
@@ -154,6 +159,15 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   drives a lunging overhand thrust past the shield's edge; at full reach (`THRUST`, frame 6) the game's lance of light
   leaves the point. The spear and the shield are rigid in his fists ("frame" aims: the spear along the right fist's
   thumb axis, the shield's grip in the left fist with its face along the knuckles).
+  `anim_torsion.py` (v0.9.23): the mallet on his shoulder, fist on his hip / turned to the trigger pin, mallet raised /
+  Attack (66 frames = the 2.2 s cooldown): the mallet knocks the pin out (`RELEASE`, frame 3), the pawl jumps clear, the
+  drum spins free and the arm whips up into the buffer (`SLAM`, frame 7: the game's shot leaves the cup there, the cup's
+  ball scaled to 0 with constant keys), the cart kicking up at the back; he kneels at the windlass with the mallet propped
+  by his foot and winds the arm back down (the drum's turn follows the rope's length, the pawl rides the teeth), takes a
+  ball from the heap and lays it in the cup (`PLACE`, frame 57). The engine's bones are posed directly with "world"
+  aims: `frame` (the cart, rocking about its front wheels), `arm` (on the skein), `stone` (the ball in the cup), `haul`
+  (the windlass rope, stretched toward the arm), `winch` (drum and crank), `trigger` (pawl and pin), `carry` (the ball
+  he lifts) and `props` (the heap, mat and pots).
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),
@@ -165,7 +179,7 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   samples either side agree. Attack clips still fit their cooldowns: the game plays them at length / cooldown.
   Test: `--shoot-hq [--tower=<id>] [--hq-idx=N] [--hq-cam=x,y,z]` (three towers fighting + a close-up) and
   `--shoot-hero-hq [--hero=<id>]` (the hero fighting, cheer, ability), `--gif` for frames; `--shoot-attacks
-  --unit=<tower>|hero` (frames of one attack, with `--fixed-fps 30`). Render a clip as a strip with `render_asset.py
+  --unit=<tower>|hero [--focus]` (frames of one attack, with `--fixed-fps 30`; `--focus` frames the unit itself up close). Render a clip as a strip with `render_asset.py
   -- --blend <unit>_hq.blend --mode frames --action Attack --range 0,24 --step 2`.
 
 ## Gotchas

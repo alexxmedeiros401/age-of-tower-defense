@@ -247,7 +247,8 @@ class Poser:
                 visit(b)
 
     def solve(self, aims, root_off=Vector((0, 0, 0)), root_rot=Quaternion(), scales=None, offsets=None):
-        """aims: bone -> world direction Vector, or callable(P, base)->direction, or ('rot', Quaternion world).
+        """aims: bone -> world direction Vector, or callable(P, base)->direction, or ('rot', Quaternion world), or
+        ('world', Matrix) (the whole pose matrix; a callable can build it from bones already solved, e.g. P['hand.R']).
         root_off/root_rot move the body ("root"); other parentless bones (machines) stay put unless `offsets` moves them.
         scales: bone -> uniform factor or (x, y, z) in bone space (y = along the bone: stretch a rope).
         Returns {bone: (loc, quat, scale)} local pose channels and the posed matrices P."""
@@ -268,7 +269,9 @@ class Poser:
             if callable(a):
                 a = a(P, base)                 # may return a direction, (direction, twist), ("rot", q) or ("frame", ...)
             if a is not None:
-                if isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "rot":
+                if isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "world":
+                    M = a[1].copy()            # the bone's full armature-space matrix (a prop passed from hand to hand)
+                elif isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "rot":
                     R = a[1].to_matrix() @ base.to_3x3()
                     M = Matrix.Translation(base.translation) @ R.to_4x4()
                 elif isinstance(a, tuple) and isinstance(a[0], str) and a[0] == "frame":

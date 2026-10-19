@@ -281,6 +281,24 @@ def leather(name="HQ_Leather", base=(0.42, 0.25, 0.13)):
     return g.finish(c, 0.58, nrm)
 
 
+def leather_dyed(name="HQ_DyedLeather", base=(0.42, 0.25, 0.13), dyed=(0.6, 0.12, 0.08)):
+    """Leather (label 0) with red-dyed pieces (5) and bronze studs (6), worn pale on the edges."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 9.0, 3.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.25) for x in base)))
+    red = g.mix(g.noise(p, 9.0, 3.0), g.rgb(dyed), g.rgb(tuple(x * 0.72 for x in dyed)))
+    c = g.mix(g.reg(5), c, red)
+    pt = g.geo("Pointiness")
+    worn = g.smooth(pt, 0.51, 0.58)
+    c = g.mix(g.math("MULTIPLY", worn, 0.5), c, g.rgb((0.66, 0.45, 0.27)))
+    scr = g.smooth(g.noise(g.scale_vec(p, (120.0, 120.0, 30.0)), 1.0, 2.0), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb((0.2, 0.11, 0.06)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.74, 0.48, 0.2)), g.rgb((1.0, 0.84, 0.54)))
+    c = g.mix(g.reg(6), c, br)
+    nrm = g.bump(g.math("ADD", g.noise(p, 90.0, 3.0), scr), 0.25, 0.003)
+    return g.finish(c, g.mixf(g.reg(6), 0.58, 0.3), nrm)
+
+
 def cord():
     g = new("HQ_Cord")
     p = g.obj()
@@ -878,8 +896,14 @@ def limestone(name="HQ_Limestone"):
     c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.6), c, g.rgb((0.95, 0.9, 0.78)))
     stain = g.smooth(g.noise(p, 1.5, 2.0), 0.55, 0.7)
     c = g.mix(g.math("MULTIPLY", stain, 0.25), c, g.rgb((0.6, 0.55, 0.42)))
+    # label 5: red ochre paint, worn off the edges; 6: worn smooth and pale (wheel tracks)
+    worn = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.smooth(pt, 0.52, 0.6), 0.8))
+    red = g.mix(g.math("MULTIPLY", g.remap(g.noise(p, 40.0, 2.0), 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb((0.7, 0.2, 0.1)), g.rgb((0.55, 0.14, 0.07)))
+    c = g.mix(g.math("MULTIPLY", g.reg(5), worn), c, red)
+    c = g.mix(g.math("MULTIPLY", g.reg(6), 0.55), c, g.rgb((0.94, 0.88, 0.74)))
     h = g.math("ADD", g.math("MULTIPLY", pits, -0.5), g.noise(p, 18.0, 4.0, 0.6))
-    return g.finish(c, 0.85, g.bump(h, 0.3, 0.005))
+    h = g.math("MULTIPLY", h, g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.reg(6), 0.6)))
+    return g.finish(c, g.mixf(g.reg(6), 0.85, 0.55), g.bump(h, 0.3, 0.005))
 
 
 def plaster(name="HQ_Plaster", base=(0.94, 0.91, 0.84), paint=(0.72, 0.14, 0.08)):
@@ -891,6 +915,84 @@ def plaster(name="HQ_Plaster", base=(0.94, 0.91, 0.84), paint=(0.72, 0.14, 0.08)
     brush = g.noise(g.scale_vec(p, (60.0, 60.0, 12.0)), 1.0, 2.0)
     c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", g.remap(brush, 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb(paint), g.rgb(tuple(x * 0.8 for x in paint))))
     return g.finish(c, 0.8, g.bump(g.math("ADD", brush, g.noise(p, 50.0, 2.0)), 0.12, 0.002))
+
+
+def siege(name="HQ_Siege", wood=(0.6, 0.36, 0.2), wood2=(0.44, 0.25, 0.13), red=(0.72, 0.15, 0.08), blue=(0.14, 0.3, 0.62)):
+    """A war engine's timber and fittings: adzed cedar with the grain along Y (label 0), X (10) or Z (11), darker in the
+    joints, pale on worn edges; red ochre (5) and blue (7) paint with brush grain, chipped back to the wood on the edges;
+    bronze fittings (6); rope and twisted sinew (8); leather (9)."""
+    g = new(name)
+    p = g.obj()
+    gy = g.noise(g.scale_vec(p, (60.0, 3.0, 60.0)), 1.0, 4.0, 0.62)
+    gx = g.noise(g.scale_vec(p, (3.0, 60.0, 60.0)), 1.0, 4.0, 0.62)
+    gz = g.noise(g.scale_vec(p, (60.0, 60.0, 3.0)), 1.0, 4.0, 0.62)
+    gr = g.mixf(g.reg(11), g.mixf(g.reg(10), gy, gx), gz)
+    c = g.mix(g.remap(gr, 0.32, 0.68, 0.0, 1.0), g.rgb(wood), g.rgb(wood2))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 2.5, 2.0), 0.45, 0.7), 0.3), c, g.rgb(tuple(x * 0.75 for x in wood2)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.55), c, g.rgb((0.22, 0.13, 0.07)))            # grime in the joints
+    worn = g.smooth(pt, 0.51, 0.57)
+    c = g.mix(g.math("MULTIPLY", worn, 0.5), c, g.rgb((0.78, 0.6, 0.4)))
+    brush = g.remap(g.noise(g.scale_vec(p, (80.0, 80.0, 80.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    chip = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.smooth(pt, 0.53, 0.6), g.smooth(g.noise(p, 30.0, 2.0), 0.45, 0.55)))
+    red_c = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(red), g.rgb(tuple(x * 0.78 for x in red)))
+    blue_c = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(blue), g.rgb(tuple(x * 0.75 for x in blue)))
+    c = g.mix(g.math("MULTIPLY", g.reg(5), chip), c, red_c)
+    c = g.mix(g.math("MULTIPLY", g.reg(7), chip), c, blue_c)
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.72, 0.46, 0.2)), g.rgb((1.0, 0.82, 0.52)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.3, 0.17, 0.08)))
+    pat = g.math("MULTIPLY", g.smooth(pt, 0.46, 0.41), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+    br = g.mix(g.math("MULTIPLY", pat, 0.7), br, g.rgb((0.3, 0.56, 0.48)))
+    c = g.mix(g.reg(6), c, br)
+    tw = g.wave(p, 240.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(8), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb((0.78, 0.66, 0.46)), g.rgb((0.5, 0.38, 0.24))))
+    hide = g.mix(g.noise(p, 9.0, 3.0), g.rgb((0.4, 0.23, 0.12)), g.rgb((0.52, 0.32, 0.17)))
+    hide = g.mix(g.math("MULTIPLY", worn, 0.6), hide, g.rgb((0.66, 0.45, 0.27)))
+    c = g.mix(g.reg(9), c, hide)
+    rough = g.mixf(g.reg(6), g.mixf(g.math("MAXIMUM", g.reg(5), g.reg(7)), 0.78, 0.62), 0.28)
+    h = g.math("ADD", g.math("MULTIPLY", gr, 0.8), g.math("MULTIPLY", tw, g.math("MULTIPLY", g.reg(8), 1.5)))
+    h = g.math("ADD", h, g.math("MULTIPLY", g.noise(p, 90.0, 2.0), g.reg(6)))
+    return g.finish(c, rough, g.bump(h, 0.32, 0.003))
+
+
+def collar(name="HQ_Collar"):
+    """A broad bead collar: rows of gold beads (label 0) with bands of lapis blue (5), carnelian red (6) and turquoise
+    (7), each bead catching the light on its crown."""
+    g = new(name)
+    p = g.obj()
+    bead = g.voronoi(p, 260.0, 0.6, "F1", "Distance")
+    crown = g.smooth(bead, 0.32, 0.05)                                  # bright at each bead's middle
+    gold_c = g.mix(g.math("MULTIPLY", crown, 0.8), g.rgb((0.62, 0.42, 0.12)), g.rgb((1.0, 0.86, 0.46)))
+    lapis = g.mix(g.math("MULTIPLY", crown, 0.6), g.rgb((0.08, 0.16, 0.48)), g.rgb((0.3, 0.45, 0.9)))
+    carn = g.mix(g.math("MULTIPLY", crown, 0.6), g.rgb((0.5, 0.1, 0.05)), g.rgb((0.9, 0.36, 0.2)))
+    turq = g.mix(g.math("MULTIPLY", crown, 0.6), g.rgb((0.06, 0.4, 0.38)), g.rgb((0.36, 0.82, 0.74)))
+    c = gold_c
+    c = g.mix(g.reg(5), c, lapis)
+    c = g.mix(g.reg(6), c, carn)
+    c = g.mix(g.reg(7), c, turq)
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.48, 0.42), 0.5), c, g.rgb((0.12, 0.08, 0.04)))
+    rough = g.mixf(g.math("MAXIMUM", g.math("MAXIMUM", g.reg(5), g.reg(6)), g.reg(7)), 0.28, 0.35)
+    return g.finish(c, rough, g.bump(g.math("SUBTRACT", 1.0, bead), 0.35, 0.002))
+
+
+def granite(name="HQ_Granite", base=(0.62, 0.38, 0.33), feld=(0.8, 0.5, 0.42), quartz=(0.6, 0.57, 0.55), mica=(0.08, 0.07, 0.07)):
+    """Polished red granite: pink feldspar crystals, grey glassy quartz and black mica flecks in a warm ground; darker and
+    dull in carved hollows, pale on worn edges."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 2.5, 3.0, 0.55), 0.35, 0.65, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.84 for x in base)))
+    cell = g.voronoi(p, 55.0, 1.0, "F1", "Color")                 # each crystal its own random shade
+    c = g.mix(g.smooth(cell, 0.5, 0.62), c, g.rgb(feld))
+    c = g.mix(g.smooth(cell, 0.24, 0.16), c, g.rgb(quartz))
+    fleck = g.noise(p, 140.0, 2.0, 0.6)
+    mica_m = g.smooth(fleck, 0.63, 0.69)
+    c = g.mix(mica_m, c, g.rgb(mica))
+    pt = g.geo("Pointiness")
+    hollow = g.smooth(pt, 0.47, 0.42)
+    c = g.mix(g.math("MULTIPLY", hollow, 0.6), c, g.rgb((0.2, 0.11, 0.09)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.52, 0.58), 0.4), c, g.rgb((0.86, 0.68, 0.62)))
+    h = g.math("ADD", g.math("MULTIPLY", mica_m, -0.4), g.noise(p, 20.0, 3.0, 0.5))
+    return g.finish(c, g.mixf(hollow, 0.36, 0.75), g.bump(h, 0.1, 0.002))
 
 
 def outline_mat():

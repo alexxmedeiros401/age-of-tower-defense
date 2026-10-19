@@ -49,6 +49,22 @@ def glow_material(name, col, strength, base=1.0):
     return gm
 
 
+def _shift_parts(ob, pids, off):
+    """Move the vertices of the faces tagged with any of these part ids (the joined low-poly's 'part' face layer)."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    lay = bm.faces.layers.int.get("part")
+    vs = set()
+    for f in bm.faces:
+        if f[lay] in pids:
+            vs.update(f.verts)
+    for v in vs:
+        v.co += off
+    bm.to_mesh(ob.data)
+    bm.free()
+    ob.data.update()
+
+
 def char_stage():
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=CHAR)
@@ -106,8 +122,21 @@ def char_stage():
     lp.unwrap(cav, boost=lambda c, pid: CH.uv_boost(c, names.get(pid, "")), margin=0.0035)
     log("uv done %.0fs" % (time.time() - T))
     groups = [([PART_IDS[n]], [hi[n]]) for n in CH.PARTS if n in hi and n not in glow]
+    # BAKE_APART = (parts, offset): a machine and its crew are baked apart (moved `offset` away for the bake), so the
+    # crew's rest pose leaves no shadow on the machine and the machine none on the crew
+    apart = getattr(CH, "BAKE_APART", None)
+    if apart:
+        _shift_parts(cav, {PART_IDS[n] for n in apart[0] if n in PART_IDS}, Vector(apart[1]))
+        for n in apart[0]:
+            if n in hi:
+                hi[n].location += Vector(apart[1])
     maps = bk.bake_groups(cav, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.16,
                          ao_exclude=[hi[n] for n in CH.AO_EXCLUDE if n in hi])
+    if apart:
+        _shift_parts(cav, {PART_IDS[n] for n in apart[0] if n in PART_IDS}, -Vector(apart[1]))
+        for n in apart[0]:
+            if n in hi:
+                hi[n].location -= Vector(apart[1])
     log("bakes %.0fs" % (time.time() - T))
     pa, pn, po = bk.save_maps(maps, OUT, CH.TEX_PREFIX, ao_strength=0.7)
     mat = bk.game_material(CH.MAT_NAME, pa, pn, po)
