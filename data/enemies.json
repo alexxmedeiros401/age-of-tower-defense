@@ -20,6 +20,7 @@
   "leak": 1,
   "size": 0.45,
   "model_scale": 0.9,
+  "walk_speed": 0.86,
   "bar_h": 1.45
  },
  "brute": {
@@ -31,6 +32,7 @@
   "leak": 3,
   "size": 0.7,
   "model_scale": 0.9,
+  "walk_speed": 0.57,
   "bar_h": 1.65
  },
  "carrier": {
@@ -63,6 +65,7 @@
    "every": 6.0
   },
   "model_scale": 1.0,
+  "walk_speed": 0.7,
   "bar_h": 4.4
  },
  "shield_bot": {

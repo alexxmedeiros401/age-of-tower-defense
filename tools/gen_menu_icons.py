@@ -1,5 +1,11 @@
-"""Main-menu button icons (drawn at 4x, downsampled). Run: python3 tools/gen_menu_icons.py"""
+"""Main-menu button icons (drawn at 4x, downsampled). Run: python3 tools/gen_menu_icons.py [--all]
+
+Since v0.9.18 the main menu's buttons, plaques and icons are rendered in Blender by tools/blender/ui/menu_art.py
+(assets/ui/mm_*.png). Only menu_portal (the NEW TIMELINE medallion) is still used from here; --all also writes the
+retired gear / map / upgrade / door / plus / star icons.
+"""
 import math
+import sys
 from PIL import Image, ImageDraw, ImageFilter
 OUT = "assets/ui"
 S = 512
@@ -11,6 +17,8 @@ def canvas():
 
 
 def save(im, name, size=192):
+    if name != "menu_portal" and "--all" not in sys.argv:
+        return
     # soft drop shadow under every icon
     sh = Image.new("RGBA", im.size, (0, 0, 0, 0))
     a = im.split()[3].point(lambda v: int(v * 0.45))

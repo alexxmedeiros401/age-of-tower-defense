@@ -146,6 +146,7 @@ var theme: Dictionary
 
 
 func _ready() -> void:
+	get_tree().node_added.connect(_no_scrollbar)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--map="):
 			Progress.current_map = a.trim_prefix("--map=")
@@ -377,7 +378,11 @@ func _build_world() -> void:
 	_mi(pm, gm, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
 	var far := PlaneMesh.new()
 	far.size = Vector2(160, 120)
-	_mi(far, _mat("far_ground", _edge_color(gm.albedo_texture, theme.far), {"rough": 1.0}), self, Vector3(0, -0.02, 0))
+	# (the ground's albedo tint applies to the far plane too, so the two meet without a step in brightness)
+	var fc := _edge_color(gm.albedo_texture, theme.far)
+	if gm.albedo_texture != null:
+		fc = Color(fc.r * gm.albedo_color.r, fc.g * gm.albedo_color.g, fc.b * gm.albedo_color.b)
+	_mi(far, _mat("far_ground", fc, {"rough": 1.0}), self, Vector3(0, -0.02, 0))
 
 	for P in sim.paths:
 		var pts: PackedVector2Array = P.pts
@@ -604,38 +609,52 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	var mag := _mat("portal_mag", Color(1.0, 0.3, 0.9), {"emit": Color(1.0, 0.2, 0.85), "emit_e": 3.0})
 	var hz := 1.55          # ring centre height
 	# (no pad or swirl on the ground: only the standing portal, v0.9.12)
-	# the frame: a thick torus with armoured segments and running lights
-	var frame := Node3D.new()
-	frame.position = Vector3(0, hz, 0)
-	n.add_child(frame)
-	var tor := TorusMesh.new()
-	tor.inner_radius = 1.35
-	tor.outer_radius = 1.7
-	tor.rings = 40
-	tor.ring_segments = 10
-	_mi(tor, steel, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
-	var inner := TorusMesh.new()
-	inner.inner_radius = 1.28
-	inner.outer_radius = 1.38
-	inner.rings = 40
-	inner.ring_segments = 6
-	_mi(inner, cyan, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
 	var lights := Node3D.new()
-	frame.add_child(lights)
-	for k in 12:
-		var aa := TAU * k / 12.0
-		var seg_pos := Vector3(cos(aa) * 1.55, sin(aa) * 1.55, 0)
-		_mi(_box(0.34, 0.26, 0.5), dark, frame, seg_pos, Vector3(0, 0, aa))
-		_mi(_box(0.14, 0.1, 0.54), mag if k % 2 == 0 else cyan, lights, Vector3(cos(aa) * 1.72, sin(aa) * 1.72, 0), Vector3(0, 0, aa))
-	# legs / pylons holding the ring, with glowing coils
-	for sgn in [-1, 1]:
-		var lx := float(sgn) * 1.55
-		_mi(_box(0.5, 0.9, 0.7), steel, n, Vector3(lx, 0.45, 0))
-		_mi(_cyl(0.16, 0.2, 1.3, 8), dark, n, Vector3(lx * 1.18, 0.95, 0.0), Vector3(0, 0, float(sgn) * 0.25))
-		for c in 3:
-			_mi(_cyl(0.24, 0.24, 0.07, 10), cyan, n, Vector3(lx * 1.18 + float(sgn) * (0.06 + 0.1 * c), 0.6 + 0.28 * c, 0), Vector3(0, 0, float(sgn) * 0.25))
-		var tip := _mi(_sph(0.17, 10), mag, n, Vector3(lx * 1.33, 1.7, 0))
-		tip.set_meta("tip", true)
+	var hq := _portal_kit()
+	if not hq.is_empty():
+		# v0.9.18: the sculpted, baked portal (armoured ring, pylons, coils, beacons); its light strips turn
+		var body := MeshInstance3D.new()
+		body.mesh = hq["Portal"]
+		n.add_child(body)
+		lights.position = Vector3(0, hz, 0)
+		n.add_child(lights)
+		var lm := MeshInstance3D.new()
+		lm.mesh = hq["PortalLights"]
+		lm.position = Vector3(0, -hz, 0)
+		lm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		lights.add_child(lm)
+	else:
+		# the frame: a thick torus with armoured segments and running lights
+		var frame := Node3D.new()
+		frame.position = Vector3(0, hz, 0)
+		n.add_child(frame)
+		var tor := TorusMesh.new()
+		tor.inner_radius = 1.35
+		tor.outer_radius = 1.7
+		tor.rings = 40
+		tor.ring_segments = 10
+		_mi(tor, steel, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+		var inner := TorusMesh.new()
+		inner.inner_radius = 1.28
+		inner.outer_radius = 1.38
+		inner.rings = 40
+		inner.ring_segments = 6
+		_mi(inner, cyan, frame, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+		frame.add_child(lights)
+		for k in 12:
+			var aa := TAU * k / 12.0
+			var seg_pos := Vector3(cos(aa) * 1.55, sin(aa) * 1.55, 0)
+			_mi(_box(0.34, 0.26, 0.5), dark, frame, seg_pos, Vector3(0, 0, aa))
+			_mi(_box(0.14, 0.1, 0.54), mag if k % 2 == 0 else cyan, lights, Vector3(cos(aa) * 1.72, sin(aa) * 1.72, 0), Vector3(0, 0, aa))
+		# legs / pylons holding the ring, with glowing coils
+		for sgn in [-1, 1]:
+			var lx := float(sgn) * 1.55
+			_mi(_box(0.5, 0.9, 0.7), steel, n, Vector3(lx, 0.45, 0))
+			_mi(_cyl(0.16, 0.2, 1.3, 8), dark, n, Vector3(lx * 1.18, 0.95, 0.0), Vector3(0, 0, float(sgn) * 0.25))
+			for c in 3:
+				_mi(_cyl(0.24, 0.24, 0.07, 10), cyan, n, Vector3(lx * 1.18 + float(sgn) * (0.06 + 0.1 * c), 0.6 + 0.28 * c, 0), Vector3(0, 0, float(sgn) * 0.25))
+			var tip := _mi(_sph(0.17, 10), mag, n, Vector3(lx * 1.33, 1.7, 0))
+			tip.set_meta("tip", true)
 	# the vortex: stacked additive spiral discs turning against each other
 	var vortex := Node3D.new()
 	vortex.position = Vector3(0, hz, 0)
@@ -693,6 +712,17 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	portal_nodes[pi] = n
 	effects.append({"node": n, "life": INF, "t": 0.0, "kind": "portal"})
 	return n
+
+
+## The HQ time portal (tools/blender/hq/decor_build.py --theme portal): meshes "Portal" and "PortalLights".
+var _portal_lib := {}
+func _portal_kit() -> Dictionary:
+	if _portal_lib.is_empty() and ResourceLoader.exists("res://assets/decor/time_portal.glb"):
+		var src := _inst("res://assets/decor/time_portal.glb")
+		for mi in src.find_children("*", "MeshInstance3D", true, false):
+			_portal_lib[str(mi.name)] = _kit_outline((mi as MeshInstance3D).mesh, false)
+		src.free()
+	return _portal_lib if _portal_lib.has("Portal") and _portal_lib.has("PortalLights") else {}
 
 
 ## A robot comes through: the vortex flares and a shockwave rolls out.
@@ -868,7 +898,9 @@ func _tick_lanes(dt: float) -> void:
 
 ## BTD6-style path flow: glowing runners travel every path from its portal to your base, speeding up on
 ## lanes, slowing in mud, ducking into tunnels and blinking through rifts. Labels name each mechanic.
-func _path_preview() -> void:
+## With loop = true (every map start) the runners keep going round and the labels stay up until the first
+## round starts, then it all fades out.
+func _path_preview(loop := false) -> void:
 	_end_preview()
 	if attract or sim == null:
 		return
@@ -880,7 +912,8 @@ func _path_preview() -> void:
 			for j in 7:
 				var n := _mi(_sph(0.24 if j == 0 else 0.17 - j * 0.012, 8), mk if j == 0 else mk2, self, _v3(sim.pos_at(0.0, pi), 0.45))
 				n.visible = false
-				runners.append({"node": n, "pi": pi, "d": -float(j) * 0.55, "delay": wave_i * 1.6, "done": false})
+				runners.append({"node": n, "pi": pi, "d": -float(j) * 0.55, "d0": -float(j) * 0.55,
+					"delay": wave_i * 1.6, "delay0": wave_i * 1.6, "done": false})
 	var labels := []
 	var seen := {}
 	preview_spots.clear()
@@ -899,7 +932,7 @@ func _path_preview() -> void:
 				labels.append(_preview_label(rf.to, "RIFT OUT", Color(0.4, 0.95, 1.0)))
 		if sim.paths.size() > 1:
 			labels.append(_preview_label(sim.pos_at(3.2, pi), "PORTAL %d" % (pi + 1), Color(0.6, 0.9, 1.0)))
-	preview = {"runners": runners, "labels": labels.filter(func(x): return x != null), "t": 0.0}
+	preview = {"runners": runners, "labels": labels.filter(func(x): return x != null), "t": 0.0, "loop": loop, "gap": 0.0}
 
 
 func _preview_label(p: Vector2, text: String, col: Color) -> Label3D:
@@ -946,6 +979,9 @@ func _tick_preview(dt: float) -> void:
 	if preview.is_empty():
 		return
 	preview.t = float(preview.t) + dt
+	var loop: bool = preview.get("loop", false)
+	if loop and sim.wave >= 1 and not preview.has("end_t"):
+		preview.end_t = preview.t          # the first round started: fade it all out
 	var alive := false
 	for r in preview.runners:
 		if r.done:
@@ -971,11 +1007,29 @@ func _tick_preview(dt: float) -> void:
 				_ring_fx(_v3(rf.from, 0.3), 1.2, Color(0.8, 0.4, 1.0, 0.9), 0.35)
 				_ring_fx(_v3(rf.to, 0.3), 1.2, Color(0.3, 0.95, 1.0, 0.9), 0.35)
 	var t: float = preview.t
-	var a := clampf(t / 0.4, 0.0, 1.0) * clampf((7.5 - t) / 0.8, 0.0, 1.0)
+	if loop and not alive and not preview.has("end_t"):
+		preview.gap = float(preview.gap) + dt          # a short breath, then the runners set off again
+		if float(preview.gap) > 0.6:
+			preview.gap = 0.0
+			for r in preview.runners:
+				r.d = r.d0
+				r.delay = r.delay0
+				r.done = false
+	var a := clampf(t / 0.4, 0.0, 1.0)
+	if preview.has("end_t"):
+		a *= clampf(1.0 - (t - float(preview.end_t)) / 0.6, 0.0, 1.0)
+		for r in preview.runners:
+			var rn: MeshInstance3D = r.node
+			rn.transparency = maxf(rn.transparency, 1.0 - a)
+	elif not loop:
+		a *= clampf((7.5 - t) / 0.8, 0.0, 1.0)
 	for l in preview.labels:
 		if is_instance_valid(l):
 			(l as Label3D).modulate.a = a
-	if (not alive and t > 2.0) or t > 8.5:
+	if preview.has("end_t"):
+		if t - float(preview.end_t) > 0.6:
+			_end_preview()
+	elif not loop and ((not alive and t > 2.0) or t > 8.5):
 		_end_preview()
 
 
@@ -984,8 +1038,15 @@ func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> 
 	fire.position = pos
 	fire.scale = Vector3.ONE * scale_k
 	parent.add_child(fire)
-	var flame := _mi(_cyl(0.0, 0.32, 0.7, 6), _mat("flame", Color(1.0, 0.55, 0.1), {"emit": Color(1.0, 0.45, 0.05), "emit_e": 2.5}), fire, Vector3(0, 0.45, 0))
-	var flame2 := _mi(_cyl(0.0, 0.18, 0.45, 5), _mat("flame2", Color(1.0, 0.9, 0.4), {"emit": Color(1.0, 0.8, 0.3), "emit_e": 2.5}), fire, Vector3(0, 0.35, 0))
+	# v0.9.18: billboard flame sprites (a teardrop texture) and a soft glow, instead of two low-poly emissive cones that
+	# read as flat yellow pentagons from the game camera
+	var glow := _mi(_fx_mesh("flash"), _campfire_mat("glow"), fire, Vector3(0, 0.3, 0), Vector3.ZERO, Vector3.ONE * 1.1)
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var flame := _mi(_flame_quad(0.62, 0.9), _campfire_mat("outer"), fire, Vector3(0, 0.05, 0))
+	var flame2 := _mi(_flame_quad(0.36, 0.55), _campfire_mat("inner"), fire, Vector3(0, 0.05, 0))
+	flame2.sorting_offset = 0.2
+	for f in [flame, flame2]:
+		(f as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.6, 0.25)
 	light.light_energy = light_e
@@ -993,6 +1054,56 @@ func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> 
 	light.position = Vector3(0, 0.8, 0)
 	fire.add_child(light)
 	effects.append({"node": fire, "life": INF, "t": 0.0, "kind": "fire", "f1": flame, "f2": flame2, "light": light, "base_e": light_e})
+
+
+## Campfire sprites: a teardrop flame texture drawn once (white-hot core, orange body, red tip fading out).
+var _flame_tex: ImageTexture
+var _campfire_mats := {}
+func _flame_quad(w: float, h: float) -> QuadMesh:
+	var q := QuadMesh.new()
+	q.size = Vector2(w, h)
+	q.center_offset = Vector3(0, h * 0.5, 0)          # the flame's foot sits on the logs
+	return q
+
+
+func _campfire_mat(kind: String) -> StandardMaterial3D:
+	if _campfire_mats.has(kind):
+		return _campfire_mats[kind]
+	if _flame_tex == null:
+		var w := 64
+		var h := 96
+		var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+		for y in h:
+			var v := 1.0 - (y + 0.5) / h                       # 0 at the foot, 1 at the tip
+			var t := acos(clampf(v * 2.0 - 1.0, -1.0, 1.0))    # teardrop: x = sin(t) sin(t/2)^1.6
+			var half := sin(t) * pow(sin(t * 0.5), 1.6) * 0.98
+			for x in w:
+				var u := absf((x + 0.5) / w * 2.0 - 1.0)
+				var d := u / maxf(half, 0.001)
+				var a := clampf((1.0 - d) / 0.22, 0.0, 1.0) * clampf((1.0 - v) / 0.25, 0.0, 1.0)
+				var core := clampf(1.0 - d * 1.3, 0.0, 1.0) * clampf(1.0 - v * 1.25, 0.0, 1.0)
+				var c := Color(1.0, 0.42, 0.08).lerp(Color(1.0, 0.86, 0.45), core).lerp(Color(1.0, 0.98, 0.85), core * core)
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, a))
+		_flame_tex = ImageTexture.create_from_image(img)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.disable_receive_shadows = true
+	match kind:
+		"glow":
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_texture = _mote_tex()
+			m.albedo_color = Color(1.0, 0.45, 0.1, 0.55)
+		"inner":
+			m.albedo_texture = _flame_tex
+			m.albedo_color = Color(1.0, 0.95, 0.8, 1.0)
+		_:
+			m.albedo_texture = _flame_tex
+			m.albedo_color = Color(1.0, 0.8, 0.7, 0.95)
+	_campfire_mats[kind] = m
+	return m
 
 
 func _build_cave(p: Vector2) -> void:
@@ -1234,10 +1345,39 @@ func _decor_theme() -> Dictionary:
 func _decor_mesh(name: String) -> Mesh:
 	if _decor_lib.is_empty():
 		var src := _inst("res://assets/decor/%s.glb" % str(_decor_theme().get("kit", "stone_decor")))
+		var hq := src.find_child("*_Outline", true, false) == null      # v0.9.18 HQ kits: baked atlas, outline pass
 		for mi in src.find_children("*", "MeshInstance3D", true, false):
-			_decor_lib[str(mi.name)] = (mi as MeshInstance3D).mesh
+			var mesh: Mesh = (mi as MeshInstance3D).mesh
+			if hq and mesh != null:
+				mesh = _kit_outline(mesh, str(mi.name) in ["Tuft", "Flowers"])
+			_decor_lib[str(mi.name)] = mesh
 		src.free()
 	return _decor_lib.get(name)
+
+
+## HQ map kits share one baked material: props get the cartoon outline pass (as HQ units do), grass and flowers (thin
+## blades) a copy without it. Glowing surfaces (lava) are left alone.
+var _kit_mats := {}
+func _kit_outline(mesh: Mesh, thin: bool) -> Mesh:
+	if Progress.gfx_level() >= 2:
+		return mesh
+	var m2: Mesh = mesh.duplicate()
+	for si in m2.get_surface_count():
+		var mat := m2.surface_get_material(si) as BaseMaterial3D
+		if mat == null or mat.emission_enabled:
+			continue
+		var key := "%d_%s" % [mat.get_instance_id(), "thin" if thin else "solid"]
+		if not _kit_mats.has(key):
+			var mc: BaseMaterial3D = mat.duplicate()
+			if not thin:
+				if _hq_outline_mat == null:
+					_hq_outline_mat = ShaderMaterial.new()
+					_hq_outline_mat.shader = Shader.new()
+					_hq_outline_mat.shader.code = HQ_OUTLINE_SHADER
+				mc.next_pass = _hq_outline_mat
+			_kit_mats[key] = mc
+		m2.surface_set_material(si, _kit_mats[key])
+	return m2
 
 
 ## One MultiMesh (one draw call) per prop type, plus one for its outline shell.
@@ -1360,13 +1500,13 @@ func _build_decor_v2() -> void:
 func _build_cave_v2(p: Vector2) -> void:
 	var n := _decor_single("Cave", _v3(p) + Vector3(0.1, 0, 0), 0.0, 0.95)
 	var fire_pos := Vector3(-1.6, 0, 1.75)
-	var wood := _mat("wood", Color(0.45, 0.27, 0.12))
-	var rock2 := _mat("cave_rock2", Color(0.32, 0.31, 0.3))
+	# the hearth: three kit logs crossed in a ring of kit stones
 	for k in 3:
-		_mi(_cyl(0.07, 0.07, 0.8, 5), wood, n, fire_pos + Vector3(0, 0.1, 0), Vector3(PI * 0.5, k * 1.05, 0))
-	for k in 6:
-		var a := TAU * k / 6.0
-		_mi(_sph(0.12, 6), rock2, n, fire_pos + Vector3(cos(a) * 0.45, 0.05, sin(a) * 0.45), Vector3.ZERO, Vector3(1, 0.6, 1))
+		var lg := _decor_single("Log", fire_pos + Vector3(0, 0.02, 0), k * 1.05, 0.5, n)
+		lg.rotation.z = 0.12
+	for k in 7:
+		var a := TAU * k / 7.0
+		_decor_single("Rock_B", fire_pos + Vector3(cos(a) * 0.46, 0.0, sin(a) * 0.46), a * 1.7, 0.16, n)
 	_campfire(n, fire_pos)
 	_ambient_fx(n.position + fire_pos)
 
@@ -1657,11 +1797,19 @@ func _unit_def(u: Dictionary) -> Dictionary:
 	return defs.towers[u.type]
 
 
+## A named part of a model; Blender's duplicate suffixes arrive as "Yaw_004", "Arm_005" (Bronze Age units), so those count too.
+func _find_part(model: Node, nm: String) -> Node:
+	var n := model.find_child(nm, true, false)
+	if n == null:
+		n = model.find_child(nm + "_0*", true, false)
+	return n
+
+
 func _rig_model(root: Node3D, model: Node3D) -> void:
-	var yaw := model.find_child("Yaw", true, false)
+	var yaw := _find_part(model, "Yaw")
 	if yaw == null:
 		yaw = model.find_child("Caveman", true, false)
-	var arm := model.find_child("Arm", true, false)
+	var arm := _find_part(model, "Arm")
 	if arm == null:
 		arm = model.find_child("Shoulder_R", true, false)
 	if yaw != null:
@@ -1669,7 +1817,7 @@ func _rig_model(root: Node3D, model: Node3D) -> void:
 	if arm != null:
 		root.set_meta("arm", arm)
 		arm.set_meta("rest", arm.rotation.x)
-	var orb := model.find_child("Orb", true, false)
+	var orb := _find_part(model, "Orb")
 	if orb != null:
 		root.set_meta("orb", orb)
 	var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -1729,6 +1877,9 @@ func _hq_play(id: int, clip: String) -> bool:
 func _hq_anim_freeze() -> void:
 	for n in tower_nodes.values():
 		if (n as Node3D).has_meta("anim"):
+			((n as Node3D).get_meta("anim") as AnimationPlayer).speed_scale = 0.0
+	for n in enemy_nodes.values():
+		if is_instance_valid(n) and (n as Node3D).has_meta("anim"):
 			((n as Node3D).get_meta("anim") as AnimationPlayer).speed_scale = 0.0
 
 
@@ -1889,9 +2040,18 @@ func _add_unit_deco(n: Node3D) -> void:
 	var deco := Node3D.new()
 	deco.name = "Deco"
 	n.add_child(deco)
-	var buff := _mi(_sph(0.12, 4), _mat("buff", Color(1, 0.85, 0.3), {"emit": Color(1, 0.75, 0.2), "emit_e": 2.0, "unshaded": true}), n, Vector3(0, 2.15, 0))
+	# a small round portrait of the hero boosting this unit; shown while the unit is selected
+	var buff := Sprite3D.new()
 	buff.name = "Buff"
+	var bp := "res://assets/ui/badge_%s.png" % (sim.hero_id if sim != null else "")
+	buff.texture = _res(bp) if ResourceLoader.exists(bp) else null
+	buff.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	buff.no_depth_test = true
+	buff.render_priority = 2
+	buff.pixel_size = 0.0055
+	buff.position = Vector3(0, 2.3, 0)
 	buff.visible = false
+	n.add_child(buff)
 
 
 func _spawn_tower_node(t: Dictionary) -> void:
@@ -1915,32 +2075,13 @@ func _spawn_hero_node() -> void:
 	n.position = _v3(h.pos)
 	add_child(n)
 	_add_unit_deco(n)
-	var tag := Label3D.new()
-	tag.name = "Tag"
-	tag.font = FONT
-	tag.font_size = 54
-	tag.outline_size = 14
-	tag.pixel_size = 0.01
-	tag.modulate = C_GOLD
-	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.no_depth_test = true
-	tag.position = Vector3(0, 2.0, 0)
-	n.add_child(tag)
 	tower_nodes[h.id] = n
-	_refresh_hero_tag()
 	_ring_fx(_v3(h.pos, 0.2), 1.6, C_GOLD, 0.6)
 	_dust_fx(_v3(h.pos, 0.2), 10, 1.0)
 	_sfx("hero_place", -2.0, 0.0)
 	n.scale = Vector3(0.5, 1.6, 0.5)
 	var tw := create_tween()
 	tw.tween_property(n, "scale", Vector3.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-func _refresh_hero_tag() -> void:
-	if sim.hero == null or not tower_nodes.has(sim.hero.id):
-		return
-	var tag: Label3D = tower_nodes[sim.hero.id].get_node("Tag")
-	tag.text = "LV %d" % sim.hero.level
 
 
 func _refresh_tower_node(t: Dictionary) -> void:
@@ -1979,9 +2120,20 @@ func _make_robot(type: String) -> Node3D:
 	root.add_child(model)
 	root.set_meta("legsA", model.find_children("LegA*", "", true, false))
 	root.set_meta("legsB", model.find_children("LegB*", "", true, false))
-	root.set_meta("body", model.find_child("Body", true, false))
+	root.set_meta("body", _find_part(model, "Body"))
 	root.set_meta("punch", 0.0)
 	_rig_extras(root, model)
+	# HQ robots (v0.9.18+) are skinned and animated: a Walk (or Fly) loop whose playback follows their real ground speed
+	# (enemies.json walk_speed = the speed the clip matches at 1x, so the feet don't slide), plus one-shots (Summon)
+	var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if ap != null and (ap.has_animation("Walk") or ap.has_animation("Fly")):
+		var loop := "Walk" if ap.has_animation("Walk") else "Fly"
+		ap.get_animation(loop).loop_mode = Animation.LOOP_LINEAR
+		ap.play(loop)
+		ap.seek(randf() * ap.current_animation_length, true)
+		root.set_meta("anim", ap)
+		root.set_meta("loop", loop)
+		_hq_outline(model)
 	var h: float = float(d.get("bar_h", 1.4))
 	if d.get("flying", false):
 		model.position.y = 0.9           # flyers hover above the road (only some towers can reach them)
@@ -2110,18 +2262,39 @@ func _fx_mesh(key: String) -> Mesh:
 			"spark":
 				_fx_meshes[key] = _box(0.04, 0.04, 0.22)
 			"flash":
-				_fx_meshes[key] = _sph(0.5, 10)
+				var fq := QuadMesh.new()             # a soft glowing billboard burst (v0.9.18; was a 10-sided sphere)
+				fq.size = Vector2(1.3, 1.3)
+				_fx_meshes[key] = fq
 			"dust":
-				_fx_meshes[key] = _sph(0.18, 6)
+				var dq := QuadMesh.new()            # a soft round billboard puff (v0.9.18; was a 6-sided sphere)
+				dq.size = Vector2(0.55, 0.55)
+				_fx_meshes[key] = dq
 			"pebble":
 				_fx_meshes[key] = _sph(0.5, 4)
 			"disc":
 				_fx_meshes[key] = _cyl(1, 1, 0.02, 16)
 			"mote":
 				var q := QuadMesh.new()
-				q.size = Vector2(0.09, 0.09)
+				q.size = Vector2(0.16, 0.16)
 				_fx_meshes[key] = q
 	return _fx_meshes[key]
+
+
+var _mote_texture: Texture2D
+func _mote_tex() -> Texture2D:
+	if _mote_texture == null:
+		var gt := GradientTexture2D.new()
+		gt.width = 64
+		gt.height = 64
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(1.0, 0.5)
+		var gr := Gradient.new()
+		gr.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+		gr.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+		gt.gradient = gr
+		_mote_texture = gt
+	return _mote_texture
 
 
 func _fx_room(need := 1) -> bool:
@@ -2149,8 +2322,37 @@ func _debris_fx(pos: Vector3, count: int, big := false) -> void:
 		var v := Vector3(cos(a2), randf_range(0.4, 1.4), sin(a2)) * randf_range(4, 7)
 		s.look_at_from_position(pos, pos + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
 		effects.append({"node": s, "t": 0.0, "life": 0.3, "kind": "spark", "v": v})
-	var f := _mi(_fx_mesh("flash"), _mat("flash", Color(1, 0.7, 0.4, 0.8), {"emit": Color(1, 0.5, 0.2), "emit_e": 3.0, "unshaded": true}), self, pos)
+	if _flash_mat == null:
+		_flash_mat = StandardMaterial3D.new()
+		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_flash_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_flash_mat.billboard_keep_scale = true          # (the burst grows with its node's scale)
+		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_flash_mat.albedo_color = Color(1.0, 0.62, 0.28, 1.0)
+		_flash_mat.albedo_texture = _mote_tex()
+	var f := _mi(_fx_mesh("flash"), _flash_mat, self, pos)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": f, "t": 0.0, "life": 0.18, "kind": "flash", "s": 1.6 if big else 0.8})
+
+
+var _flash_mat: StandardMaterial3D
+
+
+## Dust and smoke puffs: soft round billboards (the radial mote texture), one cached material per colour.
+var _dust_mats := {}
+func _puff_mat(col: Color) -> StandardMaterial3D:
+	var key := col.to_html()
+	if not _dust_mats.has(key):
+		var dm := StandardMaterial3D.new()
+		dm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		dm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		dm.billboard_keep_scale = true                   # (puffs grow with their node's scale)
+		dm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		dm.albedo_color = col
+		dm.albedo_texture = _mote_tex()
+		_dust_mats[key] = dm
+	return _dust_mats[key]
 
 
 func _dust_fx(pos: Vector3, count: int, spread := 0.6, col := Color(0.78, 0.68, 0.5, 0.7)) -> void:
@@ -2158,9 +2360,10 @@ func _dust_fx(pos: Vector3, count: int, spread := 0.6, col := Color(0.78, 0.68, 
 		count = mini(count, 2)
 		if not _fx_room(count):
 			return
-	var key := "dust_%s" % col.to_html()
+	var dmat := _puff_mat(col)
 	for i in count:
-		var d := _mi(_fx_mesh("dust"), _mat(key, col, {"unshaded": true}), self, pos)
+		var d := _mi(_fx_mesh("dust"), dmat, self, pos)
+		d.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var a := TAU * i / count + randf() * 0.4
 		effects.append({"node": d, "t": 0.0, "life": randf_range(0.35, 0.6), "kind": "dust",
 			"v": Vector3(cos(a), 0.6, sin(a)) * spread * randf_range(1.2, 2.2)})
@@ -2222,8 +2425,16 @@ func _ambient_fx(fire_pos: Vector3) -> void:
 	var spec: Dictionary = kinds[kind_of.get(th, "pollen")]
 	holder.set_meta("vy", float(spec.vy))
 	holder.set_meta("box", [b[0] - 3.0, b[1] - 3.0, b[2] + 3.0, b[3] + 3.0])
+	# soft round motes (a radial-gradient texture), not flat squares
+	var mm := StandardMaterial3D.new()
+	mm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mm.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mm.billboard_keep_scale = true
+	mm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mm.albedo_color = spec.col
+	mm.albedo_texture = _mote_tex()
 	for i in int(spec.n):
-		var m := _mi(_fx_mesh("mote"), _mat("mote_" + th, spec.col, {"unshaded": true, "billboard": true}), holder,
+		var m := _mi(_fx_mesh("mote"), mm, holder,
 			Vector3(randf_range(b[0] - 3.0, b[2] + 3.0), randf_range(0.2, 6.0) if spec.vy != 0.0 else randf_range(0.4, 1.6), randf_range(b[1] - 3.0, b[3] + 3.0)),
 			Vector3.ZERO, Vector3.ONE * float(spec.s) * randf_range(0.7, 1.3))
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -2340,7 +2551,8 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				if fx.smoke_t <= 0.0 and fx.fire != Vector3.INF:
 					fx.smoke_t = 0.35
 					if _fx_room(1):
-						var pf := _mi(_fx_mesh("dust"), _mat("smoke", Color(0.6, 0.6, 0.62, 0.45), {"unshaded": true}), self, fx.fire + Vector3(0, 1.0, 0))
+						var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.6, 0.6, 0.62, 0.45)), self, fx.fire + Vector3(0, 1.0, 0))
+						pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 						effects.append({"node": pf, "t": 0.0, "life": 2.4, "kind": "smoke", "v": Vector3(randf_range(-0.1, 0.25), 0.9, randf_range(-0.15, 0.15))})
 				var vy: float = n.get_meta("vy", 0.0)
 				var bx: Array = n.get_meta("box", [-20, -12, 20, 12])
@@ -2361,6 +2573,7 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				n.scale = Vector3.ONE * (1.0 - k)
 			"flash":
 				n.scale = Vector3.ONE * fx.s * (0.6 + k * 1.2)
+				n.transparency = k * k
 				n.visible = k < 0.95
 			"dust":
 				n.position += fx.v * dt
@@ -2379,6 +2592,7 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 # =================================================================== loop
 func _process(delta: float) -> void:
 	time_s += delta
+	_tick_viewers(delta)
 	_drag_scroll_tick(delta)
 	_fit_modals()
 	if paused or (started and detail_open > 0):
@@ -2453,7 +2667,6 @@ func _handle_events() -> void:
 			"hero_place":
 				_spawn_hero_node()
 			"hero_level":
-				_refresh_hero_tag()
 				if sim.hero != null:
 					_hq_play(sim.hero.id, "Cheer")
 					_float_text(_v3(sim.hero.pos, 2.5), "RANK %d!" % ev.level, C_GOLD, 60)
@@ -2637,6 +2850,10 @@ func _handle_events() -> void:
 				_sfx("cloak", -12.0, 0.1, 0.4)
 			"summon":
 				var be = sim._enemy_by_id(ev.id)
+				if be != null and enemy_nodes.has(ev.id) and (enemy_nodes[ev.id] as Node3D).has_meta("anim"):
+					var bap: AnimationPlayer = (enemy_nodes[ev.id] as Node3D).get_meta("anim")
+					if bap.has_animation("Summon"):
+						bap.play("Summon", 0.15)
 				if be != null:
 					_ring_fx(_v3(be.pos, 0.3), 2.8, Color(1, 0.2, 0.15), 0.6)
 					_sfx("summon", -6.0, 0.05, 0.5)
@@ -2680,11 +2897,17 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_mi(_box(0.05, 0.05, 0.3), _mat("wood_dark", Color(0.3, 0.17, 0.08)), root, Vector3(0, 0, 0.15))
 		root.set_meta("spin", true)
 		return root
-	if utype == "boulder_catapult" and dt != "fire":
-		# the HQ catapult's boulder: a smooth, slightly lumpy grey stone (the faceted ball looked cheap next to it)
-		var bm := _mi(_sph(0.21, 16), _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95}), root)
+	if utype == "boulder_catapult":
+		# the HQ catapult's boulder: a smooth, slightly lumpy grey stone (the faceted ball looked cheap next to it);
+		# Path A's burning boulder glows from inside, in a soft halo (it used to be a flat yellow hexagon)
+		var hot := dt == "fire"
+		var bmat := _mat("proj_boulder_fire", Color(0.22, 0.12, 0.08), {"rough": 0.9, "emit": Color(1.0, 0.3, 0.04), "emit_e": 0.5}) \
+			if hot else _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95})
+		var bm := _mi(_sph(0.21, 16), bmat, root)
 		bm.scale = Vector3(1.08, 0.86, 0.97)
 		bm.rotation = Vector3(0.4, 0.9, 0.2)
+		if hot:
+			_fire_halo(root, 0.7)
 		root.set_meta("spin", true)
 		return root
 	var size := 0.11
@@ -2693,13 +2916,30 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if p.kind == "lob":
 		size = 0.26
 	if dt == "fire":
-		col = Color(1, 0.5, 0.1)
-		opts = {"emit": Color(1, 0.4, 0.05), "emit_e": 2.5}
+		col = Color(0.95, 0.42, 0.1)
+		opts = {"emit": Color(1, 0.38, 0.05), "emit_e": 1.2}
+		_fire_halo(root, size * 4.0)
 	elif dt == "blunt" and p.kind == "homing":
 		size = 0.17
-	_mi(_sph(size, 6), _mat("proj_%s" % col.to_html(), col, opts), root)
+	_mi(_sph(size, 12), _mat("proj_%s" % col.to_html(), col, opts), root)
 	root.set_meta("spin", true)
 	return root
+
+
+## A soft additive glow round a burning shot (billboard, radial texture).
+var _halo_mat: StandardMaterial3D
+func _fire_halo(root: Node3D, s: float) -> void:
+	if _halo_mat == null:
+		_halo_mat = StandardMaterial3D.new()
+		_halo_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_halo_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_halo_mat.billboard_keep_scale = true
+		_halo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_halo_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_halo_mat.albedo_color = Color(1.0, 0.36, 0.06, 0.8)
+		_halo_mat.albedo_texture = _mote_tex()
+	var h := _mi(_fx_mesh("flash"), _halo_mat, root, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * s)
+	h.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Projectile looks for the later eras (src.proj): oriented ones get the "arrow" meta so they face their flight.
@@ -2915,6 +3155,29 @@ func _animate_fire(id: int) -> void:
 	tw.tween_property(arm, "rotation:x", rest, dur * 0.45).set_trans(Tween.TRANS_SINE)
 
 
+## HQ robot clips: the walk plays as fast as the robot really moves (slowed in mud, stopped when stunned, sped up with
+## the game); a stunned robot shakes; a one-shot (the boss's Summon) plays through, then the loop resumes.
+func _robot_anim_tick(n: Node3D, e: Dictionary, stunned: bool) -> void:
+	var ap: AnimationPlayer = n.get_meta("anim")
+	var model: Node3D = n.get_node("Model")
+	var loop: String = n.get_meta("loop")
+	if ap.current_animation == "" or not ap.is_playing():
+		ap.play(loop, 0.2)
+	var ws := float(defs.enemies[e.type].get("walk_speed", 0.0))
+	if stunned:
+		ap.speed_scale = 0.0
+		model.rotation.z = sin(time_s * 40.0) * 0.1
+		return
+	model.rotation.z = 0.0
+	if ws > 0.0 and loop == "Walk":
+		var v: float = (e.pos as Vector2).distance_to(e.prev_pos) / Sim.TICK * float(speed)
+		var g := lerpf(float(n.get_meta("gait", v)), v, 0.15)
+		n.set_meta("gait", g)
+		ap.speed_scale = clampf(g / ws, 0.15, 4.0)
+	else:
+		ap.speed_scale = float(speed)
+
+
 func _sync_visuals(alpha: float) -> void:
 	for e in sim.enemies:
 		if not enemy_nodes.has(e.id):
@@ -2935,6 +3198,8 @@ func _sync_visuals(alpha: float) -> void:
 		var dir := sim.dir_at(e.dist, e.pi)
 		n.rotation.y = lerp_angle(n.rotation.y, _yaw(dir), 0.25)
 		var stunned: bool = sim.tick < e.stun_until
+		if n.has_meta("anim"):
+			_robot_anim_tick(n, e, stunned)
 		var slowed: bool = sim.tick < e.slow_until
 		var rate: float = 0.0 if stunned else (5.0 if slowed else 10.0) * float(e.speed) / 1.8
 		var ph: float = time_s * maxf(rate, 0.001) * 1.6 + e.id
@@ -2981,7 +3246,7 @@ func _sync_visuals(alpha: float) -> void:
 		if mark.visible:
 			mark.rotation.y = time_s * 3.0
 		var bar: Node3D = n.get_node("Bar")
-		if e.hp < e.max_hp:
+		if e.hp < e.max_hp and not attract:
 			bar.visible = true
 			bar.global_rotation = Vector3.ZERO     # don't swing around when the robot turns a corner
 			var fg: MeshInstance3D = bar.get_node("Fg")
@@ -3037,11 +3302,10 @@ func _sync_visuals(alpha: float) -> void:
 			if emp_on:
 				zap.rotation.y = time_s * 9.0
 				zap.scale = Vector3.ONE * (0.8 + 0.3 * absf(sin(time_s * 23.0)))
-		var buff: Node3D = tn.get_node("Buff")
-		buff.visible = t.get("buffed", false) and not t.get("is_hero", false)
+		var buff: Sprite3D = tn.get_node("Buff")
+		buff.visible = t.get("buffed", false) and not t.get("is_hero", false) and t.id == selected and buff.texture != null
 		if buff.visible:
-			buff.rotation.y = time_s * 2.5
-			buff.position.y = 2.15 + 0.08 * sin(time_s * 3.0 + t.id)
+			buff.position.y = 2.3 + 0.06 * sin(time_s * 3.0)
 
 
 # =================================================================== input
@@ -3536,27 +3800,16 @@ func _build_hud() -> void:
 	for tn in ["Label", "Button", "CheckBox", "CheckButton", "OptionButton", "LinkButton", "LineEdit", "RichTextLabel", "MenuButton"]:
 		ui_theme.set_color("font_outline_color", tn, Color(0.02, 0.04, 0.1, 0.95))     # outlined text everywhere
 		ui_theme.set_constant("outline_size", tn, 8)
-	for sbn in ["VScrollBar", "HScrollBar"]:
-		var track := _style(Color(0.03, 0.05, 0.09, 0.9), 10)
-		track.set_content_margin_all(11)
-		track.shadow_size = 0
-		var grab := _style(Color(0.31, 0.47, 0.74), 10)
-		grab.set_content_margin_all(11)
-		grab.shadow_size = 0
-		var grab_h := _style(Color(0.95, 0.75, 0.38), 10)
-		grab_h.set_content_margin_all(11)
-		grab_h.shadow_size = 0
-		ui_theme.set_stylebox("scroll", sbn, track)
-		ui_theme.set_stylebox("scroll_focus", sbn, track)
-		ui_theme.set_stylebox("grabber", sbn, grab)
-		ui_theme.set_stylebox("grabber_highlight", sbn, grab_h)
-		ui_theme.set_stylebox("grabber_pressed", sbn, grab_h)
+	for sbn in ["VScrollBar", "HScrollBar"]:          # no scroll bars anywhere: areas scroll by drag or wheel
+		for k in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
+			ui_theme.set_stylebox(k, sbn, StyleBoxEmpty.new())
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var root := Control.new()
 	root.theme = ui_theme
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS     # rendered UI art is shown well below its size
 	layer.add_child(root)
 	ui_root = root
 
@@ -3885,117 +4138,304 @@ func _menu_button(text: String, col: Color, cb: Callable, h := 78, font := 30) -
 	return b
 
 
-const MENU_GOLD := Color(0.5, 0.86, 1.0)
+# ---------------------------------------------------------------- main menu art (v0.9.18)
+# Buttons are gold medallions: a shader-drawn enamel disc (any colour, glossy dome, a shine that sweeps across now and
+# then), the 3D icon (it may pop out over the rim), the rendered gold rim on top, and a plaque for the label. The art is
+# rendered in Blender (tools/blender/ui/menu_art.py -> assets/ui/mm_*.png).
+const MEDALLION_SHADER := """
+shader_type canvas_item;
+uniform vec4 c_top : source_color = vec4(0.45, 0.78, 1.0, 1.0);
+uniform vec4 c_bot : source_color = vec4(0.1, 0.3, 0.7, 1.0);
+uniform float phase = 0.0;
+uniform float period = 5.0;
+uniform float glow = 0.0;
+void fragment() {
+	vec2 p = UV * 2.0 - 1.0;
+	float r = length(p);
+	float aa = fwidth(r) * 1.5;
+	float a = 1.0 - smoothstep(1.0 - aa, 1.0, r);
+	vec3 c = mix(c_top.rgb, c_bot.rgb, smoothstep(-0.95, 0.95, p.y));
+	float ang = atan(p.y, p.x);
+	c *= 1.0 + 0.07 * sin(ang * 14.0) * (1.0 - r);
+	c *= 1.0 - 0.38 * smoothstep(0.62, 1.0, r) * (0.55 + 0.45 * smoothstep(-0.2, -1.0, p.y));
+	c += c_top.rgb * 0.35 * smoothstep(0.55, 0.98, r) * smoothstep(0.2, 0.95, p.y);
+	vec2 hp = (p - vec2(0.0, -0.48)) / vec2(0.74, 0.4);
+	c = mix(c, vec3(1.0), (1.0 - smoothstep(0.5, 1.0, length(hp))) * 0.3);
+	float t = fract(TIME / period + phase);
+	float s = (p.x * 0.8 + p.y * 0.6) - (t * 9.0 - 4.5);
+	c += vec3(1.0) * exp(-s * s * 14.0) * 0.32;
+	c += c_top.rgb * glow * (1.0 - r) * 0.5;
+	COLOR = vec4(c, a);
+}
+"""
+const MASK_SHADER := """
+shader_type canvas_item;
+uniform float radius = 0.5;
+void fragment() {
+	vec4 t = texture(TEXTURE, UV);
+	float r = length(UV - 0.5);
+	float aa = fwidth(r) * 1.5;
+	t.a *= 1.0 - smoothstep(radius - aa, radius, r);
+	COLOR = t;
+}
+"""
+const FILL_SHADER := """
+shader_type canvas_item;
+uniform vec4 c_top : source_color = vec4(0.55, 0.9, 1.0, 1.0);
+uniform vec4 c_bot : source_color = vec4(0.12, 0.45, 0.95, 1.0);
+uniform vec2 size_px = vec2(200.0, 22.0);
+void fragment() {
+	vec3 c = mix(c_top.rgb, c_bot.rgb, smoothstep(0.1, 0.95, UV.y));
+	c = mix(c, vec3(1.0), (1.0 - smoothstep(0.08, 0.42, UV.y)) * 0.45);
+	float t = fract(TIME * 0.35);
+	float s = UV.x - (t * 1.6 - 0.3);
+	c += vec3(1.0) * exp(-s * s * 220.0) * 0.35;
+	// capsule mask (rounded ends), anti-aliased
+	vec2 p = UV * size_px;
+	float r = size_px.y * 0.5;
+	vec2 q = vec2(clamp(p.x, r, size_px.x - r), r);
+	float d = length(p - q) - r;
+	COLOR = vec4(c, 1.0 - smoothstep(-1.0, 0.5, d));
+}
+"""
+var _shaders := {}
 
 
-## Big round menu button with an icon and a banner label underneath (and an optional "!" badge).
-func _round_button(icon: Texture2D, text: String, col: Color, size: float, cb: Callable, badge := false, icon_frac := 0.66) -> VBoxContainer:
-	var v := VBoxContainer.new()
-	v.alignment = BoxContainer.ALIGNMENT_END
-	v.add_theme_constant_override("separation", -14)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _shader_mat(code: String) -> ShaderMaterial:
+	if not _shaders.has(code):
+		var sh := Shader.new()
+		sh.code = code
+		_shaders[code] = sh
+	var m := ShaderMaterial.new()
+	m.shader = _shaders[code]
+	return m
+
+
+## A rendered 9-patch shown smaller than its texture: the patch is laid out at texture scale and scaled down as a whole,
+## so the rounded ends and corners shrink with it instead of overflowing. margins: [left, top, right, bottom] in
+## texture pixels; k = screen pixels per texture pixel.
+func _nine(path: String, margins: Array, size: Vector2, k: float) -> Control:
+	var c := Control.new()
+	c.custom_minimum_size = size
+	c.size = size
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var np := NinePatchRect.new()
+	np.texture = _res(path)
+	np.patch_margin_left = int(margins[0])
+	np.patch_margin_top = int(margins[1])
+	np.patch_margin_right = int(margins[2])
+	np.patch_margin_bottom = int(margins[3])
+	np.size = size / k
+	np.scale = Vector2(k, k)
+	np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(np)
+	c.resized.connect(func(): np.size = c.size / k)
+	return c
+
+
+## A label on the gold-framed navy plaque (stretches to the text).
+func _plaque(text: String, font_size: int, min_w := 0.0) -> Control:
+	var h := font_size * 1.75
+	var w := maxf(min_w, FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + font_size * 1.7)
+	var pq := _nine("res://assets/ui/mm_plaque.png", [76, 0, 76, 0], Vector2(w, h), h / 160.0)
+	var l := _label(text, font_size, Color(1, 0.97, 0.9), maxi(6, font_size / 4))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.set_anchors_preset(Control.PRESET_FULL_RECT)
+	l.offset_top = -3
+	pq.add_child(l)
+	pq.set_meta("label", l)
+	return pq
+
+
+
+
+## A menu medallion button. opts: icon_frac (icon size / medallion), icon_dy (shift, fraction of size; negative pops the
+## icon up over the rim), face (mask the icon to the disc, for portraits), badge (a red "!" gem), rim (texture),
+## phase (shine timing), label_size, sub (a second line under the plaque), play (sunburst and glow behind it).
+func _medallion(icon: Texture2D, text: String, c_top: Color, c_bot: Color, size: float, cb: Callable, opts := {}) -> Control:
+	var label_size: int = int(opts.get("label_size", int(size * 0.19)))
+	var plaque_h := label_size * 1.75 if text != "" else 0.0
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(size, size + plaque_h * 0.62 + (label_size * 1.1 if opts.has("sub") else 0.0))
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var body := Control.new()
+	body.size = Vector2(size, size)
+	body.pivot_offset = Vector2(size, size) * 0.5
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(body)
+	if opts.get("play", false):
+		var rays := TextureRect.new()
+		rays.texture = _res("res://assets/ui/mm_rays.png")
+		rays.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rays.size = Vector2(size, size) * 1.9
+		rays.position = Vector2(size, size) * -0.45
+		rays.pivot_offset = rays.size * 0.5
+		rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rays.modulate = Color(1, 1, 1, 0.85)
+		body.add_child(rays)
+		var rt := rays.create_tween().set_loops()
+		rt.tween_property(rays, "rotation", TAU, 24.0).from(0.0)
+	# soft drop shadow
+	var sh := TextureRect.new()
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	var gr := Gradient.new()
+	gr.set_color(0, Color(0, 0, 0, 0.55))
+	gr.set_color(1, Color(0, 0, 0, 0.0))
+	gt.gradient = gr
+	sh.texture = gt
+	sh.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sh.size = Vector2(size * 1.12, size * 1.12)
+	sh.position = Vector2(-size * 0.06, size * 0.02)
+	sh.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(sh)
+	# enamel disc (inside the rim)
+	var disc := ColorRect.new()
+	var dm := _shader_mat(MEDALLION_SHADER)
+	dm.set_shader_parameter("c_top", c_top)
+	dm.set_shader_parameter("c_bot", c_bot)
+	dm.set_shader_parameter("phase", float(opts.get("phase", randf())))
+	disc.material = dm
+	var inset := size * 0.1
+	disc.position = Vector2(inset, inset)
+	disc.size = Vector2(size - 2 * inset, size - 2 * inset)
+	disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	body.add_child(disc)
+	root.set_meta("disc", dm)
+	# icon
+	if icon != null:
+		var ic := TextureRect.new()
+		ic.texture = icon
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var isz: float = size * float(opts.get("icon_frac", 0.62))
+		ic.size = Vector2(isz, isz)
+		ic.position = Vector2((size - isz) * 0.5, (size - isz) * 0.5 + size * float(opts.get("icon_dy", 0.0)))
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if opts.get("face", false):
+			var mm := _shader_mat(MASK_SHADER)
+			mm.set_shader_parameter("radius", 0.5 * (size - 2 * inset) / isz)
+			ic.material = mm
+			ic.position = Vector2((size - isz) * 0.5, (size - isz) * 0.5 + size * float(opts.get("icon_dy", 0.0)))
+		var rim_first: bool = not opts.get("face", false) and float(opts.get("icon_dy", 0.0)) < -0.01
+		if not rim_first:
+			body.add_child(ic)
+		var rim := TextureRect.new()
+		rim.texture = _res(str(opts.get("rim", "res://assets/ui/mm_rim.png")))
+		rim.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		rim.size = Vector2(size, size)
+		rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(rim)
+		if rim_first:
+			body.add_child(ic)              # pops out over the rim
+		root.set_meta("icon", ic)
+	if opts.get("badge", false):
+		var bd := TextureRect.new()
+		bd.texture = _res("res://assets/ui/mm_badge.png")
+		bd.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bd.size = Vector2(size, size) * 0.3
+		bd.position = Vector2(size * 0.74, -size * 0.02)
+		bd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var bl := _label("!", int(size * 0.2), Color.WHITE, 6)
+		bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		bl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		bl.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bl.offset_top = -2
+		bd.add_child(bl)
+		body.add_child(bd)
+		var bt := bd.create_tween().set_loops()
+		bt.tween_property(bd, "position:y", -size * 0.08, 0.45).set_trans(Tween.TRANS_SINE)
+		bt.tween_property(bd, "position:y", -size * 0.02, 0.45).set_trans(Tween.TRANS_SINE)
+	# the label plaque, overlapping the bottom of the rim
+	if text != "":
+		var pq := _plaque(text, label_size, size * 0.72)
+		pq.position = Vector2((size - pq.size.x) * 0.5, size - plaque_h * 0.38)
+		root.add_child(pq)
+		root.set_meta("plaque", pq)
+		if opts.has("sub"):
+			var sl := _label(str(opts.sub), int(label_size * 0.62), Color(0.88, 1.0, 0.82), 7)
+			sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			sl.size = Vector2(size * 1.6, label_size)
+			sl.position = Vector2(-size * 0.3, size - plaque_h * 0.38 + plaque_h + 2)
+			root.add_child(sl)
+	# input: an invisible button over the disc
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(size, size)
-	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	b.pivot_offset = Vector2(size, size) * 0.5
-	for st in ["normal", "hover", "pressed"]:
-		var c := col
-		if st == "hover":
-			c = col.lightened(0.15)
-		elif st == "pressed":
-			c = col.darkened(0.15)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = c
-		sb.set_corner_radius_all(int(size * 0.5))
-		sb.set_border_width_all(int(size * 0.06))
-		sb.border_color = MENU_GOLD.darkened(0.1)
-		sb.shadow_color = Color(0, 0, 0, 0.45)
-		sb.shadow_size = 10
-		sb.shadow_offset = Vector2(0, 6)
-		sb.anti_aliasing = true
-		b.add_theme_stylebox_override(st, sb)
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	b.icon = icon
-	b.expand_icon = true
-	b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	b.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
-	b.add_theme_constant_override("icon_max_width", int(size * icon_frac))
+	for st in ["normal", "hover", "pressed", "focus", "disabled", "hover_pressed"]:
+		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	b.size = Vector2(size, size + plaque_h * 0.62)
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	root.add_child(b)
+	root.set_meta("button", b)
 	b.mouse_entered.connect(func():
-		var tw := b.create_tween()
-		tw.tween_property(b, "scale", Vector2.ONE * 1.08, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
+		body.create_tween().tween_property(body, "scale", Vector2.ONE * 1.06, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	b.mouse_exited.connect(func():
-		var tw := b.create_tween()
-		tw.tween_property(b, "scale", Vector2.ONE, 0.12))
+		body.create_tween().tween_property(body, "scale", Vector2.ONE, 0.14))
+	b.button_down.connect(func():
+		body.create_tween().tween_property(body, "scale", Vector2.ONE * 0.9, 0.06))
+	b.button_up.connect(func():
+		body.create_tween().tween_property(body, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT))
 	b.pressed.connect(func():
 		_sfx("click")
-		var tw := b.create_tween()
-		tw.tween_property(b, "scale", Vector2.ONE * 0.92, 0.05)
-		tw.tween_property(b, "scale", Vector2.ONE, 0.1)
 		cb.call())
-	v.add_child(b)
-	if badge:
-		var bd := Label.new()
-		bd.text = "!"
-		bd.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		bd.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		bd.add_theme_font_size_override("font_size", int(size * 0.26))
-		bd.add_theme_color_override("font_color", Color.WHITE)
-		var bsb := _style(Color(0.9, 0.15, 0.1), int(size * 0.17), Color.WHITE, 4)
-		bsb.set_content_margin_all(0)
-		bd.add_theme_stylebox_override("normal", bsb)
-		bd.size = Vector2(size * 0.34, size * 0.34)
-		bd.position = Vector2(size * 0.72, -size * 0.04)
-		bd.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		b.add_child(bd)
-		var tw2 := bd.create_tween().set_loops()
-		tw2.tween_property(bd, "position:y", -size * 0.1, 0.45).set_trans(Tween.TRANS_SINE)
-		tw2.tween_property(bd, "position:y", -size * 0.04, 0.45).set_trans(Tween.TRANS_SINE)
-	if text != "":
-		var ban := PanelContainer.new()
-		var bsb2 := _style(Color(0.11, 0.18, 0.29), 14, MENU_GOLD.darkened(0.25), 4)
-		bsb2.content_margin_left = 16
-		bsb2.content_margin_right = 16
-		bsb2.content_margin_top = 2
-		bsb2.content_margin_bottom = 4
-		ban.add_theme_stylebox_override("panel", bsb2)
-		ban.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		ban.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var l := _label(text, 26 if size < 170 else 34, Color.WHITE, 8)
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		ban.add_child(l)
-		v.add_child(ban)
-	v.set_meta("button", b)
-	return v
+	# idle: a gentle float, each button on its own beat
+	var ph := float(opts.get("phase", randf()))
+	var fl := body.create_tween().set_loops()
+	fl.tween_interval(ph * 1.2)
+	fl.tween_property(body, "position:y", -size * 0.025, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	fl.tween_property(body, "position:y", size * 0.012, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return root
 
 
-## Rounded "pill" showing a currency, with an optional + button.
-func _currency_pill(icon: Texture2D, text: String, col: Color, plus_cb := Callable()) -> PanelContainer:
-	var pill := PanelContainer.new()
-	var sb := _style(Color(0.04, 0.06, 0.1, 0.85), 30, MENU_GOLD.darkened(0.3), 4)
-	sb.content_margin_left = 10
-	sb.content_margin_right = 10
-	sb.content_margin_top = 4
-	sb.content_margin_bottom = 4
-	pill.add_theme_stylebox_override("panel", sb)
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 8)
-	pill.add_child(h)
-	h.add_child(_icon(icon, 54))
-	var l := _label(text, 32, col, 8)
-	l.custom_minimum_size = Vector2(110, 0)
+## Scrap of an age: the same salvage pile, recoloured, with one piece of that age.
+const SCRAP_KEYS := {"Stone Age": "stone", "Bronze Age": "bronze", "Iron Age": "iron", "Classical Age": "classical",
+	"Medieval Age": "medieval", "Gunpowder Age": "gunpowder", "Industrial Age": "industrial", "Modern Age": "modern",
+	"Digital Age": "digital", "The Data Center": "datacenter"}
+func _scrap_tex(era: String) -> Texture2D:
+	var path := "res://assets/ui/scrap_%s.png" % str(SCRAP_KEYS.get(era, "stone"))
+	return _res(path if ResourceLoader.exists(path) else "res://assets/ui/icon_scrap.png") as Texture2D
+
+
+## Currency in a gold-framed glass pill: the icon pops out on the left, a green gem "+" on the right.
+func _currency_pill(icon: Texture2D, text: String, col: Color, plus_cb := Callable()) -> Control:
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(310, 70)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var np := _nine("res://assets/ui/mm_pill.png", [64, 0, 64, 0], Vector2(288, 62), 62.0 / 128.0)
+	np.position = Vector2(22, 5)
+	root.add_child(np)
+	var ic := TextureRect.new()
+	ic.texture = icon
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ic.size = Vector2(84, 84)
+	ic.position = Vector2(-8, -6)
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(ic)
+	var l := _label(text, 34, col, 8)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	h.add_child(l)
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.position = Vector2(84, 6)
+	l.size = Vector2(150, 58)
+	root.add_child(l)
 	if plus_cb.is_valid():
 		var pb := TextureButton.new()
-		pb.texture_normal = _res("res://assets/ui/menu_plus.png")
+		pb.texture_normal = _res("res://assets/ui/mm_plus.png")
 		pb.ignore_texture_size = true
 		pb.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-		pb.custom_minimum_size = Vector2(54, 54)
+		pb.size = Vector2(60, 60)
+		pb.position = Vector2(250, 6)
+		pb.pivot_offset = Vector2(30, 30)
 		pb.pressed.connect(func():
 			_sfx("click")
+			var tw := pb.create_tween()
+			tw.tween_property(pb, "scale", Vector2.ONE * 0.85, 0.05)
+			tw.tween_property(pb, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			plus_cb.call())
-		h.add_child(pb)
-	return pill
+		root.add_child(pb)
+	return root
 
 
 func _build_main_menu(root: Control) -> void:
@@ -4026,159 +4466,157 @@ func _build_main_menu(root: Control) -> void:
 			tr.offset_top = -330
 		title_screen.add_child(tr)
 	var era_now := str(_map_entry(_menu_map()).get("era", "Stone Age"))
-	# ---- top left: profile (hero face, level star, XP bar)
-	var prof := Control.new()
-	prof.position = Vector2(24, 18)
-	prof.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title_screen.add_child(prof)
-	var face_frame := PanelContainer.new()
-	var ffs := _style(Color(0.25, 0.45, 0.8), 18, MENU_GOLD, 6)
-	ffs.set_content_margin_all(4)
-	face_frame.add_theme_stylebox_override("panel", ffs)
-	face_frame.custom_minimum_size = Vector2(118, 118)
-	prof.add_child(face_frame)
 	var hid := Progress.hero()
 	if not defs.heroes.heroes.has(hid):
 		hid = "ugo"
-	var face := _icon(_face_tex(hid), 106)
-	face_frame.add_child(face)
-	var barbg := PanelContainer.new()
-	var bbs := _style(Color(0.07, 0.1, 0.17, 0.95), 14, MENU_GOLD.darkened(0.3), 4)
-	bbs.set_content_margin_all(5)
-	barbg.add_theme_stylebox_override("panel", bbs)
-	barbg.position = Vector2(150, 18)
-	barbg.custom_minimum_size = Vector2(330, 50)
-	prof.add_child(barbg)
+	var hcol: Color = _hero_color(hid)
+	# ---- top left: profile (hero portrait medallion, level star, XP bar, name)
+	var prof := Control.new()
+	prof.position = Vector2(18, 12)
+	prof.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(prof)
 	var pr := Progress.hero_level_progress(hid)
 	var hmax := Progress.hero_level(hid) >= int(Progress.workshop.hero_levels.max)
-	var pb := ProgressBar.new()
-	pb.show_percentage = false
-	pb.max_value = maxf(float(pr[1]), 1.0)
-	pb.value = float(pr[0])
-	pb.custom_minimum_size = Vector2(320, 38)
-	var fill := _style(Color(0.3, 0.7, 1.0), 10)
-	fill.shadow_size = 0
-	var bgs := _style(Color(0.05, 0.08, 0.12), 10)
-	bgs.shadow_size = 0
-	pb.add_theme_stylebox_override("fill", fill)
-	pb.add_theme_stylebox_override("background", bgs)
-	barbg.add_child(pb)
-	var xpl := _label("MAX LEVEL" if hmax else "%d / %d XP" % [pr[0], pr[1]], 22, Color.WHITE, 7)
+	var xbar := _nine("res://assets/ui/mm_xpbar.png", [48, 0, 48, 0], Vector2(352, 56), 56.0 / 96.0)
+	xbar.position = Vector2(116, 26)
+	prof.add_child(xbar)
+	var fill_w := 352.0 - 2.0 * 30.0
+	var frac := 1.0 if hmax else clampf(float(pr[0]) / maxf(float(pr[1]), 1.0), 0.0, 1.0)
+	if frac > 0.0:
+		var fill := ColorRect.new()        # rounded glossy fill inside the groove
+		var fm := _shader_mat(FILL_SHADER)
+		fill.material = fm
+		fill.position = Vector2(146, 43)
+		fill.size = Vector2(maxf(fill_w * frac, 24.0), 22)
+		fm.set_shader_parameter("size_px", fill.size)
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		prof.add_child(fill)
+	var xpl := _label("MAX LEVEL" if hmax else "%d / %d XP" % [pr[0], pr[1]], 23, Color.WHITE, 8)
 	xpl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	xpl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	xpl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	pb.add_child(xpl)
-	var star := _icon(_res("res://assets/ui/menu_star.png") as Texture2D, 104)
-	star.position = Vector2(110, -6)
+	xpl.position = Vector2(146, 26)
+	xpl.size = Vector2(fill_w, 54)
+	prof.add_child(xpl)
+	var who := _short_name(str(defs.heroes.heroes[hid].name)).to_upper() + "  -  HERO LEVEL" + ("   -   TIMELINE %d" % Progress.timeline() if Progress.timeline() > 1 else "")
+	var whol := _label(who, 23, Color(1.0, 0.86, 0.5), 8)
+	whol.position = Vector2(156, 82)
+	prof.add_child(whol)
+	var portrait := _medallion(_face_tex(hid), "", hcol.lightened(0.25), hcol.darkened(0.45), 136, func(): _open_heroes(),
+		{"face": true, "icon_frac": 0.96, "icon_dy": 0.0, "phase": 0.1})
+	prof.add_child(portrait)
+	var star := TextureRect.new()
+	star.texture = _res("res://assets/ui/mm_star.png")
+	star.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	star.size = Vector2(70, 70)
+	star.position = Vector2(88, 80)
+	star.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	prof.add_child(star)
-	var lvl := _label(str(Progress.hero_level(hid)), 38, Color(0.07, 0.11, 0.19), 0)
+	var lvl := _label(str(Progress.hero_level(hid)), 30, Color(0.36, 0.14, 0.02), 0)
 	lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lvl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lvl.position = Vector2(110, 6)
-	lvl.size = Vector2(104, 92)
+	lvl.position = Vector2(88, 84)
+	lvl.size = Vector2(70, 66)
 	prof.add_child(lvl)
-	var who := "%s  -  HERO LEVEL" % _short_name(str(defs.heroes.heroes[hid].name)).to_upper() + ("   -   TIMELINE %d" % Progress.timeline() if Progress.timeline() > 1 else "")
-	var whol := _label(who, 24, MENU_GOLD, 8)
-	whol.position = Vector2(210, 74)
-	prof.add_child(whol)
-	# ---- top centre: title
-	var tbox := VBoxContainer.new()
-	tbox.anchor_left = 0.5
-	tbox.anchor_right = 0.5
-	tbox.offset_left = -330
-	tbox.offset_right = 330
-	tbox.offset_top = 8
-	tbox.add_theme_constant_override("separation", -18)
-	tbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title_screen.add_child(tbox)
-	var t1 := _label("AGE OF", 40, Color(1, 0.85, 0.6), 12)
-	t1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tbox.add_child(t1)
-	var t2 := _label("TOWER DEFENSE", 70, MENU_GOLD, 20)
-	t2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t2.add_theme_color_override("font_shadow_color", Color(0.5, 0.15, 0.0, 0.9))
-	t2.add_theme_constant_override("shadow_offset_y", 6)
-	tbox.add_child(t2)
-	var bob := tbox.create_tween().set_loops()
-	bob.tween_property(tbox, "offset_top", 16.0, 1.6).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(tbox, "offset_top", 8.0, 1.6).set_trans(Tween.TRANS_SINE)
+	# ---- top centre: the title
+	var logo := TextureRect.new()
+	logo.texture = _res("res://assets/ui/mm_logo.png")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.anchor_left = 0.5
+	logo.anchor_right = 0.5
+	logo.offset_left = -330
+	logo.offset_right = 330
+	logo.offset_top = 0
+	logo.offset_bottom = 264
+	logo.pivot_offset = Vector2(330, 132)
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_screen.add_child(logo)
+	var bob := logo.create_tween().set_loops()
+	bob.tween_property(logo, "offset_top", 10.0, 1.8).set_trans(Tween.TRANS_SINE)
+	bob.parallel().tween_property(logo, "offset_bottom", 274.0, 1.8).set_trans(Tween.TRANS_SINE)
+	bob.tween_property(logo, "offset_top", 0.0, 1.8).set_trans(Tween.TRANS_SINE)
+	bob.parallel().tween_property(logo, "offset_bottom", 264.0, 1.8).set_trans(Tween.TRANS_SINE)
 	# ---- top right: currencies
 	var cur := VBoxContainer.new()
 	cur.anchor_left = 1.0
 	cur.anchor_right = 1.0
-	cur.offset_left = -330
-	cur.offset_right = -24
-	cur.offset_top = 20
-	cur.add_theme_constant_override("separation", 10)
+	cur.offset_left = -336
+	cur.offset_right = -20
+	cur.offset_top = 16
+	cur.add_theme_constant_override("separation", 8)
 	cur.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(cur)
-	cur.add_child(_currency_pill(ICON_SHARD, str(Progress.shards()), Color(0.85, 0.78, 1.0), func(): _open_heroes()))
-	cur.add_child(_currency_pill(_icon_tex(str(Progress.era_towers(era_now)[0])) if not Progress.era_towers(era_now).is_empty() else ICON_GOLD,
-		str(Progress.scrap(era_now)), Color(0.8, 0.9, 1.0), func(): _open_workshop("")))
-	var sl := _label("%s SCRAP" % era_now.to_upper(), 16, Color(0.68, 0.73, 0.8), 5)
+	cur.add_child(_currency_pill(ICON_SHARD, str(Progress.shards()), Color(0.9, 0.82, 1.0), func(): _open_heroes()))
+	cur.add_child(_currency_pill(_scrap_tex(era_now), str(Progress.scrap(era_now)), Color(0.86, 0.94, 1.0), func(): _open_workshop("")))
+	var sl := _label("%s SCRAP" % era_now.to_upper(), 17, Color(0.82, 0.86, 0.92), 6)
 	sl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	cur.add_child(sl)
 	# ---- left column: settings, quit
 	var lcol := VBoxContainer.new()
 	lcol.anchor_top = 0.5
 	lcol.anchor_bottom = 0.5
-	lcol.offset_left = 26
-	lcol.offset_top = -170
-	lcol.add_theme_constant_override("separation", 18)
+	lcol.offset_left = 22
+	lcol.offset_top = -150
+	lcol.add_theme_constant_override("separation", 14)
 	lcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(lcol)
-	lcol.add_child(_round_button(_res("res://assets/ui/menu_gear.png"), "", Color(0.3, 0.42, 0.6), 108, func(): _open_settings()))
+	lcol.add_child(_medallion(_res("res://assets/ui/mm_gear.png"), "", Color(0.5, 0.62, 0.8), Color(0.16, 0.24, 0.4), 112,
+		func(): _open_settings(), {"icon_frac": 0.66, "phase": 0.3}))
 	if OS.has_feature("pc"):
-		lcol.add_child(_round_button(_res("res://assets/ui/menu_door.png"), "", Color(0.16, 0.26, 0.43), 108, func(): get_tree().quit()))
+		lcol.add_child(_medallion(_res("res://assets/ui/mm_door.png"), "", Color(0.45, 0.55, 0.72), Color(0.12, 0.17, 0.3), 112,
+			func(): get_tree().quit(), {"icon_frac": 0.62, "phase": 0.6}))
 	# ---- right column: age badge, new timeline
 	var rcol := VBoxContainer.new()
 	rcol.anchor_left = 1.0
 	rcol.anchor_right = 1.0
 	rcol.anchor_top = 0.5
 	rcol.anchor_bottom = 0.5
-	rcol.offset_left = -250
-	rcol.offset_right = -26
-	rcol.offset_top = -170
+	rcol.offset_left = -262
+	rcol.offset_right = -22
+	rcol.offset_top = -160
 	rcol.alignment = BoxContainer.ALIGNMENT_BEGIN
-	rcol.add_theme_constant_override("separation", 18)
+	rcol.add_theme_constant_override("separation", 14)
 	rcol.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(rcol)
 	var stars := 0
 	for mid in map_order:
 		stars += Progress.stars(mid)
-	var age := PanelContainer.new()
-	var asb := _style(Color(0.04, 0.06, 0.1, 0.85), 22, MENU_GOLD.darkened(0.3), 4)
-	asb.set_content_margin_all(12)
-	age.add_theme_stylebox_override("panel", asb)
+	var age := _nine("res://assets/ui/mm_panel.png", [60, 60, 60, 60], Vector2(240, 150), 0.62)
 	var av := VBoxContainer.new()
-	av.add_theme_constant_override("separation", 2)
+	av.set_anchors_preset(Control.PRESET_FULL_RECT)
+	av.alignment = BoxContainer.ALIGNMENT_CENTER
+	av.add_theme_constant_override("separation", 0)
 	age.add_child(av)
-	var al1 := _label(era_now.to_upper(), 24, MENU_GOLD, 7)
+	var al1 := _label(era_now.to_upper(), 28, Color(1.0, 0.86, 0.45), 8)
 	al1.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	av.add_child(al1)
-	var al2 := _label("Age %d of %d" % [_eras().find(era_now) + 1, _eras().size()], 20, C_TEXT, 5)
+	var al2 := _label("Age %d of %d" % [_eras().find(era_now) + 1, _eras().size()], 22, Color(0.92, 0.95, 1.0), 6)
 	al2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	av.add_child(al2)
 	var srow := HBoxContainer.new()
 	srow.alignment = BoxContainer.ALIGNMENT_CENTER
-	srow.add_child(_icon(ICON_STAR, 34))
-	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 22, C_COIN, 6))
+	srow.add_child(_icon(_res("res://assets/ui/mm_star.png") as Texture2D, 38))
+	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 25, C_COIN, 7))
 	av.add_child(srow)
 	rcol.add_child(age)
 	if Progress.can_new_timeline(map_order):
-		rcol.add_child(_round_button(_res("res://assets/ui/menu_portal.png"), "NEW TIMELINE", Color(0.42, 0.18, 0.6), 120, func(): _confirm_new_timeline(), true))
+		var tl := _medallion(_res("res://assets/ui/menu_portal.png"), "NEW TIMELINE", Color(0.75, 0.45, 1.0), Color(0.25, 0.08, 0.45), 124,
+			func(): _confirm_new_timeline(), {"badge": true, "icon_frac": 0.7, "label_size": 22, "phase": 0.8})
+		tl.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		rcol.add_child(tl)
 	# ---- bottom row: the big buttons
 	var row := HBoxContainer.new()
 	row.anchor_left = 0.5
 	row.anchor_right = 0.5
 	row.anchor_top = 1.0
 	row.anchor_bottom = 1.0
-	row.offset_left = -560
-	row.offset_right = 560
-	row.offset_top = -290
-	row.offset_bottom = -18
+	row.offset_left = -660
+	row.offset_right = 660
+	row.offset_top = -350
+	row.offset_bottom = -6
+	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("separation", 30)
+	row.add_theme_constant_override("separation", 58)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(row)
 	var et: Array = Progress.era_towers(era_now)
@@ -4192,34 +4630,44 @@ func _build_main_menu(root: Control) -> void:
 	var cm := _continue_map()
 	var cme := _map_entry(cm)
 	var bot := [
-		_round_button(_icon_tex(str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.2, 0.33, 0.54), 150, func(): _open_workshop(""), tower_badge, 0.8),
-		_round_button(_face_tex(hid), "HEROS", Color(0.6, 0.25, 0.45), 150, func(): _open_heroes(), hero_badge, 0.78),
-		_round_button(ICON_PLAY, "PLAY", Color(0.25, 0.72, 0.18), 196, func():
-			Progress.current_map = cm
-			get_tree().reload_current_scene(), false, 0.5),
-		_round_button(_res("res://assets/ui/menu_upgrade.png"), "UPGRADES", Color(0.18, 0.42, 0.72), 150, func(): _open_legacy(), Progress.points_free() > 0),
-		_round_button(_res("res://assets/ui/emblem_damage.png"), "TECH TREE", Color(0.62, 0.32, 0.1), 150, func(): _open_techtree("", ""), false, 0.74),
-		_round_button(_res("res://assets/ui/menu_map.png"), "MAPS", Color(0.25, 0.5, 0.4), 150, func():
-			title_screen.visible = false
-			map_select.visible = true),
+		_medallion(_icon_tex(str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.42, 0.7, 1.0), Color(0.08, 0.22, 0.55), 166,
+			func(): _open_workshop(""), {"badge": tower_badge, "icon_frac": 0.98, "icon_dy": -0.12, "phase": 0.0}),
+		_medallion(_face_tex(hid), "HEROS", hcol.lightened(0.3), hcol.darkened(0.45), 166,
+			func(): _open_heroes(), {"badge": hero_badge, "face": true, "icon_frac": 0.94, "phase": 0.2}),
+		_medallion(_res("res://assets/ui/mm_play.png"), "PLAY", Color(0.55, 0.95, 0.3), Color(0.08, 0.45, 0.06), 236,
+			func():
+				Progress.current_map = cm
+				get_tree().reload_current_scene(),
+			{"rim": "res://assets/ui/mm_rim_play.png", "icon_frac": 0.5, "icon_dy": 0.0, "play": true, "label_size": 40, "phase": 0.4,
+			"sub": "%s  -  Map %d" % [str(cme.get("name", "")), map_order.find(cm) + 1]}),
+		_medallion(_res("res://assets/ui/mm_upgrade.png"), "UPGRADES", Color(0.45, 0.85, 1.0), Color(0.06, 0.3, 0.62), 166,
+			func(): _open_legacy(), {"badge": Progress.points_free() > 0, "icon_frac": 0.66, "icon_dy": -0.06, "phase": 0.6}),
+		_medallion(_res("res://assets/ui/mm_map.png"), "MAPS", Color(0.45, 0.88, 0.62), Color(0.06, 0.38, 0.3), 166,
+			func():
+				title_screen.visible = false
+				map_select.visible = true,
+			{"icon_frac": 0.72, "icon_dy": -0.03, "phase": 0.8}),
 	]
 	for c in bot:
 		c.size_flags_vertical = Control.SIZE_SHRINK_END
 		row.add_child(c)
-	# PLAY breathes, and says which map it starts
-	var play: Button = bot[2].get_meta("button")
-	var pulse := play.create_tween().set_loops()
-	pulse.tween_property(play, "scale", Vector2.ONE * 1.06, 0.7).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(play, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE)
-	var nm := _label("%s  -  Map %d" % [str(cme.get("name", "")), map_order.find(cm) + 1], 20, Color(0.85, 1.0, 0.8), 7)
-	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	(bot[2] as VBoxContainer).add_child(nm)
+	# PLAY breathes
+	var pbody: Control = (bot[2] as Control).get_child(0)
+	var pulse := pbody.create_tween().set_loops()
+	pulse.tween_property(pbody, "scale", Vector2.ONE * 1.05, 0.8).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(pbody, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_SINE)
 	var ver := _label("v%s" % str(ProjectSettings.get_setting("application/config/version", "")), 16, Color(0.62, 0.67, 0.75), 4)
 	ver.anchor_top = 1.0
 	ver.anchor_bottom = 1.0
 	ver.offset_left = 16
 	ver.offset_top = -34
 	title_screen.add_child(ver)
+
+
+## A hero's colour (heroes.json), for their portrait medallions.
+func _hero_color(hid: String) -> Color:
+	var c: Array = defs.heroes.heroes.get(hid, {}).get("color", [0.5, 0.4, 0.7])
+	return Color(float(c[0]), float(c[1]), float(c[2]))
 
 
 ## Workshop: spend an era's Scrap to unlock that era's towers. Each era's Scrap starts at 0.
@@ -4245,7 +4693,7 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 	var sc := HBoxContainer.new()
 	sc.custom_minimum_size = Vector2(230, 0)
 	sc.alignment = BoxContainer.ALIGNMENT_END
-	sc.add_child(_icon(_res("res://assets/ui/icon_scrap.png") as Texture2D, 52))
+	sc.add_child(_icon(_scrap_tex(era), 60))
 	var scl := _label(str(Progress.scrap(era)), 40, Color(0.75, 0.85, 0.95), 9)
 	scl.custom_minimum_size = Vector2(120, 0)
 	sc.add_child(scl)
@@ -4345,7 +4793,7 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 			slot.add_child(lk)
 		else:
 			var ub := _button("UNLOCK  %d" % cost, Color(0.2, 0.55, 0.2), 22)
-			ub.icon = _res("res://assets/ui/icon_scrap.png")
+			ub.icon = _scrap_tex(era)
 			ub.add_theme_constant_override("icon_max_width", 40)
 			ub.custom_minimum_size = Vector2(270, 56)
 			ub.disabled = Progress.scrap(era) < cost
@@ -4556,12 +5004,18 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	svc.add_child(vp)
 	var pivot := Node3D.new()
 	vp.add_child(pivot)
+	# the model is set up as in game: HQ clips and outline, spinning / flickering / bubbling parts, turning and swinging
+	var holder := Node3D.new()
+	pivot.add_child(holder)
 	var model: Node3D = _inst(path)
-	pivot.add_child(model)
+	holder.add_child(model)
+	_rig_model(holder, model)
 	var box := AABB()
 	var first := true
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var m3 := mi as MeshInstance3D
+		if str(m3.name).ends_with("_Outline"):
+			continue
 		var xf := Transform3D.IDENTITY
 		var n: Node = m3
 		while n != null and n != model:
@@ -4581,6 +5035,11 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	sun.rotation_degrees = Vector3(-40, 30, 0)
 	sun.light_energy = 1.25
 	vp.add_child(sun)
+	var rim := DirectionalLight3D.new()            # cool rim light from behind: a showcase look
+	rim.rotation_degrees = Vector3(-25, 200, 0)
+	rim.light_energy = 0.8
+	rim.light_color = Color(0.75, 0.85, 1.0)
+	vp.add_child(rim)
 	var env := WorldEnvironment.new()
 	env.environment = Environment.new()
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -4588,13 +5047,52 @@ func _model_viewer(path: String, size: Vector2) -> SubViewportContainer:
 	env.environment.ambient_light_energy = 0.7
 	env.environment.background_mode = Environment.BG_CLEAR_COLOR
 	vp.add_child(env)
-	var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if ap != null and ap.has_animation("Idle"):
-		ap.get_animation("Idle").loop_mode = Animation.LOOP_LINEAR
-		ap.play("Idle")
+	# turns to and fro, mostly facing you, instead of spinning its back to the camera half the time
+	holder.set_meta("viewer_seed", randf() * 10.0)
+	_viewers.append(holder)
 	var tw := pivot.create_tween().set_loops()
-	tw.tween_property(pivot, "rotation:y", TAU, 9.0).from(0.0)
+	tw.tween_property(pivot, "rotation:y", 0.65, 4.5).from(-0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(pivot, "rotation:y", -0.65, 4.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	return svc
+
+
+## Card model viewers come alive: HQ models play their Idle (and now and then their combat loop), the others breathe,
+## look around and lift their arm; spinning, flickering and bubbling parts move as in game.
+var _viewers: Array = []
+func _tick_viewers(delta: float) -> void:
+	if _viewers.is_empty():
+		return
+	var keep := []
+	for h in _viewers:
+		if not is_instance_valid(h) or not (h as Node).is_inside_tree():
+			continue
+		keep.append(h)
+		var n: Node3D = h
+		_spin_flicker(n, delta, 9.0)
+		var t: float = time_s + float(n.get_meta("viewer_seed", 0.0))
+		if n.has_meta("anim"):
+			var ap: AnimationPlayer = n.get_meta("anim")
+			ap.speed_scale = 1.0
+			# every ~9 s show the combat loop for a few seconds
+			var want: String = n.get_meta("clip_combat") if fmod(t, 9.0) > 6.0 else "Idle"
+			if ap.current_animation != want and not (ap.current_animation in HQ_ONESHOTS and ap.is_playing()):
+				ap.play(want, 0.4)
+			continue
+		if n.has_meta("yaw"):
+			(n.get_meta("yaw") as Node3D).rotation.y = 0.32 * sin(t * 0.55) + 0.12 * sin(t * 1.7)
+		if n.has_meta("arm"):
+			var arm: Node3D = n.get_meta("arm")
+			arm.rotation.x = float(arm.get_meta("rest", 0.0)) - 0.22 * (0.5 + 0.5 * sin(t * 1.25))
+		if n.has_meta("orb"):
+			(n.get_meta("orb") as Node3D).scale = Vector3.ONE * (1.0 + 0.1 * sin(t * 4.0))
+		var body: Node3D = n.get_meta("viewer_body") if n.has_meta("viewer_body") else null
+		if body == null and not n.has_meta("viewer_body"):
+			var y: Node3D = n.get_meta("yaw") if n.has_meta("yaw") else null
+			body = (y.get_child(0) as Node3D) if y != null and y.get_child_count() > 0 and y.get_child(0) is Node3D else y
+			n.set_meta("viewer_body", body)
+		if body != null:
+			body.scale = Vector3(1.0 - 0.008 * sin(t * 2.2), 1.0 + 0.018 * sin(t * 2.2), 1.0 - 0.008 * sin(t * 2.2))
+	_viewers = keep
 
 
 func _tower_pros_cons(d: Dictionary) -> Array:
@@ -4715,7 +5213,7 @@ func _robot_roster(mid: String, intro := false) -> void:
 		if intro:
 			_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 			toast_t = 4.5
-			_path_preview()
+			_path_preview(true)
 	_on_close(dlg, close)
 	var ttl := _label(("INCOMING!  -  %s" if intro else "ROBOTS  -  %s") % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
 	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -5137,7 +5635,8 @@ func _upgrade_tree(tid: String, sz: int, t = null) -> Control:
 	return root
 
 
-## TECH TREE (main menu): every tower's full upgrade tree, age by age. Ages you haven't reached stay locked.
+## TECH TREE: every tower's full upgrade tree, age by age. Ages you haven't reached stay locked. Since v0.9.18 it has no
+## button (each tower's tree shows on its details card in the Towers screen); kept for --shoot-tech.
 func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
 	if era == "" or not Progress.is_unlocked(_first_map_of(era)):
 		era = str(_map_entry(_menu_map()).get("era", "Stone Age"))
@@ -5616,12 +6115,6 @@ func _build_map_select(root: Control) -> void:
 		_sfx("click")
 		_open_legacy())
 	brow.add_child(m_legacy)
-	var m_tech := _button("TECH TREE", Color(0.55, 0.3, 0.12), 22)
-	m_tech.custom_minimum_size = Vector2(240, 60)
-	m_tech.pressed.connect(func():
-		_sfx("click")
-		_open_techtree("", ""))
-	brow.add_child(m_tech)
 	var m_set := _button("SETTINGS", Color(0.36, 0.32, 0.4), 22)
 	m_set.custom_minimum_size = Vector2(220, 60)
 	m_set.pressed.connect(func():
@@ -5849,7 +6342,7 @@ func _start_game() -> void:
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
 	toast_t = 4.5
 	if not demo:
-		_path_preview()
+		_path_preview(true)
 
 
 ## True the first time this map is entered. Old saves first count robots from maps already beaten as met.
@@ -6321,9 +6814,6 @@ func _build_pause_menu(root: Control) -> void:
 		["RESUME", Color(0.2, 0.58, 0.18), func(): _set_paused(false)],
 		["SETTINGS", Color(0.36, 0.32, 0.4), func(): _open_settings()],
 		["ROBOTS ON THIS MAP", Color(0.55, 0.2, 0.22), func(): _robot_roster(map_id)],
-		["SHOW ROBOT PATHS", Color(0.42, 0.28, 0.62), func():
-			_set_paused(false)
-			_path_preview()],
 		["RESTART MAP", Color(0.24, 0.4, 0.62), func():
 			_award(false)
 			Progress.current_map = map_id
@@ -6635,7 +7125,7 @@ func _award(won: bool) -> Array:
 		lv = Progress.add_hero_xp(hid, hxp)
 	if scrap > 0:
 		Progress.add_scrap(_era(), scrap)
-		out.append({"title": "SCRAP", "icon": _res("res://assets/ui/icon_scrap.png"), "amount": "+%d" % scrap, "col": Color(0.8, 0.88, 1.0),
+		out.append({"title": "SCRAP", "icon": _scrap_tex(_era()), "amount": "+%d" % scrap, "col": Color(0.8, 0.88, 1.0),
 			"text": "Salvaged robot parts from the %s. Spend Scrap on the TOWERS screen to unlock this age's next tower. You now have %d. Each age has its own Scrap." % [_era(), Progress.scrap(_era())]})
 	if hid != "" and (hxp > 0 or won):
 		var pr := Progress.hero_level_progress(hid)
@@ -6935,6 +7425,25 @@ func _shoot_menu() -> void:
 		await _shot("hero_buyable.png")
 		get_tree().quit()
 		return
+	if "--shoot-previews" in OS.get_cmdline_user_args():
+		# card model viewers: two moments of each, to see them move (HQ and v2 heroes and towers, Bronze Age included)
+		var cards := [["hero", "ugo"], ["hero", "mara"], ["hero", "kira"], ["hero", "tarek"], ["tower", "boulder_catapult"],
+			["tower", "tar_shaman"], ["tower", "spear_guard"], ["tower", "torsion_catapult"], ["tower", "knight"]]
+		for c in cards:
+			if c[0] == "hero":
+				_hero_detail(str(c[1]), VBoxContainer.new())
+			else:
+				_tower_detail(str(c[1]))
+			await get_tree().create_timer(0.7).timeout
+			await _shot("prev_%s_%s_a.png" % [c[0], c[1]])
+			await get_tree().create_timer(1.3).timeout
+			await _shot("prev_%s_%s_b.png" % [c[0], c[1]])
+			for m in modals:
+				if is_instance_valid(m):
+					(m as Node).queue_free()
+			await get_tree().process_frame
+		get_tree().quit()
+		return
 	if "--shoot-heroes" in OS.get_cmdline_user_args():
 		_open_heroes()
 		for i in 4:
@@ -7187,15 +7696,19 @@ func _run_demo() -> void:
 		return
 	if "--shoot-paths" in args:
 		_start_game()
-		_path_preview()
+		_path_preview(true)
 		await get_tree().create_timer(1.2).timeout
 		await _shot("paths_preview_a.png")
 		await get_tree().create_timer(1.8).timeout
 		await _shot("paths_preview_b.png")
-		_end_preview()
+		await get_tree().create_timer(9.0).timeout       # still going round long after one pass
+		print("PATHS looping=%s t=%.1f" % [not preview.is_empty(), float(preview.get("t", 0.0))])
+		await _shot("paths_preview_loop.png")
 		_demo_build(3000)
 		sim.start_wave()
-		await _wait_ticks(int(9.0 / TICK))
+		await get_tree().create_timer(1.0).timeout
+		print("PATHS ended_after_round1=%s" % preview.is_empty())
+		await _wait_ticks(int(8.0 / TICK))
 		await _shot("paths_play.png")
 		get_tree().quit()
 		return
@@ -7321,6 +7834,76 @@ func _run_demo() -> void:
 				await _shot("hq_gif_%03d.png" % i)
 		get_tree().quit()
 		return
+	if "--shoot-bots" in args:
+		# HQ robots: a mixed column marching, then a close-up of each Stone Age robot (from the front, three-quarters)
+		_start_game()
+		_end_preview()
+		sim.wave = 2
+		var kinds := ["walker", "scout", "brute", "carrier", "walker", "walker", "scout", "brute", "walker", "prime_walker"]
+		sim.wave_remaining[2] = kinds.size()
+		for i in kinds.size():
+			sim._spawn_enemy(kinds[i], 2, 3.0 + i * 2.4, i % sim.paths.size())
+		_handle_events()
+		await _wait_ticks(int(2.5 / TICK))
+		await _shot("bots_battle.png")
+		var frames_dir := "--gif" in args
+		for type in ["walker", "scout", "brute", "carrier", "prime_walker"]:
+			var be = null
+			for e in sim.enemies:
+				if e.type == type:
+					be = e
+					break
+			if be == null or not enemy_nodes.has(be.id):
+				continue
+			var bn: Node3D = enemy_nodes[be.id]
+			var fwd: Vector3 = bn.global_transform.basis.z
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			var side := fwd.cross(Vector3.UP)
+			var big := 2.4 if type == "prime_walker" else 1.0
+			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+			cam.fov = 30
+			for k in (6 if frames_dir else 1):
+				cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.2, 0)) * big
+				cam.look_at(bn.global_position + Vector3(0, 0.75 * big, 0))
+				cam_base = cam.position
+				shake = 0.0
+				await _wait_ticks(2 if k == 0 else 3)
+				await _shot("bots_close_%s%s.png" % [type, ("_%d" % k) if frames_dir else ""])
+		get_tree().quit()
+		return
+	if "--shoot-buff" in args:
+		# buff badge: a Rock Slinger next to the hero, selected (badge over it), then not selected (no badge)
+		_start_game()
+		sim.gold += 8000
+		sim.place_hero(_demo_spot("", true))
+		var hp: Vector2 = sim.hero.pos
+		var spot := Vector2.INF
+		for k in 24:
+			var c := hp + Vector2.from_angle(TAU * k / 24.0) * (sim.hero_footprint() + sim.footprint_of("rock_slinger") + 0.15)
+			if sim.placement_error("rock_slinger", c) == "":
+				spot = c
+				break
+		sim.place_tower("rock_slinger", spot)
+		_handle_events()
+		await _wait_ticks(10)
+		var tw: Dictionary = sim.towers[sim.towers.size() - 1]
+		print("BUFF buffed=%s spot=%s" % [tw.get("buffed", false), spot])
+		_select(tw.id)
+		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+		cam.fov = 30
+		var tn: Node3D = tower_nodes[tw.id]
+		cam.global_position = tn.global_position + Vector3(0, 6.0, 8.0)
+		cam.look_at(tn.global_position + Vector3(0, 1.2, 0))
+		cam_base = cam.position
+		shake = 0.0
+		await _wait_ticks(4)
+		await _shot("hero_buff_selected.png")
+		_deselect()
+		await _wait_ticks(4)
+		await _shot("hero_buff_unselected.png")
+		get_tree().quit()
+		return
 	if "--shoot-hero-hq" in args:
 		# HQ hero check: Ugo + two Rock Slingers fighting, close-up, rank-up cheer, Stone Rain (+ optional frames)
 		_start_game()
@@ -7340,7 +7923,6 @@ func _run_demo() -> void:
 		await _wait_ticks(int(3.4 / TICK))
 		await _shot("hero_battle.png")
 		var hn: Node3D = tower_nodes[sim.hero.id]
-		(hn.get_node("Tag") as Node3D).visible = false
 		var fwd := Vector3(0, 0, 1)
 		if hn.has_meta("yaw"):
 			fwd = (hn.get_meta("yaw") as Node3D).global_transform.basis.z
@@ -7392,6 +7974,8 @@ func _run_demo() -> void:
 		_handle_events()
 		await _wait_ticks(int(2.2 / TICK))
 		await _shot("showcase_%s_battle.png" % tag)
+		print("PERF %s primitives=%d draw_calls=%d objects=%d" % [map_id, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)])
 		if "--gif" in args:
 			for i in 48:
 				await _shot("showcase_gif_%03d.png" % i)
@@ -7475,7 +8059,18 @@ func _run_demo() -> void:
 
 # ---------------------------------------------------------------- drag scrolling
 # Every scroll area can be dragged (finger or mouse) or wheel-scrolled from anywhere inside it,
-# not just on the bar. A drag that starts on a button cancels that button's tap.
+# with no scroll bar shown. A drag that starts on a button cancels that button's tap.
+
+
+## Scroll areas scroll by drag or wheel, with no bar drawn (and no room kept for one).
+func _no_scrollbar(n: Node) -> void:
+	if n is ScrollContainer:
+		var sc := n as ScrollContainer
+		if sc.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+			sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+		if sc.horizontal_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+			sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+
 const DRAG_SCROLL_START := 14.0
 var _ds_sc: ScrollContainer = null
 var _ds_start := Vector2.ZERO

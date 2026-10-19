@@ -2,7 +2,10 @@
 
 Sculpted, rigged, animated and texture-baked game models made entirely in code with Blender (bpy) + numpy.
 Models so far: the four Stone Age towers (`assets/towers/rock_slinger.glb`, `club_warrior.glb`, `tar_shaman.glb`,
-`boulder_catapult.glb`) and both Stone Age heroes (`assets/heroes/ugo.glb`, `mara.glb`).
+`boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`, `mara.glb`), the five Stone Age robots
+(`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`, `prime_walker.glb`, v0.9.18), the three Stone Age
+map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`, `stone_decor_volcano.glb`) and the time portal
+(`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered by `../map_ground_hq.py` (below).
 
 | Unit | Character module | Base module | Clips |
 |---|---|---|---|
@@ -32,6 +35,59 @@ python3 reanim.py -- --character ugo --blend OUT/char_game.blend   # re-key the 
 python3 build_game.py -- --character ugo --out OUT --stage export
 python3 lineup.py -- OUT.png 2400 860 64 A_hq.blend:RootName:Action:Frame:Scale ...   # group shot of finished units
 ```
+
+### Robots (v0.9.18)
+
+```
+cd tools/blender/hq
+python3 robot_build.py -- --robot brute --out D --stage sculpt --fine --shots D/shots   # high-poly + material shots
+python3 robot_build.py -- --robot brute --out D --stage game --tex 2048 --ao 24          # low-poly, UVs, bakes, rig, clips
+python3 robot_build.py -- --robot brute --out D --stage export                           # D/brute.glb
+python3 robot_icon.py -- D/brute_hq.blend ../../../assets/ui/icon_brute.png --frame 8    # roster portrait (mid-stride)
+python3 robot_icon.py -- D/brute_hq.blend D/strip --strip                               # animation strip to check a clip
+```
+
+| Robot | Module | Clips | In game |
+|---|---|---|---|
+| Walker | `robot_walker` | Walk | `walk_speed` 0.86 |
+| Scout Drone | `robot_scout` | Fly (rotors spin, eye scans) | hover |
+| Brute Bot | `robot_brute` | Walk (heavy stomp) | `walk_speed` 0.57 |
+| Carrier | `robot_carrier` | Fly (hover sled, pods bob) | hover |
+| Prime Walker (boss) | `robot_prime_walker` | Walk, Summon | `walk_speed` 0.7, Summon on its summon event |
+
+Each part is weighted 100% to one bone (machines don't bend). `robot_mats.py`: white armour with painted labels
+(hazard stripes, panel lines), gunmetal frames, chrome, rubber, lens sockets; glows (eyes, cores) ship as emissive meshes.
+`robot_anim.py`: a biped march with planted feet (two-bone IK) and a hover loop. In game the walk clip's playback speed
+follows the robot's real ground speed (`enemies.json` `walk_speed` = the ground speed the clip matches at speed 1).
+Test: `--demo --map=mammoth_valley --shoot-bots [--gif]` (a mixed column plus a close-up of each type).
+
+### Map kits and the time portal (v0.9.18)
+
+```
+python3 decor_build.py -- --theme meadow|snow|volcano|portal --out D --fine --tex 2048 --ao 24 --shots D/shots [--each]
+python3 decor_build.py -- --theme volcano --only Volcano --out D --stage sculpt --shots D/shots --each   # quick look
+```
+
+`decor_props.py` sculpts every prop (pines, bushes, boulders, stumps, logs, snow mounds, ice, dead trees, obsidian, the
+mammoth skeleton, dolmen, bone hut, cave, the volcano, the portal), `decor_mats.py` paints them (moss, snow caps, ash,
+glowing seams). All props of a theme are baked into one atlas and exported as one GLB with one mesh per prop, at the
+origin, named as `game.gd` `DECOR_V2` expects; glowing parts (lava, the portal's coils) stay emissive surfaces. Grass
+tufts and flower clumps are direct geometry coloured from a swatch strip at the right of the atlas. In game every kit
+mesh gets the HQ outline pass (`_kit_outline`), except tufts and flowers. `--each` adds a close-up of every prop.
+Copy the GLB to `assets/decor/`, import, and set its textures' `.import` as for units (size_limit 2048 for a map kit's
+atlas, 1024 for the portal).
+
+### Grounds (v0.9.18)
+
+```
+python3 tools/blender/map_ground_hq.py mammoth_valley --samples 32 --out assets/textures/ground_mammoth_valley.png
+```
+
+The map's ground built as a real 3D surface (road sunk in with ruts, scattered 3D tufts, flowers, pebbles, snow lumps,
+ice, basalt, glowing fissures...) lit by the game's sun and rendered straight down, so it always matches the
+simulation's road and lanes (`tools/map_geo.py` reads the map). About 20 minutes per map. The outer band fades to one
+colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep the texture's `.import` at
+`compress/mode=2` with `mipmaps/generate=true` (about 3 MB of GPU memory instead of 17).
 
 ## How it works
 
@@ -89,6 +145,8 @@ python3 lineup.py -- OUT.png 2400 860 64 A_hq.blend:RootName:Action:Frame:Scale 
 
 ## Gotchas
 
+- **Memory:** the sandbox has about 6 GB. A kit bake peaks near 2.6 GB, a robot bake near 1.5 GB, a ground render near
+  1 GB: run at most two of them at once (a third one got the kit bake killed).
 - **Grid offset:** the meshing grid is offset by a fraction of a voxel (`sdf.Field.mesh`). Flat cuts that landed exactly on
   grid planes made zero-area triangles, and decimation tore the mesh there (the Club Warrior's kilt).
 - **Degenerate geometry:** `lowpoly._clean` merges doubles and dissolves degenerate faces before decimating.
