@@ -98,17 +98,25 @@ FLAG_ALT = (_rs.uniform(0, 1, len(SEEDS)) < 0.4)
 
 
 def _voronoi(P):
-    """Nearest seed index and the distance to that flag's edge (to the nearest bisector)."""
-    xy = P[:, :2]
-    d2 = ((xy[:, None, :] - SEEDS[None, :, :]) ** 2).sum(2)
-    k = np.argmin(d2, axis=1)
-    s1 = SEEDS[k]
-    dk = d2[np.arange(len(k)), k]
-    sep = np.sqrt(((SEEDS[None, :, :] - s1[:, None, :]) ** 2).sum(2))
-    with np.errstate(divide="ignore", invalid="ignore"):
-        e = (d2 - dk[:, None]) / (F(2) * sep)
-    e[np.arange(len(k)), k] = F(1e3)
-    return k, e.min(1).astype(F)
+    """Nearest seed index and the distance to that flag's edge (to the nearest bisector). Evaluated in batches: the
+    pairwise arrays are (points x seeds), which for a whole meshing chunk would take gigabytes."""
+    n = len(P)
+    K = np.empty(n, np.int64)
+    E = np.empty(n, F)
+    B = 200000
+    for a in range(0, n, B):
+        xy = P[a:a + B, :2]
+        d2 = ((xy[:, None, :] - SEEDS[None, :, :]) ** 2).sum(2)
+        k = np.argmin(d2, axis=1)
+        s1 = SEEDS[k]
+        dk = d2[np.arange(len(k)), k]
+        sep = np.sqrt(((SEEDS[None, :, :] - s1[:, None, :]) ** 2).sum(2))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            e = (d2 - dk[:, None]) / (F(2) * sep)
+        e[np.arange(len(k)), k] = F(1e3)
+        K[a:a + B] = k
+        E[a:a + B] = e.min(1)
+    return K, E
 
 
 def floor_field():
@@ -536,7 +544,7 @@ def flame_field():
 
 
 def fields():
-    return [("Ground", ground_field(), 0.008), ("Floor", floor_field(), 0.0042), ("Anvil", anvil_field(), 0.0024),
+    return [("Ground", ground_field(), 0.008), ("Floor", floor_field(), 0.0052), ("Anvil", anvil_field(), 0.0024),
             ("Stump", stump_field(), 0.003), ("Work", work_field(), 0.002), ("Tools", tools_field(), 0.0018),
             ("Forge", forge_field(), 0.0034), ("Coals", coals_field(), 0.0026), ("Embers", embers_field(), 0.004),
             ("Crucible", crucible_field(), 0.002), ("Melt", melt_field(), 0.002), ("Bellows", bellows_field(), 0.003),

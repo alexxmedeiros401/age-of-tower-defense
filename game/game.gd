@@ -394,6 +394,15 @@ func _build_world() -> void:
 		lg.set_shader_parameter("lava_mask", load(lava_path))
 		lg.set_shader_parameter("tint", gm.albedo_color)
 		gmat = lg
+	var water_path := "res://assets/textures/ground_%s_water.png" % map_id
+	if ResourceLoader.exists(water_path):
+		# v0.9.28: the painted rivers, lakes and ponds move (tools/water_mask.py makes the mask and the flow map)
+		var wg := ShaderMaterial.new()
+		wg.shader = load("res://game/shaders/ground_water.gdshader")
+		wg.set_shader_parameter("ground", gm.albedo_texture)
+		wg.set_shader_parameter("water_mask", load(water_path))
+		wg.set_shader_parameter("tint", gm.albedo_color)
+		gmat = wg
 	_mi(pm, gmat, self, Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, 0, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5))
 	var far := PlaneMesh.new()
 	far.size = Vector2(160, 120)
@@ -1751,9 +1760,16 @@ func _build_blockers() -> void:
 							Vector3(cos(a2) * rad, 0.25, sin(a2) * rad), Vector3(r.randf_range(-0.2, 0.2), 0, r.randf_range(-0.2, 0.2)))
 			"lava", "ore":
 				var lava := kind == "lava"
-				var col := Color(1, 0.55, 0.15, 0.45) if lava else Color(0.3, 1.0, 0.8, 0.45)
-				var emit := Color(1, 0.42, 0.05) if lava else Color(0.15, 0.9, 0.65)
-				var pool := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), _mat("pool_" + kind, col, {"emit": emit, "emit_e": 1.0, "unshaded": true}), n, Vector3(0, 0.04, 0))
+				# v0.9.28: these pools move too: the lava-pool shader (drifting crust, glowing cracks, bubbles), in turquoise for
+				# the copper pools
+				var pm2 := _lava_pool_mat(rad * 0.85, r.randf() * 10.0)
+				if not lava:
+					pm2.set_shader_parameter("hot", Color(0.72, 1.0, 0.92))
+					pm2.set_shader_parameter("warm", Color(0.1, 0.78, 0.62))
+					pm2.set_shader_parameter("crust", Color(0.05, 0.15, 0.14))
+					pm2.set_shader_parameter("glow", 1.6)
+				var pool := _mi(_cyl(rad * 0.85, rad * 0.85, 0.04, 28), pm2, n, Vector3(0, 0.04, 0))
+				pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				for k in 9:
 					var a3 := TAU * k / 9.0 + r.randf() * 0.3
 					_mi(_sph(r.randf_range(0.18, 0.32), 6), (_mat("crust", Color(0.08, 0.06, 0.06)) if lava else _mat("ore_rock", Color(0.42, 0.24, 0.16))), n,
@@ -3567,7 +3583,7 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_fade(n, clampf((wr / float(fx.r) - 0.7) / 0.3, 0.0, 1.0) if fx.t < fx.life - 0.12 else 1.0)
 			"glint":
 				n.position += fx.v * dt
-				fx.v *= 0.92
+				fx.v *= pow(0.92, dt * 60.0)
 				n.scale = Vector3.ONE * float(fx.s) * (1.0 - k * k)
 			"lance":
 				var lk := clampf(fx.t / float(fx.travel), 0.0, 1.0)
@@ -4343,6 +4359,10 @@ func _sun_beams(u: Dictionary, targets: Array) -> void:
 	var delay := _clip_delay(u.id, ATTACK_FRAME.sun_priest)
 	if delay <= 0.0:
 		delay = 0.08
+	delay += get_process_delta_time()                 # (his clip first moves next frame; this frame's timers tick already)
+	# his strike pose holds ~9 clip frames past RELEASE, 0.3 s at 1x: at 3x/10x or on a fast Solar Lance the beams' timing
+	# shrinks with it, so they are gone before he swings back and winds up again
+	var ts := clampf(_clip_delay(u.id, 9) / 0.3, 0.25, 1.0)
 	var kind := _sun_kind(u)
 	var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
 	var uid := int(u.id)
@@ -4353,15 +4373,19 @@ func _sun_beams(u: Dictionary, targets: Array) -> void:
 		var t := int(tid)
 		if _robot_point(t, 0.0) == Vector3.INF:      # (gone already, e.g. split on death: no beam for it)
 			continue
-		if i >= cap:                                  # (past the cap: the robot is still hit at RELEASE, no beam)
-			_hold_hit(t, delay)
+		if i >= cap:                                  # (past the cap: hit as the beams strike, no beam)
 			rest.append(t)
 			continue
-		_hold_hit(t, delay + BEAM_GROW + 0.02)
-		_fx_after(delay + 0.012 * i, func() -> void: _sun_beam(uid, t, kind))
+		var at := delay + 0.012 * i * ts
+		_hold_hit(t, at + BEAM_GROW * ts + 0.02)
+		_fx_after(at, func() -> void: _sun_beam(uid, t, kind, ts))
 		i += 1
 	if not rest.is_empty():
-		_fx_after(delay, func() -> void:
+		# (with the last beam's hit: robots blowing up before the beams leave would use up the effects budget)
+		var land := delay + (0.012 * maxi(i - 1, 0) + BEAM_GROW) * ts
+		for rt in rest:
+			_hold_hit(int(rt), land)
+		_fx_after(land, func() -> void:
 			for rt in rest:
 				_land_hit(int(rt)))
 
@@ -4377,12 +4401,12 @@ func _sun_flare(uid: int, kind: int) -> void:
 	var at := _sun_disc(uid)
 	if at == Vector3.INF or not _fx_room(1):
 		return
-	var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if kind == 1 else "sun_flash"), self, at)
+	var f := _mi(_fx_mesh("flash"), _atk_mat(["sun_flash", "sun_flash_white", "fire_flash"][kind]), self, at)     # (orange on Solar Lance, as its beams)
 	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.55})
 
 
-func _sun_beam(uid: int, tid: int, kind: int) -> void:
+func _sun_beam(uid: int, tid: int, kind: int, ts := 1.0) -> void:
 	var from := _sun_disc(uid)
 	if from == Vector3.INF:
 		var u = sim.get_unit(uid)
@@ -4395,20 +4419,28 @@ func _sun_beam(uid: int, tid: int, kind: int) -> void:
 	if to == Vector3.INF:
 		_land_hit(tid)
 		return
+	var fx := {"to": to}
 	if _fx_room(1) and from.distance_to(to) > 0.05:
 		var bm := _mi(_beam_mesh(), _atk_mat(["sun_beam", "sun_beam_white", "sun_beam_hot"][kind]), self, from)
 		bm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var fx := {"node": bm, "t": 0.0, "life": 0.36, "kind": "beam", "from": from, "to": to, "tid": tid, "up": up, "hold": 0.16}
+		fx = {"node": bm, "t": 0.0, "life": 0.36 * ts, "kind": "beam", "from": from, "to": to, "tid": tid, "up": up,
+			"hold": 0.16 * ts, "grow": BEAM_GROW * ts, "uid": uid}
 		effects.append(fx)
 		_tick_beam(fx, bm)                            # aimed before it is first drawn
-	_fx_after(BEAM_GROW, func() -> void: _sun_hit(tid, from, to, up, kind))
+	_fx_after(BEAM_GROW * ts, func() -> void: _sun_hit(tid, from, fx.to, up, kind))     # (fx.to: where the beam ends now)
 
 
 ## A beam reaches out from the disc to its robot (following it as it walks), shimmers, and fades.
 func _tick_beam(fx: Dictionary, n: Node3D) -> void:
-	var live := _robot_point(int(fx.tid), float(fx.up))
-	if live != Vector3.INF:
-		fx.to = live
+	if not fx.has("gone"):
+		var live := _robot_point(int(fx.tid), float(fx.up))
+		if live != Vector3.INF:
+			fx.to = live
+		else:
+			fx.gone = true                            # (blown up or leaked: it stays where it was)
+	var src := _sun_disc(int(fx.uid))                 # (stays on the disc while he turns)
+	if src != Vector3.INF:
+		fx.from = src
 	var from: Vector3 = fx.from
 	var d: Vector3 = (fx.to as Vector3) - from
 	var L := d.length()
@@ -4416,7 +4448,7 @@ func _tick_beam(fx: Dictionary, n: Node3D) -> void:
 		n.visible = false
 		return
 	var t: float = fx.t
-	var grow := clampf(t / BEAM_GROW, 0.04, 1.0)
+	var grow := clampf(t / float(fx.grow), 0.04, 1.0)
 	var fade := clampf((t - float(fx.hold)) / maxf(float(fx.life) - float(fx.hold), 0.01), 0.0, 1.0)
 	var w := (1.0 + 0.2 * sin(t * 70.0)) * (1.0 - 0.55 * fade)
 	var b := Basis.looking_at(-d / L, Vector3.UP if absf(d.y / L) < 0.98 else Vector3.RIGHT)

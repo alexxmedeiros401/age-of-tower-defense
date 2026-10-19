@@ -1,9 +1,9 @@
-"""Sun Priest clips (30 fps).
+"""Sun Priest clips (keyed as frames; the .glb runs them at 24 fps, game.gd CLIP_FPS).
 
 Idle   : the sun staff planted at his right side, his left hand open at his waist; he breathes, looks about and now and
          then lifts his face to the sun.
 Combat : the staff lifted before him, the disc toward the robots, his left hand raised palm out: a priest commanding.
-Attack : (42 frames = the 1.4 s cooldown) he sweeps the staff up overhead (the disc blazing) and drives it forward at
+Attack : (42 frames = 1.75 s at 24 fps; the game plays it at length / cooldown, so 1.25x for the 1.4 s cooldown) he sweeps the staff up overhead (the disc blazing) and drives it forward at
          the robots, flinging his left hand open after it; at RELEASE (frame 10) beams of sunlight leave the disc for
          every robot the pulse hit (game.gd draws them); he holds the pose a moment and settles back.
 
