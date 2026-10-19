@@ -104,14 +104,15 @@ rims), barrel cacti with crowns of orange flowers, agaves (thick channelled `_bl
 v0.9.29: they replaced the palms, acacias and scrub, no trees in the desert), crescent sand drifts, wind-worn sandstone,
 fluted columns (broken, or standing under papyrus capitals) with carved signs and worn paint, fallen blocks with a
 winged sun disc, a ruined colonnade, a granite obelisk and the step pyramid on the horizon. Copper Canyon
-(`bronze_decor_canyon.glb`): red-rock mesas in strata, hoodoos, malachite outcrops with glowing crystals, mine carts,
+(`bronze_decor_canyon.glb`): red-rock mesas in strata, hoodoos, cacti (v0.9.30, in place of its scrub and dead trees),
+malachite outcrops with glowing crystals, mine carts,
 pit props, the mine in a crag and a copper smelter. The city (`bronze_city.glb`, one prop: City) is shared by every
 Bronze Age map: gate towers with stepped merlons, glazed bands and rosettes, cedar gate doors, walls, a ziggurat, town
 houses, braziers (game.gd lights the fires). Parts that would cut other parts (`inter`) are never merged by
 `place_parts`; bounded cuts (`cut_above`, `cut_below`) keep a prop mergeable. In game (`DECOR_V2`), a theme switches to
 its kit once the GLB is in `assets/decor/`.
 
-Game meshes: River Delta 20.8k triangles, Desert Citadel 27.0k (v0.9.29, with the cacti), Copper Canyon 22.8k, the city 14.0k (one 2048 atlas
+Game meshes: River Delta 20.8k triangles, Desert Citadel 27.1k (v0.9.29, with the cacti), Copper Canyon 27.5k (v0.9.30, cacti too), the city 14.0k (one 2048 atlas
 each, imported with `size_limit` 2048). Cut leaflets apart with grooves, not slits: a frond cut by slits falls into
 about a hundred islands with a comb-like outline that the decimation cannot reduce (the first palms came out 3x over
 budget). A kit's bake peaks near 3.9 GB: build the kits one at a time with nothing else heavy running (a coarse

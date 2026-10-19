@@ -5,8 +5,8 @@ theme's props and their game-mesh triangle budgets; decor_build.materials resolv
 River Delta: date palms, papyrus, cattail reeds, bushes; a farmhouse, a granary, a shaduf and a reed boat.
 Desert Citadel: saguaros, prickly pears, barrel cacti and agaves (v0.9.29: no trees in the desert), sand drifts,
 sandstone rocks, broken columns, fallen blocks; a ruined colonnade, an obelisk and the step pyramid on the horizon.
-Copper Canyon: mesas, hoodoos, red rocks, scrub, dead trees, malachite, mine carts, timber stacks; the mine and a
-copper smelter.
+Copper Canyon: mesas, hoodoos, red rocks, cacti (v0.9.30: saguaros, prickly pear, barrel cacti and an agave in place of
+the scrub and dead trees), malachite, mine carts, timber stacks; the mine and a copper smelter.
 The Bronze city at the end of every Bronze Age road is its own kit ("city", bronze_city.glb).
 """
 import math
@@ -1499,7 +1499,9 @@ def KITS(theme):
             "Hoodoo": (lambda: hoodoo(2.6, 0.42, 44), 900),
             "Rock_A": (lambda: rock(1.6, 0.5, 46, "canyon"), 600), "Rock_B": (lambda: rock(1.0, 0.32, 47, "canyon", 1), 400),
             "Rock_C": (lambda: rock(2.2, 0.7, 48, "canyon", 3), 800),
-            "Scrub_A": (lambda: scrub(0.7, 0.36, 49), 600), "Dead_A": (lambda: dead_tree(1.3, 50, "canyon"), 700),
+            "Saguaro_A": (lambda: saguaro(2.5, ((0.12, 0, 0.45, 0.78), (0.62, 0, 0.55, 0.7)), 57), 1600),
+            "Saguaro_B": (lambda: saguaro(1.9, ((0.55, 0, 0.5, 0.75),), 58, flowers=False), 1100),
+            "Prickly_A": (lambda: prickly(0.9, 59), 1300), "Barrel_A": (lambda: barrel(60), 900), "Agave_A": (lambda: agave(0.95, 61), 1000),
             "Ore_A": (lambda: ore(0.9, 0.55, 51), 900), "Ore_B": (lambda: ore(0.6, 0.4, 52), 600),
             "Cart": (lambda: cart(53), 1200), "Timbers": (lambda: timbers(54), 600),
             "Mine": (lambda: mine(55), 6000), "Smelter": (lambda: smelter(56), 3600),
