@@ -229,8 +229,9 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
 
 ## Gotchas
 
-- **Memory:** the sandbox has about 6 GB. A kit bake peaks near 2.6 GB, a robot bake near 1.5 GB, a ground render near
-  1 GB: run at most two of them at once (a third one got the kit bake killed).
+- **Memory:** the sandbox has about 6 GB. A kit bake peaks near 2.6 GB, a robot bake near 1.6 GB, a ground render near
+  1.2–1.6 GB, a Godot capture 0.5–1 GB: run at most two of them at once (a third one got the kit bake killed; a ground
+  render and a robot bake beside a Godot capture got both of them killed). Queue the heavy jobs one after another.
 - **Grid offset:** the meshing grid is offset by a fraction of a voxel (`sdf.Field.mesh`). Flat cuts that landed exactly on
   grid planes made zero-area triangles, and decimation tore the mesh there (the Club Warrior's kilt).
 - **Degenerate geometry:** `lowpoly._clean` merges doubles and dissolves degenerate faces before decimating.
