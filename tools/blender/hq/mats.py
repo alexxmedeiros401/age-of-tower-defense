@@ -1055,6 +1055,22 @@ def iron(name="HQ_Iron"):
     return g.finish(c, g.mixf(rs, 0.35, 0.8), g.bump(h, 0.14, 0.002))
 
 
+def mail(name="HQ_Mail", base=(0.36, 0.37, 0.4)):
+    """Iron mail: rows of small interlocked rings (a near-regular cell grid, a ring round each cell's middle), forged-iron
+    colours (_iron_col), dark in the gaps between the rings; label 5 = a band of bronze rings at the edges."""
+    g = new(name)
+    p = g.obj()
+    c, rs = _iron_col(g, p, base=base)
+    q = g.scale_vec(p, (1.0, 1.0, 1.3))
+    cell = g.voronoi(q, 80.0, 0.12, "F1", "Distance")
+    ring = g.math("MULTIPLY", g.smooth(cell, 0.18, 0.28), g.math("SUBTRACT", 1.0, g.smooth(cell, 0.4, 0.5)))
+    gap = g.math("SUBTRACT", 1.0, ring)
+    c = g.mix(g.math("MULTIPLY", gap, 0.6), c, g.rgb(tuple(x * 0.35 for x in base)))
+    br = g.mix(g.math("MULTIPLY", ring, 0.6), g.rgb((0.55, 0.34, 0.14)), g.rgb((0.95, 0.72, 0.4)))
+    c = g.mix(g.reg(5), c, br)
+    return g.finish(c, g.mixf(rs, 0.38, 0.8), g.bump(ring, 0.35, 0.002))
+
+
 def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), line=(0.88, 0.74, 0.3),
           border=(0.62, 0.13, 0.08), period=0.11):
     """Checked wool (Iron Age): broad bands of `stripe` crossing on `base` (where two cross the colour is full, a band
@@ -1084,6 +1100,28 @@ def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), li
     c = g.mix(g.reg(5), c, bc)
     weave = g.math("ADD", g.wave(p, 260.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 260.0, 0.0, 0.0, "BANDS", "Z"))
     return g.finish(c, 0.92, g.bump(weave, 0.18, 0.0015))
+
+
+def bark_wood(name="HQ_BarkWood", bark=(0.34, 0.24, 0.15), wood=(0.76, 0.6, 0.4)):
+    """Logs, stakes and a stump: bark in cracked plates, dark in the cracks, lighter on the worn ridges (label 0); pale
+    cut or split wood with fine grain and darker rings (label 5); grey-brown withies (7); iron (6)."""
+    g = new(name)
+    p = g.obj()
+    plates = g.voronoi(g.scale_vec(p, (1.0, 1.0, 0.45)), 26.0, 1.0, "F1", "Distance")
+    cracks = g.smooth(g.voronoi(g.scale_vec(p, (1.0, 1.0, 0.45)), 26.0, 1.0, "DISTANCE_TO_EDGE", "Distance"), 0.0, 0.06)
+    c = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(bark), g.rgb(tuple(x * 1.25 for x in bark)))
+    c = g.mix(g.math("SUBTRACT", 1.0, cracks), c, g.rgb(tuple(x * 0.4 for x in bark)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.4), c, g.rgb(tuple(min(1, x * 1.6) for x in bark)))
+    rings = g.wave(p, 60.0, 3.0, 2.0, "RINGS", "SPHERICAL")
+    cut = g.mix(g.math("MULTIPLY", rings, 0.35), g.rgb(wood), g.rgb(tuple(x * 0.72 for x in wood)))
+    cut = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 30.0, 2.0), 0.55, 0.7), 0.3), cut, g.rgb(tuple(x * 0.6 for x in wood)))
+    c = g.mix(g.reg(5), c, cut)
+    withy = g.mix(g.noise(g.scale_vec(p, (60.0, 60.0, 60.0)), 1.0, 2.0), g.rgb((0.42, 0.36, 0.28)), g.rgb((0.56, 0.48, 0.36)))
+    c = g.mix(g.reg(7), c, withy)
+    ic, rs = _iron_col(g, p)
+    c = g.mix(g.reg(6), c, ic)
+    h = g.math("ADD", g.math("MULTIPLY", g.math("SUBTRACT", 1.0, cracks), g.math("SUBTRACT", 1.0, g.reg(5))), g.math("MULTIPLY", plates, 0.2))
+    return g.finish(c, g.mixf(g.reg(6), 0.85, g.mixf(rs, 0.35, 0.8)), g.bump(h, 0.35, 0.004))
 
 
 def _ash(g, p):

@@ -13,8 +13,8 @@ GROUND_R = 1.32
 GROUND_TOP = 0.16
 PC = v3((0.0, 0.03, 0.0))          # platform centre
 PR = 0.6                           # platform radius
-COURSES = [(0.05, 0.145), (0.145, 0.24), (0.24, 0.335)]
-TOP_Z = 0.37                       # turf top = where his feet stand
+COURSES = [(0.08, 0.17), (0.17, 0.26), (0.26, 0.35), (0.35, 0.43)]
+TOP_Z = 0.46                       # turf top = where his feet stand
 STAND = v3((0.0, 0.03, TOP_Z))
 STAKES = [v3((-0.3, 1.0, 0.0)), v3((0.24, 1.04, 0.0))]
 Z_BAR = 0.78                       # the crossbar's height
@@ -59,7 +59,7 @@ def platform_field():
     open (no mortar), a few wedged in on edge; a capping course of slabs round the turf."""
     fd = Field("Stone")
     rs = np.random.RandomState(7)
-    fd.add(Cylinder(PC + v3((0, 0, 0.19)), PR - 0.07, 0.3, rr=0.02), 0.0)                       # the earth core
+    fd.add(Cylinder(PC + v3((0, 0, (TOP_Z - 0.03) / 2)), PR - 0.07, TOP_Z - 0.03, rr=0.02), 0.0)      # the earth core
     for ci, (z0, z1) in enumerate(COURSES):
         a = rs.uniform(0, 0.3) + ci * 0.17
         while a < 2 * math.pi - 0.05:
@@ -90,8 +90,9 @@ def platform_field():
         R = rot_from_axes(x_axis=tan, y_axis=out) @ euler(rs.uniform(-0.06, 0.06), rs.uniform(-0.05, 0.05), 0)
         fd.add(RoundBox(c, (L / 2 - 0.012, 0.075, 0.026), 0.014, R=R, disp=_chip(rs.uniform(0, 50)), disp_amp=0.006), 0.004)
         a += da
-    # a step of two slabs at the front
-    fd.add(RoundBox(PC + v3((0.0, -PR - 0.08, 0.13)), (0.24, 0.09, 0.05), 0.02, disp=_chip(3.0), disp_amp=0.007), 0.004)
+    # two steps at the front
+    fd.add(RoundBox(PC + v3((0.0, -PR - 0.14, 0.15)), (0.24, 0.08, 0.05), 0.02, disp=_chip(3.0), disp_amp=0.007), 0.004)
+    fd.add(RoundBox(PC + v3((0.0, -PR - 0.04, 0.28)), (0.22, 0.07, 0.05), 0.02, disp=_chip(5.0), disp_amp=0.007), 0.004)
     return fd
 
 
@@ -176,7 +177,7 @@ def iron_field():
 def _blocked(c, pad=0.0):
     if math.hypot(c[0] - PC[0], c[1] - PC[1]) < PR + 0.1 + pad:
         return True
-    if abs(c[0] - PC[0]) < 0.3 + pad and PC[1] - PR - 0.22 - pad < c[1] < PC[1] - PR:
+    if abs(c[0] - PC[0]) < 0.32 + pad and PC[1] - PR - 0.3 - pad < c[1] < PC[1] - PR:
         return True
     for s in STAKES:
         if math.hypot(c[0] - s[0], c[1] - s[1]) < 0.12 + pad:
@@ -310,5 +311,5 @@ def is_grass_face(c, n):
     r = math.hypot(c.x, c.y)
     on_ground = r < GROUND_R + 0.05 and abs(c.z - ground_height(c.x, c.y)) < 0.035 and math.hypot(c.x - PC[0], c.y - PC[1]) > PR + 0.02
     on_turf = math.hypot(c.x - PC[0], c.y - PC[1]) < PR - 0.17 and abs(c.z - TOP_Z) < 0.03
-    step = abs(c.x) < 0.3 and -0.8 < c.y < -0.5
+    step = abs(c.x) < 0.3 and -0.86 < c.y < -0.5
     return n.z > 0.55 and (on_ground or on_turf) and not step

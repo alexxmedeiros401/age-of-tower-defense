@@ -13,7 +13,7 @@ import math
 import numpy as np
 from sdf import (Field, Sphere, Ellipsoid, RoundCone, RoundBox, Torus, Cylinder, Plane, Func, Chain, Prim,
                  v3, norm, rot_from_axes, euler, axis_angle, smin, smax, NOISE, Noise, F)
-from caveman import Inter, Shell, ray_hit, Lock, lerp, fib_points
+from caveman import Inter, Shell, ray_hit, Lock, lerp, fan_lock
 from ugo import _blend_add
 
 J = {
@@ -313,63 +313,59 @@ def teeth_field():
 
 
 # ======================================================================================= limed hair, moustache
-# The hairline runs from his brow at the front down to the nape at the back (design coordinates).
-HL_F = v3((0.0, -0.18, 1.83))
-HL_B = v3((0.0, 0.21, 1.585))
-_HL_N = norm(v3((0, -(HL_B[2] - HL_F[2]) / (HL_B[1] - HL_F[1]), 1.0)))
-
-
-def hl_d(P):
-    """Design units above the hairline plane; positive = on the scalp under the hair."""
-    return (hinv(P) - HL_F.astype(F)) @ _HL_N.astype(F)
-
-
-def head_ellipsoid():
-    return Ellipsoid(HEAD_C, HEAD_RAD)
-
-
-def spike_roots():
-    """Where the spikes grow (on the scalp, above the hairline) and their outward normals."""
-    he = head_ellipsoid()
-    out = []
-    for d in fib_points(90):
-        if d[2] < -0.25:
-            continue
-        o = HEAD_C + d * 0.6
-        h, ok = ray_hit(he, [o], [-d], tmax=0.7)
+def hair_field(seed=13):
+    """Hair limed stiff and pale: thick locks swept up from his brow and back over his head, more from the crown down the
+    back of his head and back over his ears, their ends standing out in spikes."""
+    rng = np.random.RandomState(seed)
+    fd = Field("Hair")
+    hc, hrad = HEAD_C, HEAD_RAD
+    pfront, pback = hp((0, -0.17, 1.82)), hp((0, 0.215, 1.585))
+    slope = (pback[2] - pfront[2]) / (pback[1] - pfront[1])
+    hl_n = norm((0, slope, -1.0))
+    hairline = Func(lambda P: ((P - pfront.astype(F)) @ hl_n.astype(F)) + F(0.008) * NOISE(P * F(26)), hc - 0.5, hc + 0.5)
+    fd.add(Inter(Ellipsoid(hc, hrad + 0.01), hairline, 0.02), 0.0)          # scalp layer
+    hull = Field("HairHull")
+    hull.add(Ellipsoid(hc, hrad + 0.02), 0.0)
+    hull.add(Ellipsoid(hp((0, 0.15, 1.67)), v3((0.19, 0.13, 0.2)) * HS), hr(0.08))
+    # front: thick locks swept up from the hairline and back over the crown, their ends standing up
+    nf = 7
+    for i in range(nf):
+        u = -1 + 2 * (i + 0.5) / nf
+        x = u * 0.15
+        hz = pfront[2] + slope * (hp((0, -0.15 + 0.1 * u * u, 0))[1] - pfront[1])
+        o = hp((x, -0.6, 0)) + v3((0, 0, hz - hp((0, 0, 0))[2] + hr(0.008)))
+        st, ok = ray_hit(hull, [o], [v3((0, 1, 0))], tmax=0.8)
         if not ok[0]:
             continue
-        p = h[0]
-        if hl_d(np.array([p], F))[0] < 0.03:
+        hd = norm(v3((u * 0.35, 1.0, 0.25)))
+        fan_lock(hull, st[0], hd, hr(0.27 + rng.uniform(0, 0.04)), hr(0.08), hr(0.034), segs=8, gravity=-0.3,
+                 lift=hr(0.045), tip_up=hr(0.07), grooves=1, fd=fd, rng=rng, thin_root=True)
+    # from the crown down the back of his head, lying close, the ends kicking out
+    crown = hc + v3((0, 0.0, hrad[2] * 0.98))
+    for i in range(11):
+        a = math.pi * (0.5 + (i + 0.5) / 11) + rng.uniform(-0.04, 0.04)
+        hd = v3((math.sin(a), -math.cos(a), 0.0))
+        fan_lock(hull, crown + hd * 0.02, hd, hr(0.32 + 0.06 * rng.rand()), hr(0.085), hr(0.032), segs=10, gravity=0.55,
+                 lift=hr(0.03), tip_up=hr(0.05), grooves=1, fd=fd, rng=rng)
+    # under them, down the back of his head to the nape, the ends kicking out
+    for i in range(9):
+        a = math.pi * (0.62 + 0.76 * (i + 0.5) / 9) + rng.uniform(-0.04, 0.04)
+        hd = v3((math.sin(a), -math.cos(a), 0.0))
+        o = hc + v3((0, 0, 0.03)) + hd * 0.5
+        st, ok = ray_hit(hull, [o], [-hd], tmax=0.5)
+        if not ok[0]:
             continue
-        nrm = norm((p - HEAD_C) / (HEAD_RAD ** 2))
-        out.append((p, nrm))
-    return out
-
-
-def hair_field():
-    """Hair limed stiff and pale: a close cap above the hairline and spikes swept back from the brow over the crown,
-    shorter and lying flatter at the back."""
-    fd = Field("Hair")
-    strands = lambda P: F(0.004) * NOISE(P * np.array([55, 55, 14], F)) + F(0.002) * NOISE(P * F(100))
-    lo, hi = HEAD_C - 0.4, HEAD_C + 0.4
-    fd.add(Inter(Shell(head_ellipsoid(), 0.012, 0.03, pad=0.06, disp=strands, disp_amp=0.006),
-                 Func(lambda P: -hl_d(P), lo, hi), 0.008), 0.0)
-    rs = np.random.RandomState(11)
-    sweep = norm(v3((0, 1.0, 0.25)))
-    stiff = lambda P: F(0.003) * NOISE(P * np.array([70, 70, 20], F))
-    for p, nrm in spike_roots():
-        back = float(p[1] - HEAD_C[1]) / float(HEAD_RAD[1])            # -1 at the brow .. 1 at the back
-        top = float(p[2] - HEAD_C[2]) / float(HEAD_RAD[2])
-        L = (0.1 + 0.05 * max(0.0, -back) + 0.03 * top) * rs.uniform(0.85, 1.15) * (0.6 if back > 0.55 else 1.0)
-        bend = 0.65 + 0.25 * max(0.0, -back)
-        d0 = norm(nrm + sweep * 0.35)
-        d1 = norm(nrm * (1.0 - bend) + sweep * bend + v3(rs.normal(0, 0.08, 3)))
-        a = p - nrm * 0.015
-        m = a + d0 * L * 0.5
-        t = m + d1 * L * 0.6
-        r0 = 0.03 * rs.uniform(0.9, 1.1)
-        fd.add(Chain([a, m, t], [r0, r0 * 0.6, 0.0045], k=0.006, disp=stiff, disp_amp=0.004), 0.014)
+        fan_lock(hull, st[0], hd * 0.35 + v3((0, 0, -1.0)), hr(0.2 + 0.04 * rng.rand()), hr(0.085), hr(0.03), segs=8, gravity=0.2,
+                 lift=hr(0.03), grooves=1, fd=fd, rng=rng)
+    # over his temples, swept back over his ears
+    for sx in (-1, 1):
+        for k, (y0, dz) in enumerate(((-0.07, 0.0), (0.01, -0.02))):
+            o = hp((sx * 0.6, y0, 1.79 + dz))
+            st, ok = ray_hit(hull, [o], [v3((-sx, 0, 0))], tmax=0.8)
+            if not ok[0]:
+                continue
+            fan_lock(hull, st[0], v3((sx * 0.1, 1.0, -0.25)), hr(0.24), hr(0.075), hr(0.03), segs=8, gravity=0.3,
+                     lift=hr(0.035), tip_up=hr(0.04), grooves=1, fd=fd, rng=rng, thin_root=True)
     return fd
 
 
