@@ -1,8 +1,8 @@
 # HQ model pipeline
 
 Sculpted, rigged, animated and texture-baked game models made entirely in code with Blender (bpy) + numpy.
-Models so far: the Bronze Archer, the Spear Guard and the Torsion Catapult (`assets/towers/bronze_archer.glb`,
-v0.9.21, `spear_guard.glb`, v0.9.22, and `torsion_catapult.glb`, v0.9.23, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
+Models so far: the four Bronze Age towers (`assets/towers/bronze_archer.glb`, v0.9.21, `spear_guard.glb`, v0.9.22,
+`torsion_catapult.glb`, v0.9.23, and `sun_priest.glb`, v0.9.24), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
 `mara.glb`), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
@@ -20,6 +20,7 @@ by `../map_ground_hq.py` (below).
 | Bronze Archer (v0.9.21) | `archer` | `archer_base` | `anim_archer` (Idle, Combat, Attack) |
 | Spear Guard (v0.9.22) | `spear` | `spear_base` | `anim_spear` (Idle, Combat, Attack) |
 | Torsion Catapult (v0.9.23) | `torsion` | `torsion_base` | `anim_torsion` (Idle, Combat, Attack) |
+| Sun Priest (v0.9.24) | `sunpriest` | `sunpriest_base` | `anim_sunpriest` (Idle, Combat, Attack) |
 
 ## Steps
 
@@ -117,7 +118,9 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
 - `mats.py`: procedural hand-painted materials (Cycles); bump detail ends up in the normal map. `saber()` =
   tiger-striped hide with muzzle/nose/amber/suede regions. `siege()` (v0.9.23): a war engine's timber with the grain
   along Y (label 0), X (10) or Z (11), red (5) and blue (7) paint chipped on the edges, bronze fittings (6), rope and
-  twisted sinew (8), leather (9); `limestone()` takes worn red paint (5) and worn, polished tracks (6).
+  twisted sinew (8), leather (9); `limestone()` takes worn red paint (5) and worn, polished tracks (6). `granite()`
+  (v0.9.24): polished red granite; `collar()`: bead rows in gold (0), lapis (5), carnelian (6) and turquoise (7);
+  `leather_dyed()`: leather (0) with red-dyed pieces (5) and bronze studs (6).
 - `lowpoly.py`: decimation targets, UV atlas (islands picked on a smoothed copy, relaxed on the real shape,
   concave packing, more texels for face/eyes/hands).
 - `bake.py`: Cycles high->low bakes. The character is baked per part (each part only sees its own sculpt;
@@ -168,6 +171,13 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   aims: `frame` (the cart, rocking about its front wheels), `arm` (on the skein), `stone` (the ball in the cup), `haul`
   (the windlass rope, stretched toward the arm), `winch` (drum and crank), `trigger` (pawl and pin), `carry` (the ball
   he lifts) and `props` (the heap, mat and pots).
+  `anim_sunpriest.py` (v0.9.24): the sun staff planted at his side, now and then lifting his face to the sun / the
+  staff raised before him, the disc toward the robots, his left hand up palm out / Attack (42 frames = the 1.4 s
+  cooldown): the staff swept up overhead, then driven forward at the robots (`RELEASE`, frame 10, held to 18: the
+  game's beams leave the disc at frame 11, inside the hold), his left hand flung open after it. The staff is two metres
+  long and rigid in his fist ("frame" aims); its foot is kept clear of his body in every pose (overhead it hangs out past
+  his right side, in the thrust it trails past his right hip): check with a per-frame clearance measure of the posed
+  game mesh before baking.
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),

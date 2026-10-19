@@ -2473,9 +2473,10 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # tools/blender/hq/anim_shaman.py, anim_mara.py, anim_club.py).
 # The frame of each unit's Attack clip its hit leaves at, in the clip's own frames. The HQ .glb clips run at CLIP_FPS
 # (Blender's 24 fps; Godot re-samples them at 30 Hz on import), so a frame inside a held pose is picked where there is one
-# (the spear's full reach holds over frames 6-10: 7), where the 30 Hz samples either side of it agree.
+# (the spear's full reach holds over frames 6-10: 7; the Sun Priest's strike over 10-18: 11), where the 30 Hz samples
+# either side of it agree.
 const CLIP_FPS := 24.0
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "torsion_catapult": 7}
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "torsion_catapult": 7, "sun_priest": 11}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2587,6 +2588,23 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.albedo_color = Color(1.0, 0.9, 0.6)
+			m.albedo_texture = _mote_tex()
+		"sun_beam", "sun_beam_white", "sun_beam_hot":    # the Sun Priest's beams (vertex colours fade their edges)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.vertex_color_use_as_albedo = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = {"sun_beam": Color(1.0, 0.84, 0.42), "sun_beam_white": Color(1.0, 0.98, 0.9),
+				"sun_beam_hot": Color(1.0, 0.48, 0.14)}[key]
+		"sun_flash", "sun_flash_white", "sun_glint":  # the disc flaring, the burst where a beam strikes, motes of light
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = {"sun_flash": Color(1.0, 0.8, 0.36), "sun_flash_white": Color(1.0, 0.97, 0.86),
+				"sun_glint": Color(1.0, 0.9, 0.55)}[key]
 			m.albedo_texture = _mote_tex()
 		"ember", "fire_flash":                       # a burning arrow's embers and the burst where it lands
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2738,10 +2756,12 @@ func _prewarm_arrows() -> void:
 	add_child(holder)
 	for fire in [false, true]:
 		_mi(_arrow_mesh(fire), null, holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
-	for key in ["arrow_spark", "ember", "fire_flash", "lance_flash"]:
+	for key in ["arrow_spark", "ember", "fire_flash", "lance_flash", "sun_flash", "sun_flash_white", "sun_glint"]:
 		var mi := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mi(_lance_mesh(), _atk_mat("lance"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	for key in ["sun_beam", "sun_beam_white", "sun_beam_hot"]:
+		_mi(_beam_mesh(), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_pot_mesh(), _atk_mat("pot"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_sph_c(0.17, 14), _atk_mat("stone_ball"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_fx_mesh("cube"), _atk_mat("shard"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
@@ -3525,6 +3545,12 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_spike(fx, n)
 			"stuck":
 				_tick_stuck(fx, n)
+			"beam":
+				_tick_beam(fx, n)
+			"glint":
+				n.position += fx.v * dt
+				fx.v *= 0.92
+				n.scale = Vector3.ONE * float(fx.s) * (1.0 - k * k)
 			"lance":
 				var lk := clampf(fx.t / float(fx.travel), 0.0, 1.0)
 				if fx.t <= float(fx.travel):                 # (it homes in on the robot as it walks)
@@ -3636,7 +3662,8 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type == "spear_guard" and _hq_clips(ev0.id))):
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "sun_priest"]
+					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
 		elif ev0.e == "ability" and str(ev0.get("type", "")) in ["rain", "quake"]:
@@ -3783,6 +3810,9 @@ func _handle_events() -> void:
 						_tar_volley(u3, tg3)
 					else:
 						_earth_spikes(u3, tg3)
+				elif u3 != null and u3.type == "sun_priest" and not tg3.is_empty() and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_sun_beams(u3, tg3)                         # v0.9.24: beams of sunlight from the disc on his staff
 				elif u3 != null:
 					var pcol := Color(0.4, 1.0, 0.5)
 					if u3.type == "sun_priest":
@@ -4241,6 +4271,157 @@ func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		effects.append({"node": f, "t": 0.0, "life": 0.16, "kind": "flash", "s": 0.55})
 	_land_hit(tid, 0.07)
+
+
+# ---------------------------------------------------------------- Sun Priest (v0.9.24)
+# At RELEASE (tools/blender/hq/anim_sunpriest.py) he drives the sun staff at the robots: the disc on it flares and a beam
+# of sunlight strikes from it to every robot the pulse hit (the sim slows and marks them): golden, white-hot on the High
+# Priest's path (A), burning orange on the Solar Lance's (B). Where a beam strikes: a burst of light and motes (embers on
+# Path B). A robot the pulse destroys blows up when its beam lands.
+const SUN_DISC := Vector3(-0.087, 2.05, 1.242)     # the disc as he drives the staff at the robots (model units, Godot axes, Yaw node)
+const BEAM_GROW := 0.06                           # seconds for a beam to reach its robot
+
+
+## A beam of light: three crossed strips from the origin along +Z (length 1), bright down the middle and fading to
+## nothing at their edges, a little wider at the far end.
+func _beam_mesh() -> ArrayMesh:
+	if _atk_cache.has("beam_mesh"):
+		return _atk_cache["beam_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var core0 := Color(1.0, 0.97, 0.86, 0.8)
+	var core1 := Color(1.0, 0.97, 0.86, 1.0)
+	var edge := Color(1.0, 0.72, 0.28, 0.0)
+	for i in 3:
+		var a := PI * i / 3.0
+		var s := Vector3(cos(a), sin(a), 0.0)
+		for side in [-1.0, 1.0]:
+			var c0 := Vector3.ZERO
+			var c1 := Vector3(0, 0, 1)
+			var e0: Vector3 = s * 0.05 * side
+			var e1: Vector3 = s * 0.085 * side + Vector3(0, 0, 1)
+			for v in [[c0, core0], [e0, edge], [e1, edge], [c0, core0], [e1, edge], [c1, core1]]:
+				st.set_color(v[1])
+				st.add_vertex(v[0])
+	var m := st.commit()
+	_atk_cache["beam_mesh"] = m
+	return m
+
+
+## 0 golden, 1 white-hot (High Priest, Path A), 2 burning (Solar Lance, Path B).
+func _sun_kind(u: Dictionary) -> int:
+	match str(u.get("branch", "")):
+		"A":
+			return 1
+		"B":
+			return 2
+	return 0
+
+
+func _sun_beams(u: Dictionary, targets: Array) -> void:
+	var delay := _clip_delay(u.id, ATTACK_FRAME.sun_priest)
+	if delay <= 0.0:
+		delay = 0.08
+	var kind := _sun_kind(u)
+	var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
+	var uid := int(u.id)
+	_fx_after(delay, func() -> void: _sun_flare(uid, kind))
+	var i := 0
+	var rest := []
+	for tid in targets:
+		var t := int(tid)
+		if _robot_point(t, 0.0) == Vector3.INF:      # (gone already, e.g. split on death: no beam for it)
+			continue
+		if i >= cap:                                  # (past the cap: the robot is still hit at RELEASE, no beam)
+			_hold_hit(t, delay)
+			rest.append(t)
+			continue
+		_hold_hit(t, delay + BEAM_GROW + 0.02)
+		_fx_after(delay + 0.012 * i, func() -> void: _sun_beam(uid, t, kind))
+		i += 1
+	if not rest.is_empty():
+		_fx_after(delay, func() -> void:
+			for rt in rest:
+				_land_hit(int(rt)))
+
+
+## Where the disc is now (the turning model holds it there at RELEASE); INF without the model.
+func _sun_disc(uid: int) -> Vector3:
+	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+		return ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * SUN_DISC
+	return Vector3.INF
+
+
+func _sun_flare(uid: int, kind: int) -> void:
+	var at := _sun_disc(uid)
+	if at == Vector3.INF or not _fx_room(1):
+		return
+	var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if kind == 1 else "sun_flash"), self, at)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.55})
+
+
+func _sun_beam(uid: int, tid: int, kind: int) -> void:
+	var from := _sun_disc(uid)
+	if from == Vector3.INF:
+		var u = sim.get_unit(uid)
+		if u == null:                                 # (sold mid-swing)
+			_land_hit(tid)
+			return
+		from = _v3(u.pos, 1.4)
+	var up := _hit_height_of(_robot_type(tid))
+	var to := _robot_point(tid, up)
+	if to == Vector3.INF:
+		_land_hit(tid)
+		return
+	if _fx_room(1) and from.distance_to(to) > 0.05:
+		var bm := _mi(_beam_mesh(), _atk_mat(["sun_beam", "sun_beam_white", "sun_beam_hot"][kind]), self, from)
+		bm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var fx := {"node": bm, "t": 0.0, "life": 0.36, "kind": "beam", "from": from, "to": to, "tid": tid, "up": up, "hold": 0.16}
+		effects.append(fx)
+		_tick_beam(fx, bm)                            # aimed before it is first drawn
+	_fx_after(BEAM_GROW, func() -> void: _sun_hit(tid, from, to, up, kind))
+
+
+## A beam reaches out from the disc to its robot (following it as it walks), shimmers, and fades.
+func _tick_beam(fx: Dictionary, n: Node3D) -> void:
+	var live := _robot_point(int(fx.tid), float(fx.up))
+	if live != Vector3.INF:
+		fx.to = live
+	var from: Vector3 = fx.from
+	var d: Vector3 = (fx.to as Vector3) - from
+	var L := d.length()
+	if L < 0.05:
+		n.visible = false
+		return
+	var t: float = fx.t
+	var grow := clampf(t / BEAM_GROW, 0.04, 1.0)
+	var fade := clampf((t - float(fx.hold)) / maxf(float(fx.life) - float(fx.hold), 0.01), 0.0, 1.0)
+	var w := (1.0 + 0.2 * sin(t * 70.0)) * (1.0 - 0.55 * fade)
+	var b := Basis.looking_at(-d / L, Vector3.UP if absf(d.y / L) < 0.98 else Vector3.RIGHT)
+	n.transform = Transform3D(Basis(b.x * w, b.y * w, b.z * L * grow), from)
+	if fade > 0.0:
+		_fade(n, fade)
+
+
+func _sun_hit(tid: int, from: Vector3, to: Vector3, up: float, kind: int) -> void:
+	var at := _robot_point(tid, up)
+	if at == Vector3.INF:
+		at = to
+	var dir := (at - from).normalized() if at.distance_to(from) > 0.01 else Vector3.FORWARD
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [4, 3, 1][gl]
+	if _fx_room(n + 1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat(["sun_flash", "sun_flash_white", "fire_flash"][kind]), self, at - dir * 0.1)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.22, "kind": "flash", "s": [0.5, 0.7, 0.55][kind]})
+		for k in n:
+			var mo := _mi(_fx_mesh("mote"), _atk_mat("ember" if kind == 2 else "sun_glint"), self,
+				at + Vector3(randf_range(-0.15, 0.15), randf_range(-0.1, 0.15), randf_range(-0.15, 0.15)))
+			mo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": mo, "t": 0.0, "life": randf_range(0.35, 0.55), "kind": "glint", "s": randf_range(0.6, 1.0),
+				"v": Vector3(randf_range(-0.7, 0.7), randf_range(0.9, 1.8), randf_range(-0.7, 0.7))})
+	_land_hit(tid)
 
 
 ## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
