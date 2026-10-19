@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://5av8e7bkhc0y"
-path="res://.godot/imported/desert_citadel.glb-7b3c1ca99c2afe6b43aee228fab37119.scn"
+uid="uid://1a02acl6mrsy"
+path="res://.godot/imported/bronze_decor_canyon.glb-b7d40a61f1c8937a2a4d3ccdee225101.scn"
 
 [deps]
 
-source_file="res://assets/decor/maps/desert_citadel.glb"
-dest_files=["res://.godot/imported/desert_citadel.glb-7b3c1ca99c2afe6b43aee228fab37119.scn"]
+source_file="res://assets/decor/bronze_decor_canyon.glb"
+dest_files=["res://.godot/imported/bronze_decor_canyon.glb-b7d40a61f1c8937a2a4d3ccdee225101.scn"]
 
 [params]
 

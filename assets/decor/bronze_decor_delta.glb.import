@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://mj0f0ws6oqwk"
-path="res://.godot/imported/river_delta.glb-2ef29f1fb7c3cc3d6b8e8e55fefe876f.scn"
+uid="uid://bcnyh2y3mddiy"
+path="res://.godot/imported/bronze_decor_delta.glb-95a3cecb1273769a8c0c6961fe57154f.scn"
 
 [deps]
 
-source_file="res://assets/decor/maps/river_delta.glb"
-dest_files=["res://.godot/imported/river_delta.glb-2ef29f1fb7c3cc3d6b8e8e55fefe876f.scn"]
+source_file="res://assets/decor/bronze_decor_delta.glb"
+dest_files=["res://.godot/imported/bronze_decor_delta.glb-95a3cecb1273769a8c0c6961fe57154f.scn"]
 
 [params]
 

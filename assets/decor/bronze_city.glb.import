@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://cg1f8lavmyd2j"
-path="res://.godot/imported/copper_canyon.glb-c7afee0556f6767b7a37eb9d07f2a9af.scn"
+uid="uid://crnuloiibkp3u"
+path="res://.godot/imported/bronze_city.glb-ce34731276649af3571fc2fee6765b70.scn"
 
 [deps]
 
-source_file="res://assets/decor/maps/copper_canyon.glb"
-dest_files=["res://.godot/imported/copper_canyon.glb-c7afee0556f6767b7a37eb9d07f2a9af.scn"]
+source_file="res://assets/decor/bronze_city.glb"
+dest_files=["res://.godot/imported/bronze_city.glb-ce34731276649af3571fc2fee6765b70.scn"]
 
 [params]
 
