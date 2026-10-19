@@ -57,7 +57,7 @@ def hinv(P):
 
 HEAD_C = hp((0.0, 0.03, 1.73))
 HEAD_RAD = v3((0.17, 0.184, 0.182)) * HS
-EYE_R = hr(0.037)
+EYE_R = hr(0.035)
 
 
 def eye_c(sx):
@@ -159,40 +159,40 @@ def head(fd):
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.06, 1.592), (0.145, 0.133, 0.128)), 0.07, SKIN)                           # a neat oval jaw
+    fd.add(E((0, -0.06, 1.594), (0.137, 0.13, 0.125)), 0.07, SKIN)                           # a neat oval jaw
     fd.add(E((0, -0.13, 1.506), (0.072, 0.064, 0.062)), 0.05, SKIN)                           # a firm little chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.11, -0.114, 1.632), 0.045), 0.05, SKIN)                               # high cheekbones
-        fd.add(S((sx * 0.12, -0.05, 1.56), 0.05), 0.05, SKIN)
+        fd.add(S((sx * 0.108, -0.118, 1.636), 0.039), 0.05, SKIN)                              # high cheekbones
+        fd.add(S((sx * 0.112, -0.05, 1.566), 0.043), 0.05, SKIN)
         pts = [hp((sx * 0.15, -0.06, 1.744)), hp((sx * 0.115, -0.128, 1.75)), hp((sx * 0.062, -0.162, 1.748))]
         fd.add(Chain(pts, [hr(0.01), hr(0.014), hr(0.012)], k=hr(0.02)), hr(0.03), SKIN)
     # arched brows, a little raised at their outer ends: confident, amused
     for sx in (-1, 1):
-        pts = [hp((sx * 0.03, -0.203, 1.762)), hp((sx * 0.07, -0.196, 1.776)), hp((sx * 0.112, -0.172, 1.781)), hp((sx * 0.15, -0.132, 1.771))]
-        fd.add(Chain([p + v3((0, 0.007, 0)) for p in pts], [hr(0.006), hr(0.0075), hr(0.0065), hr(0.003)], k=hr(0.006)), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.013), hr(0.015), hr(0.013), hr(0.007)], k=hr(0.01)), BROW)
+        pts = [hp((sx * 0.036, -0.2, 1.762)), hp((sx * 0.072, -0.194, 1.775)), hp((sx * 0.112, -0.171, 1.779)), hp((sx * 0.148, -0.132, 1.77))]
+        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.0045), hr(0.006), hr(0.0052), hr(0.0025)], k=hr(0.006)), hr(0.01), BROW)
+        fd.paint(Chain(pts, [hr(0.011), hr(0.013), hr(0.011), hr(0.006)], k=hr(0.01)), BROW)
     # almond eyes, lashes on the upper lids, kohl drawn out in wings
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.025))), (sx * 0.22, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.02))), (sx * 0.22, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0045)), Plane(ec + v3((0, 0, -hr(0.028))), (sx * -0.14, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0042)), Plane(ec + v3((0, 0, -hr(0.026))), (sx * -0.14, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.021))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.044), -hr(0.012), hr(0.014)))
-        fd.add(RoundCone(flick, flick + v3((sx * hr(0.024), hr(0.008), hr(0.009))), hr(0.005), hr(0.0015)), hr(0.004), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.016))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.012)))
+        fd.add(RoundCone(flick, flick + v3((sx * hr(0.014), hr(0.006), hr(0.006))), hr(0.0045), hr(0.0015)), hr(0.004), LASH)
         k0 = hp((sx * 0.032, -0.17, 1.664))
         k1 = hp((sx * 0.07, -0.186, 1.656))
         k2 = hp((sx * 0.112, -0.163, 1.664))
         k3 = hp((sx * 0.158, -0.122, 1.69))
         fd.paint(Chain([k0, k1, k2, k3], [hr(0.006), hr(0.008), hr(0.007), hr(0.0035)], k=hr(0.006)), KOHL)
     # a straight, slightly upturned nose
-    fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.222, 1.64)), hr(0.013), hr(0.018)), hr(0.016), SKIN)
-    fd.add(S((0, -0.224, 1.628), 0.023), hr(0.013), SKIN)
+    fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.214, 1.65)), hr(0.011), hr(0.015)), hr(0.016), SKIN)
+    fd.add(S((0, -0.215, 1.638), 0.019), hr(0.013), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.025, -0.204, 1.614), 0.016), hr(0.011), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.013, -0.219, 1.602)), v3((0.008, 0.01, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+        fd.add(S((sx * 0.022, -0.198, 1.624), 0.013), hr(0.01), SKIN)
+        fd.sub(Ellipsoid(hp((sx * 0.012, -0.211, 1.613)), v3((0.007, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     # a confident half-smile: the left corner (her left, +X) drawn up
     slot = [hp((-0.056, -0.165, 1.556)), hp((-0.029, -0.188, 1.544)), hp((0, -0.195, 1.542)), hp((0.03, -0.186, 1.548)),
             hp((0.06, -0.16, 1.566))]
@@ -376,7 +376,7 @@ def ear_lobe(sx):
 def gold_field():
     """A gold diadem over the hairline with a sun disc and rays on her brow, rings round the ponytail, hoop earrings."""
     fd = Field("Gold")
-    hull = Ellipsoid(HEAD_C, HEAD_RAD + 0.026)
+    hull = Ellipsoid(HEAD_C, HEAD_RAD + 0.016)              # (the hair's surface is at + 0.011: the band sits on it)
     fd.add(Inter(Shell(hull, 0.0, 0.011, pad=0.06), Func(lambda P: np.abs(diadem_d(P)) - F(0.011), HEAD_C - 0.4, HEAD_C + 0.4), 0.003), 0.0)
     o = DIADEM_C + DIADEM_N * 0.062 + v3((0, -0.6, 0))
     h, ok = ray_hit(Func(lambda P: hull(P) - F(0.006), HEAD_C - 0.5, HEAD_C + 0.5), [o], [v3((0, 1, 0))], tmax=0.8)
@@ -452,14 +452,14 @@ def bronze_field():
             h, ok2 = ray_hit(outer, [o], [v3((0, 1, 0))], tmax=0.6)
             if ok2[0]:
                 fd.add(RoundCone(c + v3((math.cos(a) * 0.03, -0.004, math.sin(a) * 0.03)), h[0], 0.006, 0.002), 0.004)
-    # the guard on her sword shoulder: two overlapping lames over the deltoid (the upper one outside the lower), kept to
-    # the outside of the shoulder
+    # the guard on her sword shoulder: two overlapping lames curved over the outside of the deltoid (the upper one over
+    # the lower), not over the top of the shoulder toward her neck
     sh = J["shoulder_R"]
     dl = Sphere(sh + v3((-0.025, -0.005, 0.015)), 0.088)
     for off, z_cut in ((0.024, -0.085), (0.038, -0.012)):
         fd.add(Inter(Shell(dl, off, 0.012, pad=0.06),
                      Func(lambda P, z_cut=z_cut: np.maximum(np.maximum(F(sh[2] + z_cut) - P[:, 2], np.abs(P[:, 1] - F(sh[1])) - F(0.105)),
-                                                            P[:, 0] + F(0.215)), sh - 0.25, sh + 0.25), 0.004), 0.004)
+                                                            P[:, 0] - F(sh[0] - 0.005)), sh - 0.25, sh + 0.25), 0.004), 0.004)
     # bracers on both forearms, rimmed
     for side in ("R", "L"):
         el, wr = J["elbow_" + side], J["wrist_" + side]
@@ -572,7 +572,7 @@ def leather_field():
 
 # ======================================================================================= the khopesh
 GRIP_BACK = 0.075          # fist centre -> pommel
-SHANK = (0.075, 0.27)      # straight shank, from the guard
+SHANK = (0.075, 0.3)       # straight shank, from the guard
 GEM_R = 0.022
 
 
@@ -586,12 +586,12 @@ def blade_curve():
     away from the edge), with its half-width at each point."""
     a0, ax, ed = sword_axis()
     p0 = a0 + ax * SHANK[1]
-    p1 = a0 + ax * (SHANK[1] + 0.2)
-    p2 = a0 + ax * (SHANK[1] + 0.36) - ed * 0.07
-    p3 = a0 + ax * (SHANK[1] + 0.33) - ed * 0.2
-    ts = np.linspace(0, 1, 16)
+    p1 = a0 + ax * (SHANK[1] + 0.25)
+    p2 = a0 + ax * (SHANK[1] + 0.45) - ed * 0.085
+    p3 = a0 + ax * (SHANK[1] + 0.41) - ed * 0.25
+    ts = np.linspace(0, 1, 18)
     pts = [bez3(p0, p1, p2, p3, t) for t in ts]
-    widths = [0.026 + 0.012 * math.sin(t * math.pi * 0.9) - 0.022 * t ** 3 for t in ts]
+    widths = [0.032 + 0.015 * math.sin(t * math.pi * 0.9) - 0.027 * t ** 3 for t in ts]      # (big enough to read in game)
     return pts, widths
 
 

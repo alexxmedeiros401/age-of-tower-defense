@@ -118,18 +118,18 @@ def wood_field():
     g = ground_height(POST[0], POST[1])
     grain = lambda P: F(0.003) * NOISE(P * np.array([40, 40, 6], F))
     b = POST + v3((0, 0, g - 0.04))
-    fd.add(RoundCone(b, b + v3((0, 0, POST_H)), 0.07, 0.062, disp=grain, disp_amp=0.004), 0.0, 11)      # grain along Z
-    fd.add(Sphere(b + v3((0, 0, POST_H)), 0.064), 0.03, 11)
-    fd.add(RoundBox(b + v3((0, 0, 0.06)), (0.13, 0.13, 0.07), 0.02, R=euler(0, 0, 0.3), disp=grain, disp_amp=0.003), 0.03)
+    fd.add(RoundCone(b, b + v3((0, 0, POST_H)), 0.1, 0.088, disp=grain, disp_amp=0.004), 0.0, 11)       # grain along Z
+    fd.add(Sphere(b + v3((0, 0, POST_H)), 0.09), 0.03, 11)
+    fd.add(RoundBox(b + v3((0, 0, 0.06)), (0.17, 0.17, 0.075), 0.02, R=euler(0, 0, 0.3), disp=grain, disp_amp=0.003), 0.03)
     rs = np.random.RandomState(9)
     for k in range(9):                                      # blade cuts
         z = rs.uniform(0.45, 1.05)
         a = rs.uniform(-1.2, 1.2) - math.pi / 2 - 0.6           # on the side toward the dais
-        c = b + v3((math.cos(a) * 0.068, math.sin(a) * 0.068, z))
+        c = b + v3((math.cos(a) * 0.097, math.sin(a) * 0.097, z))
         fd.sub(RoundBox(c, (0.03, 0.006, 0.003), 0.002, R=euler(rs.uniform(-0.5, 0.5), 0, a + math.pi / 2)), 0.002)
     for z0 in (0.32, 0.86):
         for j in range(4):
-            fd.add(Torus(b + v3((0, 0, z0 + j * 0.022)), 0.073 - 0.0004 * z0, 0.0095), 0.004, 8)
+            fd.add(Torus(b + v3((0, 0, z0 + j * 0.022)), 0.101 - 0.01 * z0, 0.0095), 0.004, 8)
     return fd
 
 
@@ -152,8 +152,8 @@ def blade_field():
     """A spare khopesh resting against the post (bronze, label 6; its grip wrapped in red cord, 5)."""
     fd = Field("Blade")
     g = ground_height(POST[0], POST[1])
-    foot = POST + v3((-0.12, -0.13, g + 0.0))
-    top = POST + v3((-0.05, -0.07, g + 0.62))
+    foot = POST + v3((-0.15, -0.16, g + 0.0))
+    top = POST + v3((-0.07, -0.09, g + 0.62))
     ax = norm(top - foot)
     side = norm(np.cross(ax, v3((0, 0, 1))))
     ed = norm(np.cross(side, ax))
@@ -175,7 +175,7 @@ def blade_field():
 def _blocked(c, pad=0.0):
     if math.hypot(c[0], c[1]) < OUTER_R + 0.07 + pad:
         return True
-    if math.hypot(c[0] - POST[0], c[1] - POST[1]) < 0.22 + pad:
+    if math.hypot(c[0] - POST[0], c[1] - POST[1]) < 0.26 + pad:
         return True
     if math.hypot(c[0] - SHIELD_C[0], c[1] - SHIELD_C[1]) < 0.3 + pad:
         return True
