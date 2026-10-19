@@ -494,6 +494,8 @@ def attack_pose(arm, f):
     else:                                                           # back to his thigh
         k = ease((f - PLACE) / float(FR - PLACE))
         cup = vec(cm.ball_c(cm.COCK))
+        if f < PLACE + 2:                                           # (hidden, it stays in the cup: no slide back to the heap)
+            offs["carry"] = cup - vec(cm.CARRY_C)
         Rb = frame_map(T_L, q @ V(0.0, -1.0, 0.0), F_L, V(0, 0, -1.0))
         wr_a = cup + V(0, 0, 0.05) - Rb @ BALL_IN_L
         aims.update(arm_aims(arm, "L", wr_a.lerp(lthigh, k), pole=q @ V(1.0, 0.4, 0.2), hand_dir=q @ V(-0.2, -0.3, -1.0)))

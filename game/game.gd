@@ -2476,7 +2476,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # (the spear's full reach holds over frames 6-10: 7; the Sun Priest's strike over 10-18: 11), where the 30 Hz samples
 # either side of it agree.
 const CLIP_FPS := 24.0
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "torsion_catapult": 7, "sun_priest": 11}
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "kira": 11, "torsion_catapult": 7, "sun_priest": 11}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2589,6 +2589,13 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.albedo_color = Color(1.0, 0.9, 0.6)
 			m.albedo_texture = _mote_tex()
+		"slash", "flare_wave":                         # Kira's cuts and her flare's wave (vertex colours fade them)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.vertex_color_use_as_albedo = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = Color(1.0, 0.86, 0.46) if key == "slash" else Color(1.0, 0.74, 0.3)
 		"sun_beam", "sun_beam_white", "sun_beam_hot":    # the Sun Priest's beams (vertex colours fade their edges)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
@@ -2762,6 +2769,8 @@ func _prewarm_arrows() -> void:
 	_mi(_lance_mesh(), _atk_mat("lance"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	for key in ["sun_beam", "sun_beam_white", "sun_beam_hot"]:
 		_mi(_beam_mesh(), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_slash_mesh(), _atk_mat("slash"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_wave_mesh(), _atk_mat("flare_wave"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_pot_mesh(), _atk_mat("pot"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_sph_c(0.17, 14), _atk_mat("stone_ball"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_fx_mesh("cube"), _atk_mat("shard"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
@@ -3257,11 +3266,12 @@ func _fx_after(sec: float, fn: Callable) -> void:
 
 
 ## A boulder lands: a crater with cracks, a burst of dust and rock chunks flying out.
-func _boulder_impact(ground: Vector3, r: float) -> void:
+func _boulder_impact(ground: Vector3, r: float, rock := true) -> void:
+	var gl := clampi(Progress.gfx_level(), 0, 2)
 	_ground_decal(ground, "crater", 1.25 * r + 0.3, 1.8)
-	_dust_fx(ground + Vector3(0, 0.25, 0), 7, 0.9 * r)
-	var chunks: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
-	if _fx_room(chunks):
+	_dust_fx(ground + Vector3(0, 0.25, 0), [7, 4, 2][gl], 0.9 * r)      # (alpha-blended puffs cost a lot on PowerVR)
+	var chunks: int = [6, 4, 2][gl] if rock else 0                   # (a pitch pot's clay shards stand in for the rock)
+	if chunks > 0 and _fx_room(chunks):
 		for i in chunks:
 			var sz := randf_range(0.08, 0.15) * (0.7 + 0.3 * r)
 			var c := _mi(_sph_c(0.5, 5), _atk_mat("chunk"), self, ground + Vector3(0, 0.25, 0), Vector3(randf(), randf(), randf()) * 3.0,
@@ -3547,6 +3557,14 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_stuck(fx, n)
 			"beam":
 				_tick_beam(fx, n)
+			"slash":
+				var sb: Basis = fx.b0
+				n.basis = (sb * Basis(Vector3.UP, deg_to_rad(lerpf(38.0, -42.0, k)))).scaled(Vector3.ONE * (0.9 + 0.3 * k))
+				_fade(n, k * k)
+			"wave":
+				var wr := minf(0.4 + float(fx.speed) * fx.t, float(fx.r))
+				n.scale = Vector3(wr, 1.0, wr)
+				_fade(n, clampf((wr / float(fx.r) - 0.7) / 0.3, 0.0, 1.0) if fx.t < fx.life - 0.12 else 1.0)
 			"glint":
 				n.position += fx.v * dt
 				fx.v *= 0.92
@@ -3662,11 +3680,12 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "sun_priest"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "sun_priest", "kira"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
-		elif ev0.e == "ability" and str(ev0.get("type", "")) in ["rain", "quake"]:
+		elif ev0.e == "ability" and (str(ev0.get("type", "")) in ["rain", "quake"] or (str(ev0.get("type", "")) == "flare"
+				and sim.hero != null and _hq_clips(sim.hero.id))):
 			for t0 in ev0.get("ids", []):                # Stone Rain's boulders and the Earthquake's spikes
 				_atk_pending[int(t0)] = true
 	for ev in sim.events:
@@ -3777,6 +3796,8 @@ func _handle_events() -> void:
 					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
 				elif u2 != null and u2.type == "spear_guard" and _hq_clips(ev.id):
 					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point
+				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
+					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
@@ -3866,7 +3887,7 @@ func _handle_events() -> void:
 						_dust_fx(_v3(ev.pos, 0.2), 4, ev.splash)
 				elif boulder:
 					# v0.9.20: the catapult's (and the Boulder Hurler's) boulder smashes down: crater, dust, flying rock
-					_boulder_impact(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
+					_boulder_impact(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6), not pot)
 					if hot_b:
 						_fire_splash(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
 					if pot:
@@ -4424,6 +4445,163 @@ func _sun_hit(tid: int, from: Vector3, to: Vector3, up: float, kind: int) -> voi
 	_land_hit(tid)
 
 
+# ---------------------------------------------------------------- Kira Sunblade (v0.9.25)
+# The whirlwind (tools/blender/hq/anim_kira.py): her khopesh sweeps round at arm's length and its cut crosses the front
+# at HIT (ATTACK_FRAME.kira): a golden crescent slashes across each robot hit, with sparks and a flash. Solar Flare: she
+# thrusts the sword at the sky (FLARE) and it blazes, a wave of sunlight rolls out over the ground, and each robot in
+# reach bursts into flame as the wave reaches it (one the flare destroyed blows up then).
+const KIRA_FLARE := 18                              # anim_kira.py FLARE
+const KIRA_SKY := Vector3(-0.175, 2.582, 0.055)     # the raised blade at FLARE (model units, Godot axes, Yaw node)
+const FLARE_SPEED := 11.0                           # world units per second the wave rolls out
+
+
+## A cut: a crescent ribbon in the XZ plane round the origin (radius 0.46, 150 degrees, its middle on -Z), thickest in
+## its middle and tapering to points, its outer edge bright and its inner edge fading, brightest at its leading end.
+func _slash_mesh() -> ArrayMesh:
+	if _atk_cache.has("slash_mesh"):
+		return _atk_cache["slash_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 18
+	var r := 0.46
+	var prev := []
+	for i in n + 1:
+		var u := float(i) / n
+		var a := deg_to_rad(lerpf(-75.0, 75.0, u))
+		var w := 0.085 * sin(PI * u)
+		var d := Vector3(sin(a), 0.0, -cos(a))
+		var lead := pow(u, 1.3)
+		var o := [d * (r + w * 0.35), Color(1.0, 0.97, 0.8, lead)]
+		var inn := [d * (r - w), Color(1.0, 0.68, 0.22, 0.0)]
+		if i > 0:
+			for v in [prev[0], prev[1], o, prev[1], inn, o]:
+				st.set_color(v[1])
+				st.add_vertex(v[0])
+		prev = [o, inn]
+	var m := st.commit()
+	_atk_cache["slash_mesh"] = m
+	return m
+
+
+## The flare's wave: a flat ring on the ground (radius 1 at scale 1), its rim bright, fading inward.
+func _wave_mesh() -> ArrayMesh:
+	if _atk_cache.has("wave_mesh"):
+		return _atk_cache["wave_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 48
+	for i in n:
+		var a0 := TAU * i / n
+		var a1 := TAU * (i + 1) / n
+		var o0 := Vector3(cos(a0), 0.0, sin(a0))
+		var o1 := Vector3(cos(a1), 0.0, sin(a1))
+		var cr := Color(1.0, 0.9, 0.6, 0.9)
+		var ci := Color(1.0, 0.6, 0.18, 0.0)
+		for v in [[o0, cr], [o1, cr], [o0 * 0.78, ci], [o1, cr], [o1 * 0.78, ci], [o0 * 0.78, ci]]:
+			st.set_color(v[1])
+			st.add_vertex(v[0])
+	var m := st.commit()
+	_atk_cache["wave_mesh"] = m
+	return m
+
+
+func _kira_slash(u: Dictionary, targets: Array) -> void:
+	var delay := _clip_delay(u.id, ATTACK_FRAME.kira)
+	if delay <= 0.0:
+		delay = 0.08
+	var uid := int(u.id)
+	var i := 0
+	for tid in targets:
+		var t := int(tid)
+		if _robot_point(t, 0.0) == Vector3.INF:      # (gone already)
+			continue
+		_hold_hit(t, delay + 0.03 * i + 0.02)
+		_fx_after(delay + 0.03 * i, func() -> void: _kira_cut(uid, t))
+		i += 1
+
+
+func _kira_cut(uid: int, tid: int) -> void:
+	var h := _hit_height_of(_robot_type(tid))
+	var at := _robot_point(tid, h)
+	if at == Vector3.INF:
+		_land_hit(tid)
+		return
+	var u = sim.get_unit(uid)
+	var to_her := (_v3(u.pos, h) - at) if u != null else Vector3(0, 0, 1)
+	to_her.y = 0.0
+	to_her = to_her.normalized() if to_her.length() > 0.05 else Vector3(0, 0, 1)
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [4, 3, 1][gl]
+	if _fx_room(n + 2):
+		var sl := _mi(_slash_mesh(), _atk_mat("slash"), self, at + to_her * 0.1)
+		sl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# the crescent's middle (local -Z) toward her, tilted into a diagonal cut
+		var b := Basis.looking_at(to_her, Vector3.UP) * Basis(Vector3(0, 0, 1), deg_to_rad(randf_range(-24.0, 24.0)))
+		sl.basis = b
+		effects.append({"node": sl, "t": 0.0, "life": 0.2, "kind": "slash", "b0": b})
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at + to_her * 0.12)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.5})
+		for k in n:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at + to_her * 0.12)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var side := to_her.cross(Vector3.UP)
+			var v := (side * randf_range(-1.0, 1.0) + to_her * 0.4 + Vector3(0, randf_range(0.3, 1.0), 0)).normalized() * randf_range(2.5, 4.5)
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v})
+	_land_hit(tid, 0.04)
+
+
+func _kira_flare(ev: Dictionary, hp: Vector3) -> void:
+	var delay := float(KIRA_FLARE) / CLIP_FPS / maxf(float(speed), 0.01)
+	var hid := int(sim.hero.id) if sim.hero != null else -1
+	var R := float(ev.get("radius", 5.5))
+	for tid in ev.get("ids", []):
+		var t := int(tid)
+		var at := _robot_point(t, 0.0)
+		if at == Vector3.INF:
+			continue
+		var eta := delay + Vector2(at.x - hp.x, at.z - hp.z).length() / FLARE_SPEED / maxf(float(speed), 0.01)
+		_hold_hit(t, eta)
+		_fx_after(eta, func() -> void: _flare_burn(t))
+	_fx_after(delay, func() -> void: _flare_burst(hid, hp, R))
+
+
+## The raised blade blazes and the wave rolls out from her feet.
+func _flare_burst(hid: int, hp: Vector3, R: float) -> void:
+	var sky := hp + Vector3(0, 2.2, 0)
+	if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+		sky = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * KIRA_SKY
+	if _fx_room(3):
+		for s2 in [1.6, 0.9]:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if s2 < 1.0 else "sun_flash"), self, sky)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.45, "kind": "flash", "s": s2})
+		var w := _mi(_wave_mesh(), _atk_mat("flare_wave"), self, Vector3(hp.x, 0.12, hp.z), Vector3.ZERO, Vector3(0.4, 1.0, 0.4))
+		w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": w, "t": 0.0, "life": R / FLARE_SPEED / maxf(float(speed), 0.01) + 0.15, "kind": "wave",
+			"r": R, "speed": FLARE_SPEED * maxf(float(speed), 0.01)})
+	shake = maxf(shake, 0.6)
+
+
+## The wave reaches a robot: it bursts into flame.
+func _flare_burn(tid: int) -> void:
+	var at := _robot_point(tid, _hit_height_of(_robot_type(tid)))
+	if at != Vector3.INF:
+		var gl := clampi(Progress.gfx_level(), 0, 2)
+		var n: int = [3, 2, 1][gl]
+		if _fx_room(n + 1):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, at)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.26, "kind": "flash", "s": 0.7})
+			for k in n:
+				var em := _mi(_fx_mesh("mote"), _atk_mat("ember"), self, at + Vector3(randf_range(-0.2, 0.2), randf_range(-0.2, 0.2), randf_range(-0.2, 0.2)))
+				em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": em, "t": 0.0, "life": randf_range(0.4, 0.6), "kind": "glint", "s": randf_range(0.7, 1.0),
+					"v": Vector3(randf_range(-0.6, 0.6), randf_range(1.0, 1.8), randf_range(-0.6, 0.6))})
+	_land_hit(tid, 0.08)
+
+
 ## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
 ## cup at the top of the swing (ATTACK_FRAME): it flies from there in a high arc and lands when the sim's shot does.
 ## Path A throws burning pitch pots (riding on the balls in the cup and the heap too) that shatter where they land.
@@ -4444,33 +4622,53 @@ func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 		bm.rotation = Vector3(0.4, 0.9, 0.2)
 	root.set_meta("spin", true)
 	root.set_meta("boulder", true)
-	var launch := root.position
-	var delay := 0.0
-	if u != null and tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("anim") and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
-		var tn: Node3D = tower_nodes[u.id]
-		var yt := (tn.get_meta("yaw") as Node3D).global_transform
-		launch = yt * TORSION_BALL
-		# it leaves the cup the size it was in it (the ball, or the pot riding on it at 0.56), and grows to its flight
-		# size as it climbs, so it reads at the game's zoom
-		var su := yt.basis.get_scale().x
-		root.set_meta("s0", (0.56 * su) if dt == "fire" else (TORSION_BALL_R * su / 0.17))
-		# sim seconds until the arm's swing throws it (the attack clip runs at throw_rate)
-		delay = float(ATTACK_FRAME.torsion_catapult) / CLIP_FPS / maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
-	root.position = launch
-	root.set_meta("lob_from", launch)
-	# (the sim already moved the shot one tick on in the step that fired it, while the clip starts now)
-	root.set_meta("lob_delay", minf(float(p.t) + delay, float(p.flight) * 0.6))
-	root.visible = delay <= 0.0
+	root.set_meta("lob_from", root.position)
+	root.set_meta("lob_cap", float(p.flight) * 0.6)          # thrown by then at the latest (sim seconds into its flight)
+	# it leaves the cup the size it was in it (the ball, or the pot riding on it at 0.56), and grows to its flight size
+	root.set_meta("lob_size", 0.56 if dt == "fire" else TORSION_BALL_R / 0.17)
+	if u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		root.set_meta("lob_tid", int(u.id))                  # in the cup until its clip reaches the release (_torsion_flight)
+		root.visible = false
+	else:
+		root.set_meta("lob_delay", float(p.t))
+
+
+## The cup empties at this clip time in the imported Attack clip: Blender frame 7 (0.292 s) lands on the importer's
+## 30 Hz sample at 0.300 s.
+const TORSION_THROW_T := 0.3
 
 
 ## Where a Torsion Catapult shot is this frame: still in the cup (hidden) until the swing throws it, then on its arc.
 func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 	var t: float = float(p.t) + alpha * TICK
+	if not pn.has_meta("lob_delay"):
+		# still in the cup: it leaves on the frame the clip reaches the release (whatever the clip's rate, the game speed
+		# or a pause), from where the cup is then (the engine turns toward its target as it swings)
+		var tid := int(pn.get_meta("lob_tid", -1))
+		var go := t >= float(pn.get_meta("lob_cap"))
+		if _hq_clips(tid):
+			var tn: Node3D = tower_nodes[tid]
+			var ap: AnimationPlayer = tn.get_meta("anim")
+			# (the clip moves on after this, in this frame: by the step _hq_anim_tick gives it)
+			var step := get_process_delta_time() * float(speed) * float(tn.get_meta("throw_rate", 1.0))
+			go = go or ap.current_animation != str(tn.get_meta("clip_attack")) \
+				or ap.current_animation_position + step >= TORSION_THROW_T
+			if go:
+				var yt := (tn.get_meta("yaw") as Node3D).global_transform
+				pn.set_meta("lob_from", yt * TORSION_BALL)
+				pn.set_meta("s0", float(pn.get_meta("lob_size")) * yt.basis.get_scale().x)
+				# the pot lay along the throw in the cup (the stone bone's +Y = the Yaw node's +Z): it leaves that way
+				if pn.has_meta("pot"):
+					pn.basis = yt.basis.orthonormalized() * Basis(Vector3.RIGHT, PI * 0.5)
+		else:
+			go = true                                        # (sold before the throw: it leaves now, in the sale's dust)
+		if not go:
+			pn.visible = false
+			return pn.position
+		pn.set_meta("lob_delay", t)
+		pn.position = pn.get_meta("lob_from")
 	var d0: float = pn.get_meta("lob_delay")
 	var from: Vector3 = pn.get_meta("lob_from")
-	if t < d0:
-		pn.visible = false
-		return from
 	pn.visible = true
 	var k := clampf((t - d0) / maxf(float(p.flight) - d0, 0.05), 0.0, 1.0)
 	pn.scale = Vector3.ONE * lerpf(float(pn.get_meta("s0", TORSION_FLY)), TORSION_FLY, smoothstep(0.0, 0.3, k))
@@ -4483,8 +4681,11 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 func _pot_mesh() -> ArrayMesh:
 	if _atk_cache.has("pot_mesh"):
 		return _atk_cache["pot_mesh"]
-	var prof := [Vector2(0.0, -0.15), Vector2(0.09, -0.145), Vector2(0.15, -0.08), Vector2(0.168, -0.01), Vector2(0.155, 0.06),
-		Vector2(0.1, 0.12), Vector2(0.058, 0.15), Vector2(0.066, 0.175), Vector2(0.05, 0.19), Vector2(0.034, 0.215), Vector2(0.0, 0.225)]
+	# (two profile points inside each black band, so the band's own strip is painted)
+	var prof := [Vector2(0.0, -0.15), Vector2(0.09, -0.145), Vector2(0.15, -0.08), Vector2(0.154, -0.064), Vector2(0.156, -0.056),
+		Vector2(0.168, -0.01), Vector2(0.166, 0.0), Vector2(0.162, 0.02), Vector2(0.155, 0.06), Vector2(0.135, 0.082),
+		Vector2(0.129, 0.088), Vector2(0.1, 0.12), Vector2(0.058, 0.15), Vector2(0.066, 0.175), Vector2(0.05, 0.19),
+		Vector2(0.034, 0.215), Vector2(0.0, 0.225)]
 	var nrm := []                                       # the profile's outward normals (radius, height)
 	for i in prof.size():
 		var tg: Vector2 = prof[mini(i + 1, prof.size() - 1)] - prof[maxi(i - 1, 0)]
@@ -4760,6 +4961,11 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
 			return
 		"flare":
+			if sim.hero != null and _hq_clips(sim.hero.id):
+				_kira_flare(ev, hp)                         # v0.9.25: the raised sword blazes, a wave of sunlight rolls out
+				_banner(aname, C_GOLD)
+				_sfx("ab_solar_flare" if str(ev.ability) == "solar_flare" else "explosion", 0.0, 0.0, 0.5)
+				return
 			_ring_fx(hp, float(ev.radius), Color(1, 0.6, 0.25), 0.7)
 			_ring_fx(hp, float(ev.radius) * 0.6, Color(1, 0.9, 0.5), 0.5)
 			var f := _mi(_sph(1.0, 12), _mat("flare", Color(1, 0.85, 0.4, 0.6), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), self, hp + Vector3(0, 1.0, 0))

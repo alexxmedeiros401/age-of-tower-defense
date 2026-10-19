@@ -995,6 +995,37 @@ def granite(name="HQ_Granite", base=(0.62, 0.38, 0.33), feld=(0.8, 0.5, 0.42), q
     return g.finish(c, g.mixf(hollow, 0.36, 0.75), g.bump(h, 0.1, 0.002))
 
 
+def flagstone(name="HQ_Flagstone", base=(0.42, 0.39, 0.36), alt=(0.53, 0.47, 0.39)):
+    """Worn flagstones: a warm dark grey (label 7 = a lighter, browner stone for some of the flags), pale on worn edges,
+    dark grit in the joints and hollows, fine pits; label 5 = soot (black, dull), 6 = hammer scale and charcoal grit."""
+    g = new(name)
+    p = g.obj()
+    macro = g.remap(g.noise(p, 3.0, 3.0, 0.55), 0.35, 0.65, 0.0, 1.0)
+    c = g.mix(macro, g.rgb(base), g.rgb(tuple(min(1.0, x * 1.16) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), 0.9), c, g.mix(macro, g.rgb(alt), g.rgb(tuple(x * 0.88 for x in alt))))
+    speck = g.noise(p, 90.0, 2.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.smooth(speck, 0.62, 0.68), 0.4), c, g.rgb((0.22, 0.2, 0.19)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.75), c, g.rgb((0.13, 0.11, 0.1)))      # grit in the joints
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.55), c, g.rgb((0.7, 0.66, 0.6)))       # worn pale edges
+    soot = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.55, 1.0))
+    c = g.mix(soot, c, g.mix(g.noise(p, 25.0, 2.0), g.rgb((0.06, 0.055, 0.05)), g.rgb((0.13, 0.11, 0.1))))
+    grit = g.math("MULTIPLY", g.reg(6), g.smooth(g.noise(p, 150.0, 1.0), 0.6, 0.66))
+    c = g.mix(grit, c, g.rgb((0.07, 0.065, 0.06)))
+    h = g.math("ADD", g.math("MULTIPLY", speck, 0.4), g.noise(p, 14.0, 4.0, 0.6))
+    return g.finish(c, g.mixf(soot, 0.8, 0.95), g.bump(h, 0.3, 0.005))
+
+
+def charcoal(name="HQ_Charcoal"):
+    """Charcoal: dull black lumps, split along the grain, grey-silver on the broken edges."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 25.0, 2.0), g.rgb((0.05, 0.048, 0.046)), g.rgb((0.11, 0.1, 0.1)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.6), c, g.rgb((0.36, 0.36, 0.37)))
+    cr = g.wave(p, 140.0, 2.0, 1.0, "BANDS", "Z")
+    return g.finish(c, 0.7, g.bump(cr, 0.25, 0.002))
+
+
 def outline_mat():
     """Inverted-hull outline for Cycles: black on back faces, invisible on front faces."""
     m = bpy.data.materials.get("HQ_Outline") or bpy.data.materials.new("HQ_Outline")

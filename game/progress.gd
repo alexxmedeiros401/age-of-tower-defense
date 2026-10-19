@@ -160,14 +160,15 @@ func _notification(what: int) -> void:
 
 ## 0 = full, 1 = safe (no MSAA / glow / shadows), 2 = minimal (also lighter effects, still menu).
 ## -1 in the save means "auto": safe on PowerVR GPUs, full elsewhere.
+var _auto_gfx := -1                  # the Auto level, worked out once from the GPU (it's asked for many times a frame)
 func gfx_level() -> int:
 	var g := int(data.settings.get("gfx", -1))
 	if g >= 0:
 		return clampi(g, 0, 2)
-	var gpu := (RenderingServer.get_video_adapter_vendor() + " " + RenderingServer.get_video_adapter_name()).to_lower()
-	if "powervr" in gpu or "imagination" in gpu or "img " in gpu:
-		return 1
-	return 0
+	if _auto_gfx < 0:
+		var gpu := (RenderingServer.get_video_adapter_vendor() + " " + RenderingServer.get_video_adapter_name()).to_lower()
+		_auto_gfx = 1 if ("powervr" in gpu or "imagination" in gpu or "img " in gpu) else 0
+	return _auto_gfx
 
 
 # ---------------------------------------------------------------- test reset

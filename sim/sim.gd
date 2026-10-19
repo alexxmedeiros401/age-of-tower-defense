@@ -600,6 +600,7 @@ func use_ability() -> bool:
 			for e in enemies.duplicate():
 				if e.alive and e.pos.distance_to(hero.pos) <= float(ab.radius):
 					hit_pos.append(e.pos)
+					hit_ids.append(e.id)
 					_damage(e, dmg, "fire", fsrc)
 		"fury":
 			fury_until = tick + int(float(ab.duration) / TICK)

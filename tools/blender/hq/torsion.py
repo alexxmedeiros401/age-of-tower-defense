@@ -671,7 +671,8 @@ def pile_balls():
     for k in range(3):
         a = math.radians(30 + 120 * k)
         out.append((PILE + v3((math.cos(a) * 0.0866, math.sin(a) * 0.0866, m + BALL_R)), "props"))
-    out.append((PILE + v3((0, 0, m + BALL_R + math.sqrt((2 * BALL_R) ** 2 - 0.0866 ** 2))), "carry"))
+    # (the top ball sits a hair proud of the three under it, so it meshes as its own island and rides the carry bone)
+    out.append((PILE + v3((0, 0, m + BALL_R + math.sqrt((2 * BALL_R) ** 2 - 0.0866 ** 2) + 0.009)), "carry"))
     out.append((PILE + v3((-0.15, -0.1, BALL_R)), "props"))
     return out
 

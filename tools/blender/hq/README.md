@@ -21,6 +21,7 @@ by `../map_ground_hq.py` (below).
 | Spear Guard (v0.9.22) | `spear` | `spear_base` | `anim_spear` (Idle, Combat, Attack) |
 | Torsion Catapult (v0.9.23) | `torsion` | `torsion_base` | `anim_torsion` (Idle, Combat, Attack) |
 | Sun Priest (v0.9.24) | `sunpriest` | `sunpriest_base` | `anim_sunpriest` (Idle, Combat, Attack) |
+| Kira (hero, v0.9.25) | `kira` | `kira_base` | `anim_kira` (Idle, Combat, Attack, Ability, Cheer) |
 
 ## Steps
 
@@ -178,6 +179,13 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   long and rigid in his fist ("frame" aims); its foot is kept clear of his body in every pose (overhead it hangs out past
   his right side, in the thrust it trails past his right hip): check with a per-frame clearance measure of the posed
   game mesh before baking.
+  `anim_kira.py` (v0.9.25): the khopesh on her shoulder, fist on her hip / a duellist's stance, side-on, the point
+  toward the robots / Attack (21 frames = the 0.7 s cooldown): the whirlwind, a full turn on the balls of her feet with
+  the blade at arm's length, the cut crossing the front at `HIT` (frame 11: the game's golden cuts) / Ability (Solar
+  Flare): crouch, spring up and thrust the sword at the sky (`FLARE`, frame 18: the game's blaze, from `KIRA_SKY`, and
+  the wave) / Cheer. The sword is rigid in her right fist; the sun-stone in its pommel rides its own `gem` bone.
+  `game.gd` points such as `KIRA_SKY` (a point carried by a bone, in the Yaw node's frame, Godot axes) are measured from
+  the built `*_hq.blend` with `prop_point.py BLEND ACTION BONE FRAMES X,Y,Z` (the point given in the rest pose).
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),
