@@ -293,6 +293,15 @@ func _box(x: float, y: float, z: float) -> BoxMesh:
 	return b
 
 
+## Spheres for things spawned over and over (projectiles): one shared mesh per size, not a new one per shot.
+var _sph_cache := {}
+func _sph_c(r: float, seg := 10) -> SphereMesh:
+	var key := "%.3f_%d" % [r, seg]
+	if not _sph_cache.has(key):
+		_sph_cache[key] = _sph(r, seg)
+	return _sph_cache[key]
+
+
 func _sph(r: float, seg := 10) -> SphereMesh:
 	var s := SphereMesh.new()
 	s.radius = r
@@ -1052,6 +1061,7 @@ func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> 
 	light.light_energy = light_e
 	light.omni_range = 4.0
 	light.position = Vector3(0, 0.8, 0)
+	light.visible = light_e > 0.0          # unlit flames (era braziers) cost no light at all
 	fire.add_child(light)
 	effects.append({"node": fire, "life": INF, "t": 0.0, "kind": "fire", "f1": flame, "f2": flame2, "light": light, "base_e": light_e})
 
@@ -1059,11 +1069,15 @@ func _campfire(parent: Node3D, pos: Vector3, light_e := 2.0, scale_k := 1.0) -> 
 ## Campfire sprites: a teardrop flame texture drawn once (white-hot core, orange body, red tip fading out).
 var _flame_tex: ImageTexture
 var _campfire_mats := {}
+var _flame_quads := {}
 func _flame_quad(w: float, h: float) -> QuadMesh:
-	var q := QuadMesh.new()
-	q.size = Vector2(w, h)
-	q.center_offset = Vector3(0, h * 0.5, 0)          # the flame's foot sits on the logs
-	return q
+	var key := "%.2f_%.2f" % [w, h]
+	if not _flame_quads.has(key):
+		var q := QuadMesh.new()
+		q.size = Vector2(w, h)
+		q.center_offset = Vector3(0, h * 0.5, 0)      # the flame's foot sits on the logs
+		_flame_quads[key] = q
+	return _flame_quads[key]
 
 
 func _campfire_mat(kind: String) -> StandardMaterial3D:
@@ -2159,11 +2173,13 @@ func _make_robot(type: String) -> Node3D:
 					gm.emission_enabled = true
 					gm.emission = Color(0.3, 0.9, 1.0)
 					gm.emission_energy_multiplier = 0.25
+					gm.next_pass = null          # (no opaque HQ outline round a cloaked robot)
 					mats[key] = gm
 				swaps.append([mi, si, mats[key]])
 		root.set_meta("ghost", swaps)
-	var flame := _mi(_cyl(0.0, 0.22, 0.55, 6), _mat("burn_flame", Color(1, 0.55, 0.1, 0.85), {"emit": Color(1, 0.45, 0.05), "emit_e": 2.5, "unshaded": true}),
-		root, Vector3(0, h * 0.55, 0))
+	# burning: the campfire's flame sprite over the robot (v0.9.18; was a six-sided emissive cone)
+	var flame := _mi(_flame_quad(0.46, 0.66), _campfire_mat("outer"), root, Vector3(0, h * 0.3, 0))
+	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	flame.name = "Burn"
 	flame.visible = false
 	if d.get("boss", false):
@@ -2903,7 +2919,7 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		var hot := dt == "fire"
 		var bmat := _mat("proj_boulder_fire", Color(0.22, 0.12, 0.08), {"rough": 0.9, "emit": Color(1.0, 0.3, 0.04), "emit_e": 0.5}) \
 			if hot else _mat("proj_boulder", Color(0.56, 0.54, 0.5), {"rough": 0.95})
-		var bm := _mi(_sph(0.21, 16), bmat, root)
+		var bm := _mi(_sph_c(0.21, 16), bmat, root)
 		bm.scale = Vector3(1.08, 0.86, 0.97)
 		bm.rotation = Vector3(0.4, 0.9, 0.2)
 		if hot:
@@ -2921,7 +2937,7 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_fire_halo(root, size * 4.0)
 	elif dt == "blunt" and p.kind == "homing":
 		size = 0.17
-	_mi(_sph(size, 12), _mat("proj_%s" % col.to_html(), col, opts), root)
+	_mi(_sph_c(size, 12), _mat("proj_%s" % col.to_html(), col, opts), root)
 	root.set_meta("spin", true)
 	return root
 
@@ -2929,6 +2945,8 @@ func _make_projectile(p: Dictionary) -> Node3D:
 ## A soft additive glow round a burning shot (billboard, radial texture).
 var _halo_mat: StandardMaterial3D
 func _fire_halo(root: Node3D, s: float) -> void:
+	if Progress.gfx_level() >= 2:
+		return
 	if _halo_mat == null:
 		_halo_mat = StandardMaterial3D.new()
 		_halo_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2958,7 +2976,7 @@ func _proj_model(root: Node3D, pj: String, dt: String) -> void:
 			_mi(_box(0.05, 0.05, 0.45), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
 			root.set_meta("arrow", true)
 		"cannonball":
-			_mi(_sph(0.2, 8), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
+			_mi(_sph_c(0.2, 8), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
 		"shell":
 			_mi(_cyl(0.1, 0.1, 0.32, 8), _mat("shell", Color(0.72, 0.6, 0.3), {"metal": 0.6}), root, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
 			_mi(_cyl(0.0, 0.1, 0.14, 8), _mat("shell_tip", Color(0.35, 0.37, 0.38), {"metal": 0.5}), root, Vector3(0, 0, -0.22), Vector3(-PI * 0.5, 0, 0))
@@ -2973,13 +2991,13 @@ func _proj_model(root: Node3D, pj: String, dt: String) -> void:
 			_mi(_box(0.07, 0.07, 1.1), _mat("laser_beam", Color(0.4, 1.0, 1.0), {"emit": Color(0.2, 0.9, 1.0), "emit_e": 4.0, "unshaded": true}), root)
 			root.set_meta("arrow", true)
 		"plasma":
-			_mi(_sph(0.22, 10), _mat("plasma", Color(1.0, 0.4, 0.95), {"emit": Color(1.0, 0.3, 0.9), "emit_e": 4.0, "unshaded": true}), root)
-			_mi(_sph(0.34, 10), _mat("plasma_glow", Color(1.0, 0.5, 1.0, 0.3), {"unshaded": true}), root)
+			_mi(_sph_c(0.22, 10), _mat("plasma", Color(1.0, 0.4, 0.95), {"emit": Color(1.0, 0.3, 0.9), "emit_e": 4.0, "unshaded": true}), root)
+			_mi(_sph_c(0.34, 10), _mat("plasma_glow", Color(1.0, 0.5, 1.0, 0.3), {"unshaded": true}), root)
 		"arc":
-			_mi(_sph(0.16, 8), _mat("arc_ball", Color(0.75, 0.9, 1.0), {"emit": Color(0.5, 0.8, 1.0), "emit_e": 4.0, "unshaded": true}), root)
+			_mi(_sph_c(0.16, 8), _mat("arc_ball", Color(0.75, 0.9, 1.0), {"emit": Color(0.5, 0.8, 1.0), "emit_e": 4.0, "unshaded": true}), root)
 			root.set_meta("spin", true)
 		_:
-			_mi(_sph(0.15, 6), _mat("proj_default", Color(0.6, 0.58, 0.55)), root)
+			_mi(_sph_c(0.15, 6), _mat("proj_default", Color(0.6, 0.58, 0.55)), root)
 
 
 ## A jagged lightning line through the chain-hit robots.
@@ -3169,6 +3187,9 @@ func _robot_anim_tick(n: Node3D, e: Dictionary, stunned: bool) -> void:
 		model.rotation.z = sin(time_s * 40.0) * 0.1
 		return
 	model.rotation.z = 0.0
+	if ap.current_animation != loop:         # a one-shot (the boss's Summon) plays at game speed, not at the gait's
+		ap.speed_scale = float(speed)
+		return
 	if ws > 0.0 and loop == "Walk":
 		var v: float = (e.pos as Vector2).distance_to(e.prev_pos) / Sim.TICK * float(speed)
 		var g := lerpf(float(n.get_meta("gait", v)), v, 0.15)

@@ -185,15 +185,9 @@ static func _pulse(g: Node3D, mi: MeshInstance3D, phase := 0.0) -> void:
 	g.effects.append({"node": mi, "life": INF, "t": phase, "kind": "lava", "pool": mi, "light": l})
 
 
-## Flickering flame (game.gd campfire). light_e <= 0 hides the light so it costs nothing.
+## Flickering flame (game.gd campfire). light_e <= 0 hides the light so it costs nothing (_campfire does that).
 static func _flame(g: Node3D, p: Node3D, pos: Vector3, k := 1.0, light_e := 0.0) -> void:
 	g._campfire(p, pos, maxf(light_e, 0.0), k)
-	if light_e <= 0.0:
-		var fire := p.get_child(p.get_child_count() - 1) as Node3D
-		if fire != null and fire.get_child_count() > 2:
-			var l := fire.get_child(2) as OmniLight3D
-			if l != null:
-				l.visible = false
 
 
 static func _light(p: Node3D, pos: Vector3, col: Color, e: float, rng: float) -> void:
