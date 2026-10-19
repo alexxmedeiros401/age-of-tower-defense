@@ -788,16 +788,21 @@ var preview_spots: Array = []    # where preview labels already sit
 
 func _build_path_features() -> void:
 	var seen := {}
+	tun_spans.clear()
 	for pi in sim.paths.size():
 		var P: Dictionary = sim.paths[pi]
+		var spans := []
+		for z in P.zones:
+			if z.k == "tunnel":
+				spans.append(_tunnel_span(float(z.d0), float(z.d1)))
+		tun_spans.append(spans)
 		for z in P.zones:
 			var key := "%s|%s|%s" % [z.k, str(sim.pos_at(float(z.d0), pi).snapped(Vector2(0.1, 0.1))), str(sim.pos_at(float(z.d1), pi).snapped(Vector2(0.1, 0.1)))]
 			if seen.has(key):
 				continue
 			seen[key] = true
 			if z.k == "tunnel":
-				_tunnel_mouth(sim.pos_at(float(z.d0) + 0.55, pi), sim.dir_at(float(z.d0) + 0.3, pi), true)
-				_tunnel_mouth(sim.pos_at(float(z.d1) - 0.55, pi), sim.dir_at(float(z.d1) - 0.3, pi), false)
+				_tunnel_build(pi, float(z.d0), float(z.d1))
 			elif z.k == "fast":
 				_lane_arrows(pi, float(z.d0), float(z.d1))
 		for rf in P.rifts:
@@ -809,25 +814,55 @@ func _build_path_features() -> void:
 			_rift_pad(rf.to, sim.dir_at(float(rf.d) + 0.05, pi), false)
 
 
-## Where a robot is drawn hidden: inside a tunnel, past the mouth arch (flyers stay visible above).
-func _tunnel_hides(e: Dictionary) -> bool:
-	if e.flying:
-		return false
-	for z in sim.paths[e.pi].zones:
-		if z.k == "tunnel" and float(e.dist) > float(z.d0) + 0.55 and float(e.dist) < float(z.d1) - 0.55:
-			return true
-	return false
+## Tunnels (v0.9.29): the road dips into a sunken ramp and ground robots walk down it out of sight under a portal,
+## instead of walking into a small arch and blinking out. A tunnel's span along its path is
+## [lip in, out of sight, back in sight, lip out]: the ramps start outside the zone (a robot near the top of one can
+## still be hit; it's about half sunk where the zone starts) and a short tunnel gets steeper ramps and a bridge over
+## the covered stretch between them.
+const TUN_LIP := 0.75       # a ramp starts this far outside its tunnel...
+const TUN_RAMP := 1.6       # ...and a robot is out of sight this far down it
+const TUN_COVER := 0.9      # the least stretch under cover in a short tunnel
+const TUN_HW := 0.86        # half the width of the sunken road (the road is 1.7 wide)
+const TUN_PORTAL := 0.6     # depth of a portal block
+const TUN_ARCH_Y := -0.36   # the portal arch's centre: underground, so only its top shows above the ramp
+var tun_spans: Array = []   # per path: the _tunnel_span() of each of its tunnels
+
+
+func _tunnel_span(d0: float, d1: float) -> Array:
+	var a := d0 - TUN_LIP
+	var b := d1 + TUN_LIP
+	var ramp := clampf((b - a - TUN_COVER) * 0.5, 0.6, TUN_RAMP)
+	return [a, a + ramp, b - ramp, b]
+
+
+## How far down a tunnel ramp a ground robot is drawn: 0 = up on the road, 1 = out of sight (flyers stay up).
+## Measured from its front going in and from its back coming out, so a big boss doesn't push through a portal.
+func _tunnel_sink(e: Dictionary, alpha := 1.0) -> float:
+	if e.flying or int(e.pi) >= tun_spans.size():
+		return 0.0
+	var spans: Array = tun_spans[int(e.pi)]
+	if spans.is_empty():
+		return 0.0
+	var d := float(e.dist) - (1.0 - alpha) * minf((e.pos as Vector2).distance_to(e.prev_pos), 0.5)
+	var lead := maxf(float(defs.enemies[e.type].get("size", 0.5)) - 0.5, 0.0)
+	for s in spans:
+		if d + lead > float(s[0]) and d - lead < float(s[3]):
+			var kin := (d + lead - float(s[0])) / (float(s[1]) - float(s[0]))
+			var kout := (float(s[3]) - d + lead) / (float(s[3]) - float(s[2]))
+			return clampf(minf(kin, kout), 0.0, 1.0)
+	return 0.0
 
 
 func _tunnel_look() -> Array:
 	## [arch colour, trim colour, style] by era: rock cave, cut stone, brick, concrete, tech
+	var tint: Color = theme.get("rock", Color(0.8, 0.7, 0.5))
 	match sim.era():
-		"Stone Age":
-			return [Color(0.46, 0.43, 0.40), Color(0.34, 0.31, 0.28), "rock"]
-		"Bronze Age", "Classical Age":
-			return [Color(0.82, 0.70, 0.50), Color(0.66, 0.54, 0.36), "stone"]
+		"Stone Age":            # (the map's own rock)
+			return [(theme.get("rock", Color(0.46, 0.43, 0.40)) as Color).lightened(0.1), theme.get("cave", Color(0.34, 0.31, 0.28)), "rock"]
+		"Bronze Age", "Classical Age":              # (cut from the map's own stone, more or less)
+			return [Color(0.82, 0.70, 0.50).lerp(tint, 0.4), Color(0.66, 0.54, 0.36).lerp(tint.darkened(0.2), 0.4), "stone"]
 		"Iron Age", "Medieval Age":
-			return [Color(0.55, 0.55, 0.57), Color(0.40, 0.40, 0.43), "stone"]
+			return [Color(0.55, 0.55, 0.57).lerp(tint, 0.25), Color(0.40, 0.40, 0.43).lerp(tint.darkened(0.2), 0.25), "stone"]
 		"Gunpowder Age", "Industrial Age":
 			return [Color(0.58, 0.30, 0.22), Color(0.40, 0.38, 0.36), "brick"]
 		"Modern Age":
@@ -835,41 +870,172 @@ func _tunnel_look() -> Array:
 	return [Color(0.20, 0.22, 0.28), Color(0.25, 0.85, 1.0), "tech"]
 
 
-## A tunnel mouth, made to read from the top-down camera: a dark hole sloping into the ground, framed by low
-## walls, under a small arch. `entry` = robots walk in here (the hole lies ahead of the arch), else they come out.
-func _tunnel_mouth(p: Vector2, dir: Vector2, entry: bool) -> void:
+## A tunnel on path pi: its two ramps and the portal over each (or one bridge over a short tunnel), styled by era.
+## The walls and portals are merged into one mesh (a surface each for stone, trim and the dark arches).
+func _tunnel_build(pi: int, d0: float, d1: float) -> void:
+	var s := _tunnel_span(d0, d1)
 	var look := _tunnel_look()
-	var n := Node3D.new()
-	n.position = _v3(p)
-	add_child(n)
-	n.transform.basis = Basis.looking_at(Vector3(dir.x, 0, dir.y))      # -Z points down the path
-	var body := _mat("tun_%s" % look[2], look[0], {"rough": 0.9})
-	var trim := _mat("tun_trim_%s" % look[2], look[1], {"rough": 0.6, "emit": look[1] if look[2] == "tech" else Color(0, 0, 0), "emit_e": 1.5 if look[2] == "tech" else 0.0})
-	var dark := _mat("tun_dark", Color(0.03, 0.025, 0.03), {"unshaded": true})
-	var fade := _mat("tun_fade", Color(0.03, 0.025, 0.03, 0.55), {"unshaded": true})
-	var inward := -1.0 if entry else 1.0          # local z of the tunnel side: ahead (-Z) of an entry, behind an exit
-	# the hole: solid dark where the road goes under, with a soft lip where it starts
-	_mi(_box(1.7, 0.02, 1.5), dark, n, Vector3(0, 0.03, inward * 0.95))
-	_mi(_box(1.7, 0.02, 0.35), fade, n, Vector3(0, 0.03, inward * 0.05))
-	# low retaining walls either side of the ramp and a back wall over the hole
-	for sgn in [-1.0, 1.0]:
-		_mi(_box(0.32, 0.42, 1.9), body, n, Vector3(sgn * 1.0, 0.21, inward * 0.75))
-		_mi(_box(0.36, 0.1, 1.94), trim, n, Vector3(sgn * 1.0, 0.45, inward * 0.75))
-	_mi(_box(2.32, 0.55, 0.4), body, n, Vector3(0, 0.27, inward * 1.75))
-	# the arch over the mouth
-	var r := 0.98
-	var segs := 7
-	for k in segs:
-		var a := PI * (float(k) + 0.5) / float(segs)
-		var w := 0.44 if look[2] != "rock" else 0.56
-		_mi(_box(w, 0.3, 0.5), body if (k % 2 == 0 or look[2] == "concrete") else trim, n,
-			Vector3(cos(a) * r, sin(a) * r * 0.85, inward * 0.25), Vector3(0, 0, a - PI * 0.5),
-			Vector3.ONE * (1.0 + (0.14 * sin(float(k) * 1.7) if look[2] == "rock" else 0.0)))
-	if look[2] == "tech" or look[2] == "concrete":
-		_mi(_box(1.9, 0.06, 0.06), trim, n, Vector3(0, 0.98, inward * 0.25 - 0.27 * inward))
-	var q := QuadMesh.new()                        # darkness inside the arch
-	q.size = Vector2(1.7, 0.9)
-	_mi(q, dark, n, Vector3(0, 0.45, inward * 0.45), Vector3(0, 0 if inward < 0 else PI, 0))
+	var parts := {"body": [], "trim": [], "dark": []}
+	_tunnel_ramp(pi, s[0], s[1], look, parts)
+	_tunnel_ramp(pi, s[3], s[2], look, parts)
+	if float(s[2]) - float(s[1]) < 3.2:
+		_tunnel_portal(pi, float(s[1]) - 0.02, float(s[2]) + 0.02, true, true, look, parts)
+	else:
+		_tunnel_portal(pi, float(s[1]) - 0.02, float(s[1]) + TUN_PORTAL, true, false, look, parts)
+		_tunnel_portal(pi, float(s[2]) - TUN_PORTAL, float(s[2]) + 0.02, false, true, look, parts)
+	var am := ArrayMesh.new()
+	var tech: bool = look[2] == "tech"
+	var mm := {
+		"body": _mat("tun_%s_%s" % [look[2], (look[0] as Color).to_html()], look[0], {"rough": 0.9}),
+		"trim": _mat("tun_trim_%s_%s" % [look[2], (look[1] as Color).to_html()], look[1], {"rough": 0.6, "emit": look[1] if tech else Color(0, 0, 0), "emit_e": 1.5 if tech else 0.0}),
+		"dark": _mat("tun_dark", Color(0.03, 0.025, 0.03), {"unshaded": true})}
+	for k in ["body", "trim", "dark"]:
+		if (parts[k] as Array).is_empty():
+			continue
+		var st := SurfaceTool.new()
+		for p in parts[k]:
+			st.append_from(p[0], 0, p[1])
+		if look[2] == "rock" and k != "dark":         # faceted, so the lumps read as rock
+			st.deindex()
+			st.generate_normals()
+		st.set_material(mm[k])
+		st.commit(am)
+	var mi := MeshInstance3D.new()
+	mi.mesh = am
+	mi.name = "Tunnel"
+	add_child(mi)
+
+
+## One ramp: the sunken road from its lip (distance `lip` along path pi) down to the portal at `under`, fading from
+## dusk into black, between retaining walls that step up toward the portal.
+func _tunnel_ramp(pi: int, lip: float, under: float, look: Array, parts: Dictionary) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 12
+	var run := under - lip + signf(under - lip) * 0.14          # (on a little way under the portal)
+	for i in n + 1:
+		var k := float(i) / float(n)
+		var d := lip + run * k
+		var c := sim.pos_at(d, pi)
+		var t := sim.dir_at(d, pi)
+		var sd := Vector2(-t.y, t.x) * TUN_HW
+		st.set_uv(Vector2(0.0, k))
+		st.add_vertex(_v3(c - sd, 0.035))
+		st.set_uv(Vector2(1.0, k))
+		st.add_vertex(_v3(c + sd, 0.035))
+	for i in n:
+		for j in [0, 1, 2, 1, 3, 2]:
+			st.add_index(i * 2 + j)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _tunnel_ramp_mat(look)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.name = "TunnelRamp"
+	add_child(mi)
+	var span := under - lip
+	var segs := maxi(3, int(ceil(absf(span) / 0.45)))
+	var rock: bool = look[2] == "rock"
+	var cap: String = "trim" if look[2] in ["stone", "brick"] else "body"     # (concrete and tech keep their accent for the arch)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(sim.pos_at(lip, pi).snapped(Vector2(0.1, 0.1))))
+	for j in segs:
+		var d := lip + span * (float(j) + 0.5) / float(segs)
+		var c := sim.pos_at(d, pi)
+		var t := sim.dir_at(d, pi)
+		var side := Vector2(-t.y, t.x)
+		var h := lerpf(0.12, 0.46, float(j + 1) / float(segs))
+		var seg := absf(span) / float(segs) + 0.03
+		var bs := Basis(Vector3.UP, _yaw(t))
+		for sgn in [-1.0, 1.0]:
+			var o := _v3(c + side * sgn * (TUN_HW + 0.15))
+			if rock:
+				var rb := Basis.from_euler(Vector3(rng.randf_range(-0.4, 0.4), _yaw(t) + rng.randf_range(-0.8, 0.8), rng.randf_range(-0.4, 0.4))) * Basis.from_scale(Vector3(0.27, h * 0.8 + 0.12, seg * 0.72) * rng.randf_range(0.9, 1.2))
+				parts[("body" if (j + int(sgn)) % 3 != 0 else "trim")].append([_sph(1.0, 6), Transform3D(rb, o + Vector3(0, h * 0.3, 0))])
+			else:
+				parts.body.append([_box(0.3, h, seg), Transform3D(bs, o + Vector3(0, h * 0.5, 0))])
+				parts[cap].append([_box(0.36, 0.07, seg + 0.02), Transform3D(bs, o + Vector3(0, h + 0.035, 0))])
+
+
+## The ramp's floor: the dusk of the era's stone at the lip, going down into black, with faint steps on the way down
+## and darker edges under the walls. It fades in at the lip so it sits on the painted road without a hard edge.
+func _tunnel_ramp_mat(look: Array) -> StandardMaterial3D:
+	var key := "tun_ramp_%s" % (look[0] as Color).to_html()
+	if mats.has(key):
+		return mats[key]
+	var lip: Color = (look[0] as Color).darkened(0.55)
+	var black := Color(0.025, 0.02, 0.025)
+	var w := 16
+	var h := 64
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		var v := float(y) / float(h - 1)                 # 0 at the lip, 1 under the portal
+		var c := lip.lerp(black, smoothstep(0.05, 0.85, v))
+		if v > 0.12 and v < 0.78 and fmod(v * 8.0, 1.0) < 0.14:
+			c = c.lightened(0.09 * (1.0 - v))
+		for x in w:
+			var u := absf(float(x) / float(w - 1) - 0.5) * 2.0
+			var cc := c.darkened(smoothstep(0.55, 1.0, u) * 0.5)
+			cc.a = clampf(v / 0.14, 0.0, 1.0)
+			img.set_pixel(x, y, cc)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.texture_repeat = false
+	mats[key] = m
+	return m
+
+
+## A portal block over the road between distances f0 and f1 on path pi (cut stone, brick, concrete or tech; a rocky
+## mound in the Stone Age), with the top of a dark arch on each face robots go into or come out of: face0 looks back
+## down the path (toward f0's ramp), face1 on along it. The arch's centre is underground, so the opening reads as
+## the tunnel carrying on below the ramp.
+func _tunnel_portal(pi: int, f0: float, f1: float, face0: bool, face1: bool, look: Array, parts: Dictionary) -> void:
+	var a := sim.pos_at(f0, pi)
+	var b := sim.pos_at(f1, pi)
+	var t := (b - a).normalized() if a.distance_to(b) > 0.01 else sim.dir_at((f0 + f1) * 0.5, pi)
+	var c := (a + b) * 0.5
+	var depth := maxf(a.distance_to(b), 0.2)
+	var bs := Basis(Vector3.UP, _yaw(t))
+	var w := 2.0 * (TUN_HW + 0.3) + 0.12
+	var hh := 0.62
+	var style: String = look[2]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(str(a.snapped(Vector2(0.1, 0.1))))
+	if style == "rock":                                      # a low rocky mound with boulders on it
+		parts.body.append([_sph(1.0, 9), Transform3D(bs * Basis.from_scale(Vector3(1.42, 0.8, depth * 0.5)), _v3(c, 0.0))])
+		for i in 4:
+			var bx := (-1.0 if i % 2 == 0 else 1.0) * rng.randf_range(0.75, 1.15)
+			var bz := (-1.0 if i < 2 else 1.0) * depth * rng.randf_range(0.0, 0.3)
+			var rb := Basis.from_euler(Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0, TAU), rng.randf_range(-0.6, 0.6))) * Basis.from_scale(Vector3.ONE * rng.randf_range(0.3, 0.46))
+			parts[("trim" if i == 1 else "body")].append([_sph(1.0, 6), Transform3D(rb, _v3(c, rng.randf_range(0.15, 0.35)) + bs * Vector3(bx, 0.0, bz))])
+	else:
+		parts.body.append([_box(w, hh, depth), Transform3D(bs, _v3(c, hh * 0.5))])
+		parts["trim" if style in ["stone", "brick"] else "body"].append([_box(w + 0.08, 0.08, depth + 0.08), Transform3D(bs, _v3(c, hh + 0.04))])
+	var disc := _cyl(0.74, 0.74, 0.04, 28)
+	var n_st: int = {"rock": 6, "stone": 7, "brick": 9, "concrete": 11, "tech": 7}.get(style, 7)
+	var st_w: float = {"rock": 0.34, "stone": 0.27, "brick": 0.19, "concrete": 0.25, "tech": 0.27}.get(style, 0.27)
+	for f in [[face0, a, -t], [face1, b, t]]:
+		if not f[0]:
+			continue
+		var o: Vector2 = f[2]                                  # out of the face, toward its ramp
+		var ft := Transform3D(Basis(Vector3.UP, _yaw(o)), _v3(f[1]))
+		parts.dark.append([disc, ft * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, TUN_ARCH_Y, 0.03))])
+		for i in n_st:
+			var ang := deg_to_rad(lerpf(24.0, 156.0, float(i) / float(n_st - 1)))
+			var key: bool = i == n_st / 2
+			var pos := Vector3(cos(ang) * 0.86, TUN_ARCH_Y + sin(ang) * 0.86, 0.06)
+			var sb := Basis(Vector3.BACK, ang - PI * 0.5)
+			if style == "rock":
+				sb = sb * Basis(Vector3.BACK, rng.randf_range(-0.3, 0.3)) * Basis.from_scale(Vector3(st_w * 0.6, 0.17, 0.13) * rng.randf_range(0.85, 1.2))
+				parts.body.append([_sph(1.0, 6), ft * Transform3D(sb, pos)])
+				continue
+			var sz := Vector3(st_w + (0.05 if key and style == "stone" else 0.0), 0.24 + (0.07 if key and style == "stone" else 0.0), 0.14)
+			var to_trim: bool = style in ["stone", "brick", "tech"] and i % 2 == 1
+			parts["trim" if to_trim else "body"].append([_box(sz.x, sz.y, sz.z), ft * Transform3D(sb, pos)])
+		if style == "concrete" or style == "tech":          # a hazard band / light strip across the top of the face
+			parts.trim.append([_box(w - 0.1, 0.07, 0.04), ft * Transform3D(Basis(), Vector3(0, hh - 0.1, 0.02))])
 
 
 ## A time rift: a small standing portal ring. Robots walk into the purple one and out of the cyan one.
@@ -1412,8 +1578,10 @@ const DECOR_V2 := {
 		"marks": [["House", Vector2(-8.0, 10.9), 0.8, 1.8], ["House", Vector2(10.5, -10.8), 0.75, 1.7], ["Granary", Vector2(-16.6, 11.0), 0.8, 1.4],
 			["Shaduf", Vector2(3.7, -11.0), 0.85, 1.4, {"yaw": PI}], ["Boat", Vector2(1.55, -11.9), 0.85, 1.2, {"force": true, "yaw": PI * 0.5 - 0.1}],
 			["Boat", Vector2(-1.25, 11.8), 0.8, 1.2, {"force": true, "yaw": PI * 0.5 + 0.08}]]},
-	"desert": {"kit": "bronze_decor_desert", "count": 80, "ambient": true,
-		"scatter": [["Palm_A", 7], ["Palm_B", 5], ["Acacia_A", 6], ["Acacia_B", 6], ["Scrub_A", 10], ["Scrub_B", 10], ["Dune_A", 9], ["Dune_B", 9],
+	# v0.9.29: cacti and agaves, not trees ("why are there trees in the desert?")
+	"desert": {"kit": "bronze_decor_desert", "count": 96, "ambient": true,
+		"scatter": [["Saguaro_A", 8, 1.2], ["Saguaro_B", 7, 1.2], ["Saguaro_C", 5, 1.2], ["Prickly_A", 7, 1.35], ["Prickly_B", 5, 1.35],
+			["Barrel_A", 6, 1.3], ["Barrel_B", 4, 1.25], ["Agave_A", 7, 1.3], ["Agave_B", 6, 1.3], ["Dune_A", 9], ["Dune_B", 9],
 			["Rock_A", 6], ["Rock_B", 6], ["Rock_C", 4], ["Column_A", 4], ["Column_C", 4], ["Blocks", 4]],
 		"cover": [["Tuft", 1]], "cover_n": 45, "cover_s": 0.75,
 		"marks": [["Pyramid", Vector2(-2.0, -14.6), 1.0, 5.2, {"force": true, "yaw": 0.0}], ["Obelisk", Vector2(4.6, -10.7), 0.9, 1.0, {"yaw": 0.0}],
@@ -1628,6 +1796,9 @@ func _build_decor_v2() -> void:
 		placed += 1
 		var nm := _pick_weighted(dt.scatter, r)
 		var s := r.randf_range(0.75, 1.25) * (0.9 if nm.begins_with("Rock") else 1.0)
+		for it in dt.scatter:                     # (an entry's optional 3rd value scales that prop up or down)
+			if it[0] == nm and (it as Array).size() > 2:
+				s *= float(it[2])
 		put.call(nm, p2, s, r.randf() * TAU)
 	if dt.has("shore"):                               # v0.9.28: clumps along the river banks, outside the playfield
 		for rv in map.get("rivers", []):
@@ -1816,9 +1987,9 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				var a6 := TAU * k / 3.0 + r.randf() * 0.5
 				_decor_single(["Palm_A", "Palm_B", "Palm_C"][k], Vector3(cos(a6) * rad * 0.45, 0, sin(a6) * rad * 0.45), r.randf() * TAU, r.randf_range(0.75, 0.95), n)
 			return true
-		"dune":
+		"dune":                           # a sand drift with an agave or a clump of barrel cacti in its lee
 			_decor_single("Dune_A", Vector3.ZERO, r.randf() * TAU, rad / 1.15, n)
-			_decor_single("Scrub_B", Vector3(rad * 0.55, 0, -rad * 0.35), r.randf() * TAU, 0.85, n)
+			_decor_single("Agave_B" if r.randf() < 0.5 else "Barrel_A", Vector3(rad * 0.55, 0, -rad * 0.35), r.randf() * TAU, 0.85, n)
 			return true
 		"ruins":
 			var spots := [["Column_B", Vector2(-0.45, -0.3), 0.85], ["Column_A", Vector2(0.42, -0.42), 0.9], ["Column_C", Vector2(0.15, 0.45), 1.0],
@@ -2419,6 +2590,7 @@ func _make_robot(type: String) -> Node3D:
 		tag.no_depth_test = true
 		tag.position = Vector3(0, h + 0.6, 0)
 		root.add_child(tag)
+		root.set_meta("tag", tag)
 	if d.has("shield") and not root.has_meta("shield_panel"):   # (the HQ Shield Bot shows its shield on its panel)
 		# v0.9.27: a glowing rim instead of a milky sphere, so the robot inside stays readable
 		var bm := ShaderMaterial.new()
@@ -6223,7 +6395,15 @@ func _sync_visuals(alpha: float) -> void:
 		var n: Node3D = enemy_nodes[e.id]
 		var p: Vector2 = e.prev_pos.lerp(e.pos, alpha)
 		n.position = _v3(p)
-		n.visible = not _tunnel_hides(e)
+		var sink := _tunnel_sink(e, alpha)
+		var bar_h := float(defs.enemies[e.type].get("bar_h", 1.4))
+		var sunk := 0.0                              # how far underground it's drawn: going down a tunnel ramp (or up one)
+		n.visible = sink < 1.0
+		if sink > 0.0:
+			sunk = sink * sink * (3.0 - 2.0 * sink) * (bar_h * 1.08 + 0.2)
+			n.position.y -= sunk
+		if n.has_meta("tag"):                        # (a boss's name: drawn without depth, so not once it's underground)
+			(n.get_meta("tag") as Node3D).visible = sunk < bar_h + 0.3
 		if n.has_meta("emerge"):
 			# grows out of the vortex over its first steps
 			var ek := clampf((float(e.dist) - Sim.SPAWN_DIST) / 1.0, 0.0, 1.0)
@@ -6296,7 +6476,9 @@ func _sync_visuals(alpha: float) -> void:
 		if mark.visible:
 			mark.rotation.y = time_s * 3.0
 		var bar: Node3D = n.get_node("Bar")
-		if e.hp < e.max_hp and not attract and not _hide_bars:
+		if sunk > bar_h * 0.5:
+			bar.visible = false                      # (drawn without depth: it would show through the ground)
+		elif e.hp < e.max_hp and not attract and not _hide_bars:
 			bar.visible = true
 			bar.global_rotation = Vector3.ZERO     # don't swing around when the robot turns a corner
 			var fg: MeshInstance3D = bar.get_node("Fg")
@@ -10756,6 +10938,77 @@ func _run_demo() -> void:
 		_tower_detail(tt)
 		await get_tree().create_timer(1.0).timeout
 		await _shot("upgrade_detail.png")
+		get_tree().quit()
+		return
+	if "--shoot-tunnel" in args:
+		# robots walking into the first tunnel (--exit: out of it): a column of the map's robots and its boss, frames
+		# every --every sim steps (--frames=N) from a three-quarter view (--view=game: from the game camera's angle)
+		_start_game()
+		_end_preview()
+		_hide_bars = true
+		var tz := {}
+		var tpi := 0
+		for pi9 in sim.paths.size():
+			for z9 in sim.paths[pi9].zones:
+				if z9.k == "tunnel" and tz.is_empty():
+					tz = z9
+					tpi = pi9
+		if tz.is_empty():
+			print("TUNNEL none on %s" % map_id)
+			get_tree().quit()
+			return
+		var nfr := 40
+		var every := 3
+		for a9 in args:
+			if a9.begins_with("--frames="):
+				nfr = int(a9.trim_prefix("--frames="))
+			elif a9.begins_with("--every="):
+				every = int(a9.trim_prefix("--every="))
+		var at_exit := "--exit" in args
+		var md: float = float(tz.d1) + 0.2 if at_exit else float(tz.d0) - 0.2
+		var mouth := _v3(sim.pos_at(md, tpi), 0.0)
+		var dir2 := sim.dir_at(md, tpi)
+		var fwd := Vector3(dir2.x, 0, dir2.y)
+		var side := fwd.cross(Vector3.UP)
+		var roster := []
+		for it in _map_robots(map_id):
+			if not defs.enemies[it[0]].get("boss", false) and not (it[0] in roster):
+				roster.append(it[0])
+		roster.append(str(map.get("boss", "prime_walker")))
+		for a9 in args:
+			if a9.begins_with("--only="):
+				roster = [a9.trim_prefix("--only=")]
+		sim.wave = 3
+		sim.wave_remaining[3] = 40
+		var sd: float = (float(tz.d1) - 1.6) if at_exit else (float(tz.d0) - 2.6)
+		for i in roster.size() * 2:
+			var kd: String = roster[i % roster.size()]
+			if defs.enemies[kd].get("boss", false) and i >= roster.size():
+				continue
+			sim._spawn_enemy(kd, 3, sd - i * 1.6, tpi)
+		_handle_events()
+		if "--view=game" in args:                  # the game camera's own angle, zoomed in on the mouth
+			cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+			cam.size = 7.0
+			cam.global_position = mouth + Vector3(0, sin(deg_to_rad(PITCH)), cos(deg_to_rad(PITCH))) * 60.0
+			cam.look_at(mouth)
+		else:
+			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
+			cam.fov = 38
+			if at_exit:                               # (from the side: past the exit there may be a wall)
+				cam.global_position = mouth + side * 5.5 - fwd * 1.5 + Vector3(0, 4.2, 0)
+			else:
+				cam.global_position = mouth - fwd * 5.0 + side * 3.6 + Vector3(0, 3.6, 0)
+			cam.look_at(mouth + Vector3(0, 0.7, 0))
+		set_process(false)
+		for f9 in nfr:
+			for s9 in every:
+				sim.step()
+				_handle_events()
+			_sync_visuals(1.0)
+			_update_effects(TICK * every)
+			await get_tree().process_frame
+			await _shot("tunnel_%s_%03d.png" % [map_id, f9])
 		get_tree().quit()
 		return
 	if "--shoot-paths" in args:

@@ -531,3 +531,65 @@ def driftwood(name="DK_DriftWood"):
     c = g.mix(g.math("MULTIPLY", g.smooth(grain, 0.66, 0.72), 0.7), c, g.rgb((0.24, 0.2, 0.16)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.8, 0.76, 0.68)))
     return g.finish(c, 0.85, g.bump(grain, 0.5, 0.004))
+
+
+# ------------------------------------------------------------------------------------------------ cacti (v0.9.29)
+def cactus(name="DK_Saguaro", base=(0.25, 0.42, 0.19), hi=(0.46, 0.6, 0.3), groove=(0.07, 0.15, 0.06),
+           spine=(0.9, 0.85, 0.68), dots=16.0, dot_r=0.2, foot=(0.46, 0.4, 0.3), rough=0.48):
+    """Cactus skin: waxy green with faint lengthwise streaks, paler along the crests of the ribs and deep down the
+    grooves, a corky dusty foot, and spine clusters (areoles) dotted along the crests."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.18) for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.505, 0.55), 0.7), c, g.rgb(hi))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.495, 0.45), 0.85), c, g.rgb(groove))
+    streak = g.noise(g.scale_vec(p, (30.0, 30.0, 2.5)), 1.0, 2.0)
+    c = g.mix(g.math("MULTIPLY", g.remap(streak, 0.35, 0.65, 0.0, 1.0), 0.18), c, g.rgb(tuple(x * 0.78 for x in base)))
+    ft = g.math("SUBTRACT", 1.0, g.smooth(_z(g), 0.03, 0.2))
+    c = g.mix(g.math("MULTIPLY", ft, 0.75), c, g.rgb(foot))
+    dot = g.math("MULTIPLY", g.smooth(g.voronoi(p, dots, 0.75), dot_r, dot_r * 0.45), g.smooth(pt, 0.495, 0.53))
+    c = g.mix(dot, c, g.rgb(spine))
+    return g.finish(c, rough, g.bump(g.math("ADD", g.math("MULTIPLY", streak, 0.6), dot), 0.3, 0.003))
+
+
+def opuntia(name="DK_Opuntia"):
+    """Prickly pear pads: yellow-green, paler and a little rosy round the rims, areoles in a scatter of brown dots
+    with pale spine tufts."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.36, 0.52, 0.2)), g.rgb((0.5, 0.63, 0.26)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.55), c, g.rgb((0.66, 0.62, 0.34)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.535, 0.6), 0.35), c, g.rgb((0.62, 0.36, 0.34)))
+    vd = g.voronoi(p, 26.0, 0.65)
+    c = g.mix(g.smooth(vd, 0.22, 0.12), c, g.rgb((0.5, 0.38, 0.2)))
+    c = g.mix(g.smooth(vd, 0.1, 0.04), c, g.rgb((0.92, 0.88, 0.72)))
+    ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
+    ao.inputs["Distance"].default_value = 0.12
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.6), c, g.rgb((0.1, 0.18, 0.06)))
+    return g.finish(c, 0.55, g.bump(g.smooth(vd, 0.22, 0.08), 0.35, 0.003))
+
+
+def agave(name="DK_Agave"):
+    """Agave leaves: blue-green under a pale waxy bloom, a thin creamy margin, darker toward the heart."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.34, 0.5, 0.45)), g.rgb((0.46, 0.6, 0.55)))
+    c = g.mix(g.math("MULTIPLY", _up(g, 0.2, 0.9), 0.4), c, g.rgb((0.62, 0.72, 0.66)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.52, 0.58), 0.6), c, g.rgb((0.8, 0.78, 0.56)))
+    ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
+    ao.inputs["Distance"].default_value = 0.15
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.7), c, g.rgb((0.08, 0.16, 0.12)))
+    streak = g.noise(g.scale_vec(p, (25.0, 25.0, 25.0)), 1.0, 2.0)
+    return g.finish(c, 0.5, g.bump(streak, 0.15, 0.002))
+
+
+def flat(name, col, rough=0.6, var=0.12, hi=None):
+    """A plain colour with a little mottling (flowers, fruit, spines), lighter on the edges when `hi` is given."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 30.0, 2.0), g.rgb(col), g.rgb(tuple(min(1.0, x * (1.0 + var)) for x in col)))
+    if hi is not None:
+        c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.6), c, g.rgb(hi))
+    return g.finish(c, rough)

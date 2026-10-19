@@ -98,7 +98,10 @@ python3 decor_build.py -- --theme delta|desert|canyon|city --out D --fine --tex 
 paints them (its Bronze Age section). River Delta (`bronze_decor_delta.glb`): date palms (criss-crossed trunk scales,
 arching pinnate fronds with serrated blades grooved into leaflets, date bunches), papyrus, cattail reeds, bushes, a mud-brick farmhouse
 with a reed-mat roof shade and a walled yard, a granary of beehive silos, a shaduf and a papyrus reed boat. Desert
-Citadel (`bronze_decor_desert.glb`): palms, umbrella acacias, twiggy scrub, crescent sand drifts, wind-worn sandstone,
+Citadel (`bronze_decor_desert.glb`): saguaros (pleated `ribbed_tube` columns whose ribs follow the arms round their
+elbows and meet at the crown, white blossoms), prickly pears (pads budding off pads, red fruit or yellow flowers on the
+rims), barrel cacti with crowns of orange flowers, agaves (thick channelled `_blade` leaves tapering to a dark spine;
+v0.9.29: they replaced the palms, acacias and scrub, no trees in the desert), crescent sand drifts, wind-worn sandstone,
 fluted columns (broken, or standing under papyrus capitals) with carved signs and worn paint, fallen blocks with a
 winged sun disc, a ruined colonnade, a granite obelisk and the step pyramid on the horizon. Copper Canyon
 (`bronze_decor_canyon.glb`): red-rock mesas in strata, hoodoos, malachite outcrops with glowing crystals, mine carts,
@@ -108,7 +111,7 @@ houses, braziers (game.gd lights the fires). Parts that would cut other parts (`
 `place_parts`; bounded cuts (`cut_above`, `cut_below`) keep a prop mergeable. In game (`DECOR_V2`), a theme switches to
 its kit once the GLB is in `assets/decor/`.
 
-Game meshes: River Delta 20.8k triangles, Desert Citadel 26.5k, Copper Canyon 22.8k, the city 14.0k (one 2048 atlas
+Game meshes: River Delta 20.8k triangles, Desert Citadel 27.0k (v0.9.29, with the cacti), Copper Canyon 22.8k, the city 14.0k (one 2048 atlas
 each, imported with `size_limit` 2048). Cut leaflets apart with grooves, not slits: a frond cut by slits falls into
 about a hundred islands with a comb-like outline that the decimation cannot reduce (the first palms came out 3x over
 budget). A kit's bake peaks near 3.9 GB: build the kits one at a time with nothing else heavy running (a coarse

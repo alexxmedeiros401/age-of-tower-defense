@@ -9,3 +9,6 @@ The scripts were run from `/home/claude/work/...` paths; adjust the paths when r
   applied to game.gd).
 - `test/`: map showcase shots, attack frame captures, the GLB installers (`install_kits.py` installs several at a
   given texture size limit), and the game.gd patches already applied (clip timing, the Bronze map kits; v0.9.28).
+  v0.9.29: `shoot_tunnel.sh OUT MAP [--exit] [--view=game] [--only=<robot>] [--frames=N] [--every=K]` (robots walking
+  into a map's first tunnel), `shoot_map.sh OUT MAP [--city] [--look=x,z]` (one map's showcase shots in its own user
+  folder, so runs can go side by side) and `sheet.py OUT 'GLOB' [cols] [crop] [every]` (a numbered contact sheet).

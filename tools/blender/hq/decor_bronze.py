@@ -3,8 +3,8 @@ returns its parts [(part name, Field, voxel, material key)], built at the origin
 theme's props and their game-mesh triangle budgets; decor_build.materials resolves the material keys).
 
 River Delta: date palms, papyrus, cattail reeds, bushes; a farmhouse, a granary, a shaduf and a reed boat.
-Desert Citadel: palms, acacias, scrub, sand drifts, sandstone rocks, broken columns, fallen blocks; a ruined colonnade,
-an obelisk and the step pyramid on the horizon.
+Desert Citadel: saguaros, prickly pears, barrel cacti and agaves (v0.9.29: no trees in the desert), sand drifts,
+sandstone rocks, broken columns, fallen blocks; a ruined colonnade, an obelisk and the step pyramid on the horizon.
 Copper Canyon: mesas, hoodoos, red rocks, scrub, dead trees, malachite, mine carts, timber stacks; the mine and a
 copper smelter.
 The Bronze city at the end of every Bronze Age road is its own kit ("city", bronze_city.glb).
@@ -311,6 +311,238 @@ def scrub(w=0.8, h=0.4, seed=0, mat="scrub"):
             lv.add(Ellipsoid(c, (rad, rad, rad * 0.8), **wob(12.0 / w, 0.012, seed * 10 + i * 3 + j)), k=0.03)
     ground_cut(tw)
     return [("Twigs", tw, fine(0.005, 0.01), "acacia_bark"), ("Leaves", lv, fine(0.006, 0.012), mat)]
+
+
+# ------------------------------------------------------------------------------------------------ cacti (v0.9.29)
+def ribbed_tube(pts, radii, n, depth, u_axis, sharp=2.0):
+    """A tube through `pts` (a radius at each) whose cross-section is pleated into n ribs: rounded crests, narrow
+    grooves (`sharp` > 1 narrows them), `depth` a fraction of the radius. The ribs follow the tube round its bends
+    (`u_axis` must be normal to the plane it bends in, so every segment measures its angle from the same side) and
+    fade over the end caps, so they meet at the crown as a cactus's do."""
+    A = [v3(p) for p in pts]
+    segs = []
+    for i in range(len(A) - 1):
+        a, b = A[i], A[i + 1]
+        t = unit(b - a)
+        u = unit(v3(u_axis) - t * float(v3(u_axis) @ t))
+        w = unit(np.cross(t, u))
+        segs.append((a.astype(F32), (b - a).astype(F32), F32(radii[i]), F32(radii[i + 1]), u.astype(F32), w.astype(F32)))
+
+    def fn(P):
+        best = None
+        for a, ba, ra, rb, u, w in segs:
+            h = np.clip(((P - a) @ ba) / F32(ba @ ba), 0, 1)
+            Q = P - (a + h[:, None] * ba)
+            dist = np.sqrt((Q * Q).sum(1))
+            qu, qw = Q @ u, Q @ w
+            lat = np.sqrt(qu * qu + qw * qw)
+            rib = (0.5 - 0.5 * np.cos(n * np.arctan2(qw, qu))) ** sharp       # 0 on a crest, 1 down a groove
+            fade = (lat / np.maximum(dist, 1e-6)) ** 2
+            d = dist - (ra + (rb - ra) * h) * (1.0 - depth * rib * fade)
+            best = d if best is None else np.minimum(best, d)
+        return best.astype(F32)
+    lo, hi = box_bounds(A, max(radii) + 0.02)
+    return Func(fn, lo, hi)
+
+
+def _blossom(pf, cf, c, up, r, seed, petals=7):
+    """A cactus flower opening at c, facing `up`: a cup of rounded petals round a stamen boss."""
+    rng = np.random.default_rng(seed)
+    up = unit(up)
+    t, b, _ = frame(up)
+    pf.add(Ellipsoid(c - up * (r * 0.25), (r * 0.42, r * 0.42, r * 0.5), R=rot_from_axes(z_axis=up)), k=r * 0.2)
+    a0 = rng.uniform(0, 2 * math.pi)
+    for k in range(petals):
+        a = a0 + 2 * math.pi * k / petals
+        hz = t * math.cos(a) + b * math.sin(a)
+        d = unit(hz * 0.8 + up * 0.6)
+        nrm = unit(up - d * float(up @ d))               # the petal's face: up and in, so they make a cup
+        pf.add(Ellipsoid(c + d * (r * 0.55), (r * 0.55, r * 0.32, r * 0.16), R=rot_from_axes(y_axis=np.cross(nrm, d), z_axis=nrm)), k=r * 0.12)
+    cf.add(Sphere(c + up * (r * 0.12), r * 0.24), k=r * 0.05)
+
+
+def saguaro(h=2.5, arms=((1.0, 0.0, 0.42, 0.78), (0.0, 0.0, 0.5, 0.66)), seed=0, flowers=True, lean=0.03):
+    """A saguaro: a pleated green column with a rounded crown and arms that elbow out and turn up, spine clusters along
+    every rib (in the material), creamy white blossoms on the crown and the arm tips. arms: (azimuth (turns), unused,
+    height of the elbow, height of the tip) as fractions of h."""
+    rng = np.random.default_rng(seed)
+    r0 = 0.085 + 0.034 * h
+    n = 14
+    a_l = rng.uniform(0, 2 * math.pi)
+    lx, ly = math.cos(a_l) * lean * h, math.sin(a_l) * lean * h
+    K = 6
+    trunk = [v3((lx * (i / K) ** 2, ly * (i / K) ** 2, -0.06 + (h - r0 * 0.96 + 0.06) * i / K)) for i in range(K + 1)]
+    radii = [r0 * (1.04 - 0.06 * i / K) for i in range(K + 1)]
+    body = Field("Body")
+    body.add(ribbed_tube(trunk, radii, n, 0.16, (1, 0, 0)))
+    tips = [trunk[-1] + v3((0, 0, radii[-1]))]
+    for j, (az, _u, z0, z1) in enumerate(arms):
+        az = az * 2 * math.pi + rng.uniform(-0.25, 0.25)
+        hz = v3((math.cos(az), math.sin(az), 0))
+        ra = r0 * rng.uniform(0.62, 0.7)
+        out = r0 + ra * rng.uniform(1.5, 2.1)              # how far from the trunk's axis the arm turns up
+        zb = z0 * h
+        zt = max(z1 * h, zb + ra * 4.0)
+        base = v3((lx * (zb / h) ** 2, ly * (zb / h) ** 2, zb))
+        P = [base, base + hz * (out * 0.55) + v3((0, 0, -ra * 0.15)), base + hz * (out * 0.9) + v3((0, 0, ra * 0.35)),
+             base + hz * out + v3((0, 0, ra * 1.3))]
+        top = base + hz * out + v3((0, 0, zt - zb - ra * 0.96))
+        for i in range(1, 4):
+            P.append(P[3] + (top - P[3]) * (i / 3.0))
+        rr = [ra * 1.12, ra * 1.02, ra, ra] + [ra * (1.0 - 0.05 * i / 3.0) for i in range(1, 4)]
+        body.add(ribbed_tube(P, rr, n - 2, 0.16, unit(np.cross(v3((0, 0, 1)), hz))), k=0.035)
+        tips.append(top + v3((0, 0, rr[-1])))
+    ground_cut(body, -0.04)
+    out = [("Body", body, fine(0.0065, 0.013), "saguaro")]
+    if flowers:
+        pf, cf = Field("Petals"), Field("Stamens")
+        for j, tp in enumerate(tips):
+            m = 4 if j == 0 else 2
+            for k in range(m):
+                a = rng.uniform(0, 2 * math.pi)
+                rr = (r0 if j == 0 else r0 * 0.66) * rng.uniform(0.25, 0.55)
+                c = tp + v3((rr * math.cos(a), rr * math.sin(a), -0.012 - rr * 0.35))
+                _blossom(pf, cf, c, unit(v3((math.cos(a) * 0.5, math.sin(a) * 0.5, 1.0))), 0.055, seed * 31 + j * 7 + k)
+        out += [("Petals", pf, fine(0.004, 0.008), "flower_cream"), ("Stamens", cf, fine(0.004, 0.008), "flower_gold")]
+    return out
+
+
+def prickly(h=0.9, seed=0, fruit=True, flowers=False):
+    """A prickly pear: flat oval pads standing in the sand, new pads budding off their top edges at all angles,
+    areoles dotted over them (in the material), red-purple fruit (or yellow blossoms) along the top rims."""
+    rng = np.random.default_rng(seed)
+    pads = Field("Pads")
+    s = h / 0.9
+    rims = []
+
+    def pad(c, up, face, L, depth):
+        up, face = unit(up), unit(face)
+        if np.linalg.norm(np.cross(up, face)) < 0.25:       # (a face too close to the pad's own axis: turn it)
+            face = unit(np.cross(up, v3((0, 0, 1))) if abs(float(up[2])) < 0.9 else v3((1, 0, 0)))
+        side = unit(np.cross(up, face))
+        face = unit(np.cross(side, up))
+        W = L * 0.78
+        pads.add(Ellipsoid(c, (W, L * 0.15, L), R=rot_from_axes(x_axis=side, y_axis=face)), k=0.02 * s)
+        rims.append((c, up, side, L, W))
+        if depth <= 0:
+            return
+        for j in range(rng.integers(1, 3)):
+            tilt = rng.uniform(0.25, 0.7) * (1 if j == 0 else -1) * rng.choice([1, -1])
+            nu = unit(up * math.cos(tilt) + side * math.sin(tilt) + v3((0, 0, 0.25)))
+            nf = unit(face * math.cos(rng.uniform(0.6, 1.3)) + side * math.sin(rng.uniform(0.6, 1.3)))
+            L2 = L * rng.uniform(0.78, 0.92)
+            att = c + up * (L * 0.82) + side * (W * rng.uniform(-0.45, 0.45))
+            pad(att + nu * (L2 * 0.88), nu, nf, L2, depth - 1)
+    nb = 3 if h > 0.7 else 2
+    for i in range(nb):
+        a = 2 * math.pi * i / nb + rng.uniform(-0.4, 0.4)
+        hz = v3((math.cos(a), math.sin(a), 0))
+        up = unit(v3((0, 0, 1)) + hz * rng.uniform(0.15, 0.4))
+        L = 0.2 * s * rng.uniform(0.9, 1.1)
+        pad(hz * (0.1 * s) + up * (L * 0.72) + v3((0, 0, -0.05)), up, v3((-math.sin(a), math.cos(a), 0)), L, 2 if h > 0.7 else 1)
+    ground_cut(pads, -0.04)
+    out = [("Pads", pads, fine(0.0045, 0.009) * s, "opuntia")]
+    bits = Field("Fruit")
+    for c, up, side, L, W in rims:
+        if rng.uniform() < 0.35 or float(up[2]) < 0.35:     # (not every pad, and only ones held up off the ground)
+            continue
+        for k in range(rng.integers(2, 4)):
+            ph = rng.uniform(-0.95, 0.95)                    # round the top of the pad's oval rim
+            p = c + side * (W * math.sin(ph) * 0.94) + up * (L * math.cos(ph) * 0.94)
+            d = unit(side * (math.sin(ph) / W) + up * (math.cos(ph) / L))
+            if flowers:
+                _blossom(bits, bits, p + d * (0.03 * s), d, 0.06 * s, seed * 17 + k, petals=8)
+            else:
+                bits.add(Ellipsoid(p + d * (0.035 * s), (0.026 * s, 0.026 * s, 0.04 * s), R=rot_from_axes(z_axis=d)), k=0.006)
+    if flowers:
+        out.append(("Flowers", bits, fine(0.0035, 0.007) * s, "flower_yellow"))
+    else:
+        out.append(("Fruit", bits, fine(0.0035, 0.007) * s, "cactus_fruit"))
+    return out
+
+
+def barrel(seed=0, sizes=((0.0, 0.0, 0.24), (0.33, 0.12, 0.17), (-0.14, 0.3, 0.13))):
+    """Barrel cacti: squat, deeply ribbed globes (golden spines along the ribs, in the material), a crown of
+    orange-yellow blossoms round each top. sizes: (x, y, radius) of each barrel in the clump."""
+    rng = np.random.default_rng(seed)
+    body, pf, cf = Field("Body"), Field("Petals"), Field("Stamens")
+    for i, (x, y, r) in enumerate(sizes):
+        hgt = r * rng.uniform(1.3, 1.7)
+        lean = v3((rng.uniform(-1, 1) * 0.05, rng.uniform(-1, 1) * 0.05, 0))
+        pts = [v3((x, y, -0.05)), v3((x, y, 0.0)) + v3((0, 0, (hgt - r) * 0.5)) + lean * 0.5, v3((x, y, 0)) + v3((0, 0, hgt - r)) + lean]
+        body.add(ribbed_tube(pts, [r * 0.88, r, r * 0.97], 18, 0.2, (1, 0, 0), sharp=1.4), k=0.02)
+        top = pts[-1] + v3((0, 0, r * 0.94))
+        for k in range(6 if r > 0.2 else 4):
+            a = 2 * math.pi * k / (6 if r > 0.2 else 4) + rng.uniform(-0.2, 0.2)
+            c = top + v3((math.cos(a) * r * 0.32, math.sin(a) * r * 0.32, -r * 0.06))
+            _blossom(pf, cf, c, unit(v3((math.cos(a) * 0.6, math.sin(a) * 0.6, 1.0))), 0.04, seed * 13 + i * 7 + k, petals=8)
+    ground_cut(body, -0.04)
+    return [("Body", body, fine(0.004, 0.008), "barrel_cactus"), ("Petals", pf, fine(0.0035, 0.007), "flower_orange"),
+            ("Stamens", cf, fine(0.0035, 0.007), "flower_gold")]
+
+
+def _blade(pts, widths, thicks, side, channel=0.6):
+    """A thick succulent leaf along the polyline `pts`: an oval cross-section (half-width and half-thickness given at
+    each point, so it tapers smoothly to a point at the tip) whose edges lift into a shallow channel, the leaf lying
+    flat across `side` (a horizontal vector normal to the plane the leaf curls in)."""
+    A = [v3(p) for p in pts]
+    sd = unit(v3(side))
+    segs = []
+    for i in range(len(A) - 1):
+        a, b = A[i], A[i + 1]
+        t = unit(b - a)
+        n = unit(np.cross(t, sd))
+        s2 = unit(np.cross(n, t))
+        segs.append((a.astype(F32), (b - a).astype(F32), t.astype(F32), s2.astype(F32), n.astype(F32), F32(np.linalg.norm(b - a)),
+                     F32(widths[i]), F32(widths[i + 1]), F32(thicks[i]), F32(thicks[i + 1])))
+
+    def fn(P):
+        best = None
+        for a, ba, t, s2, n, L, wa, wb, ta, tb in segs:
+            h = np.clip(((P - a) @ ba) / F32(L * L), 0, 1)
+            Q = P - (a + h[:, None] * ba)
+            ax = Q @ t
+            w = np.maximum(wa + (wb - wa) * h, F32(1e-4))
+            th = np.maximum(ta + (tb - ta) * h, F32(1e-4))
+            y = (Q @ s2) / w
+            z = (Q @ n - channel * th * y * y) / th
+            e = np.sqrt(y * y + z * z)
+            dcs = (e - 1.0) * np.minimum(w, th)
+            d = np.where(np.abs(ax) > 1e-6, np.sqrt(np.maximum(dcs, 0) ** 2 + ax * ax), dcs)
+            best = d if best is None else np.minimum(best, d)
+        return best.astype(F32)
+    lo, hi = box_bounds(A, max(widths) + 0.02)
+    return Func(fn, lo, hi)
+
+
+def agave(w=1.0, seed=0, n=24):
+    """An agave: a rosette of thick, stiff, pointed blue-green leaves, channelled down the middle, upright in the heart
+    and splaying out low round the edge, each tipped with a dark spine."""
+    rng = np.random.default_rng(seed)
+    lv, sp = Field("Leaves"), Field("Spines")
+    golden = math.pi * (3 - math.sqrt(5))
+    a0 = rng.uniform(0, 2 * math.pi)
+    for i in range(n):
+        u = (i + 0.5) / n                                   # 0: the young heart, 1: the outer leaves
+        az = a0 + i * golden
+        hz = v3((math.cos(az), math.sin(az), 0))
+        el = math.radians(80 - 62 * u ** 0.8 + rng.uniform(-5, 5))
+        L = w * (0.24 + 0.3 * u ** 0.6) * rng.uniform(0.92, 1.08)
+        Wb = w * (0.06 + 0.04 * u)
+        d0 = unit(hz * math.cos(el) + v3((0, 0, math.sin(el))))
+        K = 9
+        P, W, T = [], [], []
+        for k in range(K + 1):
+            s = k / K
+            curl = 0.18 * s * s * (1.0 - u * 0.4)          # the outer leaves turn their tips up a little
+            P.append(hz * (0.02 * w) + v3((0, 0, -0.02 + 0.03 * u)) + d0 * (L * s) + v3((0, 0, L * curl * (1.2 - math.sin(el)))))
+            W.append(Wb * (1.0 - s) ** 0.65 * (0.75 + 0.25 * math.sin(min(1.0, s * 4.0) * math.pi / 2)) + 0.002)
+            T.append(w * (0.03 - 0.022 * s))
+        lv.add(_blade(P, W, T, (-math.sin(az), math.cos(az), 0)), k=0.012 * w)
+        tg = unit(P[-1] - P[-2])
+        sp.add(RoundCone(P[-1] - tg * 0.025, P[-1] + tg * (0.05 * w), 0.007 * w, 0.0015), k=0.004)
+    ground_cut(lv, -0.03)
+    return [("Leaves", lv, fine(0.004, 0.008) * w, "agave"), ("Spines", sp, fine(0.003, 0.006) * w, "agave_spine")]
 
 
 # ------------------------------------------------------------------------------------------------ sand and stone
@@ -1247,9 +1479,12 @@ def KITS(theme):
         }
     if theme == "desert":
         return {
-            "Palm_A": (lambda: palm(3.0, 0.26, 21, 14), 2200), "Palm_B": (lambda: palm(3.4, 0.4, 22, 16), 2400),
-            "Acacia_A": (lambda: acacia(2.3, 2.9, 23), 1500), "Acacia_B": (lambda: acacia(1.8, 2.3, 24), 1200),
-            "Scrub_A": (lambda: scrub(0.8, 0.4, 25), 600), "Scrub_B": (lambda: scrub(0.55, 0.3, 26), 450),
+            "Saguaro_A": (lambda: saguaro(2.6, ((0.0, 0, 0.42, 0.8), (0.5, 0, 0.53, 0.7)), 21), 1600),
+            "Saguaro_B": (lambda: saguaro(2.0, ((0.5, 0, 0.47, 0.74),), 22, flowers=False), 1100),
+            "Saguaro_C": (lambda: saguaro(1.15, (), 23, flowers=False, lean=0.05), 600),
+            "Prickly_A": (lambda: prickly(0.95, 24), 1300), "Prickly_B": (lambda: prickly(0.6, 25, fruit=False, flowers=True), 900),
+            "Barrel_A": (lambda: barrel(26), 900), "Barrel_B": (lambda: barrel(27, ((0.0, 0.0, 0.3),)), 600),
+            "Agave_A": (lambda: agave(1.1, 28), 1100), "Agave_B": (lambda: agave(0.7, 29, 18), 700),
             "Dune_A": (lambda: dune(2.4, 0.5, 27), 600), "Dune_B": (lambda: dune(1.7, 0.36, 28), 450),
             "Rock_A": (lambda: sandrock(1.6, 0.6, 29), 600), "Rock_B": (lambda: sandrock(1.1, 0.4, 30, 1), 400),
             "Rock_C": (lambda: sandrock(2.2, 0.8, 31, 3), 800),

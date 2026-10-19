@@ -96,6 +96,17 @@ def bronze_materials(dark):
         "copper": mats.bronze("DK_Copper", base=(0.7, 0.33, 0.16), hi=(0.98, 0.66, 0.44), dark=(0.3, 0.12, 0.06), patina=(0.24, 0.6, 0.48)),
         "bronze": mats.bronze("DK_Bronze"), "wool": mats.wool("DK_Wool"),
         "glow_turq": DM.glow("DK_GlowTurq", (0.3, 1.0, 0.78), 2.2), "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
+        # v0.9.29: the desert's cacti
+        "saguaro": DM.cactus("DK_Saguaro"),
+        "barrel_cactus": DM.cactus("DK_BarrelCactus", base=(0.22, 0.38, 0.17), hi=(0.78, 0.58, 0.26), groove=(0.06, 0.13, 0.05),
+                                   spine=(0.86, 0.36, 0.16), dots=30.0, dot_r=0.3),
+        "opuntia": DM.opuntia("DK_Opuntia"), "agave": DM.agave("DK_Agave"),
+        "agave_spine": DM.flat("DK_AgaveSpine", (0.22, 0.13, 0.08), 0.5),
+        "flower_cream": DM.flat("DK_FlowerCream", (0.95, 0.92, 0.8), 0.6, hi=(1.0, 0.98, 0.92)),
+        "flower_gold": DM.flat("DK_FlowerGold", (0.96, 0.76, 0.2), 0.6),
+        "flower_yellow": DM.flat("DK_FlowerYellow", (0.98, 0.84, 0.26), 0.6, hi=(1.0, 0.95, 0.6)),
+        "flower_orange": DM.flat("DK_FlowerOrange", (0.98, 0.56, 0.16), 0.6, hi=(1.0, 0.8, 0.4)),
+        "cactus_fruit": DM.flat("DK_CactusFruit", (0.64, 0.08, 0.3), 0.4, hi=(0.86, 0.3, 0.46)),
     }
 GLOW_KEYS = {"glow_lava": ((1.0, 0.45, 0.08), 1.6, 0.6), "glow_cyan": ((0.25, 0.85, 1.0), 1.3, 0.5),
              "glow_magenta": ((1.0, 0.2, 0.85), 1.3, 0.5), "glow_turq": ((0.3, 1.0, 0.78), 1.2, 0.5),
