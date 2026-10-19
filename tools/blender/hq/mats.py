@@ -783,6 +783,10 @@ def mudbrick(name="HQ_Mudbrick", base=(0.72, 0.56, 0.38), mortar=(0.56, 0.42, 0.
     jz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
     jx = g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx))
     joint = g.math("MAXIMUM", g.math("SUBTRACT", 1.0, g.smooth(jz, 0.04, 0.12)), g.math("SUBTRACT", 1.0, g.smooth(jx, 0.02, 0.06)))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    # (no courses drawn across flat tops: a roof or a tread is plastered, and the courses' x+y runs drew diagonal stripes)
+    joint = g.math("MULTIPLY", joint, g.math("SUBTRACT", 1.0, g.smooth(nz.outputs["Z"], 0.7, 0.9)))
     c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.12) for x in base)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 45.0, 2.0), 0.6, 0.68), 0.35), c, g.rgb((0.86, 0.74, 0.46)))   # straw
     c = g.mix(joint, c, g.rgb(mortar))
