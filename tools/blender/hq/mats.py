@@ -1030,6 +1030,99 @@ def charcoal(name="HQ_Charcoal"):
     return g.finish(c, 0.7, g.bump(cr, 0.25, 0.002))
 
 
+# ======================================================================================= Iron Age (v0.9.29)
+def _iron_col(g, p, base=(0.32, 0.32, 0.34), hi=(0.74, 0.76, 0.8), dark=(0.1, 0.1, 0.11), rust=(0.5, 0.24, 0.1)):
+    """Forged iron, hand-painted: blue-grey, bright on its edges and ridges and on faces turned to the sky, dark in the
+    recesses, rust in the deepest crevices. Returns (colour, rust mask)."""
+    c = g.mix(g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.8), c, g.rgb(hi))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), c, g.rgb(dark))
+    rs = g.math("MULTIPLY", g.smooth(pt, 0.47, 0.42), g.smooth(g.noise(p, 14.0, 3.0), 0.48, 0.62))
+    c = g.mix(g.math("MULTIPLY", rs, 0.75), c, g.rgb(rust))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    c = g.mix(g.math("MULTIPLY", g.smooth(nz.outputs["Z"], 0.3, 0.95), 0.25), c, g.rgb(hi))
+    return c, rs
+
+
+def iron(name="HQ_Iron"):
+    """Forged iron (see _iron_col), fine hammer marks."""
+    g = new(name)
+    p = g.obj()
+    c, rs = _iron_col(g, p)
+    h = g.math("ADD", g.math("MULTIPLY", g.voronoi(p, 80.0, 1.0, "F1", "Distance"), 0.3), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
+    return g.finish(c, g.mixf(rs, 0.35, 0.8), g.bump(h, 0.14, 0.002))
+
+
+def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), line=(0.88, 0.74, 0.3),
+          border=(0.62, 0.13, 0.08), period=0.11):
+    """Checked wool (Iron Age): broad bands of `stripe` crossing on `base` (where two cross the colour is full, a band
+    alone shows half, as woven), darker bands between them, thin `line`s; a coarse weave, darker in the folds, lighter
+    fuzz on the ridges; label 5 = a woven border. The checks run up and round (bands along x, y and z)."""
+    g = new(name)
+    p = g.obj()
+    s = 0.314 / period
+
+    def bands(offset, lo, hi):
+        q = g.add_vec(p, offset)
+        bx = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "X"), lo, hi)
+        by = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Y"), lo, hi)
+        bz = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Z"), lo, hi)
+        v = g.math("MAXIMUM", bx, by)
+        return g.math("ADD", g.math("MULTIPLY", v, 0.5), g.math("MULTIPLY", bz, 0.5))
+
+    c = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.82 for x in base)))
+    c = g.mix(bands((period * 0.25, period * 0.25, period * 0.25), 0.82, 0.9), c, g.rgb(tuple(x * 0.55 for x in base)))
+    c = g.mix(bands((0.0, 0.0, 0.0), 0.74, 0.82), c, g.rgb(stripe))
+    c = g.mix(bands((period * 0.5, period * 0.5, period * 0.5), 0.965, 0.985), c, g.rgb(line))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.55), c, g.rgb(tuple(x * 0.5 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.3), c, g.rgb(tuple(min(1, x * 1.3 + 0.05) for x in base)))
+    zz = g.smooth(g.wave(p, 90.0, 0.0, 0.0, "BANDS", "DIAGONAL", "TRI"), 0.45, 0.55)
+    bc = g.mix(g.math("MULTIPLY", zz, 0.5), g.rgb(border), g.rgb((0.9, 0.82, 0.55)))
+    c = g.mix(g.reg(5), c, bc)
+    weave = g.math("ADD", g.wave(p, 260.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 260.0, 0.0, 0.0, "BANDS", "Z"))
+    return g.finish(c, 0.92, g.bump(weave, 0.18, 0.0015))
+
+
+def _ash(g, p):
+    grain = g.noise(g.scale_vec(p, (70.0, 70.0, 6.0)), 1.0, 3.0, 0.6)
+    c = g.mix(g.remap(grain, 0.3, 0.7, 0.0, 1.0), g.rgb((0.66, 0.5, 0.32)), g.rgb((0.5, 0.36, 0.22)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.78, 0.63, 0.44)))
+    return c, grain
+
+
+def javelin_shaft(name="HQ_Javelin"):
+    """An ash javelin (pale wood, fine grain along it), a leather binding below the head (label 5), a forged iron head and
+    butt cap (6)."""
+    g = new(name)
+    p = g.obj()
+    c, grain = _ash(g, p)
+    tw = g.wave(p, 300.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb((0.42, 0.25, 0.13)), g.rgb((0.26, 0.15, 0.08))))
+    ic, rs = _iron_col(g, p)
+    c = g.mix(g.reg(6), c, ic)
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(5), 0.7, 0.8), g.mixf(rs, 0.32, 0.8))
+    return g.finish(c, rough, g.bump(g.math("ADD", grain, g.math("MULTIPLY", tw, g.reg(5))), 0.2, 0.002))
+
+
+def javelin_case(name="HQ_JavCase", base=(0.4, 0.24, 0.12)):
+    """A leather javelin case: rawhide bands and bindings (label 5), the javelins' iron heads (6) and ash shafts (7)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 9.0, 3.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.3) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.55), c, g.rgb(tuple(min(1, x * 1.6) for x in base)))
+    scr = g.smooth(g.noise(g.scale_vec(p, (120.0, 120.0, 30.0)), 1.0, 2.0), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb(tuple(x * 0.45 for x in base)))
+    c = g.mix(g.reg(5), c, g.rgb((0.82, 0.72, 0.52)))
+    ic, rs = _iron_col(g, p)
+    c = g.mix(g.reg(6), c, ic)
+    ash, grain = _ash(g, p)
+    c = g.mix(g.reg(7), c, ash)
+    return g.finish(c, g.mixf(g.reg(6), 0.62, g.mixf(rs, 0.32, 0.8)), g.bump(g.math("ADD", g.noise(p, 90.0, 3.0), scr), 0.2, 0.003))
+
+
 def outline_mat():
     """Inverted-hull outline for Cycles: black on back faces, invisible on front faces."""
     m = bpy.data.materials.get("HQ_Outline") or bpy.data.materials.new("HQ_Outline")
