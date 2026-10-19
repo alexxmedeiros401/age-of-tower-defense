@@ -672,10 +672,15 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	q.size = Vector2(2.7, 2.7)
 	var layers := []
 	var cols := [Color(0.35, 0.2, 1.0, 0.95), Color(0.2, 0.9, 1.0, 0.8), Color(1.0, 0.3, 0.9, 0.55), Color(1, 1, 1, 0.5)]
-	for i in 4:
-		var l := _mi(q, _glow_mat("vortex_%d" % i, cols[i], _swirl_tex()), vortex, Vector3(0, 0, -0.06 * i + 0.09), Vector3.ZERO, Vector3.ONE * (1.0 - 0.12 * i))
-		layers.append(l)
-	var back := _mi(_cyl(1.36, 1.36, 0.02, 32), _mat("vortex_back", Color(0.05, 0.02, 0.15)), vortex, Vector3(0, 0, 0.16), Vector3(PI * 0.5, 0, 0))
+	# a dark disc in the middle of the ring, with the same swirl stacked on both faces (v0.9.18: from behind, as on
+	# maps whose path comes in from the bottom edge, the portal used to show only the black back of the disc)
+	for side in [-1.0, 1.0]:
+		for i in 4:
+			var l := _mi(q, _glow_mat("vortex_%d" % i, cols[i], _swirl_tex()), vortex, Vector3(0, 0, side * (0.07 + 0.06 * i)), Vector3.ZERO,
+				Vector3.ONE * (1.0 - 0.12 * i))
+			l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			layers.append(l)
+	var back := _mi(_cyl(1.36, 1.36, 0.02, 32), _mat("vortex_back", Color(0.05, 0.02, 0.15)), vortex, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
 	back.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# sparks being pulled into the vortex
 	var sp := CPUParticles3D.new()
@@ -708,7 +713,7 @@ func _build_portal(p: Vector2, dir: Vector2, pi := 0) -> Node3D:
 	light.light_color = Color(0.55, 0.6, 1.0)
 	light.light_energy = 2.2
 	light.omni_range = 6.0
-	light.position = Vector3(0, hz, -0.6)
+	light.position = Vector3(0, hz, 0.0)          # (in the ring: it washes the ground on both sides)
 	n.add_child(light)
 	light.visible = Progress.gfx_level() < 2
 	n.set_meta("lights", lights)
@@ -7754,6 +7759,12 @@ func _run_demo() -> void:
 			_update_effects(TICK)
 			await get_tree().process_frame
 		await _shot("demo_portal_close.png")
+		cam.global_position = pp - fwd * 7.5 - side * 2.5 + Vector3(0, 3.5, 0)      # and from behind
+		cam.look_at(pp + Vector3(0, 1.3, 0))
+		for i in 3:
+			_update_effects(TICK)
+			await get_tree().process_frame
+		await _shot("demo_portal_back.png")
 		get_tree().quit()
 		return
 	if "--shoot-cloak" in args:
