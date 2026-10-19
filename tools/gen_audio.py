@@ -246,3 +246,9 @@ tt2 = np.arange(int(SR * total2)) / SR
 drone2 = lowpass(sum(np.sign(np.sin(2 * np.pi * f * tt2)) * a for f, a in ((73.4, 1.0), (110.0, 0.5))), 500) * 0.12
 drone2 *= 0.75 + 0.25 * np.sin(2 * np.pi * tt2 / (8 * beat2))
 save("music_bronze_age", seq(ev2, total2) + drone2, 0.55)
+
+# v0.9.26 Tarek the Smith (appended last: the sounds above keep their random draws)
+save("anvil", mix(clank(930, 1.1) * 0.8, clank(1405, 0.6) * 0.35, clank(2210, 0.25) * 0.2,
+                  lowpass(noise(0.04), 6000) * env(int(SR * 0.04), 0.0005, 0.01) * 0.8), 0.55)
+save("hammer_hit", mix(thud(130, 0.18, 0.6), clank(640, 0.32) * 0.6,
+                       highpass(noise(0.35), 3000) * env(int(SR * 0.35), 0.002, 0.16) * 0.3), 0.55)
