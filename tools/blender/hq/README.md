@@ -1,11 +1,13 @@
 # HQ model pipeline
 
 Sculpted, rigged, animated and texture-baked game models made entirely in code with Blender (bpy) + numpy.
-Models so far: the Bronze Archer (`assets/towers/bronze_archer.glb`, v0.9.21, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`, `club_warrior.glb`, `tar_shaman.glb`,
-`boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`, `mara.glb`), the five Stone Age robots
-(`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`, `prime_walker.glb`, v0.9.18), the three Stone Age
-map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`, `stone_decor_volcano.glb`) and the time portal
-(`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered by `../map_ground_hq.py` (below).
+Models so far: the Bronze Archer and the Spear Guard (`assets/towers/bronze_archer.glb`, v0.9.21, and
+`spear_guard.glb`, v0.9.22, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
+`club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
+`mara.glb`), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
+`prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
+`stone_decor_volcano.glb`) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
+by `../map_ground_hq.py` (below).
 
 | Unit | Character module | Base module | Clips |
 |---|---|---|---|
@@ -16,6 +18,7 @@ map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`, `stone_decor_v
 | Ugo (hero) | `ugo` | `ugo_base` | `anim_ugo` (Idle, Whirl, Throw, Ability, Cheer) |
 | Mara (hero) | `mara` | `mara_base` | `anim_mara` (Idle, Combat, Attack, Ability, Cheer) |
 | Bronze Archer (v0.9.21) | `archer` | `archer_base` | `anim_archer` (Idle, Combat, Attack) |
+| Spear Guard (v0.9.22) | `spear` | `spear_base` | `anim_spear` (Idle, Combat, Attack) |
 
 ## Steps
 
@@ -146,11 +149,20 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   his chin. The string is two extra bones (`string_top`, `string_bot`, children of the bow hand) aimed from the posed
   tips at the drawing fingers and stretched along their length (a second solve once the tips are known); the nocked
   pair rides the `arrow` prop bone, aimed through the arrow rest, its scale (constant keys) hiding it after the release.
+  `anim_spear.py` (v0.9.22): spear planted at his side, the shield resting on his arm / the phalanx stance (left foot
+  forward, the shield up before him, the spear overhand above his shoulder) / Attack: he draws the spear back, then
+  drives a lunging overhand thrust past the shield's edge; at full reach (`THRUST`, frame 6) the game's lance of light
+  leaves the point. The spear and the shield are rigid in his fists ("frame" aims: the spear along the right fist's
+  thumb axis, the shield's grip in the left fist with its face along the knuckles).
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),
   `_hq_outline` (grow + front-cull next pass), Idle playback in the card model viewers. The attack effects are timed
-  to the clips: `game.gd` `ATTACK_FRAME` must match each module's `RELEASE` (`SMASH` for the club).
+  to the clips: `game.gd` `ATTACK_FRAME` must match each module's `RELEASE` (`SMASH` for the club, `THRUST` for the
+  spear). The clips are keyed at 30 frames a second in the modules' comments, but the scenes export at Blender's
+  default 24 fps, so the `.glb` clips run at 24 fps (`CLIP_FPS` in `game.gd`) and Godot re-samples them at 30 Hz on
+  import: pick an `ATTACK_FRAME` inside a held pose (the spear's full reach holds over frames 6-10, so 7), where the
+  samples either side agree. Attack clips still fit their cooldowns: the game plays them at length / cooldown.
   Test: `--shoot-hq [--tower=<id>] [--hq-idx=N] [--hq-cam=x,y,z]` (three towers fighting + a close-up) and
   `--shoot-hero-hq [--hero=<id>]` (the hero fighting, cheer, ability), `--gif` for frames; `--shoot-attacks
   --unit=<tower>|hero` (frames of one attack, with `--fixed-fps 30`). Render a clip as a strip with `render_asset.py

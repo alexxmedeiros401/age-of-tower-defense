@@ -428,8 +428,7 @@ func _build_world() -> void:
 	_build_path_features()
 	if not attract and (_era_index() == 0 or str(sim.hero_id) in ["ugo", "mara"]):
 		_prewarm_attack_fx()
-	if not attract:
-		_prewarm_arrows()
+	_prewarm_arrows()                            # (the menu's demo match too: the Bronze Age shoots arrows and lances)
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -2470,7 +2469,11 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # stone and quartz spikes burst up under them, the Club Warrior's smash sends a shock of dirt out to each one, and
 # boulders smash into dust, flying rock and a crater. Timed to the units' clips (the RELEASE / SMASH frames in
 # tools/blender/hq/anim_shaman.py, anim_mara.py, anim_club.py).
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4}
+# The frame of each unit's Attack clip its hit leaves at, in the clip's own frames. The HQ .glb clips run at CLIP_FPS
+# (Blender's 24 fps; Godot re-samples them at 30 Hz on import), so a frame inside a held pose is picked where there is one
+# (the spear's full reach holds over frames 6-10: 7), where the 30 Hz samples either side of it agree.
+const CLIP_FPS := 24.0
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2479,12 +2482,17 @@ var _atk_pending := {}                       # robot id -> true: a delayed hit i
 var _doomed := {}                            # robot id -> its kill event, held until the hit lands
 
 
+## Whether unit `id` has its HQ model (with clips): only then do the Bronze Age attacks time their effects to the clip.
+func _hq_clips(id: int) -> bool:
+	return tower_nodes.has(id) and is_instance_valid(tower_nodes[id]) and (tower_nodes[id] as Node3D).has_meta("anim")
+
+
 ## Real seconds until frame `frame` of the attack clip that just started on unit `id` (0 for models without clips).
 func _clip_delay(id: int, frame: int) -> float:
 	if not tower_nodes.has(id) or not (tower_nodes[id] as Node3D).has_meta("anim"):
 		return 0.0
 	var rate := float((tower_nodes[id] as Node3D).get_meta("throw_rate", 1.0)) * float(speed)
-	return float(frame) / 30.0 / maxf(rate, 0.01)
+	return float(frame) / CLIP_FPS / maxf(rate, 0.01)
 
 
 ## A pulse unit turns to fling at the robots it hits (it faces the camera again a moment after its last attack).
@@ -2554,6 +2562,21 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"arrow_spark":                               # a bronze arrowhead striking steel (v0.9.21)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.albedo_color = Color(1.0, 0.9, 0.55)
+		"lance":                                     # the Spear Guard's lance of light (vertex colours fade it to the tail)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.vertex_color_use_as_albedo = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = Color(1.0, 0.86, 0.5)
+		"lance_flash":                               # where it strikes
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = Color(1.0, 0.9, 0.6)
+			m.albedo_texture = _mote_tex()
 		"ember", "fire_flash":                       # a burning arrow's embers and the burst where it lands
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2695,17 +2718,19 @@ func _prewarm_attack_fx() -> void:
 			holder.queue_free())
 
 
-## The arrows (v0.9.21): any map can have archers (the Bronze Archer, the Cretan Archer, heroes that shoot arrows), so
-## their meshes and materials are drawn once under the ground at load, like the Stone Age attacks'.
+## The arrows (v0.9.21) and the Spear Guard's lance (v0.9.22): any map can have their units (archers include the Cretan
+## Archer and heroes that shoot arrows), so their meshes and materials are drawn once under the ground at load, like the
+## Stone Age attacks'.
 func _prewarm_arrows() -> void:
 	var holder := Node3D.new()
 	holder.position = Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, -0.6, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5)
 	add_child(holder)
 	for fire in [false, true]:
 		_mi(_arrow_mesh(fire), null, holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
-	for key in ["arrow_spark", "ember", "fire_flash"]:
+	for key in ["arrow_spark", "ember", "fire_flash", "lance_flash"]:
 		var mi := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_mi(_lance_mesh(), _atk_mat("lance"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_fx_after(0.12, func() -> void:
 		if is_instance_valid(holder):
 			holder.queue_free())
@@ -3486,6 +3511,21 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_spike(fx, n)
 			"stuck":
 				_tick_stuck(fx, n)
+			"lance":
+				var lk := clampf(fx.t / float(fx.travel), 0.0, 1.0)
+				if fx.t <= float(fx.travel):                 # (it homes in on the robot as it walks)
+					var live := _robot_point(int(fx.tid), float(fx.h))
+					if live != Vector3.INF:
+						fx.to = live
+				var lp: Vector3 = (fx.from as Vector3).lerp(fx.to, lk)
+				var ld: Vector3 = (fx.to as Vector3) - (fx.from as Vector3)
+				if ld.length() > 0.05:
+					n.look_at_from_position(lp, lp + ld, Vector3.UP if absf(ld.normalized().y) < 0.98 else Vector3.RIGHT)
+				else:
+					n.position = lp
+				n.scale = Vector3(1.0, 1.0, lerpf(0.5, 1.3, lk))
+				if fx.t > fx.travel:
+					_fade(n, clampf((fx.t - fx.travel) / maxf(fx.life - fx.travel, 0.01), 0.0, 1.0))
 			"decal":
 				n.visible = fx.t >= 0.0
 				var dk: float = clampf(fx.t / 0.08, 0.0, 1.0)
@@ -3582,7 +3622,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and u0.type in ["tar_shaman", "mara", "club_warrior"]:
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type == "spear_guard" and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
 		elif ev0.e == "ability" and str(ev0.get("type", "")) in ["rain", "quake"]:
@@ -3694,6 +3734,8 @@ func _handle_events() -> void:
 				var u2 = sim.get_unit(ev.id)
 				if u2 != null and u2.type == "club_warrior":
 					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
+				elif u2 != null and u2.type == "spear_guard" and _hq_clips(ev.id):
+					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point
 				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
@@ -4075,6 +4117,111 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 	n.transform.basis = (b0 * Basis(Vector3.RIGHT, q)).scaled(Vector3.ONE * (1.0 - k))
 	if t >= fx.life and fx.has("en") and is_instance_valid(fx.en):
 		(fx.en as Node3D).set_meta("arrows", maxi(0, int((fx.en as Node3D).get_meta("arrows", 1)) - 1))
+
+
+# ---------------------------------------------------------------- Spear Guard (v0.9.22)
+# At full reach (THRUST in tools/blender/hq/anim_spear.py) a narrow golden lance of light flies on from the spear's point
+# to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
+const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
+
+
+## The lance: a long thin double cone, bright at its head, fading to nothing at its tail (head at the origin, along +Z).
+func _lance_mesh() -> ArrayMesh:
+	if _atk_cache.has("lance_mesh"):
+		return _atk_cache["lance_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var head := Vector3.ZERO
+	var tail := Vector3(0, 0, 0.95)
+	var ring := []
+	for i in 4:
+		var a := TAU * i / 4.0 + PI / 4.0
+		ring.append(Vector3(cos(a) * 0.045, sin(a) * 0.045, 0.13))
+	var c_head := Color(1.0, 1.0, 0.9, 1.0)
+	var c_ring := Color(1.0, 0.85, 0.42, 0.85)
+	var c_tail := Color(1.0, 0.62, 0.18, 0.0)
+	for i in 4:
+		var j := (i + 1) % 4
+		for tri in [[head, ring[i], ring[j]], [ring[j], ring[i], tail]]:
+			for v in tri:
+				st.set_color(c_head if v == head else (c_tail if v == tail else c_ring))
+				st.add_vertex(v)
+	var m := st.commit()
+	_atk_cache["lance_mesh"] = m
+	return m
+
+
+func _spear_thrust(u: Dictionary, targets: Array) -> void:
+	var delay := _clip_delay(u.id, ATTACK_FRAME.spear_guard)
+	if delay <= 0.0:
+		delay = 0.08
+	var cap: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	var uid := int(u.id)
+	var i := 0
+	var rest := []
+	for tid in targets:
+		var t := int(tid)
+		if _robot_point(t, 0.0) == Vector3.INF:      # (gone already, e.g. split on death: no lance for it)
+			continue
+		if i >= cap:                                  # (past the cap: the robot is still hit at full reach, no lance)
+			_hold_hit(t, delay)
+			rest.append(t)
+			continue
+		_hold_hit(t, delay + 0.14)
+		_fx_after(delay + 0.01 * i, func() -> void: _spear_lance(uid, t))
+		i += 1
+	if not rest.is_empty():
+		_fx_after(delay, func() -> void:
+			for rt in rest:
+				_land_hit(int(rt), 0.05))
+
+
+## Launched at full reach: from the spear's point (where the turning model holds it now) to the robot.
+func _spear_lance(uid: int, tid: int) -> void:
+	var from := Vector3.INF
+	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+		from = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * GUARD_TIP
+	if from == Vector3.INF:
+		var u = sim.get_unit(uid)
+		if u == null:                                 # (sold mid-thrust)
+			_land_hit(tid, 0.05)
+			return
+		from = _v3(u.pos, 1.0)
+	var h := _hit_height_of(_robot_type(tid))
+	var to := _robot_point(tid, h)
+	if to == Vector3.INF:
+		_land_hit(tid)
+		return
+	var d := to - from
+	var travel := clampf(d.length() / 24.0, 0.03, 0.13)
+	if _fx_room(1) and d.length() > 0.05:
+		var ln := _mi(_lance_mesh(), _atk_mat("lance"), self, from, Vector3.ZERO, Vector3(1.0, 1.0, 0.5))
+		ln.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ln.look_at(to, Vector3.UP if absf(d.normalized().y) < 0.98 else Vector3.RIGHT)
+		effects.append({"node": ln, "t": 0.0, "life": travel + 0.12, "kind": "lance", "from": from, "to": to, "travel": travel,
+			"tid": tid, "h": h})
+	_fx_after(travel, func() -> void: _lance_hit(tid, to, from, h))
+
+
+## The lance strikes: sparks and a flash where the robot is now (`at0` if it's gone), and the hit lands.
+func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
+	var at := _robot_point(tid, h)
+	if at == Vector3.INF:
+		at = at0
+	var dir := (at - from).normalized() if at.distance_to(from) > 0.01 else Vector3.FORWARD
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [4, 3, 1][gl]
+	if _fx_room(n + 1):
+		for k in n:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at - dir * 0.12)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v := (-dir * 0.6 + Vector3(randf_range(-0.9, 0.9), randf_range(0.2, 1.1), randf_range(-0.9, 0.9))).normalized() * randf_range(2.5, 5.0)
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.22, "kind": "spark", "v": v})
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at - dir * 0.1)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.16, "kind": "flash", "s": 0.55})
+	_land_hit(tid, 0.07)
 
 
 func _make_projectile(p: Dictionary) -> Node3D:
