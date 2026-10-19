@@ -1208,4 +1208,5 @@ func _impact(p: Dictionary, direct) -> void:
 			if direct == null or e.id != direct.id:
 				_damage(e, p.damage * (1.0 if direct == null else 0.6), src.dtype, src)
 	events.append({"e": "impact", "pid": p.id, "pos": p.pos, "splash": splash, "crit": p.get("crit", false),
-		"tower": int(src.get("tower_id", -1)), "dtype": str(src.get("dtype", ""))})        # (tower, dtype: for the visuals)
+		"tower": int(src.get("tower_id", -1)), "dtype": str(src.get("dtype", "")),
+		"eid": int(direct.id) if direct != null else -1})        # (tower, dtype, the robot hit: for the visuals)

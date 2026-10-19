@@ -428,6 +428,8 @@ func _build_world() -> void:
 	_build_path_features()
 	if not attract and (_era_index() == 0 or str(sim.hero_id) in ["ugo", "mara"]):
 		_prewarm_attack_fx()
+	if not attract:
+		_prewarm_arrows()
 
 	sel_range = _mi(_cyl(1, 1, 0.02, 48), _mat("range", Color(1, 1, 1, 0.16), {"unshaded": true}), self, Vector3(0, 0.12, 0))
 	sel_range.visible = false
@@ -2549,6 +2551,17 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"clod":                                      # earth thrown up by a smash
 			m.albedo_color = Color(0.42, 0.31, 0.21)
 			m.roughness = 1.0
+		"arrow_spark":                               # a bronze arrowhead striking steel (v0.9.21)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = Color(1.0, 0.9, 0.55)
+		"ember", "fire_flash":                       # a burning arrow's embers and the burst where it lands
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = Color(1.0, 0.5, 0.12) if key == "ember" else Color(1.0, 0.56, 0.2)
+			m.albedo_texture = _mote_tex()
 	_atk_cache[key] = m
 	return m
 
@@ -2677,6 +2690,22 @@ func _prewarm_attack_fx() -> void:
 	var mis: Array = bot.get_meta("body_mis", [])
 	for i in mis.size():
 		(mis[i] as MeshInstance3D).material_overlay = coats[i % coats.size()]
+	_fx_after(0.12, func() -> void:
+		if is_instance_valid(holder):
+			holder.queue_free())
+
+
+## The arrows (v0.9.21): any map can have archers (the Bronze Archer, the Cretan Archer, heroes that shoot arrows), so
+## their meshes and materials are drawn once under the ground at load, like the Stone Age attacks'.
+func _prewarm_arrows() -> void:
+	var holder := Node3D.new()
+	holder.position = Vector3(GROUND_RECT.position.x + GROUND_RECT.size.x * 0.5, -0.6, GROUND_RECT.position.y + GROUND_RECT.size.y * 0.5)
+	add_child(holder)
+	for fire in [false, true]:
+		_mi(_arrow_mesh(fire), null, holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	for key in ["arrow_spark", "ember", "fire_flash"]:
+		var mi := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_fx_after(0.12, func() -> void:
 		if is_instance_valid(holder):
 			holder.queue_free())
@@ -3455,6 +3484,8 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_glob(fx, n)
 			"spike":
 				_tick_spike(fx, n)
+			"stuck":
+				_tick_stuck(fx, n)
 			"decal":
 				n.visible = fx.t >= 0.0
 				var dk: float = clampf(fx.t / 0.08, 0.0, 1.0)
@@ -3722,17 +3753,29 @@ func _handle_events() -> void:
 			"impact":
 				var boulder := false
 				var hot_b := false
+				var arrow := false
 				if proj_nodes.has(ev.pid):
-					boulder = (proj_nodes[ev.pid] as Node3D).has_meta("boulder")
-					hot_b = (proj_nodes[ev.pid] as Node3D).has_meta("hot")
+					var pnode: Node3D = proj_nodes[ev.pid]
+					boulder = pnode.has_meta("boulder")
+					hot_b = pnode.has_meta("hot")
+					if pnode.has_meta("arrow_hq"):
+						arrow = true
+						_arrow_hit(pnode, ev)
+					pnode.queue_free()
+					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
 					var su = sim.get_unit(int(ev.get("tower", -1)))
 					if su != null and (su.type == "boulder_catapult" or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
 						boulder = true
 						hot_b = su.type == "boulder_catapult" and str(ev.get("dtype", "")) == "fire"
-					proj_nodes[ev.pid].queue_free()
-					proj_nodes.erase(ev.pid)
-				if boulder:
+					elif su != null and (su.type == "bronze_archer" or str(su.stats.get("proj", "")) == "arrow"):
+						arrow = true
+						_arrow_hit_unseen(su, ev)
+				if arrow:
+					_sfx("rock_hit", -12.0, 0.25, 0.05)
+					if float(ev.splash) > 0.0 and str(ev.get("dtype", "")) != "fire":
+						_dust_fx(_v3(ev.pos, 0.2), 4, ev.splash)
+				elif boulder:
 					# v0.9.20: the catapult's (and the Boulder Hurler's) boulder smashes down: crater, dust, flying rock
 					_boulder_impact(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))
 					if hot_b:
@@ -3794,6 +3837,246 @@ func _handle_events() -> void:
 	sim.events.clear()
 
 
+# ---------------------------------------------------------------- Bronze Age attacks (v0.9.21)
+# The Bronze Archer looses his arrows from the bow of his HQ model (wherever it is as he lets go). They fly in a
+# shallow arc and stick in the robot they hit, quivering, then drop away (an arrow whose robot died on the way sticks
+# in the ground), and the bronze head strikes sparks. Fire Archer (Path A) arrows burn in flight, trailing embers, and
+# burst into flame where they land. The arrows leave the string at RELEASE in tools/blender/hq/anim_archer.py.
+const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at full draw (model units, Godot axes, Yaw node)
+const ARROW_LEN := 0.78
+
+
+## A real arrow (one cached mesh): a reed shaft, a leaf-shaped bronze head, red and white fletching. The tip is at the
+## origin and the arrow lies along +Z, so a node looking along its flight (-Z) carries it point first.
+func _arrow_mesh(fire: bool) -> ArrayMesh:
+	var key := "arrow_mesh_fire" if fire else "arrow_mesh"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var w := 0.019
+	_arrow_prism(st, 0.11, ARROW_LEN - 0.03, w, Color(0.8, 0.62, 0.36))            # reed shaft
+	_arrow_prism(st, 0.09, 0.135, w * 1.3, Color(0.36, 0.14, 0.08))                # sinew binding behind the head
+	_arrow_prism(st, ARROW_LEN - 0.035, ARROW_LEN, w * 1.3, Color(0.3, 0.1, 0.06))  # nock
+	for i in 3:                                                                    # fletching: two red vanes, one white
+		var a := TAU * i / 3.0 + 0.4
+		var r := Vector3(cos(a), sin(a), 0.0)
+		var col := Color(0.96, 0.94, 0.88) if i == 0 else Color(0.84, 0.15, 0.08)
+		var z0 := ARROW_LEN - 0.22
+		var z1 := ARROW_LEN - 0.045
+		var q := [r * w + Vector3(0, 0, z0), r * 0.046 + Vector3(0, 0, z0 + 0.08), r * 0.066 + Vector3(0, 0, z1), r * w + Vector3(0, 0, z1)]
+		for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			for v in tri:
+				st.set_color(col)
+				st.add_vertex(v)
+	st.generate_normals()
+	var m := st.commit()
+	var sm := StandardMaterial3D.new()
+	sm.vertex_color_use_as_albedo = true
+	sm.roughness = 0.75
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(0, sm)
+	var st2 := SurfaceTool.new()                       # the head: a flat leaf-shaped point with a raised midrib
+	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st2.set_smooth_group(-1)
+	var back := Vector3(0, 0, 0.12)
+	var ring := [Vector3(0.046, 0, 0.068), Vector3(0, 0.016, 0.06), Vector3(-0.046, 0, 0.068), Vector3(0, -0.016, 0.06)]
+	for i in 4:
+		var j := (i + 1) % 4
+		for tri in [[Vector3.ZERO, ring[i], ring[j]], [ring[j], ring[i], back]]:
+			for v in tri:
+				st2.add_vertex(v)
+	st2.generate_normals()
+	st2.commit(m)
+	var hm := StandardMaterial3D.new()
+	if fire:
+		hm.albedo_color = Color(1.0, 0.55, 0.15)
+		hm.emission_enabled = true
+		hm.emission = Color(1.0, 0.42, 0.06)
+		hm.emission_energy_multiplier = 2.5
+	else:
+		hm.albedo_color = Color(0.92, 0.66, 0.3)
+		hm.metallic = 0.7
+		hm.roughness = 0.3
+	hm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(1, hm)
+	_atk_cache[key] = m
+	return m
+
+
+func _arrow_prism(st: SurfaceTool, z0: float, z1: float, w: float, col: Color) -> void:
+	var c := [Vector2(w, 0), Vector2(0, w), Vector2(-w, 0), Vector2(0, -w)]
+	for i in 4:
+		var a: Vector2 = c[i]
+		var b: Vector2 = c[(i + 1) % 4]
+		var q := [Vector3(a.x, a.y, z0), Vector3(b.x, b.y, z0), Vector3(b.x, b.y, z1), Vector3(a.x, a.y, z1)]
+		for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			for v in tri:
+				st.set_color(col)
+				st.add_vertex(v)
+
+
+## Height of a robot's middle (where an arrow strikes it).
+func _hit_height(e) -> float:
+	return _hit_height_of(str(e.type) if e != null else "")
+
+
+func _hit_height_of(type: String) -> float:
+	if not defs.enemies.has(type):
+		return 0.75
+	var d: Dictionary = defs.enemies[type]
+	return float(d.get("bar_h", 1.4)) * 0.5 + (0.9 if d.get("flying", false) else 0.0)
+
+
+## The robot type behind robot id `eid`, also for one already destroyed whose blow-up is held back (`_doomed`).
+func _robot_type(eid: int) -> String:
+	var e = sim._enemy_by_id(eid)
+	if e != null:
+		return str(e.type)
+	if _doomed.has(eid):
+		return str(_doomed[eid].get("type", ""))
+	return ""
+
+
+## An arrow in flight. From the HQ Bronze Archer it starts at his bow and settles onto the sim's projectile as it flies
+## (see _arrow_flight); other archers' arrows start above their tower as before.
+func _arrow_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
+	var fire := dt == "fire"
+	_mi(_arrow_mesh(fire), null, root)
+	root.set_meta("arrow", true)
+	root.set_meta("arrow_hq", true)
+	if fire:
+		_fire_halo(root, 0.34)
+		root.set_meta("fire", true)
+	var e = sim._enemy_by_id(int(p.get("target", -1)))
+	var hit_h := _hit_height(e)
+	var launch := root.position
+	if u != null and u.type == "bronze_archer" and tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("anim") \
+			and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
+		launch = yaw.global_transform * ARCHER_BOW
+	root.position = launch
+	var aim: Vector2 = p.aim
+	root.set_meta("h0", launch.y)
+	root.set_meta("hit_h", hit_h)
+	root.set_meta("off", Vector3(launch.x, 0.0, launch.z) - _v3(p.pos, 0.0))
+	root.set_meta("d0", maxf((aim - (p.pos as Vector2)).length(), 0.5))
+	var tp := _v3(aim, hit_h)
+	var dv := tp - launch
+	if dv.length() > 0.01 and absf(dv.normalized().y) < 0.98:
+		root.look_at(tp, Vector3.UP)
+
+
+## Where an HQ arrow is this frame: on the sim's projectile (moved on by the frame's share of a tick), plus what is
+## left of its offset from the bow, from the bow's height down to the robot's middle, in a shallow arc.
+func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
+	var aim: Vector2 = p.aim
+	var pos: Vector2 = p.pos
+	pos += (aim - pos).limit_length(float(p.speed) * TICK * alpha)
+	var d0: float = pn.get_meta("d0")
+	var k := clampf(1.0 - (aim - pos).length() / d0, 0.0, 1.0)
+	var off: Vector3 = pn.get_meta("off")
+	var y := lerpf(float(pn.get_meta("h0")), float(pn.get_meta("hit_h")), k) + 0.5 * k * (1.0 - k) * minf(d0 / 6.0, 1.0)
+	return _v3(pos, y) + off * (1.0 - k)
+
+
+## A burning arrow trails embers (FULL graphics): about 25 a second while it flies (none once the match has stopped).
+func _arrow_embers(pn: Node3D, moved: float, dt: float) -> void:
+	if Progress.gfx_level() > 0 or moved < 0.004:
+		return
+	var acc: float = float(pn.get_meta("ember_t", 0.0)) + dt
+	if acc < 0.04:
+		pn.set_meta("ember_t", acc)
+		return
+	pn.set_meta("ember_t", acc - 0.04)
+	if not _fx_room(1):
+		return
+	var at := pn.global_transform * Vector3(randf_range(-0.02, 0.02), randf_range(-0.02, 0.02), randf_range(0.05, 0.2))
+	var em := _mi(_fx_mesh("mote"), _atk_mat("ember"), self, at, Vector3.ZERO, Vector3.ONE * randf_range(0.5, 0.9))
+	em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": em, "t": 0.0, "life": randf_range(0.25, 0.4), "kind": "spark",
+		"v": Vector3(randf_range(-0.4, 0.4), randf_range(0.6, 1.4), randf_range(-0.4, 0.4))})
+
+
+## An arrow lands: it sticks in the robot it hit (quivering, then it sinks away) or, when that robot is gone, in the
+## ground. The bronze head strikes a few sparks; a burning arrow bursts into flame (and sets the ground alight where
+## the Fire Archer's arrows splash).
+func _arrow_hit(pn: Node3D, ev: Dictionary) -> void:
+	_arrow_hit_at(-pn.global_transform.basis.z, pn.has_meta("fire"), ev)
+
+
+## The same for an arrow that flew and landed within one frame (no node was made): it came from its tower.
+func _arrow_hit_unseen(su: Dictionary, ev: Dictionary) -> void:
+	var d := _v3(ev.pos, 0.0) - _v3(su.pos, 0.0)
+	var flat := Vector3(d.x, 0.0, d.z).normalized() if d.length() > 0.01 else Vector3.FORWARD
+	_arrow_hit_at((flat + Vector3(0, -0.12, 0)).normalized(), str(ev.get("dtype", "")) == "fire", ev)
+
+
+func _arrow_hit_at(dir: Vector3, fire: bool, ev: Dictionary) -> void:
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	if dir.length() < 0.5:
+		dir = Vector3.FORWARD
+	dir = dir.normalized()
+	var life: float = [1.1, 0.75, 0.0][gl]
+	var eid := int(ev.get("eid", -1))
+	var at := _v3(ev.pos, 0.0)
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	flat = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
+	if eid >= 0 and enemy_nodes.has(eid) and is_instance_valid(enemy_nodes[eid]):
+		var en: Node3D = enemy_nodes[eid]
+		var etype := _robot_type(eid)
+		var size := float(defs.enemies[etype].get("size", 0.5)) if defs.enemies.has(etype) else 0.5
+		var side := flat.cross(Vector3.UP)
+		at = en.global_position + Vector3(0, _hit_height_of(etype) + randf_range(-0.12, 0.12), 0) - flat * size * 0.15 \
+			+ side * randf_range(-0.12, 0.12)
+		# (not into a robot still growing out of the portal: the arrow would grow with it; nor into one that cloaks:
+		# its ghost materials don't cover the arrow, which would give it away)
+		if life > 0.0 and int(en.get_meta("arrows", 0)) < 3 and not en.has_meta("emerge") and not en.has_meta("ghost") \
+				and _fx_room(1):
+			var d := (dir + Vector3(randf_range(-0.15, 0.15), randf_range(-0.1, 0.1), randf_range(-0.15, 0.15))).normalized()
+			var a := _mi(_arrow_mesh(fire), null, en)
+			a.global_transform = Transform3D(Basis.looking_at(d, Vector3.UP if absf(d.y) < 0.98 else Vector3.RIGHT), at)
+			a.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			en.set_meta("arrows", int(en.get_meta("arrows", 0)) + 1)
+			effects.append({"node": a, "t": 0.0, "life": life, "kind": "stuck", "b0": a.transform.basis, "en": en})
+	else:
+		at.y = 0.0
+		if life > 0.0 and _fx_room(1):
+			var gd := (flat * 0.7 + Vector3(0, -0.72, 0)).normalized()
+			var g := _mi(_arrow_mesh(fire), null, self)
+			g.global_transform = Transform3D(Basis.looking_at(gd, Vector3.UP), at + gd * 0.12)
+			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": g, "t": 0.0, "life": life * 1.3, "kind": "stuck", "b0": g.transform.basis})
+		_dust_fx(at + Vector3(0, 0.08, 0), 2, 0.3)
+	var n: int = [3, 2, 1][gl]
+	if _fx_room(n):
+		for i in n:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at - dir * 0.08)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v := (-dir + Vector3(randf_range(-0.8, 0.8), randf_range(0.3, 1.1), randf_range(-0.8, 0.8))).normalized() * randf_range(2.5, 4.5)
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v})
+	if fire:
+		if _fx_room(1):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, at)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.22, "kind": "flash", "s": 0.6})
+		if float(ev.get("splash", 0.0)) > 0.0:
+			_fire_splash(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.5, 1.2))
+
+
+## A stuck arrow quivers (pivoting on its embedded tip), holds, then sinks away into what it hit.
+func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
+	var t: float = fx.t
+	var b0: Basis = fx.b0
+	var q := 0.16 * sin(t * 60.0) * exp(-t * 9.0)
+	var k := clampf((t - fx.life * 0.8) / (fx.life * 0.2), 0.0, 1.0)
+	n.transform.basis = (b0 * Basis(Vector3.RIGHT, q)).scaled(Vector3.ONE * (1.0 - k))
+	if t >= fx.life and fx.has("en") and is_instance_valid(fx.en):
+		(fx.en as Node3D).set_meta("arrows", maxi(0, int((fx.en as Node3D).get_meta("arrows", 1)) - 1))
+
+
 func _make_projectile(p: Dictionary) -> Node3D:
 	var src: Dictionary = p.src
 	var u = sim.get_unit(int(src.get("tower_id", -1)))
@@ -3807,11 +4090,7 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_proj_model(root, pj, dt)
 		return root
 	if utype == "bronze_archer" or pj == "arrow":
-		var shaft := _mat("arrow_fire" if dt == "fire" else "arrow", Color(1, 0.5, 0.1) if dt == "fire" else Color(0.45, 0.3, 0.15),
-			{"emit": Color(1, 0.4, 0.05), "emit_e": 2.0} if dt == "fire" else {})
-		_mi(_box(0.05, 0.05, 0.6), shaft, root)
-		_mi(_cyl(0.0, 0.06, 0.14, 4), _mat("arrow_tip", Color(0.7, 0.45, 0.18), {"metal": 0.5}), root, Vector3(0, 0, -0.34), Vector3(-PI * 0.5, 0, 0))
-		root.set_meta("arrow", true)
+		_arrow_proj(root, p, u, dt)            # v0.9.21: a real arrow, loosed from the HQ archer's bow
 		return root
 	if utype == "tarek":
 		_mi(_box(0.26, 0.16, 0.16), _mat("hot_hammer", Color(0.9, 0.45, 0.15), {"emit": Color(1, 0.4, 0.1), "emit_e": 1.2}), root)
@@ -4227,7 +4506,11 @@ func _sync_visuals(alpha: float) -> void:
 			continue
 		var pn: Node3D = proj_nodes[p.id]
 		var newp: Vector3
-		if p.kind == "lob":
+		if pn.has_meta("off"):
+			newp = _arrow_flight(pn, p, alpha)
+			if pn.has_meta("fire"):
+				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
+		elif p.kind == "lob":
 			var k: float = clampf((p.t + alpha * TICK) / p.flight, 0.0, 1.0)
 			newp = _v3(p.start.lerp(p.aim, k), 1.0 + 3.4 * 4.0 * k * (1.0 - k))
 		else:

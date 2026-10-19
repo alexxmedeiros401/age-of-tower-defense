@@ -17,6 +17,8 @@ sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 arm.animation_data.action = bpy.data.actions[ACTION]
 sc.frame_set(FRAME)
+if "--yaw" in ARGS and bpy.data.objects.get("Yaw") is not None:
+    bpy.data.objects["Yaw"].rotation_euler[2] = math.radians(float(ARGS[ARGS.index("--yaw") + 1]))   # turn the unit (an archer in profile)
 look.setup(samples=96, res=(512, 512), transparent=True)
 cam = bpy.data.objects.new("IconCam", bpy.data.cameras.new("IconCam"))
 sc.collection.objects.link(cam)

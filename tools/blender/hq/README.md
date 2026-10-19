@@ -1,7 +1,7 @@
 # HQ model pipeline
 
 Sculpted, rigged, animated and texture-baked game models made entirely in code with Blender (bpy) + numpy.
-Models so far: the four Stone Age towers (`assets/towers/rock_slinger.glb`, `club_warrior.glb`, `tar_shaman.glb`,
+Models so far: the Bronze Archer (`assets/towers/bronze_archer.glb`, v0.9.21, the first of the Bronze Age), the four Stone Age towers (`assets/towers/rock_slinger.glb`, `club_warrior.glb`, `tar_shaman.glb`,
 `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`, `mara.glb`), the five Stone Age robots
 (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`, `prime_walker.glb`, v0.9.18), the three Stone Age
 map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`, `stone_decor_volcano.glb`) and the time portal
@@ -15,6 +15,7 @@ map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`, `stone_decor_v
 | Boulder Catapult | `catapult` | `catapult_base` | `anim_catapult` (Idle, Combat, Attack) |
 | Ugo (hero) | `ugo` | `ugo_base` | `anim_ugo` (Idle, Whirl, Throw, Ability, Cheer) |
 | Mara (hero) | `mara` | `mara_base` | `anim_mara` (Idle, Combat, Attack, Ability, Cheer) |
+| Bronze Archer (v0.9.21) | `archer` | `archer_base` | `anim_archer` (Idle, Combat, Attack) |
 
 ## Steps
 
@@ -138,6 +139,13 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   `anim_mara.py`: staff planted / calling the earth / Attack (v0.9.20): crouches and sweeps her palm over the earth,
   then flings it up and out to her side, the spikes burst up at `RELEASE` (frame 10) / Earthquake (both hands, staff
   driven down in a deep crouch) / Cheer.
+  `anim_archer.py` (v0.9.21): bow at his side / at full draw / Attack: the arrows leave the string at `RELEASE`
+  (frame 1), he reaches over his shoulder into the quiver, swings a fresh pair over his head onto the bow and draws
+  again (the clip ends in the Combat pose). The bow is rigid in his left fist ("frame" aim: its axis upright, its back
+  to the target); the grip is placed where the bow arm is almost straight (`aim_geometry`), the drawing fingers under
+  his chin. The string is two extra bones (`string_top`, `string_bot`, children of the bow hand) aimed from the posed
+  tips at the drawing fingers and stretched along their length (a second solve once the tips are known); the nocked
+  pair rides the `arrow` prop bone, aimed through the arrow rest, its scale (constant keys) hiding it after the release.
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
   Attack) on fire, speed follows
   game speed and fire rate, frozen when stunned or paused), `_hq_play` (hero Ability / Cheer one-shots),
@@ -162,6 +170,13 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   the glTF exporter warn that the mesh is not valid).
 - **Texture imports:** after `godot --import`, set every extracted texture's `.import` to `compress/mode=2`,
   `process/size_limit=1024` and `compress/normal_map` 1 for normal maps, 2 for the others, then import again.
+- **Memory, again:** an `Inter` takes its bounds from its first shape. Put the small shape first (a disc before the
+  sphere its dome is cut from), or the mesher walks the big shape's whole box: a shield's 1 m sphere meant 300 million
+  voxels and the sculpt was killed, taking a bake running beside it down too.
+- **Materials added for the Bronze Age** (`mats.py`): `bronze`, `gold`, `linen`, `wool`, `bow`, `arrows`, `quiver`,
+  `mudbrick` (brick courses from object coordinates, glazed bands, whitewash), `terracotta`, `reed`, `coals`,
+  `limestone`, `plaster`, `spear_shaft`, `shield_hide`; `skin` labels can take a strength (a shadow of stubble).
+- `icon_hq.py --yaw DEG` turns the unit for its shop icon (the archer is drawn in profile).
 - **Materials added for the Stone Age set** (`mats.py`): `wolf`, `club_wood`, `flint`, `horn`, `robe`, `tar`, `quartz`,
   `glow_ball`, plus extra skin labels (scars, lashes, tar) and light-hair options for `hair`.
 - **In game:** the HQ outline is a shader pass pushed slightly away from the camera, so it shows round the silhouette and

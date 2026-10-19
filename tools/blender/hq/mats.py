@@ -206,9 +206,11 @@ def skin(name="HQ_Skin", base=(0.84, 0.6, 0.45), ruddy=(0.86, 0.47, 0.37), lips=
     pm = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 45.0, 3.0, 0.6), 0.3, 0.7, 0.72, 0.97))
     c = g.mix(pm, c, g.rgb(paint))                                         # war paint
     rough = g.mixf(g.reg(2), g.mixf(g.reg(5), 0.55, 0.8), 0.4)
-    for lab, col, rgh in extra:
-        c = g.mix(g.reg(lab), c, g.rgb(col))
-        rough = g.mixf(g.reg(lab), rough, rgh)
+    for e in extra:                                                        # (label, colour, roughness[, strength])
+        lab, col, rgh = e[:3]
+        m = g.reg(lab) if len(e) < 4 else g.math("MULTIPLY", g.reg(lab), e[3])
+        c = g.mix(m, c, g.rgb(col))
+        rough = g.mixf(m, rough, rgh)
     h = g.math("ADD", g.math("MULTIPLY", g.noise(p, 180.0, 1.0, 0.5), 0.4), g.math("MULTIPLY", strands, g.reg(4)))
     return g.finish(c, rough, g.bump(h, 0.12, 0.002))
 
@@ -665,6 +667,230 @@ def quartz(name="HQ_Quartz", col=(0.62, 0.36, 0.92), strength=1.2):
     g.put(sep.inputs[0], p)
     c = g.mix(g.remap(g.noise(p, 18.0, 2.0), 0.35, 0.65, 0.0, 1.0), g.rgb(col), g.rgb((0.84, 0.66, 1.0)))
     return g.finish(c, 0.12, emit=c, emit_strength=strength)
+
+
+# ======================================================================================= Bronze Age (v0.9.21)
+def bronze(name="HQ_Bronze", base=(0.7, 0.44, 0.19), hi=(0.98, 0.8, 0.5), dark=(0.3, 0.17, 0.08), patina=(0.3, 0.56, 0.48)):
+    """Polished bronze, hand-painted: warm golden brown, bright on edges and ridges and on faces turned to the sky, dark in
+    the recesses, a little green patina in the deepest crevices, fine hammer marks. (Baked: there is no metal channel.)"""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1.0, x * 1.15) for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), c, g.rgb(hi))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), c, g.rgb(dark))
+    pat = g.math("MULTIPLY", g.smooth(pt, 0.46, 0.41), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+    c = g.mix(g.math("MULTIPLY", pat, 0.7), c, g.rgb(patina))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    c = g.mix(g.math("MULTIPLY", g.smooth(nz.outputs["Z"], 0.3, 0.95), 0.28), c, g.rgb(hi))
+    ham = g.voronoi(p, 90.0, 1.0, "F1", "Distance")
+    h = g.math("ADD", g.math("MULTIPLY", ham, 0.3), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
+    return g.finish(c, g.mixf(pat, 0.3, 0.7), g.bump(h, 0.12, 0.002))
+
+
+def gold(name="HQ_Gold"):
+    return bronze(name, base=(0.86, 0.64, 0.2), hi=(1.0, 0.92, 0.62), dark=(0.42, 0.26, 0.06), patina=(0.62, 0.48, 0.16))
+
+
+def linen(name="HQ_Linen", base=(0.93, 0.9, 0.82), border=(0.74, 0.13, 0.08), stripe=(0.16, 0.3, 0.64)):
+    """Bleached linen: off-white with a fine weave, grey-ochre in the folds; label 5 = a woven red border, 6 = a blue stripe."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 420.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 420.0, 0.0, 0.0, "BANDS", "Z"))
+    c = g.mix(g.remap(g.noise(p, 8.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb((0.85, 0.81, 0.71)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.49, 0.43), 0.55), c, g.rgb((0.6, 0.56, 0.48)))
+    bc = g.mix(g.math("MULTIPLY", g.smooth(g.wave(p, 160.0, 0.0, 0.0, "BANDS", "Z"), 0.4, 0.6), 0.35), g.rgb(border), g.rgb((0.95, 0.75, 0.3)))
+    c = g.mix(g.reg(5), c, bc)
+    c = g.mix(g.reg(6), c, g.rgb(stripe))
+    return g.finish(c, 0.86, g.bump(weave, 0.12, 0.0012))
+
+
+def bow(name="HQ_Bow"):
+    """Composite bow: dark red-brown lacquered limbs with a cream horn belly (label 7), red cord wrapped round the grip
+    (5), bronze tip caps (6)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(g.scale_vec(p, (25.0, 25.0, 25.0)), 1.0, 2.0), g.rgb((0.32, 0.12, 0.07)), g.rgb((0.48, 0.2, 0.11)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.5), c, g.rgb((0.66, 0.36, 0.2)))
+    horn = g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.9, 0.84, 0.68)), g.rgb((0.74, 0.64, 0.46)))
+    c = g.mix(g.reg(7), c, horn)
+    tw = g.wave(p, 320.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", tw, 0.6), g.rgb((0.78, 0.15, 0.09)), g.rgb((0.46, 0.07, 0.05))))
+    c = g.mix(g.reg(6), c, g.rgb((0.9, 0.64, 0.32)))
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(5), 0.32, 0.8), 0.28)
+    return g.finish(c, rough, g.bump(g.math("MULTIPLY", tw, g.reg(5)), 0.3, 0.002))
+
+
+def arrows(name="HQ_Arrows"):
+    """Reed shafts (label 0 / 7), leaf-shaped bronze heads (6), red and white fletching (8)."""
+    g = new(name)
+    p = g.obj()
+    shaft = g.mix(g.noise(g.scale_vec(p, (70.0, 70.0, 12.0)), 1.0, 2.0), g.rgb((0.76, 0.6, 0.34)), g.rgb((0.6, 0.44, 0.24)))
+    c = shaft
+    c = g.mix(g.reg(6), c, g.rgb((0.9, 0.62, 0.3)))
+    split = g.smooth(g.noise(p, 22.0, 1.0), 0.47, 0.53)
+    c = g.mix(g.reg(8), c, g.mix(split, g.rgb((0.86, 0.14, 0.08)), g.rgb((0.97, 0.95, 0.9))))
+    return g.finish(c, g.mixf(g.reg(6), 0.62, 0.3))
+
+
+def quiver(name="HQ_Quiver", base=(0.56, 0.16, 0.09)):
+    """Red-dyed leather quiver: ochre bands (label 5), a bronze rim (6), the arrows' reed shafts (7) and fletching (8)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 9.0, 3.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.3) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.55), c, g.rgb((0.78, 0.45, 0.3)))
+    scr = g.smooth(g.noise(g.scale_vec(p, (120.0, 120.0, 30.0)), 1.0, 2.0), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb((0.22, 0.06, 0.04)))
+    c = g.mix(g.reg(5), c, g.rgb((0.9, 0.62, 0.2)))
+    c = g.mix(g.reg(6), c, g.rgb((0.88, 0.6, 0.3)))
+    c = g.mix(g.reg(7), c, g.rgb((0.74, 0.58, 0.33)))
+    split = g.smooth(g.noise(p, 22.0, 1.0), 0.47, 0.53)
+    c = g.mix(g.reg(8), c, g.mix(split, g.rgb((0.86, 0.14, 0.08)), g.rgb((0.97, 0.95, 0.9))))
+    return g.finish(c, g.mixf(g.reg(6), 0.6, 0.3), g.bump(g.math("ADD", g.noise(p, 90.0, 3.0), scr), 0.2, 0.003))
+
+
+def mudbrick(name="HQ_Mudbrick", base=(0.72, 0.56, 0.38), mortar=(0.56, 0.42, 0.28), glaze=(0.16, 0.36, 0.7), course=0.085, brick=0.2):
+    """Sun-dried mud brick: courses of bricks (staggered joints sunk a little in the normal map), straw flecks, weathered
+    edges; label 5 = a band of blue glazed bricks, 6 = yellow-white glaze (rosettes, trim), 7 = whitewash plaster."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    z = sep.outputs["Z"]
+    row = g.math("FLOOR", g.math("DIVIDE", z, course))
+    fz = g.math("SUBTRACT", g.math("DIVIDE", z, course), row)
+    run = g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), g.math("MULTIPLY", g.math("MODULO", row, 2.0), brick * 0.5))
+    fx = g.math("FRACT", g.math("DIVIDE", run, brick))
+    jz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
+    jx = g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx))
+    joint = g.math("MAXIMUM", g.math("SUBTRACT", 1.0, g.smooth(jz, 0.04, 0.12)), g.math("SUBTRACT", 1.0, g.smooth(jx, 0.02, 0.06)))
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.12) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 45.0, 2.0), 0.6, 0.68), 0.35), c, g.rgb((0.86, 0.74, 0.46)))   # straw
+    c = g.mix(joint, c, g.rgb(mortar))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.45), c, g.rgb((0.84, 0.72, 0.54)))
+    gl = g.mix(g.noise(p, 20.0, 2.0), g.rgb(glaze), g.rgb(tuple(min(1, x * 1.35) for x in glaze)))
+    c = g.mix(g.math("MULTIPLY", g.reg(5), g.math("SUBTRACT", 1.0, g.math("MULTIPLY", joint, 0.7))), c, gl)
+    c = g.mix(g.reg(6), c, g.rgb((0.96, 0.86, 0.5)))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), 0.9), c, g.rgb((0.9, 0.86, 0.76)))
+    rough = g.mixf(g.math("MAXIMUM", g.reg(5), g.reg(6)), 0.88, 0.25)
+    h = g.math("ADD", g.math("MULTIPLY", joint, -0.6), g.math("MULTIPLY", g.noise(p, 30.0, 3.0), 0.35))
+    return g.finish(c, rough, g.bump(h, 0.35, 0.006))
+
+
+def terracotta(name="HQ_Terracotta", base=(0.72, 0.36, 0.2), paint=(0.15, 0.1, 0.08)):
+    """Fired clay: orange-red with darker firing clouds, pale on worn rims; label 5 = black painted bands."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 4.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb((0.58, 0.28, 0.16)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.5), c, g.rgb((0.86, 0.6, 0.42)))
+    c = g.mix(g.reg(5), c, g.rgb(paint))
+    return g.finish(c, 0.7, g.bump(g.noise(p, 60.0, 2.0), 0.1, 0.002))
+
+
+def reed(name="HQ_Reed", base=(0.66, 0.6, 0.36)):
+    """Dried reed bundles and mats: pale straw with fine lengthwise fibres and darker bindings (label 5)."""
+    g = new(name)
+    p = g.obj()
+    fib = g.wave(p, 220.0, 2.0, 1.0, "BANDS", "X")
+    c = g.mix(g.math("MULTIPLY", fib, 0.5), g.rgb(base), g.rgb((0.48, 0.42, 0.24)))
+    c = g.mix(g.reg(5), c, g.rgb((0.36, 0.22, 0.12)))
+    return g.finish(c, 0.8, g.bump(fib, 0.25, 0.002))
+
+
+def coals(name="HQ_Coals"):
+    """Burning charcoal: black lumps split by glowing orange cracks, ash-grey on the edges (the glow is painted in)."""
+    g = new(name)
+    p = g.obj()
+    cr = g.voronoi(p, 45.0, 1.0, "DISTANCE_TO_EDGE", "Distance")
+    hot = g.math("MULTIPLY", g.smooth(cr, 0.06, 0.0), g.smooth(g.noise(p, 9.0, 2.0), 0.4, 0.6))
+    c = g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.07, 0.06, 0.06)), g.rgb((0.16, 0.14, 0.13)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.6), c, g.rgb((0.5, 0.48, 0.46)))
+    c = g.mix(hot, c, g.mix(g.noise(p, 20.0, 1.0), g.rgb((1.0, 0.36, 0.06)), g.rgb((1.0, 0.72, 0.2))))
+    return g.finish(c, 0.9, g.bump(g.math("MULTIPLY", cr, 2.0), 0.3, 0.003))
+
+
+def wool(name="HQ_Wool", base=(0.66, 0.12, 0.08), border=(0.92, 0.86, 0.72), stripe=(0.12, 0.11, 0.14)):
+    """Dyed wool: a coarse weave, darker in the folds, lighter fuzz on the ridges; label 5 = a woven border with a
+    zigzag, 6 = a dark stripe."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 260.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 260.0, 0.0, 0.0, "BANDS", "Z"))
+    dark = tuple(x * 0.72 for x in base)
+    c = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(dark))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.49, 0.43), 0.6), c, g.rgb(tuple(x * 0.55 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.35), c, g.rgb(tuple(min(1, x * 1.3 + 0.05) for x in base)))
+    zz = g.smooth(g.wave(p, 90.0, 0.0, 0.0, "BANDS", "DIAGONAL", "TRI"), 0.45, 0.55)
+    bc = g.mix(g.math("MULTIPLY", zz, 0.5), g.rgb(border), g.rgb(tuple(x * 0.8 for x in border)))
+    c = g.mix(g.reg(5), c, bc)
+    c = g.mix(g.reg(6), c, g.rgb(stripe))
+    return g.finish(c, 0.92, g.bump(weave, 0.18, 0.0015))
+
+
+def spear_shaft(name="HQ_Spear"):
+    """Ash spear shaft (pale wood, fine grain along it), red cord binding (label 5), bronze head and butt (6)."""
+    g = new(name)
+    p = g.obj()
+    grain = g.noise(g.scale_vec(p, (70.0, 70.0, 6.0)), 1.0, 3.0, 0.6)
+    c = g.mix(g.remap(grain, 0.3, 0.7, 0.0, 1.0), g.rgb((0.62, 0.45, 0.28)), g.rgb((0.46, 0.32, 0.19)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.74, 0.58, 0.4)))
+    tw = g.wave(p, 300.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", tw, 0.6), g.rgb((0.8, 0.16, 0.09)), g.rgb((0.5, 0.08, 0.05))))
+    pt = g.geo("Pointiness")
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.76, 0.5, 0.22)), g.rgb((1.0, 0.84, 0.54)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), br, g.rgb((0.34, 0.2, 0.09)))
+    c = g.mix(g.reg(6), c, br)
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(5), 0.7, 0.85), 0.28)
+    return g.finish(c, rough, g.bump(g.math("ADD", grain, g.math("MULTIPLY", tw, g.reg(5))), 0.2, 0.002))
+
+
+def shield_hide(name="HQ_Shield"):
+    """A hide shield: cream ox-hide stretched on a frame (mottled, a little translucent-looking at the edges), red
+    paint (label 5) with brush grain, bronze rim, boss and studs (6), a dark wooden grip (7)."""
+    g = new(name)
+    p = g.obj()
+    hide = g.mix(g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.9, 0.82, 0.64)), g.rgb((0.78, 0.66, 0.46)))
+    spots = g.smooth(g.noise(p, 3.2, 2.0), 0.6, 0.66)
+    c = g.mix(g.math("MULTIPLY", spots, 0.45), hide, g.rgb((0.55, 0.38, 0.24)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.49, 0.44), 0.4), c, g.rgb((0.5, 0.4, 0.28)))
+    brush = g.noise(g.scale_vec(p, (120.0, 30.0, 120.0)), 1.0, 2.0)
+    paint = g.mix(g.math("MULTIPLY", g.remap(brush, 0.3, 0.7, 0.0, 1.0), 0.35), g.rgb((0.74, 0.12, 0.07)), g.rgb((0.56, 0.07, 0.04)))
+    c = g.mix(g.reg(5), c, paint)
+    pt = g.geo("Pointiness")
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.78, 0.52, 0.22)), g.rgb((1.0, 0.85, 0.55)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.55), br, g.rgb((0.34, 0.2, 0.09)))
+    c = g.mix(g.reg(6), c, br)
+    c = g.mix(g.reg(7), c, g.rgb((0.34, 0.21, 0.12)))
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(5), 0.78, 0.55), 0.26)
+    return g.finish(c, rough, g.bump(g.math("ADD", g.noise(p, 70.0, 2.0), g.math("MULTIPLY", brush, g.reg(5))), 0.12, 0.002))
+
+
+def limestone(name="HQ_Limestone"):
+    """Dressed limestone: warm sand colour, darker weathering in joints and hollows, pale chipped edges, fine pits."""
+    g = new(name)
+    p = g.obj()
+    macro = g.noise(p, 3.0, 3.0, 0.55)
+    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb((0.8, 0.71, 0.55)), g.rgb((0.88, 0.8, 0.65)))
+    pits = g.smooth(g.noise(p, 80.0, 2.0, 0.6), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", pits, 0.4), c, g.rgb((0.56, 0.48, 0.36)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.7), c, g.rgb((0.46, 0.39, 0.29)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.6), c, g.rgb((0.95, 0.9, 0.78)))
+    stain = g.smooth(g.noise(p, 1.5, 2.0), 0.55, 0.7)
+    c = g.mix(g.math("MULTIPLY", stain, 0.25), c, g.rgb((0.6, 0.55, 0.42)))
+    h = g.math("ADD", g.math("MULTIPLY", pits, -0.5), g.noise(p, 18.0, 4.0, 0.6))
+    return g.finish(c, 0.85, g.bump(h, 0.3, 0.005))
+
+
+def plaster(name="HQ_Plaster", base=(0.94, 0.91, 0.84), paint=(0.72, 0.14, 0.08)):
+    """Lime plaster: off-white, faint brush marks and grime in the hollows; label 5 = a red painted band."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb((0.84, 0.8, 0.7)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.49, 0.43), 0.5), c, g.rgb((0.6, 0.55, 0.46)))
+    brush = g.noise(g.scale_vec(p, (60.0, 60.0, 12.0)), 1.0, 2.0)
+    c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", g.remap(brush, 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb(paint), g.rgb(tuple(x * 0.8 for x in paint))))
+    return g.finish(c, 0.8, g.bump(g.math("ADD", brush, g.noise(p, 50.0, 2.0)), 0.12, 0.002))
 
 
 def outline_mat():
