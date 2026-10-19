@@ -75,10 +75,12 @@ def _wprof(s, W0):
     return W0 * a * np.clip(1 - s ** 2.2, 0, 1) ** 0.7
 
 
-def _half_blade(p0, t, q, L, s0, s1, Lf, W0, teeth, th, sp=0.075, slit=0.006):
+def _half_blade(p0, t, q, L, s0, s1, Lf, W0, teeth, th, sp=0.085, groove=0.008, depth=0.5):
     """One straight piece of a frond's half-blade: from p0 along t (length L), reaching out along q from the rib to a
-    serrated edge (the frond's width profile at s0..s1, `teeth` leaflet tips along the frond), `th` thick, with slits
-    between the leaflets from the edge two thirds of the way in, leaning toward the tip."""
+    serrated edge (the frond's width profile at s0..s1, `teeth` leaflet tips along the frond), `th` thick, with grooves
+    between the leaflets in both faces from the rib out to the edge, leaning toward the tip. (Grooves, not slits cut
+    through: slits made a comb of up to a hundred loose bits per palm that the decimator could not bring under 5k
+    triangles; grooves keep each frond one closed piece and still bake as the lines between the leaflets.)"""
     m = unit(np.cross(t, q))
     p0f, tf, qf, mf = (x.astype(F32) for x in (p0, t, q, m))
 
@@ -90,8 +92,8 @@ def _half_blade(p0, t, q, L, s0, s1, Lf, W0, teeth, th, sp=0.075, slit=0.006):
         W = _wprof(s, W0) * (0.72 + 0.28 * saw)
         d = np.maximum(np.maximum(np.maximum(-x - 0.012, x - L - 0.012), np.maximum(-y - 0.008, y - W)), np.abs(z) - th)
         g = ((s * Lf - y * 0.8) / sp) % 1.0
-        ds = np.maximum(np.abs(g - 0.5) * sp - slit, 0.36 * W - y)
-        return np.maximum(d, -ds).astype(F32)
+        dg = np.maximum(np.maximum(np.abs(g - 0.5) * sp - groove, 0.12 * W - y), th * (1.0 - depth) - np.abs(z))
+        return np.maximum(d, -dg).astype(F32)
     Wm = W0 * 1.02
     lo, hi = box_bounds([p0 + t * a + q * b + m * c for a in (-0.02, L + 0.02) for b in (-0.02, Wm) for c in (-th - 0.01, th + 0.01)], 0.01)
     return Func(fn, lo, hi)
@@ -160,7 +162,7 @@ def palm(h=3.0, lean=0.3, seed=0, n_fronds=11, dates=True, young=False):
 
     blades, ribs = Field("Fronds"), Field("Ribs")
     s = h / 3.0
-    th = max(0.009, fine(0.0058, 0.011) * 0.9)
+    th = max(0.011, fine(0.0058, 0.011) * 1.0)
     golden = math.pi * (3 - math.sqrt(5))
     for i in range(n_fronds):
         u = i / max(n_fronds - 1, 1)                    # 0: the top fronds (rising), 1: the lowest (drooping)
