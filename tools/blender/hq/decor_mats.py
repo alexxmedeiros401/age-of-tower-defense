@@ -249,3 +249,285 @@ def turf(name="DK_Turf", theme="meadow"):
 def glow(name, col, strength=2.5):
     g = new(name)
     return g.finish(g.rgb(col), 0.3, emit=g.rgb(col), emit_strength=strength)
+
+
+# ------------------------------------------------------------------------------------------------ Bronze Age (v0.9.28)
+def _z(g):
+    s = g.node("ShaderNodeSeparateXYZ")
+    g.put(s.inputs[0], g.obj())
+    return s.outputs["Z"]
+
+
+def palm_bark(name="DK_PalmBark"):
+    """Date palm trunk: grey-tan boots of old leaf bases (the sculpt's criss-cross scales), dark fibre in the gaps
+    between them, sun-bleached rims."""
+    g = new(name)
+    p = g.obj()
+    fib = g.noise(g.scale_vec(p, (45.0, 45.0, 7.0)), 1.0, 3.0, 0.6)
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.4, 0.31, 0.21)), g.rgb((0.56, 0.45, 0.32)))
+    c = g.mix(g.math("MULTIPLY", g.remap(fib, 0.3, 0.7, 0.0, 1.0), 0.4), c, g.rgb((0.28, 0.2, 0.13)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.85), c, g.rgb((0.14, 0.09, 0.06)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.55), c, g.rgb((0.74, 0.66, 0.52)))
+    return g.finish(c, 0.88, g.bump(fib, 0.45, 0.004))
+
+
+def frond(name="DK_Frond", base=(0.16, 0.38, 0.11), hi=(0.4, 0.62, 0.2), dry=(0.66, 0.54, 0.26)):
+    """Palm leaflets: deep green, brighter where they face the sky and along the edges, dark between the leaflets,
+    the odd dry yellow-brown patch."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 2.5, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.3) for x in base)))
+    c = g.mix(g.math("MULTIPLY", _up(g, 0.15, 0.9), 0.5), c, g.rgb(hi))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.45), c, g.rgb(tuple(min(1, x * 1.25) for x in hi)))
+    streak = g.noise(g.scale_vec(p, (30.0, 30.0, 30.0)), 1.0, 2.0)
+    c = g.mix(g.math("MULTIPLY", g.remap(streak, 0.3, 0.7, 0.0, 1.0), 0.22), c, g.rgb(tuple(x * 0.7 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 1.4, 2.0), 0.66, 0.74), 0.85), c, g.rgb(dry))
+    ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
+    ao.inputs["Distance"].default_value = 0.2
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.75), c, g.rgb((0.03, 0.1, 0.04)))
+    return g.finish(c, 0.62, g.bump(streak, 0.25, 0.003))
+
+
+def frond_rib(name="DK_FrondRib"):
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 8.0, 2.0), g.rgb((0.6, 0.6, 0.26)), g.rgb((0.44, 0.48, 0.18)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.78, 0.76, 0.42)))
+    return g.finish(c, 0.6)
+
+
+def dates(name="DK_Dates"):
+    """Ripe dates: amber to deep red-brown, glossy, dark between the fruit."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 25.0, 2.0), g.rgb((0.86, 0.46, 0.1)), g.rgb((0.56, 0.18, 0.05)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.49, 0.43), 0.7), c, g.rgb((0.22, 0.07, 0.03)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((1.0, 0.68, 0.3)))
+    return g.finish(c, 0.35)
+
+
+def papyrus(name="DK_Papyrus", base=(0.26, 0.48, 0.14), hi=(0.48, 0.66, 0.22)):
+    """Papyrus and reed stems: green with fine lengthwise fibres, brown and wet at the foot."""
+    g = new(name)
+    p = g.obj()
+    fib = g.noise(g.scale_vec(p, (70.0, 70.0, 4.0)), 1.0, 2.0)
+    c = g.mix(g.remap(fib, 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(hi))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb(tuple(min(1, x * 1.3) for x in hi)))
+    foot = g.math("SUBTRACT", 1.0, g.smooth(_z(g), 0.04, 0.3))
+    c = g.mix(g.math("MULTIPLY", foot, 0.85), c, g.rgb((0.3, 0.24, 0.12)))
+    return g.finish(c, 0.6, g.bump(fib, 0.3, 0.003))
+
+
+def papyrus_head(name="DK_PapyrusHead", base=(0.5, 0.66, 0.22), tip=(0.76, 0.82, 0.38)):
+    """The papyrus umbels: a burst of yellow-green threads, paler at the ends."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 40.0, 2.0), g.rgb(base), g.rgb(tip))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.6), c, g.rgb((0.86, 0.88, 0.5)))
+    ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
+    ao.inputs["Distance"].default_value = 0.08
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.6), c, g.rgb((0.16, 0.26, 0.06)))
+    return g.finish(c, 0.7)
+
+
+def cattail(name="DK_Cattail"):
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 60.0, 2.0), g.rgb((0.36, 0.2, 0.1)), g.rgb((0.5, 0.3, 0.15)))
+    return g.finish(c, 0.9, g.bump(g.noise(p, 120.0, 2.0), 0.3, 0.002))
+
+
+def mud(name="DK_Mud"):
+    """Wet river silt: dark glossy brown, drying paler on the tops."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 6.0, 3.0), g.rgb((0.22, 0.16, 0.1)), g.rgb((0.34, 0.25, 0.16)))
+    up = _up(g, 0.5, 0.9)
+    dry = g.smooth(g.noise(p, 3.0, 3.0), 0.5, 0.62)
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", up, dry), 0.8), c, g.rgb((0.5, 0.4, 0.27)))
+    return g.finish(c, g.mixf(dry, 0.4, 0.85), g.bump(g.noise(p, 20.0, 3.0), 0.3, 0.004))
+
+
+def sand(name="DK_Sand", base=(0.84, 0.68, 0.45), hi=(0.94, 0.8, 0.56), shade=(0.72, 0.56, 0.36)):
+    """Wind-blown sand: the desert ground's colours, wind ripples, pale crests, a cooler shade on the lee slopes."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 1.5, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(hi))
+    rip = g.wave(g.scale_vec(p, (1.0, 0.35, 1.0)), 9.0, 4.0, 2.0, "BANDS", "X")
+    c = g.mix(g.math("MULTIPLY", g.smooth(rip, 0.6, 0.9), 0.3), c, g.rgb(shade))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.55), 0.45), c, g.rgb((0.98, 0.9, 0.7)))
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, _up(g, 0.3, 0.95)), 0.35), c, g.rgb(shade))
+    return g.finish(c, 0.93, g.bump(g.math("ADD", rip, g.noise(p, 60.0, 2.0)), 0.25, 0.003))
+
+
+def sandstone(name="DK_Sandstone", base=(0.82, 0.69, 0.5), dark=(0.6, 0.47, 0.32), bedding=0.0, scale=1.0):
+    """Dressed or wind-worn sandstone: warm sand colour, darker in joints and hollows, pale chipped edges, fine pits;
+    `bedding` > 0 adds the horizontal layers of a natural rock. Label 5 = red ochre paint, 7 = blue paint (both worn off
+    the edges), 6 = gold."""
+    g = new(name)
+    p = g.obj()
+    macro = g.noise(p, 2.6 / scale, 3.0, 0.55)
+    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.08) for x in base)))
+    if bedding:
+        bed = g.wave(p, 0.9 / scale, 4.0, 3.0, "BANDS", "Z")              # (a band every ~0.35 units)
+        c = g.mix(g.math("MULTIPLY", g.smooth(bed, 0.55, 0.85), bedding), c, g.rgb(dark))
+        c = g.mix(g.math("MULTIPLY", g.smooth(bed, 0.2, 0.05), bedding * 0.6), c, g.rgb(tuple(min(1, x * 1.12) for x in base)))
+    pits = g.smooth(g.noise(p, 80.0 / scale, 2.0, 0.6), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", pits, 0.35), c, g.rgb(dark))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.7), c, g.rgb(tuple(x * 0.62 for x in dark)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.55), c, g.rgb((0.96, 0.9, 0.76)))
+    stain = g.smooth(g.noise(p, 1.4, 2.0), 0.56, 0.7)
+    c = g.mix(g.math("MULTIPLY", stain, 0.22), c, g.rgb(dark))
+    worn = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.smooth(pt, 0.515, 0.6), 0.85))
+    brush = g.remap(g.noise(p, 40.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    red = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb((0.72, 0.22, 0.1)), g.rgb((0.56, 0.15, 0.07)))
+    blue = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb((0.16, 0.36, 0.66)), g.rgb((0.1, 0.24, 0.5)))
+    fade = g.remap(g.noise(p, 5.0, 2.0), 0.3, 0.7, 0.55, 1.0)
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.reg(5), worn), fade), c, red)
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.reg(7), worn), fade), c, blue)
+    c = g.mix(g.reg(6), c, g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.86, 0.62, 0.2)), g.rgb((1.0, 0.9, 0.55))))
+    h = g.math("ADD", g.math("MULTIPLY", pits, -0.5), g.noise(p, 16.0 / scale, 4.0, 0.6))
+    return g.finish(c, g.mixf(g.reg(6), 0.86, 0.3), g.bump(h, 0.32, 0.005))
+
+
+def ashlar(name="DK_Ashlar", base=(0.84, 0.74, 0.56), joint=(0.46, 0.38, 0.27), course=0.3, block=0.62):
+    """Dressed limestone blocks laid in courses (joints sunk a little in the normal map): the step pyramid, plinths and
+    platforms. Labels as sandstone: 5 red, 7 blue, 6 gold."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    z = sep.outputs["Z"]
+    row = g.math("FLOOR", g.math("DIVIDE", z, course))
+    fz = g.math("SUBTRACT", g.math("DIVIDE", z, course), row)
+    run = g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), g.math("MULTIPLY", g.math("MODULO", row, 2.0), block * 0.5))
+    fx = g.math("FRACT", g.math("DIVIDE", run, block))
+    jz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
+    jx = g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx))
+    jt = g.math("MAXIMUM", g.math("SUBTRACT", 1.0, g.smooth(jz, 0.02, 0.06)), g.math("SUBTRACT", 1.0, g.smooth(jx, 0.01, 0.03)))
+    up = _up(g, 0.7, 0.9)
+    joint_m = g.math("MULTIPLY", jt, g.math("SUBTRACT", 1.0, up))      # (no joints drawn across the treads)
+    blk = g.voronoi(g.scale_vec(p, (1.0 / block, 1.0 / block, 1.0 / course)), 1.0, 1.0, "F1", "Color")
+    c = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.9 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(blk, 0.4, 0.9), 0.18), c, g.rgb(tuple(x * 0.82 for x in base)))
+    c = g.mix(joint_m, c, g.rgb(joint))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.6), c, g.rgb(joint))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.5), c, g.rgb((0.96, 0.92, 0.82)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 1.2, 2.0), 0.58, 0.72), 0.25), c, g.rgb((0.62, 0.52, 0.38)))
+    red = g.mix(g.math("MULTIPLY", g.remap(g.noise(p, 30.0, 2.0), 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb((0.72, 0.2, 0.1)), g.rgb((0.55, 0.14, 0.07)))
+    c = g.mix(g.reg(5), c, red)
+    c = g.mix(g.reg(7), c, g.rgb((0.14, 0.32, 0.64)))
+    c = g.mix(g.reg(6), c, g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.86, 0.62, 0.2)), g.rgb((1.0, 0.9, 0.55))))
+    h = g.math("ADD", g.math("MULTIPLY", joint_m, -0.8), g.math("MULTIPLY", g.noise(p, 22.0, 3.0), 0.3))
+    return g.finish(c, g.mixf(g.reg(6), 0.86, 0.3), g.bump(h, 0.3, 0.006))
+
+
+def redrock(name="DK_RedRock", scale=1.0, flecks=True):
+    """Canyon rock: red sandstone in strata (pale cream and dark red bands), dark desert-varnish streaks running down,
+    pale worn edges, dark cracks, the odd fleck of copper-green malachite."""
+    g = new(name)
+    p = g.obj()
+    strata = g.wave(p, 0.85 / scale, 2.5, 2.0, "BANDS", "Z")            # (a band every ~0.37 units)
+    thin = g.wave(p, 2.6 / scale, 3.0, 2.0, "BANDS", "Z")
+    c = g.mix(g.remap(g.noise(p, 2.0 / scale, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.56, 0.27, 0.14)), g.rgb((0.7, 0.37, 0.2)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(strata, 0.62, 0.9), 0.42), c, g.rgb((0.84, 0.6, 0.4)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(strata, 0.2, 0.04), 0.35), c, g.rgb((0.42, 0.17, 0.1)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(thin, 0.8, 0.95), 0.15), c, g.rgb((0.78, 0.5, 0.32)))
+    varn = g.smooth(g.noise(g.scale_vec(p, (14.0 / scale, 14.0 / scale, 1.2 / scale)), 1.0, 3.0, 0.6), 0.6, 0.7)
+    c = g.mix(g.math("MULTIPLY", varn, 0.45), c, g.rgb((0.24, 0.12, 0.08)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.7), c, g.rgb((0.2, 0.08, 0.05)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.5), c, g.rgb((0.92, 0.7, 0.52)))
+    if flecks:
+        fl = g.smooth(g.noise(p, 30.0 / scale, 2.0, 0.5), 0.75, 0.79)
+        c = g.mix(g.math("MULTIPLY", fl, 0.85), c, g.rgb((0.18, 0.62, 0.44)))
+    h = g.math("ADD", g.math("MULTIPLY", strata, 0.35), g.noise(p, 12.0 / scale, 4.0, 0.6))
+    return g.finish(c, 0.86, g.bump(h, 0.35, 0.006))
+
+
+def malachite(name="DK_Malachite"):
+    """Malachite and copper ore: banded greens (dark and light rings), bright on the bulges, near black in the cracks."""
+    g = new(name)
+    p = g.obj()
+    bands = g.wave(p, 9.0, 6.0, 2.0, "RINGS", "Z")
+    c = g.mix(g.remap(g.noise(p, 6.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.05, 0.36, 0.22)), g.rgb((0.12, 0.52, 0.34)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(bands, 0.55, 0.85), 0.35), c, g.rgb((0.26, 0.72, 0.5)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.6), c, g.rgb((0.55, 0.94, 0.74)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.8), c, g.rgb((0.02, 0.1, 0.07)))
+    return g.finish(c, 0.32, g.bump(bands, 0.2, 0.002))
+
+
+def mud_plaster(name="DK_MudPlaster", base=(0.72, 0.56, 0.38)):
+    """Hand-smoothed mud plaster: warm tan with smear marks and hairline cracks, darker where rain splashes the foot of
+    the wall, pale on worn edges; label 7 = whitewash, 5 = a painted red band."""
+    g = new(name)
+    p = g.obj()
+    smear = g.noise(g.scale_vec(p, (8.0, 8.0, 3.0)), 1.0, 3.0, 0.6)
+    c = g.mix(g.remap(smear, 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.1) for x in base)))
+    crack = g.smooth(g.voronoi(p, 7.0, 1.0, "DISTANCE_TO_EDGE"), 0.012, 0.0)
+    c = g.mix(g.math("MULTIPLY", crack, 0.45), c, g.rgb(tuple(x * 0.6 for x in base)))
+    foot = g.math("SUBTRACT", 1.0, g.smooth(_z(g), 0.05, 0.3))
+    c = g.mix(g.math("MULTIPLY", foot, 0.4), c, g.rgb(tuple(x * 0.7 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.45), c, g.rgb(tuple(min(1, x * 1.22) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), c, g.rgb(tuple(x * 0.55 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), 0.92), c, g.mix(g.math("MULTIPLY", smear, 0.3), g.rgb((0.93, 0.9, 0.82)), g.rgb((0.8, 0.76, 0.66))))
+    c = g.mix(g.reg(5), c, g.rgb((0.7, 0.2, 0.1)))
+    h = g.math("ADD", g.math("MULTIPLY", smear, 0.5), g.math("MULTIPLY", crack, -0.6))
+    return g.finish(c, 0.9, g.bump(h, 0.3, 0.004))
+
+
+def rail(name="DK_Rail"):
+    """Mine rails: dark iron-grey, rust in patches, polished bright where the wheels run."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 10.0, 2.0), g.rgb((0.2, 0.2, 0.22)), g.rgb((0.3, 0.29, 0.28)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 6.0, 3.0), 0.55, 0.68), 0.6), c, g.rgb((0.44, 0.24, 0.13)))
+    c = g.mix(g.math("MULTIPLY", _up(g, 0.7, 0.95), 0.8), c, g.rgb((0.72, 0.72, 0.74)))
+    return g.finish(c, 0.45)
+
+
+def bronze_turf(name, theme):
+    """The ground a Bronze Age landmark sits in: grass (delta), sand (desert), red dirt with pebbles (canyon)."""
+    if theme == "delta":
+        return ground(name)
+    if theme == "desert":
+        return sand(name)
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 3.0, 3.0), g.rgb((0.56, 0.3, 0.17)), g.rgb((0.7, 0.4, 0.23)))
+    peb = g.smooth(g.voronoi(p, 22.0), 0.12, 0.08)
+    c = g.mix(g.math("MULTIPLY", peb, 0.5), c, g.rgb((0.42, 0.24, 0.14)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 30.0, 2.0, 0.5), 0.74, 0.78), 0.8), c, g.rgb((0.18, 0.6, 0.42)))
+    return g.finish(c, 0.88, g.bump(peb, 0.3, 0.006))
+
+
+def timber_log(name="DK_TimberLog"):
+    """Trimmed logs lying along X: bark streaked along their length, pale wood with rings on the cut ends (+-X)."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], g.geo("Normal"))
+    cut = g.smooth(g.math("ABSOLUTE", sep.outputs["X"]), 0.75, 0.9)
+    streak = g.noise(g.scale_vec(p, (2.0, 45.0, 45.0)), 1.0, 3.0, 0.6)
+    bark = g.mix(g.remap(streak, 0.3, 0.7, 0.0, 1.0), g.rgb((0.42, 0.28, 0.16)), g.rgb((0.26, 0.16, 0.09)))
+    bark = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), bark, g.rgb((0.58, 0.42, 0.26)))
+    rings = g.wave(p, 6.0, 1.5, 2.0, "RINGS", "X")
+    wood = g.mix(rings, g.rgb((0.78, 0.6, 0.38)), g.rgb((0.6, 0.42, 0.24)))
+    c = g.mix(cut, bark, wood)
+    return g.finish(c, 0.8, g.bump(g.mixf(cut, streak, rings), 0.4, 0.004))
+
+
+def driftwood(name="DK_DriftWood"):
+    """Sun-bleached dead wood: silver-grey and tan, split along the grain, dark in the cracks."""
+    g = new(name)
+    p = g.obj()
+    grain = g.noise(g.scale_vec(p, (40.0, 40.0, 3.0)), 1.0, 3.0, 0.6)
+    c = g.mix(g.remap(grain, 0.3, 0.7, 0.0, 1.0), g.rgb((0.66, 0.6, 0.52)), g.rgb((0.5, 0.44, 0.37)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(grain, 0.66, 0.72), 0.7), c, g.rgb((0.24, 0.2, 0.16)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.8, 0.76, 0.68)))
+    return g.finish(c, 0.85, g.bump(grain, 0.5, 0.004))

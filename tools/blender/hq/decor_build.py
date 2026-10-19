@@ -36,11 +36,15 @@ os.makedirs(OUT, exist_ok=True)
 HI = os.path.join(OUT, "kit_hi.blend")
 GAME = os.path.join(OUT, "kit_game.blend")
 GLB = arg("--glb", {"meadow": "stone_decor", "snow": "stone_decor_snow", "volcano": "stone_decor_volcano",
-                   "portal": "time_portal"}[THEME])
+                   "portal": "time_portal", "delta": "bronze_decor_delta", "desert": "bronze_decor_desert",
+                   "canyon": "bronze_decor_canyon", "city": "bronze_city"}[THEME])
+BRONZE = THEME in ("delta", "desert", "canyon", "city")
 G0, G1, S0 = 0.05, 0.6, 0.7          # swatch strip: grass gradient rows, then flat colours (as in build_game.base_stage)
 SWATCHES = [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (0.96, 0.52, 0.76), (0.3, 0.5, 0.18)]
 GRASS = {"meadow": ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)), "snow": ((0.3, 0.27, 0.16), (0.62, 0.56, 0.36)),
-         "volcano": ((0.16, 0.13, 0.1), (0.5, 0.42, 0.3))}.get(THEME, ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)))
+         "volcano": ((0.16, 0.13, 0.1), (0.5, 0.42, 0.3)), "delta": ((0.19, 0.4, 0.1), (0.56, 0.75, 0.27)),
+         "desert": ((0.46, 0.38, 0.19), (0.86, 0.75, 0.46)), "canyon": ((0.38, 0.29, 0.15), (0.76, 0.62, 0.37))
+         }.get(THEME, ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)))
 
 
 def log(*a):
@@ -64,9 +68,38 @@ def materials():
                                                            labels=[(2, (0.1, 0.1, 0.12), 0.6)], seams=[2], scale=2.0),
         "portal_armor": __import__("robot_mats").armor(name="DK_PortalArmor", labels=[(1, (1.0, 0.47, 0.08), 0.35),
                                                        (2, (0.2, 0.2, 0.22), 0.6), (3, (0.08, 0.08, 0.09), 0.4)], seams=[2], scale=2.0),
+    } if not BRONZE else bronze_materials(dark.mat)
+
+
+def bronze_materials(dark):
+    """The Bronze Age kits' materials (v0.9.28): rocks, turf and dead wood by theme, plus everything the delta, desert,
+    canyon and city props are made of."""
+    th = THEME
+    rock_m = {"delta": lambda: DM.rock("DK_Rock", "delta"),
+              "desert": lambda: DM.sandstone("DK_Rock", base=(0.8, 0.64, 0.44), dark=(0.62, 0.48, 0.32), bedding=0.22),
+              "canyon": lambda: DM.redrock("DK_Rock"), "city": lambda: DM.rock("DK_Rock", "delta")}[th]()
+    return {
+        "rock": rock_m, "turf": DM.bronze_turf("DK_Turf", th if th != "city" else "delta"), "dark": dark,
+        "leaves": DM.leaves("DK_Leaves"), "leaves_berry": DM.leaves("DK_LeavesBerry", berries=(0.92, 0.36, 0.58)),
+        "charred": DM.driftwood("DK_DeadWood"), "wood_end": DM.timber_log("DK_WoodEnd"),
+        "palm_bark": DM.palm_bark("DK_PalmBark"), "frond": DM.frond("DK_Frond"), "frond_rib": DM.frond_rib("DK_FrondRib"),
+        "dates": DM.dates("DK_Dates"), "papyrus": DM.papyrus("DK_Papyrus"), "papyrus_head": DM.papyrus_head("DK_PapyrusHead"),
+        "reed_leaf": DM.papyrus("DK_ReedLeaf", base=(0.3, 0.44, 0.15), hi=(0.54, 0.6, 0.26)), "cattail": DM.cattail("DK_Cattail"),
+        "mud": DM.mud("DK_Mud"), "sand": DM.sand("DK_Sand"), "sandstone": DM.sandstone("DK_Sandstone"),
+        "ashlar": DM.ashlar("DK_Ashlar"), "malachite": DM.malachite("DK_Malachite"), "mud_plaster": DM.mud_plaster("DK_MudPlaster"),
+        "rail": DM.rail("DK_Rail"), "acacia_bark": DM.bark("DK_AcaciaBark", "desert"),
+        "acacia_leaves": DM.leaves("DK_AcaciaLeaves", base=(0.2, 0.3, 0.1), hi=(0.46, 0.54, 0.2)),
+        "scrub": DM.leaves("DK_Scrub", base=(0.3, 0.34, 0.18), hi=(0.56, 0.56, 0.34)),
+        "mudbrick": mats.mudbrick("DK_Mudbrick"), "siege": mats.siege("DK_Timber"), "reed": mats.reed("DK_Reed"),
+        "terracotta": mats.terracotta("DK_Terracotta"), "linen": mats.linen("DK_Linen", base=(0.8, 0.7, 0.52)), "hide": DM.hide("DK_Hide", "desert"),
+        "charcoal": mats.charcoal("DK_Charcoal"), "granite": mats.granite("DK_Granite"), "gold": mats.gold("DK_Gold"),
+        "copper": mats.bronze("DK_Copper", base=(0.7, 0.33, 0.16), hi=(0.98, 0.66, 0.44), dark=(0.3, 0.12, 0.06), patina=(0.24, 0.6, 0.48)),
+        "bronze": mats.bronze("DK_Bronze"), "wool": mats.wool("DK_Wool"),
+        "glow_turq": DM.glow("DK_GlowTurq", (0.3, 1.0, 0.78), 2.2), "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
     }
 GLOW_KEYS = {"glow_lava": ((1.0, 0.45, 0.08), 1.6, 0.6), "glow_cyan": ((0.25, 0.85, 1.0), 1.3, 0.5),
-             "glow_magenta": ((1.0, 0.2, 0.85), 1.3, 0.5)}      # (above ~1.5 glows wash out to pastel in game)
+             "glow_magenta": ((1.0, 0.2, 0.85), 1.3, 0.5), "glow_turq": ((0.3, 1.0, 0.78), 1.2, 0.5),
+             "glow_fire": ((1.0, 0.55, 0.15), 1.4, 0.6)}      # (above ~1.5 glows wash out to pastel in game)
 
 
 def kit():
@@ -98,7 +131,7 @@ def sculpt_stage():
             ob["mat"] = mkey
             ob["off"] = off
             ob["budget"] = max(40, int(budget * len(Fc) / max(tot, 1)))
-            if any(op[0] == "paint" for op in f.ops):
+            if any(op[0] == "paint" or op[3] for op in f.ops):          # (painted, or parts added under a label)
                 d, lab = f.eval(V.astype(np.float32), labels=True)
                 a = ob.data.attributes.new("region", "INT", "POINT")
                 a.data.foreach_set("value", lab.astype(np.int32))
@@ -349,7 +382,7 @@ def game_stage():
             g.name = p
             objs[p] = g
     rng = np.random.default_rng(3)
-    if THEME in ("meadow", "volcano"):
+    if THEME in ("meadow", "volcano", "delta", "desert", "canyon"):
         V, F, UV = [], [], []
         for k in range(3):                          # a clump of three tufts
             v, f, u = tuft_geometry(rng)
@@ -359,7 +392,7 @@ def game_stage():
             F += [tuple(base + i for i in q) for q in f]
             UV += u
         objs["Tuft"] = mesh_from("Tuft", V, F, UV, kmat)
-    if THEME == "meadow":
+    if THEME in ("meadow", "delta"):
         V, F, UV = flowers_geometry(rng)
         objs["Flowers"] = mesh_from("Flowers", V, F, UV, kmat)
     bpy.data.objects.remove(bm_all)

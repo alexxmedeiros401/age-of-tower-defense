@@ -4,7 +4,7 @@ Sculpted, rigged, animated and texture-baked game models made entirely in code w
 Models so far: the four Bronze Age towers (`assets/towers/bronze_archer.glb`, v0.9.21, `spear_guard.glb`, v0.9.22,
 `torsion_catapult.glb`, v0.9.23, and `sun_priest.glb`, v0.9.24), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
-`mara.glb`), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
+`mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
 `stone_decor_volcano.glb`) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
 by `../map_ground_hq.py` (below).
@@ -22,6 +22,7 @@ by `../map_ground_hq.py` (below).
 | Torsion Catapult (v0.9.23) | `torsion` | `torsion_base` | `anim_torsion` (Idle, Combat, Attack) |
 | Sun Priest (v0.9.24) | `sunpriest` | `sunpriest_base` | `anim_sunpriest` (Idle, Combat, Attack) |
 | Kira (hero, v0.9.25) | `kira` | `kira_base` | `anim_kira` (Idle, Combat, Attack, Ability, Cheer) |
+| Tarek (hero, v0.9.26) | `tarek` | `tarek_base` | `anim_tarek` (Idle, Combat, Attack, Ability, Cheer) |
 
 ## Steps
 
@@ -83,6 +84,26 @@ tufts and flower clumps are direct geometry coloured from a swatch strip at the 
 mesh gets the HQ outline pass (`_kit_outline`), except tufts and flowers. `--each` adds a close-up of every prop.
 Copy the GLB to `assets/decor/`, import, and set its textures' `.import` as for units (size_limit 2048 for a map kit's
 atlas, 1024 for the portal).
+
+### Bronze Age map kits and the Bronze city (v0.9.28)
+
+```
+python3 decor_build.py -- --theme delta|desert|canyon|city --out D --fine --tex 2048 --ao 24 --shots D/shots --each
+```
+
+`decor_bronze.py` sculpts them (same conventions as `decor_props.py`, which hands these themes over), `decor_mats.py`
+paints them (its Bronze Age section). River Delta (`bronze_decor_delta.glb`): date palms (criss-crossed trunk scales,
+arching pinnate fronds with serrated, slit blades, date bunches), papyrus, cattail reeds, bushes, a mud-brick farmhouse
+with a reed-mat roof shade and a walled yard, a granary of beehive silos, a shaduf and a papyrus reed boat. Desert
+Citadel (`bronze_decor_desert.glb`): palms, umbrella acacias, twiggy scrub, crescent sand drifts, wind-worn sandstone,
+fluted columns (broken, or standing under papyrus capitals) with carved signs and worn paint, fallen blocks with a
+winged sun disc, a ruined colonnade, a granite obelisk and the step pyramid on the horizon. Copper Canyon
+(`bronze_decor_canyon.glb`): red-rock mesas in strata, hoodoos, malachite outcrops with glowing crystals, mine carts,
+pit props, the mine in a crag and a copper smelter. The city (`bronze_city.glb`, one prop: City) is shared by every
+Bronze Age map: gate towers with stepped merlons, glazed bands and rosettes, cedar gate doors, walls, a ziggurat, town
+houses, braziers (game.gd lights the fires). Parts that would cut other parts (`inter`) are never merged by
+`place_parts`; bounded cuts (`cut_above`, `cut_below`) keep a prop mergeable. In game (`DECOR_V2`), a theme switches to
+its kit once the GLB is in `assets/decor/`.
 
 ### Grounds (v0.9.18)
 
@@ -184,6 +205,12 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
   the blade at arm's length, the cut crossing the front at `HIT` (frame 11: the game's golden cuts) / Ability (Solar
   Flare): crouch, spring up and thrust the sword at the sky (`FLARE`, frame 18: the game's blaze, from `KIRA_SKY`, and
   the wave) / Cheer. The sword is rigid in her right fist; the sun-stone in its pommel rides its own `gem` bone.
+  `anim_tarek.py` (v0.9.26): the smith wiping his brow, hammer at his side / a thrower's stance, left shoulder to the
+  robots, the hammer cocked behind his head / Attack (22 frames = the 1.0 s cooldown, the hammer leaves his hand at
+  `RELEASE`, frame 2, and a fresh one is in his fist from `FRESH`, frame 11: the game flies its own hammer from his
+  hand, end over end) / Ability (Forge Fury, 66 frames): he turns to his anvil and strikes the red-hot bar three times
+  (`STRIKES` 12, 22, 36; the last sends the game's wave of heat over the field) and turns back / Cheer. The hammer
+  rides its own `hammer` bone in his right fist (its head 0.42 along it: `TAREK_HEAD` in `game.gd`).
   `game.gd` points such as `KIRA_SKY` (a point carried by a bone, in the Yaw node's frame, Godot axes) are measured from
   the built `*_hq.blend` with `prop_point.py BLEND ACTION BONE FRAMES X,Y,Z` (the point given in the rest pose).
 - In game (`game.gd`): `_hq_anim_setup/_hq_anim_tick` (idle / combat loop (Whirl or Combat) / attack (Throw or
