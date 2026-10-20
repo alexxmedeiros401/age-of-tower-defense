@@ -1048,7 +1048,7 @@
   "name": "Axe Warrior",
   "lineage": "Brute",
   "era": "Iron Age",
-  "model_scale": 0.56,
+  "model_scale": 0.7,
   "swing": [
    -0.5,
    1.2
