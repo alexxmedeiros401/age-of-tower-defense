@@ -988,10 +988,12 @@ def iron_city(seed=0):
     for sy in (-1, 1):
         def bank(P, sy=sy):
             x, y, z = P[:, 0], P[:, 1] * sy, P[:, 2]
-            hgt = 1.15 + 0.05 * np.sin(y * 1.7)
+            fade = np.clip((7.0 - y) / 1.4, 0.0, 1.0)     # (the bank dies away into the hillside at its far end)
+            fade = fade * fade * (3.0 - 2.0 * fade)
+            hgt = (1.15 + 0.05 * np.sin(y * 1.7)) * fade - 0.06 * (1.0 - fade)
             half = 1.25 - z * 0.62                        # (steep, battered faces)
             d = np.maximum(np.abs(x - 1.05) - half, z - hgt)
-            d = np.maximum(d, np.maximum(TY - 0.55 - y, y - 6.9))
+            d = np.maximum(d, np.maximum(TY - 0.55 - y, y - 7.1))
             return (d * 0.8).astype(F32)
         lo = (-0.6, (TY - 0.7) if sy > 0 else -7.0, -0.1)
         hi = (2.7, 7.0 if sy > 0 else -(TY - 0.7), 1.3)
@@ -1002,13 +1004,13 @@ def iron_city(seed=0):
     for sy in (-1, 1):
         y = TY + TS + 0.06
         i = 0
-        while y < 6.75:
+        while y < 5.6:
             hh = 1.95 + rng.uniform(-0.07, 0.07)
             x = 0.62 + rng.uniform(-0.02, 0.02)
             post(pa, (x, sy * y, 0.95), (x + rng.uniform(-0.02, 0.02), sy * y, hh), 0.075, 0.07, pointed=True)
             y += 0.155 + rng.uniform(-0.01, 0.01)
             i += 1
-        plank_x(pa, (0.74, sy * 4.1, 1.62), (0.035, 2.75, 0.04), label=0)          # the rail tying the stakes
+        plank_x(pa, (0.74, sy * 3.75, 1.62), (0.035, 1.85, 0.04), label=0)         # the rail tying the stakes
     out.append(("Palisade", pa, fine(0.0095, 0.019), "timber"))
     tw = Field("Towers")
     for sy in (-1, 1):
