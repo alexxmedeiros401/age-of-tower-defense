@@ -681,8 +681,8 @@ def smithy(seed=0):
 
 # ------------------------------------------------------------------------------------------------ bog props
 def willow(h=2.1, seed=0):
-    """A grey willow: a short leaning trunk, gnarled, splitting into a crown of upright stems, each wrapped in narrow
-    grey-green leaf clumps."""
+    """A grey willow: a short leaning trunk, gnarled, splitting at a pollard head into stems that spread up and out
+    under a broad, lumpy crown of grey-green leaf clumps."""
     rng = np.random.default_rng(seed)
     s = h / 2.1
     a0 = rng.uniform(0, 2 * math.pi)
@@ -695,18 +695,24 @@ def willow(h=2.1, seed=0):
         a = 2 * math.pi * i / 4 + rng.uniform(-0.3, 0.3)
         f.add(RoundCone((0, 0, 0.12 * s), (0.32 * s * math.cos(a), 0.32 * s * math.sin(a), -0.04), 0.07 * s, 0.025 * s), k=0.06 * s)
     lv = Field("Leaves")
-    for j in range(8):
-        a = a0 + 2 * math.pi * j / 8 + rng.uniform(-0.3, 0.3)
+    tops = []
+    for j in range(7):                                    # stems spreading up and out from the pollard head
+        a = a0 + 2 * math.pi * j / 7 + rng.uniform(-0.3, 0.3)
         out = v3((math.cos(a), math.sin(a), 0.0))
-        L = h * rng.uniform(0.5, 0.72)
+        L = h * rng.uniform(0.45, 0.62)
         p0 = head + out * 0.06 * s + v3((0, 0, 0.05 * s))
-        p1 = p0 + out * L * 0.22 + v3((0, 0, L * 0.5))
-        p2 = p1 + out * L * 0.22 + v3((0, 0, L * 0.42))
-        f.add(Chain([p0, p1, p2], [0.04 * s, 0.024 * s, 0.01 * s], k=0.01), k=0.03 * s)
-        for q, r in ((p0 + (p1 - p0) * 0.75, 0.15), (p1 + (p2 - p1) * 0.45, 0.17), (p2, 0.13)):
+        p1 = p0 + out * L * 0.38 + v3((0, 0, L * 0.42))
+        p2 = p1 + out * L * 0.3 + v3((0, 0, L * 0.3))
+        f.add(Chain([p0, p1, p2], [0.04 * s, 0.025 * s, 0.011 * s], k=0.01), k=0.03 * s)
+        tops.append(p2)
+        for q, r in ((p1, 0.17), (p1 + (p2 - p1) * 0.55, 0.2), (p2 + v3((0, 0, 0.04 * s)), 0.19)):
             r *= s * rng.uniform(0.85, 1.15)
-            lv.add(Ellipsoid(q, (r * 0.85, r * 0.85, r * 1.6), R=rot_from_axes(z_axis=unit(p2 - p0)),
-                             **wob(14.0 / s, 0.03 * s, seed * 60 + j * 3 + int(r * 100))), k=0.06 * s)
+            lv.add(Ellipsoid(q, (r, r * 0.92, r * 0.78), **wob(13.0 / s, 0.035 * s, seed * 60 + j * 3 + int(r * 100))), k=0.07 * s)
+    ctr = sum(tops, v3((0, 0, 0))) / len(tops)                # a few clumps filling the crown's top
+    for j in range(6):
+        q = ctr + v3((rng.uniform(-0.25, 0.25) * s, rng.uniform(-0.25, 0.25) * s, rng.uniform(0.0, 0.12) * s))
+        r = s * rng.uniform(0.17, 0.23)
+        lv.add(Ellipsoid(q, (r, r * 0.92, r * 0.75), **wob(13.0 / s, 0.035 * s, seed * 90 + j)), k=0.07 * s)
     return [("Trunk", f, fine(0.008, 0.016), "willow_bark"), ("Leaves", lv, fine(0.011, 0.022), "willow_leaves")]
 
 
