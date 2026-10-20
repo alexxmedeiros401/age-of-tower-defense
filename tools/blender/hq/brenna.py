@@ -160,9 +160,12 @@ def mail_base():
 
 
 def _neck_cut(P):
+    """> 0 above the neckline. It is a ring round the neck, not a plane: out over the shoulders it rises away, so the mail
+    closes over the shoulder tops (a flat cut at the neckline's height left them bare)."""
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     front = np.clip(-(y - F(0.03)) / F(0.18), 0, 1)
-    neck_z = F(1.43) - F(0.05) * front * np.exp(-(x / F(0.11)) ** 2)
+    out = np.clip((np.abs(x) - F(0.14)) / F(0.08), 0, 1)
+    neck_z = F(1.43) - F(0.05) * front * np.exp(-(x / F(0.11)) ** 2) + F(0.3) * out * out * (F(3) - F(2) * out)
     return z - neck_z
 
 
