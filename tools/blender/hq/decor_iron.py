@@ -192,18 +192,26 @@ def birch(h=2.6, seed=0, twin=False):
 
 
 def heather(w=0.9, h=0.28, seed=0):
-    """A heather clump: a low cushion of wiry shoots, knobbly, purple on top."""
+    """A heather clump: a low cushion of many small rounded tufts with dark gaps between them, wiry shoots poking out
+    of it, purple at the tips."""
     rng = np.random.default_rng(seed)
     f = Field("Heather")
-    f.add(Ellipsoid((0, 0, h * 0.2), (w * 0.42, w * 0.38, h * 0.75), **wob(7.0 / w, 0.035 * w, seed)))
-    for i in range(14):
+    f.add(Ellipsoid((0, 0, h * 0.05), (w * 0.38, w * 0.34, h * 0.6), **wob(7.0 / w, 0.03 * w, seed)))
+    for i in range(30):
         a = rng.uniform(0, 2 * math.pi)
-        rr = w * 0.36 * math.sqrt(rng.uniform(0, 1))
-        r = w * rng.uniform(0.1, 0.16)
-        f.add(Ellipsoid((rr * math.cos(a), rr * math.sin(a), h * rng.uniform(0.3, 0.65)), (r, r, r * 0.8),
-                        **wob(16.0 / w, 0.03 * w, seed * 20 + i)), k=0.05 * w)
+        u = math.sqrt(rng.uniform(0, 1))
+        rr = w * 0.4 * u
+        z = h * (0.75 - 0.45 * u * u) + rng.uniform(-0.03, 0.03) * h
+        r = w * rng.uniform(0.06, 0.1)
+        f.add(Ellipsoid((rr * math.cos(a), rr * math.sin(a) * 0.92, z), (r, r, r * 0.85), **wob(30.0 / w, 0.022 * w, seed * 20 + i)), k=0.018 * w)
+    for i in range(16):                                   # wiry shoots
+        a = rng.uniform(0, 2 * math.pi)
+        rr = w * 0.3 * math.sqrt(rng.uniform(0, 1))
+        b0 = v3((rr * math.cos(a), rr * math.sin(a), h * 0.45))
+        tip = b0 + v3((math.cos(a) * 0.04, math.sin(a) * 0.04, h * rng.uniform(0.45, 0.7)))
+        f.add(RoundCone(b0, tip, 0.012 * w / 0.9, 0.006), k=0.01)
     f.inter(Plane((0, 0, -0.03), (0, 0, -1)))
-    return [("Heather", f, fine(0.006, 0.012), "heather")]
+    return [("Heather", f, fine(0.005, 0.01), "heather")]
 
 
 def gorse(w=0.95, h=0.62, seed=0):
@@ -217,11 +225,19 @@ def gorse(w=0.95, h=0.62, seed=0):
         r = w * rng.uniform(0.16, 0.23)
         f.add(Ellipsoid((rr * math.cos(a), rr * math.sin(a) * 1.1, h * rng.uniform(0.35, 0.72)), (r, r, r * 1.08),
                         **wob(14.0 / w, 0.05 * w, seed * 10 + i)), k=0.06 * w)
-    for i in range(34):                                   # blossom
+    # blossom: small dots on the bush's own surface (rays cast in from all round the top half find it)
+    from caveman import ray_hit
+    c0 = v3((0, 0, h * 0.4))
+    dirs = []
+    for i in range(110):
         a = rng.uniform(0, 2 * math.pi)
-        el = rng.uniform(0.15, 1.2)
-        q = v3((math.cos(a) * math.cos(el) * w * 0.48, math.sin(a) * math.cos(el) * w * 0.5, h * 0.42 + math.sin(el) * h * 0.58))
-        f.paint(Sphere(q, 0.06 * w), 1)
+        el = rng.uniform(-0.15, 1.35)
+        dirs.append(v3((math.cos(a) * math.cos(el), math.sin(a) * math.cos(el), math.sin(el))))
+    dirs = np.array(dirs)
+    hits, ok = ray_hit(f, c0 + dirs * 0.9, -dirs, tmax=0.9, step=0.004)
+    for q, hit in zip(hits, ok):
+        if hit:
+            f.paint(Sphere(q, rng.uniform(0.018, 0.028)), 1)
     f.inter(Plane((0, 0, -0.03), (0, 0, -1)))
     return [("Gorse", f, fine(0.006, 0.012), "gorse")]
 
@@ -236,20 +252,20 @@ def bracken(seed=0, n=7, h=0.75):
         a = 2 * math.pi * i / n + rng.uniform(-0.3, 0.3)
         hz = v3((math.cos(a), math.sin(a), 0.0))
         L = h * rng.uniform(0.75, 1.1)
-        K = 8
+        K = 13
         T = np.linspace(0, 1, K)
         P = [v3((0.05 * math.cos(a), 0.05 * math.sin(a), -0.03)) + hz * (L * 0.7 * t ** 1.4) + v3((0, 0, L * 0.82 * math.sin(t * math.pi * 0.62)))
              for t in T]
         f.add(Chain(P, [0.011 * (1 - 0.6 * t) for t in T], k=0.004))
         for j in range(1, K - 1):
             t = T[j]
-            if t < 0.28:
+            if t < 0.22:
                 continue
             tg, sd, nn = frame(P[j + 1] - P[j - 1])
-            Lp = 0.14 * L / 0.75 * (1.0 - (t - 0.28) / 0.85)
+            Lp = 0.2 * L / 0.75 * (1.0 - (t - 0.22) / 0.9) + 0.02
             for side in (-1, 1):
-                dp = unit(sd * side * 0.9 + tg * 0.35 - nn * 0.12)
-                f.add(Ellipsoid(P[j] + dp * Lp * 0.5, (Lp * 0.5, 0.024, th), R=R_xz(dp, nn)), k=0.004)
+                dp = unit(sd * side * 0.9 + tg * 0.3 - nn * 0.12)
+                f.add(Ellipsoid(P[j] + dp * Lp * 0.5, (Lp * 0.5, 0.032, th), R=R_xz(dp, nn)), k=0.004)
         f.add(Ellipsoid(P[-1], (0.035, 0.016, th), R=R_xz(unit(P[-1] - P[-2]), v3((0, 0, 1)))), k=0.004)
     return [("Fronds", f, fine(0.005, 0.01), "bracken")]
 

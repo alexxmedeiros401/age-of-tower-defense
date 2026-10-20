@@ -635,11 +635,12 @@ def heather(name="DK_Heather"):
     """Heather: wiry dark shoots, the tops a haze of tiny purple-pink flowers, dark in the hollows."""
     g = new(name)
     p = g.obj()
-    base = g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.14, 0.19, 0.09)), g.rgb((0.3, 0.25, 0.13)))
-    up = _up(g, 0.0, 0.75)
-    fl = g.smooth(g.noise(p, 55.0, 2.0, 0.6), 0.42, 0.58)
-    pink = g.mix(g.noise(p, 7.0, 2.0), g.rgb((0.54, 0.22, 0.48)), g.rgb((0.78, 0.44, 0.68)))
-    c = g.mix(g.math("MULTIPLY", up, g.mixf(fl, 0.45, 1.0)), base, pink)
+    base = g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.12, 0.17, 0.08)), g.rgb((0.26, 0.22, 0.12)))
+    up = _up(g, 0.2, 0.85)
+    tip = g.smooth(g.geo("Pointiness"), 0.485, 0.535)                  # the tufts' crowns, not the hollows
+    fl = g.smooth(g.noise(p, 55.0, 2.0, 0.6), 0.4, 0.6)
+    pink = g.mix(g.noise(p, 7.0, 2.0), g.rgb((0.48, 0.2, 0.42)), g.rgb((0.7, 0.38, 0.6)))
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", up, tip), g.mixf(fl, 0.5, 1.0)), base, pink)
     ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
     ao.inputs["Distance"].default_value = 0.15
     c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.8), c, g.rgb((0.05, 0.06, 0.04)))
