@@ -4,7 +4,7 @@ Sculpted, rigged, animated and texture-baked game models made entirely in code w
 Models so far: the four Bronze Age towers (`assets/towers/bronze_archer.glb`, v0.9.21, `spear_guard.glb`, v0.9.22,
 `torsion_catapult.glb`, v0.9.23, and `sun_priest.glb`, v0.9.24), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
-`mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
+`mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the Iron Age's Javelin Thrower (`javelin_thrower.glb`, v0.9.32), Ballista (`ballista.glb`, v0.9.33) and Axe Warrior (`axe_warrior.glb`, v0.9.34), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
 `stone_decor_volcano.glb`) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
 by `../map_ground_hq.py` (below).
@@ -23,6 +23,12 @@ by `../map_ground_hq.py` (below).
 | Sun Priest (v0.9.24) | `sunpriest` | `sunpriest_base` | `anim_sunpriest` (Idle, Combat, Attack) |
 | Kira (hero, v0.9.25) | `kira` | `kira_base` | `anim_kira` (Idle, Combat, Attack, Ability, Cheer) |
 | Tarek (hero, v0.9.26) | `tarek` | `tarek_base` | `anim_tarek` (Idle, Combat, Attack, Ability, Cheer) |
+| Javelin Thrower (v0.9.32) | `javelin` | `javelin_base` | `anim_javelin` (Idle, Combat, Attack) |
+| Ballista (v0.9.33) | `ballista` | `ballista_base` | `anim_ballista` (Idle, Combat, Attack) |
+| Axe Warrior (v0.9.34) | `axe` | `axe_base` | `anim_axe` (Idle, Combat, Attack) |
+| Druid (written) | `druid` | `druid_base` | `anim_druid` (Idle, Combat, Attack) |
+| Kael (hero, written) | `kael` | `kael_base` | `anim_kael` (Idle, Combat, Attack, Ability, Cheer) |
+| Brenna (hero, written) | `brenna` | `brenna_base` | `anim_brenna` (Idle, Combat, Attack, Ability, Cheer) |
 
 ## Steps
 
@@ -244,6 +250,17 @@ colour (`tools/ground_fade.py`) so it meets the far plane without a seam. Keep t
 
 ## Gotchas
 
+- **The memory limit is the cgroup's, not the machine's:** every job started from the agent's shell shares one memory
+  cgroup of about 5.8 GiB (`memory.limit_in_bytes` under `/sys/fs/cgroup/memory/process_api/.../claude-code-bash`),
+  however much RAM `free` shows. A character bake peaks at 4.5-5 GB (the Ballista's at 4.5 GB was OOM-killed beside a
+  1.6 GB sculpt), a kit bake near 3.9 GB: run bakes alone. A fine sculpt is about 2 GB, a ground render 1.3 GB.
+- **Overlapping paints:** a material mixes its labels in a fixed order (`mats.siege`: 5 then 7), and a later paint op
+  of another label does not remove an earlier one's region (`Field.paint_dist`), so where two painted regions overlap
+  the label mixed last wins. Paint the background so it leaves the motif out (Brenna's blue shield face leaves its
+  white triskele out), or the motif disappears.
+- **Layered cloth must move together:** a cape weighted with `transfer` caps (the upper arm capped at 0.6) lags the
+  arm while the robe under it follows fully, and the robe's sleeve shows through the cape whenever the arm is raised
+  (the Druid's first build). Give nested layers the same allowed bones and caps.
 - **Memory:** the sandbox has about 6 GB. A kit bake peaks near 2.6 GB, a robot bake near 1.6 GB, a ground render near
   1.2–1.6 GB, a Godot capture 0.5–1 GB: run at most two of them at once (a third one got the kit bake killed; a ground
   render and a robot bake beside a Godot capture got both of them killed). Queue the heavy jobs one after another.
