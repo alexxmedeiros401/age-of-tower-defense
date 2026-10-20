@@ -508,7 +508,6 @@ def shield_field():
         q = P - C.astype(F)
         u, s = q @ U.astype(F), q @ S.astype(F)
         return np.sqrt(u * u + s * s), np.arctan2(s, u)
-    fd.paint(Func(lambda P: front_side(P), C - 0.5, C + 0.5), 7)
     def white(P):
         rr, a = polar(P)
         best = np.abs(rr - F(0.275)) - F(0.012)                       # the ring at the edge
@@ -522,6 +521,8 @@ def shield_field():
             arm = np.maximum(arm, np.maximum(F(0.088) - rr, rr - F(0.26)))
             best = np.minimum(best, arm)
         return np.maximum(best, front_side(P))
+    # the blue leaves the white out: the material lays label 7 over label 5, so overlapping paints would hide the white
+    fd.paint(Func(lambda P: np.maximum(front_side(P), -white(P)), C - 0.5, C + 0.5), 7)
     fd.paint(Func(white, C - 0.5, C + 0.5), 5)
     # (the iron and the grip after the paint: where they stand proud they keep their own labels)
     rim_c = sc + N * math.sqrt(max(Rs * Rs - SHIELD_R * SHIELD_R, 0.0))
