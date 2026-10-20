@@ -72,7 +72,8 @@ elif MODE == "frames":
     # animation strip: every Nth frame of the action
     step = int(arg("--step", "1"))
     start, end = [int(x) for x in arg("--range", "0,24").split(",")]
-    look.camera((0.0, 0.15, float(arg("--tz", "1.6"))), float(arg("--dist", "10.5")), float(arg("--az", "24")), float(arg("--el", "15")), lens=60)
+    look.camera((float(arg("--tx", "0.0")), float(arg("--ty", "0.15")), float(arg("--tz", "1.6"))), float(arg("--dist", "10.5")),
+                float(arg("--az", "24")), float(arg("--el", "15")), lens=60)
     for f in range(start, end + 1, step):
         pose(ACTION, f)
         sc.render.filepath = os.path.join(OUTDIR, "f_%s_%03d.png" % (ACTION, f))

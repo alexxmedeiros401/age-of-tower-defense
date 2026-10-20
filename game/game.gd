@@ -2503,6 +2503,8 @@ func _refresh_tower_node(t: Dictionary) -> void:
 		col = Color(0.25, 0.8, 1.0)
 	if t.type == "torsion_catapult" and n.has_meta("anim"):
 		_torsion_ammo(n, str(t.stats.get("dtype", "")) == "fire")
+	elif t.type == "ballista" and n.has_meta("anim"):
+		_ballista_ammo(n, str(t.stats.get("dtype", "")) == "fire")
 	var r: float = float(defs.towers[t.type].get("model_scale", 0.56)) * 1.62
 	if t.level >= 3:
 		var tor := TorusMesh.new()
@@ -2809,7 +2811,8 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # (the spear's full reach holds over frames 6-10: 7; the Sun Priest's strike over 10-18: 11), where the 30 Hz samples
 # either side of it agree.
 const CLIP_FPS := 24.0
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11}
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
+	"axe_warrior": 7}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2976,13 +2979,13 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"hammer_cord":
 			m.albedo_color = Color(0.62, 0.12, 0.07)
 			m.roughness = 0.9
-		"slash", "flare_wave":                         # Kira's cuts and her flare's wave (vertex colours fade them)
+		"slash", "flare_wave", "cleave":               # Kira's cuts, her flare's wave, the axe's sweep (vertex colours fade them)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
-			m.albedo_color = Color(1.0, 0.86, 0.46) if key == "slash" else Color(1.0, 0.74, 0.3)
+			m.albedo_color = {"slash": Color(1.0, 0.86, 0.46), "flare_wave": Color(1.0, 0.74, 0.3), "cleave": Color(0.86, 0.93, 1.0)}[key]
 		"sun_beam", "sun_beam_white", "sun_beam_hot":    # the Sun Priest's beams (vertex colours fade their edges)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
@@ -3157,6 +3160,7 @@ func _prewarm_arrows() -> void:
 	for key in ["sun_beam", "sun_beam_white", "sun_beam_hot"]:
 		_mi(_beam_mesh(), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_slash_mesh(), _atk_mat("slash"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	_mi(_cleave_mesh(), _atk_mat("cleave"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_wave_mesh(), _atk_mat("flare_wave"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	for key in ["fury_wave", "fury_ring"]:
 		_mi(_wave_mesh(), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
@@ -4032,6 +4036,11 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				var sb: Basis = fx.b0
 				n.basis = (sb * Basis(Vector3.UP, deg_to_rad(lerpf(38.0, -42.0, k)))).scaled(Vector3.ONE * (0.9 + 0.3 * k))
 				_fade(n, k * k)
+			"cleave":                                  # the axe's sweep: round from his right to his left, widening
+				var cb: Basis = fx.b0
+				var cs := float(fx.s) * (0.92 + 0.14 * k)
+				n.basis = (cb * Basis(Vector3.UP, deg_to_rad(lerpf(-55.0, 40.0, 1.0 - (1.0 - k) * (1.0 - k))))).scaled(Vector3(cs, 1.0, cs))
+				_fade(n, k * k)
 			"wave":
 				var wr := minf(FLARE_R0 + float(fx.speed) * fx.t, float(fx.r))
 				n.scale = Vector3(wr, 1.0, wr)
@@ -4133,6 +4142,11 @@ func _auto_start(delta: float) -> void:
 func _fire_sfx(u: Dictionary) -> void:
 	var t: String = u.type
 	var pj: String = str(u.stats.get("proj", ""))
+	if t == "ballista" and _bal_hq(int(u.id)):
+		# the HQ engineer's mallet knocks the claw's lever, then the string cracks as the bolt goes (his clip's frames)
+		_at_attack_frame(int(u.id), float(BALLISTA_RELEASE), 0.0, func() -> void: _sfx("hammer_hit", -17.0, 0.2, 0.05))
+		_at_attack_frame(int(u.id), float(BALLISTA_LAUNCH), 0.0, func() -> void: _sfx("bolt", -6.0, 0.12, 0.05))
+		return
 	if t == "musketeer" or t == "isla":
 		_sfx("musket", -7.0, 0.12, 0.05)
 	elif PROJ_SFX.has(pj):
@@ -4285,6 +4299,8 @@ func _handle_events() -> void:
 					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
+				elif u2 != null and u2.type == "axe_warrior" and _hq_clips(ev.id):
+					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them
 				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
@@ -4362,6 +4378,7 @@ func _handle_events() -> void:
 				var hot_b := false
 				var pot := false
 				var arrow := false
+				var bolt := false
 				if proj_nodes.has(ev.pid):
 					var pnode: Node3D = proj_nodes[ev.pid]
 					boulder = pnode.has_meta("boulder")
@@ -4370,6 +4387,9 @@ func _handle_events() -> void:
 					if pnode.has_meta("arrow_hq"):
 						arrow = true
 						_arrow_hit(pnode, ev)
+					elif pnode.has_meta("bolt_hq"):
+						bolt = true
+						_bolt_hit(pnode, ev)                # it drives into the ground there
 					pnode.queue_free()
 					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
@@ -4381,7 +4401,12 @@ func _handle_events() -> void:
 					elif su != null and (su.type == "bronze_archer" or str(su.stats.get("proj", "")) == "arrow"):
 						arrow = true
 						_arrow_hit_unseen(su, ev)
-				if arrow:
+					elif su != null and su.type == "ballista" and _bal_hq(int(su.id)):
+						bolt = true
+						_bolt_hit_unseen(su, ev)
+				if bolt:
+					pass                                    # (_bolt_land: the bolt, the earth it throws up, the thud)
+				elif arrow:
 					_sfx("rock_hit", -12.0, 0.25, 0.05)
 					if float(ev.splash) > 0.0 and str(ev.get("dtype", "")) != "fire":
 						_dust_fx(_v3(ev.pos, 0.2), 4, ev.splash)
@@ -5160,6 +5185,104 @@ func _flare_burn(tid: int) -> void:
 				effects.append({"node": em, "t": 0.0, "life": randf_range(0.4, 0.6), "kind": "glint", "s": randf_range(0.7, 1.0),
 					"v": Vector3(randf_range(-0.6, 0.6), randf_range(1.0, 1.8), randf_range(-0.6, 0.6))})
 	_land_hit(tid, 0.08)
+
+
+# ---------------------------------------------------------------- Axe Warrior (Iron Age)
+# The sweep (tools/blender/hq/anim_axe.py): from the ready stance he winds up and sweeps the great axe round in front of
+# him at waist height, the blade leading, through the robots at HIT. A broad arc of iron-grey light follows the blade
+# round from his right to his left; every robot it bites throws sparks with a clang. The sim's hits wait for the blade.
+func _axe_cleave(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var tn: Node3D = tower_nodes[uid]
+	var clip := str(tn.get_meta("clip_attack", "Attack"))
+	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
+	var at := float(ATTACK_FRAME.axe_warrior) / CLIP_FPS
+	var ids := []
+	for tid in targets:
+		if _robot_point(int(tid), 0.0) == Vector3.INF:     # (gone already)
+			continue
+		_hold_hit(int(tid), at / rate + 0.03 * ids.size() + 0.04)
+		ids.append(int(tid))
+	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at, at / rate, func() -> void: _axe_sweep(uid, ids)))
+
+
+func _axe_sweep(uid: int, ids: Array) -> void:
+	var u = sim.get_unit(uid)
+	if u == null:                                      # (sold mid-swing)
+		for t in ids:
+			_land_hit(int(t))
+		return
+	var fwd := Vector3(u.facing.x, 0.0, u.facing.y)
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
+	var s := float(defs.towers.axe_warrior.get("model_scale", 0.68)) / 0.68
+	if _fx_room(1):                                    # (the sweep is one node; the cap only thins out the sparks)
+		var arc := _mi(_cleave_mesh(), _atk_mat("cleave"), self, _v3(u.pos, 0.95 * s))
+		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var b := Basis.looking_at(fwd, Vector3.UP)
+		arc.basis = b.scaled(Vector3(1.3 * s, 1.0, 1.3 * s))
+		effects.append({"node": arc, "t": 0.0, "life": 0.22, "kind": "cleave", "b0": b, "s": 1.3 * s})
+	var i := 0
+	for t in ids:
+		var tid := int(t)
+		_fx_after(0.03 * i, func() -> void: _axe_bite(uid, tid))
+		i += 1
+	if not ids.is_empty():
+		shake = maxf(shake, 0.1)
+
+
+## The blade bites a robot: a white flash and sparks flying off its plating the way the axe goes, a clang; the hit lands.
+func _axe_bite(uid: int, tid: int) -> void:
+	var h := _hit_height_of(_robot_type(tid))
+	var at := _robot_point(tid, h)
+	if at == Vector3.INF:
+		_land_hit(tid)
+		return
+	var u = sim.get_unit(uid)
+	var from_him := (at - _v3(u.pos, h)) if u != null else Vector3(0, 0, 1)
+	from_him.y = 0.0
+	from_him = from_him.normalized() if from_him.length() > 0.05 else Vector3(0, 0, 1)
+	var sweep := from_him.cross(Vector3.UP)              # (round to his left: the way the blade is going)
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [6, 4, 2][gl]
+	if _fx_room(n + 1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at - from_him * 0.12)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.6})
+		for k in n:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at - from_him * 0.1)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v := (sweep * randf_range(0.4, 1.2) + from_him * randf_range(-0.3, 0.5) + Vector3(0, randf_range(0.2, 1.0), 0)).normalized() * randf_range(2.6, 5.0)
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.22, "kind": "spark", "v": v})
+	_sfx("hammer_hit", -9.0, 0.15, 0.05)
+	_land_hit(tid, 0.05)
+
+
+## The axe's sweep: a broad crescent lying flat round him (radius 1 at scale 1, the front at -Z), bright at its leading
+## end (his left: the blade) and fading back along the arc toward his right, soft at its inner edge.
+func _cleave_mesh() -> ArrayMesh:
+	if _atk_cache.has("cleave_mesh"):
+		return _atk_cache["cleave_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 24
+	var prev := []
+	for i in n + 1:
+		var u := float(i) / n
+		var a := deg_to_rad(lerpf(80.0, -80.0, u))           # +X (his right) round the front (-Z) to -X (his left)
+		var w := 0.26 * pow(sin(PI * clampf(u * 0.9 + 0.05, 0.0, 1.0)), 0.8)
+		var d := Vector3(sin(a), 0.0, -cos(a))
+		var lead := pow(u, 1.4)
+		var o := [d * (1.0 + w * 0.3), Color(1.0, 1.0, 1.0, lead)]
+		var inn := [d * (1.0 - w), Color(0.55, 0.68, 0.9, 0.0)]
+		if i > 0:
+			for v in [prev[0], prev[1], o, prev[1], inn, o]:
+				st.set_color(v[1])
+				st.add_vertex(v[0])
+		prev = [o, inn]
+	var m := st.commit()
+	_atk_cache["cleave_mesh"] = m
+	return m
 
 
 # ---------------------------------------------------------------- Javelin Thrower (v0.9.29)
@@ -6030,6 +6153,230 @@ func _torsion_ammo(n: Node3D, hot: bool) -> void:
 	n.set_meta("pots", pots)
 
 
+# ---------------------------------------------------------------- Ballista (Iron Age HQ)
+# The shot (tools/blender/hq/anim_ballista.py): the engineer knocks the claw's lever with his mallet (RELEASE) and the
+# string drives the bolt out of the groove (LAUNCH: the bolt's bone is scaled away there). The bolt flies on from where
+# its point lay in the groove, point first, in a low arc to where the sim's shot lands and drives into the ground there:
+# dirt and splinters fly, the blast throws up dust round it, and it sticks a moment, quivering, then sinks away. Path A's
+# bolts burn: in the groove and in his hands while he loads (they share those bones), in flight and where they land.
+const BALLISTA_RELEASE := 3                         # anim_ballista.RELEASE
+const BALLISTA_LAUNCH := 4                          # anim_ballista.LAUNCH
+const BALLISTA_POINT := Vector3(0.4, 1.041, 0.633)  # the bolt's point in the groove (model units, Godot axes, Yaw node)
+const BALLISTA_BOLT_L := 0.84                       # ballista.py BOLT_L (model units)
+const BALLISTA_FLY := 1.3                           # the flying bolt's size (of the one in the groove)
+# the bolts' points in the skeleton's rest (Godot axes): the one in the groove, the one on top of the bundle
+const BALLISTA_TIP_BOLT := Vector3(0.8, 1.041, 1.013)
+const BALLISTA_TIP_CARRY := Vector3(0.54, 0.133, -0.47)
+
+
+## Does unit `uid` have its HQ Ballista model (with clips)?
+func _bal_hq(uid: int) -> bool:
+	return _hq_clips(uid) and (tower_nodes[uid] as Node3D).has_meta("yaw")
+
+
+## A bolt (one cached mesh per look, model units, as ballista.py's): an ash shaft, three leather flights by its nock and
+## a long four-sided iron head on its socket. Its point is at the origin and it lies along +Z, so a node looking along
+## its flight carries it point first. A burning bolt's shaft is charred.
+func _bolt_mesh(fire: bool) -> ArrayMesh:
+	var key := "bolt_mesh_fire" if fire else "bolt_mesh"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var L := BALLISTA_BOLT_L
+	var w := 0.017
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	_arrow_prism(st, 0.13, L, w, Color(0.24, 0.15, 0.09) if fire else Color(0.66, 0.48, 0.3))     # the shaft
+	_arrow_prism(st, L - 0.012, L, w * 1.15, Color(0.3, 0.2, 0.12))                               # its nock end
+	for i in 3:                                                                                     # the flights
+		var a := TAU * i / 3.0 + 0.3
+		var r := Vector3(cos(a), sin(a), 0.0)
+		var q := [r * w + Vector3(0, 0, L - 0.19), r * (w + 0.03) + Vector3(0, 0, L - 0.15),
+			r * (w + 0.03) + Vector3(0, 0, L - 0.04), r * w + Vector3(0, 0, L - 0.03)]
+		for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			for v in tri:
+				st.set_color(Color(0.46, 0.22, 0.1))
+				st.add_vertex(v)
+	st.generate_normals()
+	var m := st.commit()
+	var sm := StandardMaterial3D.new()
+	sm.vertex_color_use_as_albedo = true
+	sm.roughness = 0.8
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(0, sm)
+	var st2 := SurfaceTool.new()                       # the head: a long four-sided point and its socket
+	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st2.set_smooth_group(-1)
+	var hw := w * 1.2
+	var ring := [Vector3(hw, 0, 0.1), Vector3(0, hw, 0.1), Vector3(-hw, 0, 0.1), Vector3(0, -hw, 0.1)]
+	for i in 4:
+		var j := (i + 1) % 4
+		for v in [Vector3.ZERO, ring[i], ring[j]]:
+			st2.add_vertex(v)
+	_arrow_prism(st2, 0.1, 0.15, w * 1.3, Color.WHITE)
+	st2.generate_normals()
+	st2.commit(m)
+	var hm := StandardMaterial3D.new()
+	hm.albedo_color = Color(0.52, 0.53, 0.56)
+	hm.metallic = 0.7
+	hm.roughness = 0.38
+	hm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(1, hm)
+	_atk_cache[key] = m
+	return m
+
+
+## A bolt from the HQ Ballista: in the groove (hidden) until his clip looses it, then on its flight (_ballista_flight).
+func _ballista_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
+	var fire := dt == "fire"
+	var body := Node3D.new()
+	body.name = "Body"
+	root.add_child(body)
+	var mi := _mi(_bolt_mesh(fire), null, body)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if fire:
+		_fire_halo(root, 0.55)                          # (round the head: the pitch-soaked tow behind the point)
+		root.set_meta("fire", true)
+	root.set_meta("bolt_hq", true)
+	root.set_meta("bal_tid", int(u.id))
+	root.set_meta("bal_cap", float(p.flight) * 0.5)    # loosed by then at the latest (sim seconds into its flight)
+	root.visible = false
+
+
+## Where an HQ Ballista bolt is this frame: in the groove (hidden) until the clip looses it (whatever the clip's rate,
+## the game speed or a pause), then on a low arc from there to where the sim's shot lands, point first.
+func _ballista_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
+	var t: float = float(p.t) + alpha * TICK
+	if not pn.has_meta("bal_t0"):
+		var tid := int(pn.get_meta("bal_tid", -1))
+		var go := t >= float(pn.get_meta("bal_cap"))
+		var from := _v3(p.start, 1.0)
+		var s := BALLISTA_FLY * float(defs.towers.ballista.get("model_scale", 0.56))
+		if _bal_hq(tid):
+			var tn: Node3D = tower_nodes[tid]
+			var ap: AnimationPlayer = tn.get_meta("anim")
+			# (the clip moves on after this, in this frame: by the step _hq_anim_tick gives it)
+			var step := get_process_delta_time() * float(speed) * float(tn.get_meta("throw_rate", 1.0))
+			go = go or ap.current_animation != str(tn.get_meta("clip_attack")) \
+				or ap.current_animation_position + step >= float(BALLISTA_LAUNCH) / CLIP_FPS
+			var yt := (tn.get_meta("yaw") as Node3D).global_transform
+			from = yt * BALLISTA_POINT
+			s = BALLISTA_FLY * yt.basis.get_scale().x
+		else:
+			go = true                                    # (sold before the shot: it goes now)
+		if not go:
+			pn.visible = false
+			return pn.position
+		pn.set_meta("bal_t0", t)
+		pn.set_meta("bal_from", from)
+		(pn.get_node("Body") as Node3D).scale = Vector3.ONE * s
+	var t0: float = pn.get_meta("bal_t0")
+	var from2: Vector3 = pn.get_meta("bal_from")
+	var to := _v3(p.aim, 0.02)
+	var k := clampf((t - t0) / maxf(float(p.flight) - t0, 0.05), 0.0, 1.0)
+	var d := to - from2
+	var h := 0.2 + 0.7 * minf(Vector2(d.x, d.z).length() / 9.0, 1.0)
+	var tg := d + Vector3(0, h * 4.0 * (1.0 - 2.0 * k), 0)
+	if tg.length() > 0.01:
+		var tn2 := tg.normalized()
+		pn.basis = Basis.looking_at(tn2, Vector3.UP if absf(tn2.y) < 0.98 else Vector3.RIGHT)
+	pn.visible = true
+	return from2.lerp(to, k) + Vector3(0, h * 4.0 * k * (1.0 - k), 0)
+
+
+## A bolt lands (its flying node): it drives into the ground where the shot lands, at the angle it came down.
+func _bolt_hit(pn: Node3D, ev: Dictionary) -> void:
+	var s := BALLISTA_FLY * float(defs.towers.ballista.get("model_scale", 0.56))
+	if pn.has_node("Body"):
+		s = (pn.get_node("Body") as Node3D).scale.x
+	_bolt_land(_v3(ev.pos, 0.0), -pn.global_transform.basis.z, s, pn.has_meta("fire"), ev)
+
+
+## The same for a bolt that flew and landed within one frame (no node was made): it came from its tower.
+func _bolt_hit_unseen(su: Dictionary, ev: Dictionary) -> void:
+	var d := _v3(ev.pos, 0.0) - _v3(su.pos, 0.0)
+	var flat := Vector3(d.x, 0.0, d.z).normalized() if d.length() > 0.01 else Vector3.FORWARD
+	var s := BALLISTA_FLY * float(defs.towers.ballista.get("model_scale", 0.56))
+	_bolt_land(_v3(ev.pos, 0.0), (flat + Vector3(0, -0.35, 0)).normalized(), s, str(ev.get("dtype", "")) == "fire", ev)
+
+
+## The bolt drives in (its point buried, the shaft up out of the ground behind it), earth and splinters fly up, the
+## blast throws dust out round it and cracks the ground; it quivers, holds a moment and sinks away. A burning bolt
+## bursts into flame there (and sets the ground alight round it).
+func _bolt_land(at: Vector3, dir: Vector3, s: float, fire: bool, ev: Dictionary) -> void:
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	dir = dir.normalized() if dir.length() > 0.01 else Vector3(0, -0.35, -1).normalized()
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	flat = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
+	if dir.y > -0.3:                                    # (it drives in at least this steeply)
+		dir = (flat * 0.92 + Vector3(0, -0.4, 0)).normalized()
+	var splash := clampf(float(ev.get("splash", 1.2)), 0.6, 2.5)
+	var life: float = [1.3, 0.9, 0.0][gl]
+	at.y = 0.0
+	if life > 0.0 and _fx_room(1):
+		var g := Node3D.new()
+		add_child(g)
+		var mi := _mi(_bolt_mesh(fire), null, g, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * s)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		g.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), at + dir * 0.16 * s)
+		effects.append({"node": g, "t": 0.0, "life": life, "kind": "stuck", "b0": g.transform.basis})
+	_ground_decal(at, "crack", 0.55 * splash + 0.2, 1.2)
+	_dust_fx(at + Vector3(0, 0.15, 0), [5, 3, 2][gl], 0.6 * splash)
+	var n: int = [6, 4, 2][gl]
+	if _fx_room(n):
+		for i in n:                                     # earth thrown up, the way the bolt came from
+			var sz := randf_range(0.06, 0.11)
+			var c := _mi(_sph_c(0.5, 5), _atk_mat("clod"), self, at + Vector3(0, 0.12, 0), Vector3(randf(), randf(), randf()) * 3.0,
+				Vector3.ONE * sz)
+			c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var a := randf() * TAU
+			var v := Vector3(cos(a), 0.0, sin(a)) * randf_range(0.8, 2.0) - flat * randf_range(0.6, 1.6)
+			effects.append({"node": c, "t": 0.0, "life": randf_range(0.45, 0.7), "kind": "debris", "s": sz,
+				"v": v + Vector3(0, randf_range(2.6, 4.2), 0)})
+	var ns: int = [3, 2, 1][gl]
+	if _fx_room(ns):
+		for i in ns:                                    # sparks off the iron head
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at + Vector3(0, 0.08, 0))
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v2 := (-flat + Vector3(randf_range(-0.8, 0.8), randf_range(0.4, 1.2), randf_range(-0.8, 0.8))).normalized() * randf_range(2.5, 4.0)
+			sp.look_at_from_position(sp.position, sp.position + v2, Vector3.UP if absf(v2.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v2})
+	if fire:
+		if _fx_room(1):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, at + Vector3(0, 0.2, 0))
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 0.8})
+		_fire_splash(at, clampf(splash, 0.6, 1.6))
+	_sfx("rock_hit", -9.0, 0.2, 0.05)
+	_sfx("boulder_land", -15.0, 0.25, 0.08)
+	shake = maxf(shake, 0.1)
+
+
+## Path A's burning bolts in the HQ model: a flame's glow rides on the head of the bolt in the groove and of the one he
+## lifts from the bundle (on their bones: it goes with the shot and comes back as he loads).
+func _ballista_ammo(n: Node3D, hot: bool) -> void:
+	if not hot or n.has_meta("bal_fire"):
+		return
+	var sks := n.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return
+	var sk := sks[0] as Skeleton3D
+	for pair in [["bolt", BALLISTA_TIP_BOLT], ["carry", BALLISTA_TIP_CARRY]]:
+		var bi := sk.find_bone(pair[0])
+		if bi < 0:
+			continue
+		var ba := BoneAttachment3D.new()
+		ba.bone_name = pair[0]
+		sk.add_child(ba)
+		var tip := Node3D.new()
+		ba.add_child(tip)
+		tip.position = sk.get_bone_global_rest(bi).affine_inverse() * (pair[1] as Vector3)
+		_fire_halo(tip, 0.4)
+		var fl := _mi(_flame_quad(0.1, 0.16), _campfire_mat("outer"), tip, Vector3(0, 0.0, 0))
+		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.set_meta("bal_fire", true)
+
+
 func _make_projectile(p: Dictionary) -> Node3D:
 	var src: Dictionary = p.src
 	var u = sim.get_unit(int(src.get("tower_id", -1)))
@@ -6039,6 +6386,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	root.position = _v3(p.pos, 1.3)
 	add_child(root)
 	var pj: String = str(src.get("proj", ""))
+	if utype == "ballista" and _bal_hq(int(u.id)):
+		_ballista_proj(root, p, u, dt)         # a bolt from the groove, loosed when his clip drives it out
+		return root
 	if pj != "" and pj != "arrow" and pj != "rock":
 		_proj_model(root, pj, dt)
 		return root
@@ -6500,6 +6850,11 @@ func _sync_visuals(alpha: float) -> void:
 		elif pn.has_meta("lob_from"):
 			newp = _torsion_flight(pn, p, alpha)
 			if pn.has_meta("fire") and pn.visible:
+				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
+		elif pn.has_meta("bolt_hq"):
+			var was := pn.visible
+			newp = _ballista_flight(pn, p, alpha)
+			if pn.has_meta("fire") and was:
 				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
 		elif p.kind == "lob":
 			var k: float = clampf((p.t + alpha * TICK) / p.flight, 0.0, 1.0)
@@ -7780,11 +8135,7 @@ func _build_main_menu(root: Control) -> void:
 	logo.pivot_offset = Vector2(330, 132)
 	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_screen.add_child(logo)
-	var bob := logo.create_tween().set_loops()
-	bob.tween_property(logo, "offset_top", 10.0, 1.8).set_trans(Tween.TRANS_SINE)
-	bob.parallel().tween_property(logo, "offset_bottom", 274.0, 1.8).set_trans(Tween.TRANS_SINE)
-	bob.tween_property(logo, "offset_top", 0.0, 1.8).set_trans(Tween.TRANS_SINE)
-	bob.parallel().tween_property(logo, "offset_bottom", 264.0, 1.8).set_trans(Tween.TRANS_SINE)
+	# (v0.9.32, Alexx: the logo stays still too; it used to bob 10 px up and down)
 	# ---- top right: currencies
 	var cur := VBoxContainer.new()
 	cur.anchor_left = 1.0
@@ -9289,6 +9640,11 @@ func _build_map_select(root: Control) -> void:
 	tabs.add_theme_constant_override("h_separation", 10)
 	tabs.add_theme_constant_override("v_separation", 10)
 	box.add_child(tabs)
+	# (v0.9.32, Alexx: a locked age's tab stays grey and its maps stay hidden until you reach it; tapping it says so)
+	var lock_note := _label("", 20, Color(1.0, 0.76, 0.45), 6)
+	lock_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lock_note.modulate.a = 0.0
+	box.add_child(lock_note)
 	var rows := {}
 	var tab_buttons := {}
 	var default_tab := str(Progress.data.get("tab", ""))
@@ -9321,9 +9677,14 @@ func _build_map_select(root: Control) -> void:
 			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else (Color(0.8, 0.8, 0.8) if b.get_meta("open") else Color(0.55, 0.55, 0.55))
 		Progress.data.tab = era_name
 	for era_name in tab_buttons:
-		tab_buttons[era_name].pressed.connect(func():
-			_sfx("click")
-			show_tab.call(era_name))
+		if (tab_buttons[era_name] as Button).get_meta("open"):
+			tab_buttons[era_name].pressed.connect(func():
+				_sfx("click")
+				show_tab.call(era_name))
+		else:
+			tab_buttons[era_name].pressed.connect(func():
+				_sfx("error")
+				_locked_age_note(lock_note, era_name))
 	if default_tab == "":
 		default_tab = _eras()[0]
 	show_tab.call(default_tab)
@@ -9388,6 +9749,21 @@ func _build_map_select(root: Control) -> void:
 		brow.add_child(dev)
 	box.move_child(brow, 0)   # keep Legacy / Settings / New Timeline visible without scrolling
 	map_select.visible = false
+
+
+## A locked age's tab was tapped: a note under the tabs says what opens it, then fades.
+func _locked_age_note(lbl: Label, era_name: String) -> void:
+	var eras := _eras()
+	var i := eras.find(era_name)
+	var named := func(e: String) -> String: return e if e.begins_with("The ") else "the " + e
+	lbl.text = ("LOCKED:  beat %s to open %s" % [named.call(str(eras[i - 1])), named.call(era_name)]) if i > 0 else "LOCKED"
+	if lbl.has_meta("tw") and (lbl.get_meta("tw") as Tween).is_valid():
+		(lbl.get_meta("tw") as Tween).kill()
+	lbl.modulate.a = 1.0
+	var tw := lbl.create_tween()
+	tw.tween_interval(2.0)
+	tw.tween_property(lbl, "modulate:a", 0.0, 0.6)
+	lbl.set_meta("tw", tw)
 
 
 func _first_map_of(era_name: String) -> String:
@@ -10596,14 +10972,20 @@ func _shoot_menu() -> void:
 	if "--test-menu-still" in OS.get_cmdline_user_args():
 		# v0.9.31: the menu buttons stay put (PLAY only pulses): how far each button's body drifts over 1.5 s
 		var bodies := []
+		var logo: TextureRect = null
 		for c in title_screen.find_children("*", "Control", true, false):
 			if c.has_meta("button") and (c as Control).get_child_count() > 0:
 				bodies.append([(c as Control).get_child(0), (c as Control).get_child(0).position])
+			elif c is TextureRect and (c as TextureRect).texture != null and (c as TextureRect).texture.resource_path.ends_with("mm_logo.png"):
+				logo = c
+		var logo_y := logo.position.y if logo != null else 0.0
 		await get_tree().create_timer(1.5).timeout
 		var moved := 0.0
 		for bp in bodies:
 			moved = maxf(moved, ((bp[0] as Control).position - (bp[1] as Vector2)).length())
-		print("MENUSTILL buttons=%d max_drift=%.2f px" % [bodies.size(), moved])
+		# (v0.9.32: the logo stays still too)
+		print("MENUSTILL buttons=%d max_drift=%.2f px logo=%s logo_drift=%.2f px" % [bodies.size(), moved, str(logo != null),
+			absf(logo.position.y - logo_y) if logo != null else -1.0])
 	await _shot("menu_main.png")
 	_open_workshop("")
 	for i in 4:
@@ -11538,6 +11920,18 @@ func _run_demo() -> void:
 		map_select.visible = true
 		for i in 3:
 			await get_tree().process_frame
+		if "--tap-locked" in args:
+			# v0.9.32: tapping a locked age's tab leaves the open age's maps showing and says what opens it
+			for b in map_select.find_children("*", "Button", true, false):
+				if (b as Button).text == "IRON AGE":
+					(b as Button).pressed.emit()
+			for i in 6:
+				await get_tree().process_frame
+			var note := ""
+			for l in map_select.find_children("*", "Label", true, false):
+				if (l as Label).text.begins_with("LOCKED:"):
+					note = (l as Label).text
+			print("LOCKEDTAB tab=%s note=%s" % [str(Progress.data.get("tab", "")), note])
 		await _shot("demo_select.png")
 		get_tree().quit()
 		return
