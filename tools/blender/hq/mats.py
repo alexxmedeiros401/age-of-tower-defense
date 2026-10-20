@@ -1106,6 +1106,22 @@ def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), li
     return g.finish(c, 0.92, g.bump(weave, 0.18, 0.0015))
 
 
+def leafy(name="HQ_Leafy", leaf=(0.2, 0.36, 0.1), vein=(0.4, 0.54, 0.18), berry=(0.93, 0.94, 0.86), mist=(0.56, 0.62, 0.24),
+          twig=(0.36, 0.26, 0.16)):
+    """Leaves (a druid's wreath): oak green, mottled, lighter along the ridges and edges (label 0); waxy white mistletoe
+    berries (5); mistletoe's narrow yellow-green leaves (6); twigs (7)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 30.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(leaf), g.rgb(tuple(x * 1.25 for x in leaf)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.52, 0.6), 0.6), c, g.rgb(vein))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.48, 0.42), 0.5), c, g.rgb(tuple(x * 0.55 for x in leaf)))
+    c = g.mix(g.reg(6), c, g.rgb(mist))
+    c = g.mix(g.reg(7), c, g.rgb(twig))
+    c = g.mix(g.reg(5), c, g.rgb(berry))
+    rough = g.mixf(g.reg(5), 0.62, 0.25)
+    return g.finish(c, rough, g.bump(g.noise(p, 90.0, 2.0), 0.15, 0.001))
+
+
 def bark_wood(name="HQ_BarkWood", bark=(0.34, 0.24, 0.15), wood=(0.76, 0.6, 0.4)):
     """Logs, stakes and a stump: bark in cracked plates, dark in the cracks, lighter on the worn ridges (label 0); pale
     cut or split wood with fine grain and darker rings (label 5); grey-brown withies (7); iron (6)."""

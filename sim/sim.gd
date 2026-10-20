@@ -824,11 +824,11 @@ func _raw_damage(e: Dictionary, amount: float, src: Dictionary) -> void:
 		_kill(e, src)
 
 
-func _emp_blast(pos: Vector2, radius: float, duration: float) -> void:
+func _emp_blast(pos: Vector2, radius: float, duration: float, src_id := -1) -> void:
 	for t in towers:
 		if t.pos.distance_to(pos) <= radius:
 			t.stun_until = maxi(int(t.get("stun_until", 0)), tick + int(duration / TICK))
-	events.append({"e": "emp", "pos": pos, "radius": radius, "duration": duration})
+	events.append({"e": "emp", "pos": pos, "radius": radius, "duration": duration, "id": src_id})
 
 
 func _kill(e: Dictionary, src: Dictionary) -> void:
@@ -1038,7 +1038,7 @@ func step() -> void:
 			e.emp_cd -= TICK
 			if e.emp_cd <= 0.0:
 				e.emp_cd = float(dd.emp.every)
-				_emp_blast(e.pos, float(dd.emp.radius), float(dd.emp.duration))
+				_emp_blast(e.pos, float(dd.emp.radius), float(dd.emp.duration), int(e.id))
 		var d_before: float = e.dist
 		if tick >= e.stun_until:
 			var sp: float = e.speed

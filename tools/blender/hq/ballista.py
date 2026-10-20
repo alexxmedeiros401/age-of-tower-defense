@@ -3,10 +3,10 @@ pose: he stands in an A-pose facing -Y (the way it shoots), feet at z = 0, the b
 (its arms swept back, the string on the claw, a bolt in the groove).
 
 Him: big and barrel-chested, a hooked nose and heavy black brows, a short full black beard and a heavy moustache drooping
-past the corners of his mouth; an iron helmet with a knob on its crown, a short neck guard and cheek pieces; a checked
-wool tunic (green, red and yellow) to mid-thigh with short sleeves, a wide leather belt with an iron buckle, checked
-trousers, leather shoes with thongs bound up his shins, leather wrist wraps, iron armlets above the elbows. An iron-bound
-mallet, rigid in his right fist.
+past the corners of his mouth; an iron helmet with a knob on its crown, a short neck guard and cheek pieces; a blue wool
+tunic checked in dark red with thin yellow lines, to mid-thigh with short sleeves, a wide leather belt with an iron
+buckle, checked brown trousers, leather shoes with thongs bound up his shins, leather wrist wraps, iron armlets above
+the elbows. An iron-bound mallet, rigid in his right fist.
 
 The ballista: an upright post on four splayed feet with braces and iron straps, a swivel and a fork on top carrying the
 stock on its trunnion pin; on the stock the slider in its dovetail, the bolt groove along its top, the claw and its
@@ -1111,10 +1111,10 @@ MAT_OVERRIDES = {
     "Beard": ("hair", {"name": "HQ_BalBeard", "base": (0.07, 0.055, 0.05), "hi": (0.3, 0.24, 0.21), "low": (0.03, 0.025, 0.022),
                        "streak": (0.045, 0.035, 0.03), "tint": (0.15, 0.1, 0.08)}),
     "Helmet": ("iron", {"name": "HQ_BalHelmet"}),
-    "Tunic": ("plaid", {"name": "HQ_BalTunic", "base": (0.15, 0.25, 0.5), "stripe": (0.86, 0.66, 0.18), "line": (0.72, 0.14, 0.08),
-                        "border": (0.72, 0.14, 0.08)}),
-    "Trousers": ("plaid", {"name": "HQ_BalTrousers", "base": (0.32, 0.27, 0.15), "stripe": (0.52, 0.16, 0.08),
-                           "line": (0.86, 0.72, 0.32), "border": (0.52, 0.16, 0.08), "period": 0.1}),
+    "Tunic": ("plaid", {"name": "HQ_BalTunic", "base": (0.14, 0.24, 0.48), "stripe": (0.5, 0.12, 0.08), "line": (0.86, 0.68, 0.24),
+                        "border": (0.62, 0.14, 0.08)}),
+    "Trousers": ("plaid", {"name": "HQ_BalTrousers", "base": (0.27, 0.21, 0.12), "stripe": (0.4, 0.13, 0.07),
+                           "line": (0.72, 0.6, 0.3), "border": (0.4, 0.13, 0.07), "period": 0.1}),
     "Leather": ("leather", {"name": "HQ_BalLeather", "base": (0.34, 0.19, 0.1)}),
     "Iron": ("iron", {"name": "HQ_BalIron"}),
     "Mallet": ("javelin_shaft", {"name": "HQ_BalMallet"}),

@@ -196,7 +196,7 @@ HD_HIT = (H_S * math.cos(DELTA) - Z * math.sin(DELTA)).normalized()
 FACE_HIT = HD_HIT.cross(SWING_AX).normalized()  # down (and a little back toward him): the way the blow goes
 HEAD_HIT = TAIL - FACE_HIT * (HL + 0.017)
 GRIP_HIT = HEAD_HIT - HD_HIT * ML
-RAISE = math.radians(128.0)
+RAISE = math.radians(145.0)
 GRIP_UP = SH_S + H_S * 0.1 + Z * 0.26 + SWING_AX * 0.04
 
 

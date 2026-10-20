@@ -5,8 +5,9 @@ Idle    : leaning on his axe: its head on the ground in front of him, both fists
 Combat  : the ready stance: feet wide, knees bent, turned a little to his right, the axe cocked up behind his right
           shoulder in both fists; he sways with it.
 Attack  : (26 frames) he winds up (0-4), then sweeps the axe round in front of him at waist height (the blade leading),
-          through the robots at HIT (frame 7: game.gd's cleave arc and its sparks), follows through to his left and
-          swings it back up over his shoulder into the ready stance.
+          through the robots at HIT (frame 7: game.gd's cleave arc and its sparks), follows through to his left, lets its
+          weight carry it on down in front of his knees and round past his right hip, and swings it up over his
+          shoulder into the ready stance (a figure of eight: the haft never crosses his face).
 
 The axe is rigid on the `axe` bone in his right fist (his lower hand); his left fist closes on the haft above it
 (LEFT_ON along the haft), placed every frame from the axe's pose."""
@@ -154,7 +155,9 @@ def combat_pose(arm, t):
 WIND_G, WIND_HAFT, WIND_EDGE = V(-0.2, -0.02, 1.32), V(-0.6, 0.55, 0.58), V(-0.75, -0.6, -0.2)
 HIT_G, HIT_HAFT, HIT_EDGE = V(-0.15, -0.2, 1.12), V(0.45, -0.89, -0.05), V(0.97, 0.24, 0.0)
 FOL_G, FOL_HAFT, FOL_EDGE = V(0.12, -0.25, 1.05), V(0.85, -0.3, -0.25), V(0.3, 0.9, 0.0)
-UP_G, UP_HAFT, UP_EDGE = V(-0.05, -0.3, 1.45), V(0.1, -0.2, 0.97), V(-0.2, -0.95, 0.2)
+LOW_G, LOW_HAFT, LOW_EDGE = V(-0.1, -0.3, 1.12), V(-0.55, -0.6, -0.55), V(-0.75, 0.1, 0.65)
+DIP_HAFT = V(0.2, -0.85, -0.5)              # (in front of his knees, the head well clear of the ground)
+SIDE_HAFT, SIDE_EDGE = V(-0.85, 0.5, -0.1), V(0.1, 0.1, 1.0)
 
 
 def sweep_state(f):
@@ -172,13 +175,13 @@ def sweep_state(f):
         k = ease((f - HIT) / float(11 - HIT))
         return (lerp(-5.0, 35.0, k), lerp(6.0, 12.0, k), lerp(0.22, 0.28, k), lerp(0.14, 0.15, k), HIT_G.lerp(FOL_G, k),
                 mixd(HIT_HAFT, FOL_HAFT, k), mixd(HIT_EDGE, FOL_EDGE, k), 0.0, lerp(0.03, 0.06, k))
-    if f <= 18:                                               # up in front of him
-        k = ease((f - 11) / 7.0)
-        return (lerp(35.0, 0.0, k), lerp(12.0, 0.0, k), lerp(0.28, 0.1, k), lerp(0.15, 0.09, k), FOL_G.lerp(UP_G, k),
-                mixd(FOL_HAFT, UP_HAFT, k), mixd(FOL_EDGE, UP_EDGE, k), 0.0, lerp(0.06, 0.0, k))
-    k = ease((f - 18) / float(FR - 18))                       # and back over his shoulder
-    return (lerp(0.0, C_YAW, k), lerp(0.0, -6.0, k), lerp(0.1, 0.14, k), lerp(0.09, 0.08, k), UP_G.lerp(COCK_G, k),
-            mixd(UP_HAFT, COCK_HAFT, k), mixd(UP_EDGE, COCK_EDGE, k), 0.0, 0.0)
+    if f <= 17:                                               # the axe's weight carries it on: down in front of his knees
+        k = ease((f - 11) / 6.0)
+        return (lerp(35.0, 5.0, k), lerp(12.0, 0.0, k), lerp(0.28, 0.2, k), lerp(0.15, 0.12, k), FOL_G.lerp(LOW_G, k),
+                bez_d(FOL_HAFT, DIP_HAFT, LOW_HAFT, k), mixd(FOL_EDGE, LOW_EDGE, k), 0.0, lerp(0.06, 0.0, k))
+    k = ease((f - 17) / float(FR - 17))                       # and round past his right hip, up over his shoulder
+    return (lerp(5.0, C_YAW, k), lerp(0.0, -6.0, k), lerp(0.2, 0.14, k), lerp(0.12, 0.08, k), bez_p(LOW_G, V(-0.3, -0.2, 1.2), COCK_G, k),
+            bez_d(LOW_HAFT, SIDE_HAFT, COCK_HAFT, k), bez_d(LOW_EDGE, SIDE_EDGE, COCK_EDGE, k), 0.0, 0.0)
 
 
 def make_attack(arm, frames=FR):

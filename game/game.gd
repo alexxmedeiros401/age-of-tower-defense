@@ -2812,7 +2812,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7}
+	"axe_warrior": 7, "druid": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -3011,6 +3011,17 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.albedo_color = Color(1.0, 0.5, 0.12) if key == "ember" else Color(1.0, 0.56, 0.2)
 			m.albedo_texture = _mote_tex()
+		"root":                                      # the Druid's roots (vertex colours: bark, moss)
+			m.vertex_color_use_as_albedo = true
+			m.roughness = 0.92
+		"root_flash", "storm_flash":                 # the Druid's stone flaring (green; blue-white on the Storm Druid)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.albedo_color = Color(0.5, 1.0, 0.42) if key == "root_flash" else Color(0.75, 0.9, 1.0)
+			m.albedo_texture = _mote_tex()
 	_atk_cache[key] = m
 	return m
 
@@ -3172,6 +3183,14 @@ func _prewarm_arrows() -> void:
 	_mi(_pot_mesh(), _atk_mat("pot"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_sph_c(0.17, 14), _atk_mat("stone_ball"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_fx_mesh("cube"), _atk_mat("shard"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	# Iron Age: the ballista's bolts, the druid's roots and its flashes
+	for fire in [false, true]:
+		_mi(_bolt_mesh(fire), null, holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	for v in 3:
+		_mi(_root_mesh(v), _atk_mat("root"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	for key in ["root_flash", "storm_flash"]:
+		var mi2 := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+		mi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_fx_after(0.12, func() -> void:
 		if is_instance_valid(holder):
 			holder.queue_free())
@@ -4022,6 +4041,8 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_glob(fx, n)
 			"spike":
 				_tick_spike(fx, n)
+			"root":
+				_tick_root(fx, n)
 			"stuck":
 				_tick_stuck(fx, n)
 			"beam":
@@ -4030,6 +4051,9 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_hammer(fx, n)
 			"javelin":
 				_tick_javelin(fx, n)
+			"jav_up":                                  # Kael's javelin climbing out of sight
+				n.position += (fx.v as Vector3) * dt
+				n.visible = fx.t < float(fx.life) - 0.1
 			"fury":
 				_tick_fury(fx, n)
 			"slash":
@@ -4337,6 +4361,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "sun_priest" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_sun_beams(u3, tg3)                         # v0.9.24: beams of sunlight from the disc on his staff
+				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
 				elif u3 != null:
 					var pcol := Color(0.4, 1.0, 0.5)
 					if u3.type == "sun_priest":
@@ -4431,10 +4458,20 @@ func _handle_events() -> void:
 				if ev.crit:
 					_float_text(_v3(ev.pos, 1.8), "CRIT!", Color(1, 0.35, 0.25), 44)
 			"emp":
-				_ring_fx(_v3(ev.pos, 0.3), float(ev.radius), Color(0.45, 0.85, 1.0), 0.6)
-				_ring_fx(_v3(ev.pos, 0.3), float(ev.radius) * 0.6, Color(0.7, 0.95, 1.0), 0.45)
-				_sfx("emp", -4.0, 0.05, 0.3)
-				shake = maxf(shake, 0.4)
+				# the HQ Iron Colossus slams its fists into the ground (its Emp clip): the pulse bursts from the blow
+				var slam := 0.0
+				var eid0 := int(ev.get("id", -1))
+				if enemy_nodes.has(eid0) and is_instance_valid(enemy_nodes[eid0]) and (enemy_nodes[eid0] as Node3D).has_meta("anim"):
+					var eap: AnimationPlayer = (enemy_nodes[eid0] as Node3D).get_meta("anim")
+					if eap.has_animation("Emp"):
+						eap.play("Emp", 0.15)
+						slam = COLOSSUS_SLAM / maxf(float(speed), 0.01)
+				var epos: Vector2 = ev.pos
+				var erad := float(ev.radius)
+				if slam > 0.0:
+					_fx_after(slam, func() -> void: _emp_burst(epos, erad, true))
+				else:
+					_emp_burst(epos, erad, false)
 			"chain":
 				_chain_fx(ev.pts)
 				_sfx("zap", -10.0, 0.15, 0.06)
@@ -5294,13 +5331,14 @@ const JAV_LEN := 1.2                                 # javelin.py JAV_FWD + JAV_
 const JAV_FWD := 0.74                                # its grip -> its point (model units)
 const JAV_FLY := 1.15                                # the flying javelin's size (of the one in his hand)
 var _javs := {}                                      # sim projectile id -> its flying javelin (an effect)
+const JAV_UNITS := ["javelin_thrower", "kael"]       # (Kael Hillwarden has the Javelin Thrower's build and throw)
 
 
 ## Is this sim projectile a javelin from an HQ Javelin Thrower?
 func _jav_hq(p: Dictionary) -> bool:
 	var uid := int((p.get("src", {}) as Dictionary).get("tower_id", -1))
 	var u = sim.get_unit(uid)
-	if u == null or str(u.type) != "javelin_thrower":
+	if u == null or not (str(u.type) in JAV_UNITS):
 		return false
 	return _hq_clips(uid) and (tower_nodes[uid] as Node3D).has_meta("yaw")
 
@@ -5429,7 +5467,7 @@ func _jav_pose(fx: Dictionary, n: Node3D, k: float) -> void:
 	var from: Vector3 = fx.from
 	var to: Vector3 = fx.to
 	var d := to - from
-	var arc := 0.32 * minf(d.length() / 5.0, 1.0)
+	var arc := 0.0 if bool(fx.get("steep", false)) else 0.32 * minf(d.length() / 5.0, 1.0)
 	n.position = from.lerp(to, k) + Vector3(0, arc * 4.0 * k * (1.0 - k), 0)
 	var tg := d + Vector3(0, arc * 4.0 * (1.0 - 2.0 * k), 0)
 	if tg.length() > 0.01:
@@ -5490,12 +5528,14 @@ func _jav_impact(ev: Dictionary) -> void:
 ## A javelin the sim threw and landed between two frames (10x, or a robot right at his feet): it strikes at once.
 func _jav_unseen(ev: Dictionary) -> bool:
 	var su = sim.get_unit(int(ev.get("tower", -1)))
-	if su == null or str(su.type) != "javelin_thrower" or not _hq_clips(int(su.id)):
+	if su == null or not (str(su.type) in JAV_UNITS) or not _hq_clips(int(su.id)):
 		return false
 	var eid := int(ev.get("eid", -1))
 	var h := _hit_height_of(_robot_type(eid))
 	var live := _robot_point(eid, h) if eid >= 0 else Vector3.INF
-	var s := JAV_FLY * float(defs.towers.javelin_thrower.get("model_scale", 0.64))
+	var ms := float(defs.heroes.heroes.kael.get("model_scale", 0.7)) if str(su.type) == "kael" \
+		else float(defs.towers.javelin_thrower.get("model_scale", 0.64))
+	var s := JAV_FLY * ms
 	_jav_strike({"pid": int(ev.pid), "from": _v3(su.pos, 1.3), "to": live if live != Vector3.INF else _v3(ev.pos, h), "impact": ev,
 		"ids": [eid] if live != Vector3.INF else [], "s": s})
 	return true
@@ -5545,6 +5585,86 @@ func _jav_strike(fx: Dictionary) -> void:
 	_sfx("rock_hit", -11.0, 0.25, 0.05)
 	for t in fx.get("ids", []):
 		_land_hit(int(t), 0.0)
+
+
+# ---------------------------------------------------------------- Kael Hillwarden (v0.9.34)
+# He has the Javelin Thrower's build and throw: his javelins fly from his hand like the tower's (JAV_UNITS).
+# Javelin Storm (tools/blender/hq/anim_kael.py): he leans back and hurls his javelin almost straight up; it leaves his
+# hand on the clip frame his fist lets it go (KAEL_STORM_T) and climbs out of sight; a moment later the storm comes down:
+# a javelin falls steeply on each robot it picked (one after another), strikes sparks off it and sticks in it. Each
+# robot takes its hit as its javelin lands (one it destroys blows up then).
+const KAEL_STORM_T := 15.0 / CLIP_FPS                # anim_kael.py A_RELEASE
+const KAEL_STORM_GAP := 0.5                          # its release -> the first javelin of the storm striking (s at 1x)
+const KAEL_STORM_FALL := 0.28                        # each storm javelin's fall
+const KAEL_STORM_STEP := 0.07                        # one striking -> the next
+
+
+func _kael_storm(ev: Dictionary) -> void:
+	var hid := int(sim.hero.id)
+	var ids := []
+	var pts := []
+	var all_ids: Array = ev.get("ids", [])
+	var i := 0
+	for p in ev.hits:
+		var rid := int(all_ids[i]) if i < all_ids.size() else -1
+		if rid >= 0:
+			_hold_hit(rid, KAEL_STORM_T + KAEL_STORM_GAP + i * KAEL_STORM_STEP + 0.1)
+		ids.append(rid)
+		pts.append(p)
+		i += 1
+	var at := KAEL_STORM_T
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void: _kael_storm_go(hid, ids, pts)))
+
+
+## The javelin leaves his hand going up and away out of sight; the storm follows it down.
+func _kael_storm_go(hid: int, ids: Array, pts: Array) -> void:
+	var from := _v3(sim.hero.pos, 2.0) if sim.hero != null else Vector3(0, 2, 0)
+	var dir := Vector3.UP
+	var s := JAV_FLY * float(defs.heroes.heroes.kael.get("model_scale", 0.7))
+	var tn = tower_nodes.get(hid)
+	if tn != null and is_instance_valid(tn) and (tn as Node3D).has_meta("anim"):
+		var hand := _jav_in_hand(tn)
+		var ax := hand.basis.y
+		if ax.length() > 0.001:
+			s = JAV_FLY * ax.length()
+			dir = (ax.normalized() + Vector3(0, 0.6, 0)).normalized()
+			from = hand.origin + ax * JAV_FWD
+	var up := Node3D.new()
+	add_child(up)
+	var mi := _mi(_jav_mesh(), null, up)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	up.global_transform = Transform3D(Basis.looking_at(dir, Vector3.RIGHT if absf(dir.y) > 0.98 else Vector3.UP).scaled(Vector3.ONE * s), from)
+	effects.append({"node": up, "t": 0.0, "life": 0.45, "kind": "jav_up", "v": dir * 26.0})
+	_sfx("javelin", -2.0, 0.1, 0.05)
+	var spd := maxf(float(speed), 0.01)
+	var hp := _v3(sim.hero.pos, 0.0) if sim.hero != null else Vector3.ZERO
+	for k in ids.size():
+		var tid := int(ids[k])
+		var p: Vector2 = pts[k]
+		_fx_after((KAEL_STORM_GAP - KAEL_STORM_FALL + k * KAEL_STORM_STEP) / spd, func() -> void: _storm_javelin(tid, p, hp, s))
+	_fx_after((KAEL_STORM_GAP - KAEL_STORM_FALL) / spd, func() -> void: _sfx("arrow", -1.0, 0.1, 0.05))
+
+
+## One javelin of the storm: it falls steeply out of the sky (a little from the hero's side) onto robot `tid` (or where it
+## was), point first, and strikes it (_jav_strike: sparks, it sticks in the robot, the hit lands).
+func _storm_javelin(tid: int, p: Vector2, hp: Vector3, s: float) -> void:
+	var h := _hit_height_of(_robot_type(tid)) if tid >= 0 else 0.0
+	var to := _robot_point(tid, h) if tid >= 0 else Vector3.INF
+	if to == Vector3.INF:
+		to = _v3(p, 0.0)
+		tid = -1
+	var away := Vector3(to.x - hp.x, 0.0, to.z - hp.z)
+	away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+	var from := to - away * 2.2 + Vector3(randf_range(-0.4, 0.4), 8.5, randf_range(-0.4, 0.4))
+	var root := Node3D.new()
+	add_child(root)
+	var mi := _mi(_jav_mesh(), null, root)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var fx := {"node": root, "t": 0.0, "life": INF, "kind": "javelin", "pid": -1, "tid": tid, "h": h, "uid": -1,
+		"launched": true, "landed": false, "impact": {"eid": tid}, "ids": [tid] if tid >= 0 else [], "t0": 0.0,
+		"dur": KAEL_STORM_FALL / maxf(float(speed), 0.01), "from": from, "to": to, "s": s, "big": 1.0, "steep": true}
+	effects.append(fx)
+	_jav_pose(fx, root, 0.0)
 
 
 # ---------------------------------------------------------------- Tarek the Smith (v0.9.26)
@@ -5960,6 +6080,30 @@ func _tick_fury(fx: Dictionary, n: Node3D) -> void:
 		"v": Vector3(randf_range(-0.2, 0.2), randf_range(0.8, 1.4), randf_range(-0.2, 0.2))})
 
 
+# ---------------------------------------------------------------- Iron Age robots
+const COLOSSUS_SLAM := 9.0 / CLIP_FPS                 # robot_iron_colossus.py EMP_HIT: its fists strike the ground
+
+
+## An EMP: rings of blue light from where it went off (the Colossus' fists: arcs crackle off the ground there too).
+func _emp_burst(pos: Vector2, radius: float, slam: bool) -> void:
+	_ring_fx(_v3(pos, 0.3), radius, Color(0.45, 0.85, 1.0), 0.6)
+	_ring_fx(_v3(pos, 0.3), radius * 0.6, Color(0.7, 0.95, 1.0), 0.45)
+	_sfx("emp", -4.0, 0.05, 0.3)
+	shake = maxf(shake, 0.6 if slam else 0.4)
+	if slam:
+		_dust_fx(_v3(pos, 0.2), 10, 1.4)
+		var n: int = [5, 3, 1][clampi(Progress.gfx_level(), 0, 2)]
+		for i in n:
+			var a := TAU * (float(i) + randf() * 0.5) / float(n)
+			var d := Vector2(cos(a), sin(a))
+			var side := Vector2(-d.y, d.x)
+			var pts := []
+			for k in 5:
+				var r := 0.6 + (radius * 0.7 - 0.6) * float(k) / 4.0
+				pts.append(pos + d * r + side * randf_range(-0.35, 0.35))
+			_chain_fx(pts)                                  # (arcs crackling out over the ground from the blow)
+
+
 # ---------------------------------------------------------------- Bronze Age robots (v0.9.27)
 ## The Shield Bot's shield breaks: its panel bursts into cyan shards that tumble down.
 func _shield_shatter(n: Node3D) -> void:
@@ -6212,6 +6356,7 @@ func _bolt_mesh(fire: bool) -> ArrayMesh:
 	for i in 4:
 		var j := (i + 1) % 4
 		for v in [Vector3.ZERO, ring[i], ring[j]]:
+			st2.set_color(Color.WHITE)
 			st2.add_vertex(v)
 	_arrow_prism(st2, 0.1, 0.15, w * 1.3, Color.WHITE)
 	st2.generate_normals()
@@ -6375,6 +6520,218 @@ func _ballista_ammo(n: Node3D, hot: bool) -> void:
 		var fl := _mi(_flame_quad(0.1, 0.16), _campfire_mat("outer"), tip, Vector3(0, 0.0, 0))
 		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	n.set_meta("bal_fire", true)
+
+
+# ---------------------------------------------------------------- Druid (Iron Age HQ)
+# The call (tools/blender/hq/anim_druid.py): he heaves his staff up and drives its foot into the earth (HIT): the stone
+# in its head flares, a ring of green light runs out over the ground, and gnarled roots burst up round every robot the
+# pulse hit (capped), curling in over its feet: they hold it a moment (the slow, the snare) and sink back. The robot
+# takes the hit as its roots break the ground. The Storm Druid (Path B) calls lightning down on them instead.
+const DRUID_GEM := Vector3(-0.33, 1.64, 0.03)       # the stone at HIT (model units, Godot axes, Yaw node)
+const ROOT_HOLD := 0.9                              # how long the roots hold a robot before they sink
+
+
+func _druid_call(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var storm := str(u.get("branch", "")) == "B"
+	var lead := _at_attack_frame(uid, ATTACK_FRAME.druid, 0.0, func() -> void: _druid_strike(uid, targets, storm))
+	var cap: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	var i := 0
+	for tid in targets:
+		var t := int(tid)
+		if _robot_point(t, 0.0) != Vector3.INF:
+			_hold_hit(t, lead + 0.06 + 0.03 * mini(i, cap - 1) + 0.03)
+			i += 1
+
+
+## Where his staff's stone is now (the turning model holds it there at HIT); INF without the model.
+func _druid_gem(uid: int) -> Vector3:
+	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+		return ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * DRUID_GEM
+	return Vector3.INF
+
+
+## HIT: the stone flares, light runs out over the ground, and each robot hit is snared in turn, nearest first.
+func _druid_strike(uid: int, targets: Array, storm: bool) -> void:
+	var u = sim.get_unit(uid)
+	if u == null:                                     # (sold mid-call)
+		for tid in targets:
+			_land_hit(int(tid))
+		return
+	var gem := _druid_gem(uid)
+	if gem != Vector3.INF and _fx_room(1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash" if storm else "root_flash"), self, gem)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.35, "kind": "flash", "s": 0.7})
+	var origin := _v3(u.pos, 0.0)
+	_ring_fx(origin + Vector3(0, 0.12, 0), 1.2, Color(0.75, 0.9, 1.0) if storm else Color(0.5, 1.0, 0.42), 0.3)
+	var cap: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	var order := []
+	for tid in targets:
+		var tp := _robot_point(int(tid), 0.0)
+		if tp != Vector3.INF:
+			order.append([Vector3(tp.x, 0.0, tp.z).distance_to(origin), int(tid)])
+	order.sort_custom(func(a, b) -> bool: return a[0] < b[0])
+	var rest := []
+	for i in order.size():
+		var t: int = order[i][1]
+		if i >= cap:                                  # (past the cap: hit with the last of them, no roots of its own)
+			rest.append(t)
+			continue
+		_fx_after(0.06 + 0.03 * i, func() -> void: _snare(t, storm))
+	if not rest.is_empty():
+		_fx_after(0.06 + 0.03 * (cap - 1), func() -> void:
+			for rt in rest:
+				_land_hit(int(rt)))
+
+
+## One robot snared: roots burst up round its feet and curl in over them (or a bolt of lightning strikes it).
+func _snare(tid: int, storm: bool) -> void:
+	var tp := _robot_point(tid, 0.0)
+	if tp == Vector3.INF:
+		_land_hit(tid)
+		return
+	tp.y = 0.0
+	var etype := _robot_type(tid)
+	var size := float(defs.enemies[etype].get("size", 0.5)) if defs.enemies.has(etype) else 0.5
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	if storm:
+		_lightning(tp, _hit_height_of(etype))
+		_land_hit(tid, 0.15)
+		return
+	var n: int = [4, 3, 2][gl]
+	var a0 := randf() * TAU
+	for j in n:
+		var a := a0 + TAU * j / n + randf_range(-0.25, 0.25)
+		var r := (0.3 + 0.28 * size) * randf_range(0.9, 1.1)
+		var out := Vector3(cos(a), 0.0, sin(a))
+		_root(tp + out * r, -out, 0.025 * j, (0.7 + 0.55 * size) * randf_range(0.9, 1.15))
+	_ground_decal(tp, "crack", 0.8 + size, 1.6)
+	_dust_fx(tp + Vector3(0, 0.12, 0), [3, 2, 1][gl], 0.6)
+	var nm: int = [5, 3, 0][gl]
+	if nm > 0 and _fx_room(nm):
+		for k in nm:                                  # green motes lifting off the roots
+			var m := _mi(_fx_mesh("mote"), _atk_mat("heal_mote"), self, tp + Vector3(randf_range(-0.4, 0.4), randf_range(0.1, 0.5), randf_range(-0.4, 0.4)))
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": m, "t": 0.0, "life": randf_range(0.5, 0.8), "kind": "glint", "s": randf_range(0.6, 0.9),
+				"v": Vector3(0, randf_range(0.8, 1.4), 0)})
+	_sfx("rock_hit", -14.0, 0.25, 0.04)
+	_land_hit(tid)
+
+
+## A gnarled root (one cached mesh per variant, unit height): a tapering, knotted tube rising from the ground and curling
+## over toward local -X, bark dark at its foot and lighter toward its tip, mossy here and there.
+func _root_mesh(v: int) -> ArrayMesh:
+	var key := "root_mesh_%d" % v
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var r := RandomNumberGenerator.new()
+	r.seed = 23 + v * 13
+	var segs := 9
+	var sides := 6
+	var pts := []
+	var p := Vector3.ZERO
+	var curl := r.randf_range(1.7, 2.2)
+	var twist := r.randf_range(-0.25, 0.25)
+	for i in segs + 1:
+		var t := float(i) / segs
+		pts.append(p)
+		var ang := curl * t * t
+		var d := Vector3(-sin(ang), cos(ang), twist * sin(t * 3.0)).normalized()
+		p += d * (1.0 / segs) * (1.0 - 0.25 * t)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rings := []
+	for i in pts.size():
+		var t := float(i) / (pts.size() - 1)
+		var a: Vector3 = pts[maxi(i - 1, 0)]
+		var b: Vector3 = pts[mini(i + 1, pts.size() - 1)]
+		var tg := (b - a).normalized()
+		var side := tg.cross(Vector3(0, 0, 1)).normalized()
+		var bin := tg.cross(side).normalized()
+		var rad := 0.1 * pow(1.0 - t, 0.85) + 0.008
+		rad *= 1.0 + 0.18 * sin(t * 17.0 + v)                          # knots
+		var ring := []
+		for k in sides:
+			var an := TAU * k / sides
+			ring.append(pts[i] + (side * cos(an) + bin * sin(an)) * rad)
+		rings.append(ring)
+	for i in rings.size() - 1:
+		var t0 := float(i) / (rings.size() - 1)
+		var t1 := float(i + 1) / (rings.size() - 1)
+		for k in sides:
+			var k2 := (k + 1) % sides
+			var q := [rings[i][k], rings[i][k2], rings[i + 1][k2], rings[i + 1][k]]
+			var ts := [t0, t0, t1, t1]
+			for tri in [[0, 1, 2], [0, 2, 3]]:
+				for j in tri:
+					var tt: float = ts[j]
+					var c := Color(0.24, 0.16, 0.09).lerp(Color(0.46, 0.33, 0.2), tt)
+					if (k + i * 2 + v) % 7 == 0:
+						c = c.lerp(Color(0.3, 0.42, 0.16), 0.6)            # moss
+					st.set_color(c)
+					st.add_vertex(q[j])
+	st.generate_normals()
+	var m := st.commit()
+	_atk_cache[key] = m
+	return m
+
+
+## One root bursting up at `pos` (after `delay`), curling in toward `inward`: up fast, holds, sinks back.
+func _root(pos: Vector3, inward: Vector3, delay: float, h: float) -> void:
+	if not _fx_room(1):
+		return
+	var rt := _mi(_root_mesh(randi() % 3), _atk_mat("root"), self, Vector3(pos.x, -0.05, pos.z))
+	var x := -inward.normalized()
+	var b := Basis(x, Vector3.UP, x.cross(Vector3.UP))
+	rt.basis = b
+	rt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if Progress.gfx_level() >= 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	rt.visible = false
+	effects.append({"node": rt, "t": -delay, "life": 0.12 + ROOT_HOLD + 0.3, "kind": "root", "h": h, "b0": b})
+
+
+func _tick_root(fx: Dictionary, n: Node3D) -> void:
+	n.visible = fx.t >= 0.0
+	if fx.t < 0.0:
+		return
+	var y: float
+	if fx.t < 0.12:
+		var a: float = fx.t / 0.12
+		y = a * (2.2 - 1.2 * a)                       # (overshoots a little and settles)
+	elif fx.t < 0.12 + ROOT_HOLD:
+		y = 1.0 + 0.03 * sin((fx.t - 0.12) * 9.0) * exp(-(fx.t - 0.12) * 3.0)
+	else:
+		var b: float = clampf((fx.t - 0.12 - ROOT_HOLD) / 0.3, 0.0, 1.0)
+		y = 1.0 - b * b
+	var h: float = fx.h
+	n.basis = (fx.b0 as Basis).scaled(Vector3(h * (0.55 + 0.45 * minf(y, 1.0)), h * maxf(y, 0.01), h * (0.55 + 0.45 * minf(y, 1.0))))
+
+
+## Storm Druid: a jagged bolt of lightning from the sky onto the robot, a white flash where it strikes, a scorch.
+func _lightning(ground: Vector3, up: float) -> void:
+	var top := ground + Vector3(randf_range(-0.6, 0.6), 7.0, randf_range(-0.6, 0.6))
+	var hit := ground + Vector3(0, up * 0.7, 0)
+	var pts := [top]
+	var n := 6
+	for i in range(1, n):
+		var t := float(i) / n
+		pts.append(top.lerp(hit, t) + Vector3(randf_range(-0.35, 0.35), 0.0, randf_range(-0.35, 0.35)) * (1.0 - t * 0.5))
+	pts.append(hit)
+	if _fx_room(n + 2):
+		var m := _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
+		for i in range(1, pts.size()):
+			var p0: Vector3 = pts[i - 1]
+			var p1: Vector3 = pts[i]
+			var L := p0.distance_to(p1)
+			var bolt := _mi(_box(0.07, 0.07, L), m, self, (p0 + p1) * 0.5)
+			bolt.look_at((p0 + p1) * 0.5 + (p1 - p0), Vector3.UP if absf((p1 - p0).normalized().y) < 0.95 else Vector3.RIGHT)
+			bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": bolt, "t": 0.0, "life": 0.18, "kind": "flash", "s": 1.0})
+		var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, hit)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 0.9})
+	_ground_decal(ground, "crack", 0.9, 1.0)
+	_sfx("zap", -8.0, 0.15, 0.06)
 
 
 func _make_projectile(p: Dictionary) -> Node3D:
@@ -6572,6 +6929,10 @@ func _ability_fx(ev: Dictionary) -> void:
 	var aname := str(sim.hero_def.ability.name).to_upper() + "!"
 	match str(ev.get("type", "")):
 		"rain":
+			if sim.hero != null and str(sim.hero.type) == "kael" and _hq_clips(int(sim.hero.id)):
+				_kael_storm(ev)                             # v0.9.34: javelins rain from the sky after the one he hurls up
+				_banner(aname, Color(0.6, 0.9, 0.45))
+				return
 			var i := 0
 			var ids: Array = ev.get("ids", [])
 			for p in ev.hits:
