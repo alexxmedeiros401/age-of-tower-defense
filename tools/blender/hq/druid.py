@@ -907,7 +907,9 @@ def weight_rules():
         "Robe": ("transfer", TORSO | {"clavicle.R", "clavicle.L", "upperarm.R", "upperarm.L", "forearm.R", "forearm.L", "thigh.R",
                                       "thigh.L", "shin.R", "shin.L"},
                  {"thigh.R": 0.4, "thigh.L": 0.4, "shin.R": 0.3, "shin.L": 0.3}),
-        "Cape": ("transfer", TORSO | {"clavicle.R", "clavicle.L", "upperarm.R", "upperarm.L"}, {"upperarm.R": 0.6, "upperarm.L": 0.6}),
+        # (no cap on the upper arms: a capped cape lagged the arm and the robe's sleeve came out through it when he
+        # held his hand out)
+        "Cape": ("transfer", TORSO | {"clavicle.R", "clavicle.L", "upperarm.R", "upperarm.L"}, None),
         "Belt": ("transfer", TORSO | {"thigh.R", "thigh.L"}, {"thigh.R": 0.3, "thigh.L": 0.3}),
         "Gold": ("custom", gold_weights),
         "Leather": ("transfer", {"foot.R", "foot.L", "shin.R", "shin.L"}, None),

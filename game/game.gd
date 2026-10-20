@@ -423,7 +423,8 @@ func _build_world() -> void:
 	if base_id == "city":
 		_build_city(end_pt)
 	elif base_id != "cave":
-		EraDecor.build_base(self, base_id, end_pt)
+		if not (base_id == "hillfort" and _iron_city_kit(end_pt)):
+			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
 	else:
@@ -1395,6 +1396,39 @@ func _city_kit(p: Vector2) -> bool:
 	return true
 
 
+## v0.9.39: the sculpted Iron city (iron_city.glb): a hill fort's gate, earth ramparts under a palisade, two timber gate
+## towers, roundhouses and a granary inside; fires burn in the iron baskets before the towers, smoke rises off a roof.
+func _iron_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/iron_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:
+		_campfire(n, Vector3(-0.1, 1.25, sd * 1.3), 1.4, 0.38)
+	_smoke_column(n.position + Vector3(4.35, 1.85, -1.75))
+	return true
+
+
+## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
+func _smoke_column(pos: Vector3) -> void:
+	if Progress.gfx_level() >= 2:
+		return
+	var holder := Node3D.new()
+	add_child(holder)
+	effects.append({"node": holder, "t": 0.0, "life": INF, "kind": "ambient", "fire": pos - Vector3(0, 1.0, 0), "smoke_t": randf() * 0.35})
+
+
 func _palm(parent: Node3D, pos: Vector3, s: float, r: RandomNumberGenerator) -> void:
 	var t := Node3D.new()
 	t.position = pos
@@ -1431,11 +1465,11 @@ func _build_decor() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
 	var th: String = map.get("theme", "meadow")
+	if _v2_kit(th):                              # (v0.9.39: before era_decor, which has the Iron Age themes too)
+		_build_decor_v2()
+		return
 	if EraDecor.handles(th):
 		EraDecor.build_decor(self, th, _decor_free)
-		return
-	if _v2_kit(th):
-		_build_decor_v2()
 		return
 	var b: Array = map.bounds
 	var trunk := _mat("trunk", Color(0.36, 0.22, 0.1))
@@ -1594,7 +1628,35 @@ const DECOR_V2 := {
 		"cover": [["Tuft", 1]], "cover_n": 40, "cover_s": 0.7,
 		"marks": [["Mine", Vector2(-6.0, -11.0), 0.9, 2.7], ["Smelter", Vector2(-12.0, 10.8), 0.9, 1.9], ["Mesa_C", Vector2(12.0, -11.6), 1.6, 2.2],
 			["Mine", Vector2(4.0, 11.4), 0.8, 2.7]]},
+	# v0.9.39: the Iron Age kits (decor_iron.py). Highland Ford: Scots pines and birches, heather, gorse and bracken on
+	# the moor, reeds and rushes on the stream's banks; a broch, roundhouses, a stone circle.
+	"highland": {"kit": "iron_decor_highland", "count": 100, "ambient": true,
+		"scatter": [["Pine_A", 12], ["Pine_B", 12], ["Pine_C", 8], ["Birch_A", 9], ["Birch_B", 6], ["Heather_A", 10], ["Heather_B", 8],
+			["Gorse", 7], ["Bracken", 7], ["Rock_A", 5], ["Rock_B", 6], ["Rock_C", 3], ["Menhir_B", 1], ["Stump", 2], ["Log", 2]],
+		"shore": [["Reeds", 3], ["Rushes", 3]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 120, "cover_s": 1.0,
+		"marks": [["Broch", Vector2(-4.5, -10.7), 0.9, 2.3], ["Roundhouse", Vector2(11.5, -10.8), 0.85, 1.9],
+			["Circle", Vector2(-12.0, 11.0), 0.75, 2.4], ["Roundhouse", Vector2(-16.8, -10.3), 0.72, 1.6], ["Menhir_A", Vector2(1.8, 11.3), 1.2, 0.8]]},
+	# Ember Forge: charred trees, ironstone, slag and ore heaps, cordwood and charcoal clamps; a bloomery and a smithy
+	"forge": {"kit": "iron_decor_forge", "count": 86, "ambient": true,
+		"scatter": [["Dead_A", 10], ["Dead_B", 10], ["Stump", 4], ["Rock_A", 9], ["Rock_B", 9], ["Rock_C", 6], ["Slag_A", 7], ["Slag_B", 7],
+			["Ore_A", 4], ["Ore_B", 5], ["Cordwood", 3], ["Clamp", 2]],
+		"cover": [["Tuft", 1]], "cover_n": 45, "cover_s": 0.7,
+		"marks": [["Bloomery", Vector2(-4.0, -10.8), 0.95, 2.0], ["Smithy", Vector2(7.5, -10.9), 0.9, 2.2], ["Clamp", Vector2(-13.0, 10.9), 1.4, 1.5],
+			["Cordwood", Vector2(-10.6, 11.4), 1.0, 0.9], ["Bloomery", Vector2(11.5, 10.9), 0.8, 1.8]]},
+	# Mirefen Bog: willows, alders and drowned snags, reeds, rushes and cotton grass, moss hummocks, bog oak, peat stacks;
+	# crannogs and a wooden idol
+	"bog": {"kit": "iron_decor_bog", "count": 96, "ambient": true,
+		"scatter": [["Willow_A", 10], ["Willow_B", 9], ["Alder", 8], ["Snag_A", 6], ["Snag_B", 6], ["Reeds", 8], ["Rushes", 9], ["Cotton", 7],
+			["Hummock_A", 6], ["Hummock_B", 6], ["BogOak", 3], ["PeatStack", 2], ["Rock_A", 2]],
+		"cover": [["Tuft", 4]], "cover_n": 110, "cover_s": 0.9,
+		"marks": [["Crannog", Vector2(3.5, -10.8), 0.85, 2.7], ["Idol", Vector2(-8.5, 10.9), 1.0, 1.3], ["PeatStack", Vector2(11.5, -10.4), 1.3, 0.9],
+			["Crannog", Vector2(-15.8, -10.6), 0.7, 2.2]]},
 }
+## v0.9.39: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
+const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26]}
+const MARK_SMOKE := {"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
+	"Bloomery": Vector3(-0.45, 1.45, 0.05)}
 
 
 ## v0.9.28: a theme's HQ kit is used once its GLB is in the game.
@@ -1768,6 +1830,11 @@ func _build_decor_v2() -> void:
 				effects.append({"node": n, "t": r.randf() * 6.0, "life": INF, "kind": "bob", "y0": n.position.y})
 			elif mk[0] == "Smelter":              # (its furnace burns)
 				_campfire(n, Vector3(0, 1.22, 0), 1.6, 0.36)
+			if MARK_FIRES.has(mk[0]):
+				var mf: Array = MARK_FIRES[mk[0]]
+				_campfire(n, mf[0], mf[1], mf[2])
+			if MARK_SMOKE.has(mk[0]):
+				_smoke_column(n.transform * (MARK_SMOKE[mk[0]] as Vector3))
 			if mk[0] == "Volcano":
 				n.rotation.y = 0.0
 				var vl := OmniLight3D.new()
@@ -1966,6 +2033,13 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 					var rr := rad + r.randf_range(0.05, 0.3)
 					_decor_single(["Papyrus", "Reeds", "Papyrus"][k % 3], Vector3(cos(a0) * rr, 0, sin(a0) * rr), r.randf() * TAU, r.randf_range(0.5, 0.72), n)
 				return true
+			if th in ["highland", "bog"]:     # v0.9.39: lochans and bog pools move in the ground too; reeds and rushes round them
+				var ring := ["Reeds", "Rushes", "Reeds"] if th == "highland" else ["Reeds", "Rushes", "Cotton"]
+				for k in 9:
+					var a8 := TAU * k / 9.0 + r.randf() * 0.4
+					var rr8 := rad + r.randf_range(0.05, 0.3)
+					_decor_single(ring[k % 3], Vector3(cos(a8) * rr8, 0, sin(a8) * rr8), r.randf() * TAU, r.randf_range(0.6, 0.85), n)
+				return true
 			if th != "snow":
 				return false
 			_mi(_cyl(rad * 0.95, rad * 0.95, 0.02, 32), _mat("ice", Color(0.75, 0.9, 1.0, 0.3), {"rough": 0.05, "metal": 0.3}), n, Vector3(0, 0.03, 0))
@@ -1975,10 +2049,29 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single(nm, Vector3(cos(a) * rad, 0, sin(a) * rad), r.randf() * TAU, r.randf_range(0.5, 0.8), n)
 			return true
 		"lava":
+			var rim := ["Slag_B", "Rock_B"] if th == "forge" else ["Rock_A", "Rock_B"]
 			for k in 7:
 				var a2 := TAU * k / 7.0 + r.randf() * 0.4
-				_decor_single(["Rock_A", "Rock_B"][k % 2], Vector3(cos(a2) * rad * 0.95, 0, sin(a2) * rad * 0.95), r.randf() * TAU, r.randf_range(0.45, 0.65), n)
+				_decor_single(rim[k % 2], Vector3(cos(a2) * rad * 0.95, 0, sin(a2) * rad * 0.95), r.randf() * TAU, r.randf_range(0.45, 0.65), n)
 			return false     # keep the old glowing pool, light and pulse on top of the new rim
+		"stones":                         # v0.9.39: a ring of standing stones on the moor
+			for k in 6:
+				var a9 := TAU * k / 6.0 + 0.3
+				_decor_single("Menhir_A" if k % 2 == 0 else "Menhir_B", Vector3(cos(a9), 0, sin(a9)) * rad * 0.72, PI * 0.5 - a9,
+					r.randf_range(0.72, 0.95), n)
+			return true
+		"trees":                          # a stand of three trees
+			var trio := ["Pine_A", "Birch_A", "Pine_B"] if th == "highland" else ["Willow_A", "Alder", "Snag_A"]
+			for k in 3:
+				var a10 := TAU * k / 3.0 + r.randf() * 0.5
+				_decor_single(trio[k], Vector3(cos(a10), 0, sin(a10)) * rad * 0.42, r.randf() * TAU, r.randf_range(0.8, 1.0), n)
+			return true
+		"slag":                           # a slag heap with ore and smaller heaps round it
+			_decor_single("Slag_A", Vector3.ZERO, r.randf() * TAU, rad / 0.85, n)
+			for k in 3:
+				var a11 := TAU * k / 3.0 + r.randf() * 0.6
+				_decor_single(["Slag_B", "Ore_B", "Slag_B"][k], Vector3(cos(a11), 0, sin(a11)) * rad * 0.75, r.randf() * TAU, r.randf_range(0.7, 0.9), n)
+			return true
 		"rocks":
 			for k in 4:
 				var off := Vector2(r.randf_range(-0.5, 0.5), r.randf_range(-0.5, 0.5)) * rad
@@ -2037,7 +2130,7 @@ func _build_blockers() -> void:
 		var n := Node3D.new()
 		n.position = pos
 		add_child(n)
-		if EraDecor.handles(th):
+		if EraDecor.handles(th) and not _v2_kit(th):
 			EraDecor.build_blocker(self, th, kind, n, rad, r)
 			continue
 		if _v2_kit(th):

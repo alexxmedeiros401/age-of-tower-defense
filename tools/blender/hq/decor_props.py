@@ -502,6 +502,9 @@ def KITS(theme):
     if theme in ("delta", "desert", "canyon", "city"):     # the Bronze Age kits (v0.9.28)
         import decor_bronze
         return decor_bronze.KITS(theme)
+    if theme in ("highland", "forge", "bog", "iron_city"):  # the Iron Age kits
+        import decor_iron
+        return decor_iron.KITS(theme)
     if theme == "portal":
         return {"Portal": (lambda: portal(23), 3600), "PortalLights": (lambda: portal_lights(), 300)}
     if theme == "meadow":

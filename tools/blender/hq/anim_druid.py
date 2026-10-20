@@ -5,9 +5,10 @@ Idle   : leaning on his staff planted at his right side; he breathes, looks abou
 Combat : the staff planted before him at his right, the stone toward the robots; his left hand held out low over the
          ground, palm down, fingers spread: calling to the roots.
 Attack : (42 frames = 1.75 s at 24 fps; the game plays it at length / cooldown, so 1.25x for the 1.4 s cooldown) he
-         heaves the staff up (0-7) and drives its foot down into the earth before him (HIT, frame 10): the stone flares
-         and roots burst up under the robots the pulse hit (game.gd); his left hand sweeps up, palm up, lifting them
-         (10-18); he holds a moment and settles back (18-42).
+         heaves the staff up (0-7) and drives its foot down into the earth before him (HIT, frame 10), the staff upright
+         with the stone out before his face (where the camera sees it): the stone flares and roots burst up under the
+         robots the pulse hit (game.gd); his left hand sweeps up, palm up, lifting them (10-18); he holds a moment and
+         settles back (18-42).
 
 The staff is rigid in his right fist ("frame" aims: the staff along the fist's thumb axis, the stone toward the
 knuckles' side)."""
@@ -156,11 +157,11 @@ def make_attack(arm, frames=FR):
         (0, BUTT_C, SD_C, FIN_C, L_C, 0.1, -3.0, V(0.0, -0.02, -0.03)),
         (7, V(-0.38, -0.3, 0.3), V(-0.06, 0.28, 1.0), V(-0.3, -1.0, 0.1), (V(0.3, -0.14, 0.9), V(0.0, -0.3, 1.0), V(0.3, -1.0, 0.1)),
          -0.06, -10.0, V(0.0, 0.03, 0.0)),
-        (HIT, V(-0.3, -0.56, -0.02), V(-0.02, 0.32, 1.0), V(-0.3, -1.0, -0.05), (V(0.33, -0.3, 0.98), V(0.0, -0.3, 1.0), V(0.3, -1.0, 0.2)),
+        (HIT, V(-0.32, -0.45, -0.02), V(-0.06, -0.06, 1.0), V(-0.3, -1.0, -0.05), (V(0.33, -0.3, 0.98), V(0.0, -0.3, 1.0), V(0.3, -1.0, 0.2)),
          0.3, 6.0, V(0.0, -0.06, -0.08)),
-        (16, V(-0.3, -0.56, -0.02), V(-0.02, 0.3, 1.0), V(-0.3, -1.0, -0.05), (V(0.44, -0.44, 1.38), V(0.05, -0.5, 0.85), V(0.25, -0.7, 0.9)),
+        (16, V(-0.32, -0.45, -0.02), V(-0.05, -0.04, 1.0), V(-0.3, -1.0, -0.05), (V(0.44, -0.44, 1.38), V(0.05, -0.5, 0.85), V(0.25, -0.7, 0.9)),
          0.18, 4.0, V(0.0, -0.05, -0.05)),
-        (20, V(-0.3, -0.56, -0.02), V(-0.02, 0.3, 1.0), V(-0.3, -1.0, -0.05), (V(0.45, -0.45, 1.4), V(0.05, -0.5, 0.85), V(0.25, -0.7, 0.9)),
+        (20, V(-0.32, -0.45, -0.02), V(-0.05, -0.04, 1.0), V(-0.3, -1.0, -0.05), (V(0.45, -0.45, 1.4), V(0.05, -0.5, 0.85), V(0.25, -0.7, 0.9)),
          0.17, 4.0, V(0.0, -0.05, -0.05)),
         (frames, BUTT_C, SD_C, FIN_C, L_C, 0.1, -3.0, V(0.0, -0.02, -0.03)),
     ]
