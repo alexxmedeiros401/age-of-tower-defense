@@ -1416,7 +1416,7 @@ func _iron_city_kit(p: Vector2) -> bool:
 	n.add_child(body)
 	for sd in [-1, 1]:
 		_campfire(n, Vector3(-0.1, 1.25, sd * 1.3), 1.4, 0.38)
-	_smoke_column(n.position + Vector3(4.35, 1.85, -1.75))
+	_smoke_column(n.position + Vector3(4.45, 1.85, -1.75))
 	return true
 
 

@@ -337,7 +337,7 @@ def broch(seed=0):
     rng = np.random.default_rng(seed)
     out = []
     H, R0, R1, TW = 2.75, 1.32, 0.98, 0.36
-    tb = -2.15                                            # where the top is broken away (angle round Z)
+    tb = -2.7                                             # where the top is broken away (angle round Z: front-left)
 
     def prof(z):
         u = np.clip(z / H, 0.0, 1.0)
@@ -848,8 +848,8 @@ def crannog(seed=0):
     PZ, PR = 0.36, 1.45
     pl = Field("Platform")
     pl.add(Cylinder((0, 0, PZ - 0.04), PR, 0.08, rr=0.02), label=10)
-    for i in range(10):                                   # plank joints across it
-        pl.paint(RoundBox((0, -PR + (i + 0.5) * 2 * PR / 10, PZ), (PR + 0.1, 0.012, 0.06)), 5)
+    for i in range(1, 12):                                # the joints between its planks
+        pl.sub(RoundBox((0, -PR + i * 2 * PR / 12, PZ), (PR + 0.1, 0.009, 0.014), 0.004))
     n = 30
     for i in range(n):                                    # the piles, their heads a low palisade
         a = 2 * math.pi * i / n
@@ -897,17 +897,17 @@ def idol(seed=0):
     rng = np.random.default_rng(seed)
     out = []
     w = Field("Figure")
-    w.add(RoundBox((0, 0, 0.62), (0.15, 0.1, 0.36), 0.05))                             # the legs as one block
+    w.add(RoundBox((0, 0, 0.62), (0.15, 0.1, 0.36), 0.05), label=11)                             # the legs as one block
     w.sub(RoundBox((0, -0.02, 0.48), (0.025, 0.2, 0.24), 0.01))                        # parted
-    w.add(RoundBox((0, 0, 1.18), (0.17, 0.11, 0.25), 0.06), k=0.04)                    # the body
-    w.add(Ellipsoid((0, -0.01, 1.62), (0.14, 0.12, 0.18)), k=0.06)                     # the head
-    w.add(RoundBox((0, -0.07, 1.68), (0.13, 0.05, 0.025), 0.02), k=0.02)               # the brow ridge
-    w.add(RoundCone((0, -0.1, 1.64), (0, -0.13, 1.57), 0.022, 0.03), k=0.015)          # the nose
+    w.add(RoundBox((0, 0, 1.18), (0.17, 0.11, 0.25), 0.06), k=0.04, label=11)                    # the body
+    w.add(Ellipsoid((0, -0.01, 1.62), (0.14, 0.12, 0.18)), k=0.06, label=11)                     # the head
+    w.add(RoundBox((0, -0.07, 1.68), (0.13, 0.05, 0.025), 0.02), k=0.02, label=11)               # the brow ridge
+    w.add(RoundCone((0, -0.1, 1.64), (0, -0.13, 1.57), 0.022, 0.03), k=0.015, label=11)          # the nose
     for sx in (-1, 1):
         w.sub(Sphere((sx * 0.055, -0.11, 1.62), 0.035))                                # eye sockets
-        w.add(Chain([(sx * 0.17, -0.02, 1.38), (sx * 0.18, -0.08, 1.15), (sx * 0.06, -0.12, 1.02)], [0.04, 0.035, 0.03], k=0.01), k=0.015)  # arms
+        w.add(Chain([(sx * 0.17, -0.02, 1.38), (sx * 0.18, -0.08, 1.15), (sx * 0.06, -0.12, 1.02)], [0.04, 0.035, 0.03], k=0.01), k=0.015, label=11)  # arms
     w.sub(RoundBox((0, -0.13, 1.5), (0.04, 0.03, 0.006), 0.004))                       # the mouth
-    w.add(RoundBox((0, 0, 0.13), (0.13, 0.13, 0.15), 0.03), k=0.05)                    # the foot of the post
+    w.add(RoundBox((0, 0, 0.13), (0.13, 0.13, 0.15), 0.03), k=0.05, label=11)                    # the foot of the post
     out.append(("Figure", w, fine(0.005, 0.01), "idol_wood"))
     ey = Field("Eyes")
     for sx in (-1, 1):
@@ -1061,7 +1061,7 @@ def iron_city(seed=0):
         for z in (1.0, 1.6):
             dk.add(RoundBox((TX - TS - 0.02, sy * TY + 0.25, z), (0.03, 0.03, 0.1), 0.01))
     out.append(("Dark", dk, fine(0.006, 0.012), "dark"))
-    for (hx, hy, r, sd) in ((3.2, -2.7, 0.95, 1), (4.35, 1.75, 1.05, 2), (2.7, 4.7, 0.85, 3)):
+    for (hx, hy, r, sd) in ((3.55, -2.7, 0.95, 1), (4.45, 1.75, 1.05, 2), (3.35, 4.6, 0.85, 3)):
         parts = roundhouse(seed + 20 + sd, wall="daub", r=r, wall_h=0.55, roof_h=1.35, base=False)
         # (each house its own fields: merged, their meshing grids would span the whole fort)
         place_parts(out, parts, (hx, hy, 0.0), Rz(math.atan2(-hy, 1.5 - hx) + math.pi / 2),
@@ -1071,15 +1071,17 @@ def iron_city(seed=0):
     for (dx, dy) in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
         post(gr, gq + v3((dx * 0.32, dy * 0.32, -0.03)), gq + v3((dx * 0.32, dy * 0.32, 0.55)), 0.05)
     gr.add(RoundBox(gq + v3((0, 0, 0.58)), (0.4, 0.4, 0.03), 0.01), k=0.004, label=10)
-    gr.add(Cylinder(gq + v3((0, 0, 0.82)), 0.34, 0.45, rr=0.03), k=0.01, label=7)
     ground_cut(gr)
     out.append(("Granary", gr, fine(0.006, 0.012), "timber"))
+    gw = Field("GranaryWall")                             # its wickerwork body
+    gw.add(Cylinder(gq + v3((0, 0, 0.82)), 0.34, 0.45, rr=0.03))
+    out.append(("GranaryWall", gw, fine(0.006, 0.012), "basket"))
     gt = Field("GranaryRoof")
     gt.add(cone(gq, 1.0, 1.62, 0.5, 0.0))
     out.append(("GranaryRoof", gt, fine(0.008, 0.016), "thatch"))
     yard = Field("Yard")
-    yard.add(RoundBox((2.6, 0, -0.05), (1.6, 0.95, 0.07), 0.04, **wob(4.0, 0.008, seed + 40)))
-    yard.add(RoundBox((0.75, 0, -0.05), (0.75, 0.62, 0.07), 0.04, **wob(4.0, 0.008, seed + 41)), k=0.1)
+    yard.add(RoundBox((2.6, 0, -0.03), (1.6, 0.95, 0.07), 0.04, **wob(4.0, 0.008, seed + 40)))
+    yard.add(RoundBox((0.75, 0, -0.03), (0.75, 0.62, 0.07), 0.04, **wob(4.0, 0.008, seed + 41)), k=0.1)
     cut_below(yard, -0.02, 1.8, 0, 2.6, 1.2)
     out.append(("Yard", yard, fine(0.012, 0.024), "earth"))
     return out
