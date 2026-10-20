@@ -4853,7 +4853,7 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 # At full reach (THRUST in tools/blender/hq/anim_spear.py) a narrow golden lance of light flies on from the spear's point
 # to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
-const BRENNA_TIP := Vector3(-0.2, 1.25, 1.6)       # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
+const BRENNA_TIP := Vector3(-0.22, 1.24, 1.7)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 
 
 ## The lance: a long thin double cone, bright at its head, fading to nothing at its tail (head at the origin, along +Z).
@@ -6184,14 +6184,14 @@ func _tick_fury(fx: Dictionary, n: Node3D) -> void:
 		"v": Vector3(randf_range(-0.2, 0.2), randf_range(0.8, 1.4), randf_range(-0.2, 0.2))})
 
 
-# ---------------------------------------------------------------- Brenna Ironhide (Iron Age HQ)
+# ---------------------------------------------------------------- Brenna Ironhide (Iron Age HQ, v0.9.39)
 # Her thrust is the Spear Guard's (_spear_thrust: a lance of light from her spear's point at full reach, BRENNA_TIP).
 # War Cry (tools/blender/hq/anim_brenna.py): she beats her spear's shaft on her shield twice (BRENNA_CLASH: a clang and
 # sparks off the shield), then flings spear and shield up and roars (BRENNA_ROAR): a blue wave rolls out over the field
 # and every tower it reaches glows blue (and attacks faster: the sim's fury) until the cry fades.
 const BRENNA_CLASH := [11, 19]                       # anim_brenna.CLASH
 const BRENNA_ROAR := 26                              # anim_brenna.ROAR
-const BRENNA_SHIELD := Vector3(0.1, 1.2, 0.4)        # where the shaft strikes the shield (Yaw-local, at the clash; measured)
+const BRENNA_SHIELD := Vector3(0.21, 1.42, 0.43)     # where the shaft strikes the shield's rim (Yaw-local, at the clash; measured)
 
 
 func _brenna_cry() -> void:

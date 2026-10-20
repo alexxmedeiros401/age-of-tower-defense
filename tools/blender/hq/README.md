@@ -4,7 +4,7 @@ Sculpted, rigged, animated and texture-baked game models made entirely in code w
 Models so far: the four Bronze Age towers (`assets/towers/bronze_archer.glb`, v0.9.21, `spear_guard.glb`, v0.9.22,
 `torsion_catapult.glb`, v0.9.23, and `sun_priest.glb`, v0.9.24), the four Stone Age towers (`assets/towers/rock_slinger.glb`,
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
-`mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the Iron Age's Javelin Thrower (`javelin_thrower.glb`, v0.9.32), Ballista (`ballista.glb`, v0.9.33) and Axe Warrior (`axe_warrior.glb`, v0.9.34), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
+`mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the Iron Age's Javelin Thrower (`javelin_thrower.glb`, v0.9.32), Ballista (`ballista.glb`, v0.9.33), Axe Warrior (`axe_warrior.glb`, v0.9.34) and Druid (`druid.glb`, v0.9.38), its heroes Kael (`kael.glb`, v0.9.36) and Brenna (`brenna.glb`, v0.9.39), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
 `stone_decor_volcano.glb`) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
 by `../map_ground_hq.py` (below).
@@ -26,9 +26,9 @@ by `../map_ground_hq.py` (below).
 | Javelin Thrower (v0.9.32) | `javelin` | `javelin_base` | `anim_javelin` (Idle, Combat, Attack) |
 | Ballista (v0.9.33) | `ballista` | `ballista_base` | `anim_ballista` (Idle, Combat, Attack) |
 | Axe Warrior (v0.9.34) | `axe` | `axe_base` | `anim_axe` (Idle, Combat, Attack) |
-| Druid (written) | `druid` | `druid_base` | `anim_druid` (Idle, Combat, Attack) |
-| Kael (hero, written) | `kael` | `kael_base` | `anim_kael` (Idle, Combat, Attack, Ability, Cheer) |
-| Brenna (hero, written) | `brenna` | `brenna_base` | `anim_brenna` (Idle, Combat, Attack, Ability, Cheer) |
+| Druid (v0.9.38) | `druid` | `druid_base` | `anim_druid` (Idle, Combat, Attack) |
+| Kael (hero, v0.9.36) | `kael` | `kael_base` | `anim_kael` (Idle, Combat, Attack, Ability, Cheer) |
+| Brenna (hero, v0.9.39) | `brenna` | `brenna_base` | `anim_brenna` (Idle, Combat, Attack, Ability, Cheer) |
 
 ## Steps
 
