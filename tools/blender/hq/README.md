@@ -58,6 +58,7 @@ python3 robot_build.py -- --robot brute --out D --stage sculpt --fine --shots D/
 python3 robot_build.py -- --robot brute --out D --stage game --tex 2048 --ao 24          # low-poly, UVs, bakes, rig, clips
 python3 robot_build.py -- --robot brute --out D --stage export                           # D/brute.glb
 python3 robot_icon.py -- D/brute_hq.blend ../../../assets/ui/icon_brute.png --frame 8    # roster portrait (mid-stride)
+python3 robot_icon.py -- D/ironclad_hq.blend ../../../assets/ui/icon_ironclad.png --frame 8 --margin 0.16   # (a wide robot: more margin)
 python3 robot_icon.py -- D/brute_hq.blend D/strip --strip                               # animation strip to check a clip
 ```
 

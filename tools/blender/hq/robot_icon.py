@@ -1,6 +1,6 @@
 """Renders of a finished HQ robot (the shipped meshes, textures and clips).
 
-    python3 robot_icon.py -- BLEND OUT.png [--action Walk] [--frame 6] [--size 256]        portrait icon (3/4 front, ortho)
+    python3 robot_icon.py -- BLEND OUT.png [--action Walk] [--frame 6] [--size 256] [--margin 0.06]   portrait icon
     python3 robot_icon.py -- BLEND DIR --strip [--action Walk] [--every 3]                 animation strip (side view)
 """
 import sys, os, math
@@ -84,7 +84,7 @@ else:
     d = Vector((0.7, -1.2, 0.6)).normalized()
     cam.location = Vector((0, 0, 0.8)) + d * 30
     cam.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()
-    frame_box(cam, 0.06)
+    frame_box(cam, float(arg("--margin", "0.06")))
     sc.render.filepath = OUT + ".hi.png"
     bpy.ops.render.render(write_still=True)
     from PIL import Image

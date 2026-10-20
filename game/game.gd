@@ -5688,7 +5688,7 @@ func _jav_strike(fx: Dictionary) -> void:
 		_land_hit(int(t), 0.0)
 
 
-# ---------------------------------------------------------------- Kael Hillwarden (v0.9.34)
+# ---------------------------------------------------------------- Kael Hillwarden (v0.9.36)
 # He has the Javelin Thrower's build and throw: his javelins fly from his hand like the tower's (JAV_UNITS).
 # Javelin Storm (tools/blender/hq/anim_kael.py): he leans back and hurls his javelin almost straight up; it leaves his
 # hand on the clip frame his fist lets it go (KAEL_STORM_T) and climbs out of sight; a moment later the storm comes down:
@@ -7085,7 +7085,7 @@ func _ability_fx(ev: Dictionary) -> void:
 	match str(ev.get("type", "")):
 		"rain":
 			if sim.hero != null and str(sim.hero.type) == "kael" and _hq_clips(int(sim.hero.id)):
-				_kael_storm(ev)                             # v0.9.34: javelins rain from the sky after the one he hurls up
+				_kael_storm(ev)                             # v0.9.36: javelins rain from the sky after the one he hurls up
 				_banner(aname, Color(0.6, 0.9, 0.45))
 				return
 			var i := 0
@@ -12251,7 +12251,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus"] else 1.0
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 			cam.fov = 30
 			for k in (6 if frames_dir else 1):
@@ -12267,6 +12267,23 @@ func _run_demo() -> void:
 				for k in 3:
 					await _wait_ticks(2)
 					await _shot("bots_shield_break_%d.png" % k)
+			if type == "iron_colossus":           # v0.9.37: it rears up and summons Ironclads, then slams the EMP down
+				be.summon_cd = 0.0
+				for k in 8:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.2, 0)) * big
+					cam.look_at(bn.global_position + Vector3(0, 0.75 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.2 / TICK))
+					await _shot("bots_summon_%d.png" % k)
+				sim._emp_blast(be.pos, 3.2, 2.0, int(be.id))
+				for k in 12:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.2, 0)) * big * 1.25
+					cam.look_at(bn.global_position + Vector3(0, 0.5 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.1 / TICK))
+					await _shot("bots_emp_%02d.png" % k)
 			if type == "repair_drone":            # v0.9.27: it mends the robots round it
 				for o in sim.enemies:
 					if o.alive and o.id != be.id and not o.boss and (o.pos as Vector2).distance_to(be.pos) < 4.0:

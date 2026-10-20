@@ -260,7 +260,7 @@ def summon(arm, frames=WALK_FRAMES):
     R.finish_action(arm, act, frames, False)
 
 
-EMP_HIT = 9            # its fists strike the ground (game.gd: the pulse is already out; the clip catches up)
+EMP_HIT = 9            # its fists strike the ground (game.gd COLOSSUS_SLAM: the pulse bursts from the blow on this frame)
 
 
 def emp(arm, frames=36):
