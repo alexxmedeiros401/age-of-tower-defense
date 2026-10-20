@@ -12268,6 +12268,7 @@ func _run_demo() -> void:
 					await _wait_ticks(2)
 					await _shot("bots_shield_break_%d.png" % k)
 			if type == "iron_colossus":           # v0.9.37: it rears up and summons Ironclads, then slams the EMP down
+				be.emp_cd = 99.0                      # (its own EMP waits for this one)
 				be.summon_cd = 0.0
 				for k in 8:
 					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.2, 0)) * big
@@ -12276,13 +12277,14 @@ func _run_demo() -> void:
 					shake = 0.0
 					await _wait_ticks(int(0.2 / TICK))
 					await _shot("bots_summon_%d.png" % k)
+				await _wait_ticks(int(1.0 / TICK))   # (the summon's clip ends)
 				sim._emp_blast(be.pos, 3.2, 2.0, int(be.id))
-				for k in 12:
+				for k in 24:                          # (every other tick: its fists strike at COLOSSUS_SLAM, 0.375 s)
 					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.2, 0)) * big * 1.25
 					cam.look_at(bn.global_position + Vector3(0, 0.5 * big, 0))
 					cam_base = cam.position
 					shake = 0.0
-					await _wait_ticks(int(0.1 / TICK))
+					await _wait_ticks(2)
 					await _shot("bots_emp_%02d.png" % k)
 			if type == "repair_drone":            # v0.9.27: it mends the robots round it
 				for o in sim.enemies:

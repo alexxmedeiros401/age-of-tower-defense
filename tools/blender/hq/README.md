@@ -72,6 +72,8 @@ python3 robot_icon.py -- D/brute_hq.blend D/strip --strip                       
 | Shield Bot (v0.9.27) | `robot_shield_bot` | Walk (shield arm held up) | `walk_speed` 0.83; `GlowShieldPanel` see-through, shown while its shield holds |
 | Repair Drone (v0.9.27) | `robot_repair_drone` | Fly (rotors spin in pairs, arms twitch) | hovers on its own (no `flying`) |
 | Siege Crawler (boss, v0.9.27) | `robot_siege_crawler` | Walk (tripod gait), Summon (rear up, hatch open) | `walk_speed` 0.5 |
+| Ironclad (v0.9.37) | `robot_ironclad` | Walk (a short-stepping trudge, the mantlet square in front) | `walk_speed` 0.51 |
+| Iron Colossus (boss, v0.9.37) | `robot_iron_colossus` | Walk (slow stomp), Summon (rears up, the furnace blazes), Emp (both fists slammed into the ground) | `walk_speed` 0.72; the EMP bursts from its fists (`COLOSSUS_SLAM`) |
 
 Each part is weighted 100% to one bone (machines don't bend). `robot_mats.py`: white armour with painted labels
 (hazard stripes, panel lines), gunmetal frames, chrome, rubber, lens sockets; glows (eyes, cores) ship as emissive meshes.

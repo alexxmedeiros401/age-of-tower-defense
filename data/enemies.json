@@ -126,7 +126,7 @@
   "bounty": 16,
   "leak": 4,
   "size": 0.75,
-  "model_scale": 0.9,
+  "model_scale": 0.9, "walk_speed": 0.51,
   "bar_h": 1.66
  },
  "hover_drone": {
@@ -266,7 +266,7 @@
   "bounty": 700,
   "leak": 60,
   "size": 1.6,
-  "model_scale": 1.0,
+  "model_scale": 1.0, "walk_speed": 0.72,
   "summon": {
    "type": "ironclad",
    "count": 1,
