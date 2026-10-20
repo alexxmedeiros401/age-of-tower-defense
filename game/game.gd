@@ -7627,12 +7627,14 @@ func _medallion(icon: Texture2D, text: String, c_top: Color, c_bot: Color, size:
 	b.pressed.connect(func():
 		_sfx("click")
 		cb.call())
-	# idle: a gentle float, each button on its own beat
-	var ph := float(opts.get("phase", randf()))
-	var fl := body.create_tween().set_loops()
-	fl.tween_interval(ph * 1.2)
-	fl.tween_property(body, "position:y", -size * 0.025, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	fl.tween_property(body, "position:y", size * 0.012, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# idle: still (v0.9.31, Alexx: the buttons don't float up and down; PLAY keeps its pulse and turning rays).
+	# opts.float = true brings the old gentle float back for one button.
+	if opts.get("float", false):
+		var ph := float(opts.get("phase", randf()))
+		var fl := body.create_tween().set_loops()
+		fl.tween_interval(ph * 1.2)
+		fl.tween_property(body, "position:y", -size * 0.025, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		fl.tween_property(body, "position:y", size * 0.012, 1.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	return root
 
 
@@ -10591,6 +10593,17 @@ func _run_autowin() -> void:
 ## Screenshot of the main menu with the attract-mode background (and the workshop / heroes screens).
 func _shoot_menu() -> void:
 	await get_tree().create_timer(8.0).timeout
+	if "--test-menu-still" in OS.get_cmdline_user_args():
+		# v0.9.31: the menu buttons stay put (PLAY only pulses): how far each button's body drifts over 1.5 s
+		var bodies := []
+		for c in title_screen.find_children("*", "Control", true, false):
+			if c.has_meta("button") and (c as Control).get_child_count() > 0:
+				bodies.append([(c as Control).get_child(0), (c as Control).get_child(0).position])
+		await get_tree().create_timer(1.5).timeout
+		var moved := 0.0
+		for bp in bodies:
+			moved = maxf(moved, ((bp[0] as Control).position - (bp[1] as Vector2)).length())
+		print("MENUSTILL buttons=%d max_drift=%.2f px" % [bodies.size(), moved])
 	await _shot("menu_main.png")
 	_open_workshop("")
 	for i in 4:
