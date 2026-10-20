@@ -6677,12 +6677,12 @@ func _ballista_ammo(n: Node3D, hot: bool) -> void:
 	n.set_meta("bal_fire", true)
 
 
-# ---------------------------------------------------------------- Druid (Iron Age HQ)
+# ---------------------------------------------------------------- Druid (Iron Age HQ, v0.9.38)
 # The call (tools/blender/hq/anim_druid.py): he heaves his staff up and drives its foot into the earth (HIT): the stone
 # in its head flares, a ring of green light runs out over the ground, and gnarled roots burst up round every robot the
 # pulse hit (capped), curling in over its feet: they hold it a moment (the slow, the snare) and sink back. The robot
 # takes the hit as its roots break the ground. The Storm Druid (Path B) calls lightning down on them instead.
-const DRUID_GEM := Vector3(-0.33, 1.64, 0.03)       # the stone at HIT (model units, Godot axes, Yaw node)
+const DRUID_GEM := Vector3(-0.42, 1.71, 0.55)       # the stone at HIT (model units, Godot axes, Yaw node; measured)
 const ROOT_HOLD := 0.9                              # how long the roots hold a robot before they sink
 
 
