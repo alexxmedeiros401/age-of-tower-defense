@@ -2,6 +2,7 @@
 flows, for the ground shader that makes them move (game/shaders/ground_water.gdshader).
 
     python3 tools/water_mask.py river_delta      -> assets/textures/ground_river_delta_water.png (half resolution)
+    python3 tools/water_mask.py mirefen_bog --src MASK.png    (the water from the ground tool's mask, not its colour)
 
 R = how much of the pixel is water (the painted water: blue to teal, bluer than it is red or green);
 G, B = the flow direction (world x, z, as 0.5 + 0.5 * d): along the nearest river, from its first point to its last;
@@ -23,6 +24,9 @@ w2, h2 = img.width // 2, img.height // 2
 im = np.asarray(img.resize((w2, h2), Image.LANCZOS)).astype(np.float32) / 255.0
 R, G, B = im[..., 0], im[..., 1], im[..., 2]
 water = np.clip((B - R - 0.14) / 0.16, 0, 1) * np.clip((B - G + 0.1) / 0.12, 0, 1)
+if "--src" in sys.argv:                  # the ground tool's own water mask (map_ground_hq.py --watersrc): peaty bog water
+    srcm = Image.open(sys.argv[sys.argv.index("--src") + 1]).convert("L").resize((w2, h2), Image.BILINEAR)   # isn't blue
+    water = np.asarray(srcm).astype(np.float32) / 255.0
 
 xs = X0 + (np.arange(w2) + 0.5) / w2 * W
 zs = Z0 + (np.arange(h2) + 0.5) / h2 * H

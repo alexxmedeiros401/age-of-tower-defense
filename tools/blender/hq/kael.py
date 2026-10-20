@@ -4,7 +4,7 @@ A hunter of the hill country in his prime, weathered and watchful: dark brown ha
 leather headband and bound in a short tail, a short dark beard trimmed close, an old scar through his left brow; a long
 cloak of green-and-blue checked wool with an ochre border hanging from his shoulders to mid-thigh, a roll of grey wolf
 fur round its neck, pinned at the front of his shoulders by two gold disc brooches with a gold chain sagging between
-them; a sleeveless russet tunic checked in green, belted, over brown checked trousers bound with thongs; leather
+them; a sleeveless russet tunic checked in dark brown with thin green lines, belted, over brown checked trousers bound with thongs; leather
 bracers, a twisted gold torc and gold armlets; a hunting horn on its cord at his left hip. An iron-headed javelin in
 his right fist, four more in a leather case on his back (slung over the cloak).
 
@@ -429,8 +429,8 @@ MAT_OVERRIDES = {
     "Hair": ("hair", DARK),
     "Beard": ("hair", dict(DARK, name="HQ_KaelBeard")),
     "Gold": ("gold", {"name": "HQ_KaelGold"}),
-    "Tunic": ("plaid", {"name": "HQ_KaelTunic", "base": (0.46, 0.23, 0.11), "stripe": (0.2, 0.3, 0.14), "line": (0.86, 0.76, 0.42),
-                        "border": (0.2, 0.3, 0.14)}),
+    "Tunic": ("plaid", {"name": "HQ_KaelTunic", "base": (0.52, 0.25, 0.11), "stripe": (0.3, 0.13, 0.06), "line": (0.36, 0.52, 0.22),
+                        "border": (0.3, 0.13, 0.06)}),
     "Trousers": ("plaid", {"name": "HQ_KaelTrousers", "base": (0.27, 0.19, 0.12), "stripe": (0.44, 0.22, 0.1),
                            "line": (0.56, 0.48, 0.28), "border": (0.44, 0.22, 0.1), "period": 0.1}),
     "Cloak": ("plaid", {"name": "HQ_KaelCloak", "base": (0.15, 0.3, 0.15), "stripe": (0.09, 0.13, 0.26), "line": (0.8, 0.66, 0.24),

@@ -1083,12 +1083,17 @@ def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), li
     g = new(name)
     p = g.obj()
     s = 0.314 / period
+    # a band along an axis is a stack of planes across it: where the cloth faces along that axis (a back, a chest) the
+    # planes cut it in contour rings, not stripes; so each axis' bands fade out where the cloth faces along it
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], g.geo("Normal"))
+    wts = [g.math("SUBTRACT", 1.0, g.smooth(g.math("ABSOLUTE", sep.outputs[a]), 0.5, 0.82)) for a in ("X", "Y", "Z")]
 
     def bands(offset, lo, hi):
         q = g.add_vec(p, offset)
-        bx = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "X"), lo, hi)
-        by = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Y"), lo, hi)
-        bz = g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Z"), lo, hi)
+        bx = g.math("MULTIPLY", g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "X"), lo, hi), wts[0])
+        by = g.math("MULTIPLY", g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Y"), lo, hi), wts[1])
+        bz = g.math("MULTIPLY", g.smooth(g.wave(q, s, 0.0, 0.0, "BANDS", "Z"), lo, hi), wts[2])
         v = g.math("MAXIMUM", bx, by)
         return g.math("ADD", g.math("MULTIPLY", v, 0.5), g.math("MULTIPLY", bz, 0.5))
 

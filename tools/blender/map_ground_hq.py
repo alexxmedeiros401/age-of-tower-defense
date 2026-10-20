@@ -1,4 +1,4 @@
-"""HQ ground for the Stone Age and Bronze Age maps: the map's ground as a real 3D surface, rendered straight down into
+"""HQ ground for the Stone Age, Bronze Age and Iron Age maps: the map's ground as a real 3D surface, rendered straight down into
 its ground texture, so it always matches the simulation's road, lanes and no-build zones.
 
     python3 tools/blender/map_ground_hq.py <map_id> [--px 64] [--samples 32] [--out PATH] [--preview]
@@ -8,7 +8,12 @@ own sun direction: grass tufts, flowers, pebbles and stones (meadow); snow lumps
 lanes and deep drifts (snow); basalt, ash, cinders and glowing fissures, molten pools (volcano); lush grass, a river in
 its channel with sandy banks, reeds and a lake (delta, v0.9.28: game/shaders/ground_water.gdshader makes the water
 move, tools/water_mask.py finds it); rippled sand, a paved road, gravel and drifts (desert); red rock with strata and
-cracks, a mine railway down the road, copper-green flecks (canyon).
+cracks, a mine railway down the road, copper-green flecks (canyon); heather moor and bracken, a cold stream with stony
+banks forded by a cobbled track, peaty lochans (highland); soot, cinders and rusty ore earth, glassy slag heaps, a
+packed-cinder road with a clay wallow, lava pools and glowing fissures (forge); a marsh of sedge, red and green
+sphagnum and peat, plank trackways laid across the road, a sucking mud wallow where they meet, black bog pools with scum
+at their edges (bog). For highland and bog, --watersrc PATH also writes the exact water mask (the stream, its fords, the
+lochans, the bog pools) for tools/water_mask.py --src PATH.
 Output: assets/textures/ground_<map_id>.png (same coverage as tools/gen_ground.py: x -21..19, z -13..13).
 """
 import sys, os, math, time
@@ -92,7 +97,7 @@ tun_al = np.zeros(X.shape)
 if zf["tunnel"]:
     td, tun_al = g.poly_dist(zf["tunnel"])
     tun = np.exp(-(td / 0.3) ** 2) * np.clip((dist - HALF - 0.1) / 0.1, 0, 1)
-blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore")}
+blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore", "trees", "stones", "slag")}
 BLOCKERS = []
 for bl in m.get("blockers", []):
     bx, bz, br = bl[0], bl[1], bl[2]
@@ -108,6 +113,11 @@ for rv in m.get("rivers", []):
     rdd, _ra = g.poly_dist([rv["pts"]], margin=6.0)
     riv = np.minimum(riv, rdd + (fbm(1.5, 3, 41) - 0.5) * 0.4 - float(rv["width"]) / 2)     # < 0 in the water
 log("masks", g.w, g.h)
+if arg("--watersrc") and THEME in ("highland", "bog"):
+    from PIL import Image as _Im
+    _w = np.maximum(np.clip(-riv / 0.12, 0, 1), np.clip(-blk["lake"] / 0.15, 0, 1))
+    _Im.fromarray((np.clip(_w, 0, 1) * 255).astype(np.uint8)).save(arg("--watersrc"))
+    log("water source ->", arg("--watersrc"))
 
 
 def to_image(name, arr, color=False):
@@ -141,17 +151,21 @@ wd = bpy.data.worlds.new("Sky")
 sc.world = wd
 wd.use_nodes = True
 SKY = {"meadow": (0.62, 0.74, 0.95), "snow": (0.66, 0.78, 1.0), "volcano": (0.6, 0.38, 0.3), "delta": (0.62, 0.76, 0.95),
-       "desert": (0.72, 0.78, 0.92), "canyon": (0.74, 0.7, 0.72)}[THEME]
+       "desert": (0.72, 0.78, 0.92), "canyon": (0.74, 0.7, 0.72), "highland": (0.62, 0.72, 0.9), "forge": (0.56, 0.42, 0.36),
+       "bog": (0.64, 0.72, 0.78)}[THEME]
 wd.node_tree.nodes["Background"].inputs["Color"].default_value = SKY + (1,)
 wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1.05, "snow": 1.0, "volcano": 0.8, "delta": 1.05,
-                                                                    "desert": 1.0, "canyon": 0.95}[THEME]
+                                                                    "desert": 1.0, "canyon": 0.95, "highland": 1.0, "forge": 0.82,
+                                                                    "bog": 0.98}[THEME]
 # the game's sun: Godot rotation (-52, -36, 0) -> light travelling (0.362, -0.788, -0.498) in Godot = (x, y_b, z_b)
 # (0.362, 0.498, -0.788) in Blender (y_b = -z_godot)
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
-sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6}[THEME]
+sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6, "highland": 2.6, "forge": 2.3,
+                   "bog": 2.5}[THEME]
 sun.data.angle = math.radians(8)
 sun.data.color = {"meadow": (1.0, 0.95, 0.86), "snow": (1.0, 0.98, 0.96), "volcano": (1.0, 0.75, 0.55), "delta": (1.0, 0.95, 0.86),
-                  "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78)}[THEME]
+                  "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78), "highland": (1.0, 0.95, 0.87), "forge": (1.0, 0.8, 0.62),
+                  "bog": (0.98, 0.96, 0.86)}[THEME]
 d = Vector((0.362, 0.498, -0.788))
 sun.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 sc.collection.objects.link(sun)
@@ -211,6 +225,25 @@ if THEME == "canyon":
     hf += (fbm(1.0, 4, 71) - 0.5) * 0.08 * (1 - road)
     hf += np.clip(-blk["pillar"] / 0.9, 0, 1) * 0.08
     hf = np.where(blk["ore"] < 0, -0.05, hf) + np.exp(-((blk["ore"] - 0.12) / 0.2) ** 2) * 0.05
+if THEME == "highland":
+    hf += (fbm(1.2, 4, 81) - 0.5) * 0.06 * (1 - road)                                             # the rolling moor
+    hf = np.where((riv < 0) & (road < 0.5), -0.08, hf)                                             # the stream's channel
+    hf = np.where((riv < 0) & (road >= 0.5), -0.03, hf)                                            # the fords: the track dips in
+    hf += np.exp(-((riv - 0.12) / 0.22) ** 2) * 0.03 * (1 - road)                                   # its stony banks
+    lk = blk["lake"]
+    hf = np.where(lk < 0, -0.06, hf) + np.exp(-((lk - 0.1) / 0.2) ** 2) * 0.03
+    hf += np.clip(-blk["stones"] / 0.9, 0, 1) * 0.05                                               # a low rise under each stone ring
+if THEME == "forge":
+    hf += (fbm(0.6, 3, 91) - 0.5) * 0.05 * (1 - road)
+    lv = blk["lava"]
+    hf = np.where(lv < 0, -0.05, hf) + np.exp(-((lv - 0.12) / 0.2) ** 2) * 0.07
+    hf += np.clip(-blk["slag"] / 1.1, 0, 1) ** 0.7 * 0.12 + np.clip(-blk["slag"] / 1.1, 0, 1) * (fbm(0.3, 2, 92) - 0.5) * 0.08
+    hf -= slow * 0.02                                                                              # the clay wallow
+if THEME == "bog":
+    hf += (fbm(0.7, 3, 101) - 0.5) * 0.05 * (1 - road) + (fbm(0.25, 2, 102) - 0.5) * 0.02 * (1 - road)   # hummocks and hollows
+    lk = blk["lake"]
+    hf = np.where(lk < 0, -0.055, hf) + np.exp(-((lk - 0.08) / 0.16) ** 2) * 0.02
+    hf += road * 0.03 * (1 - slow) - slow * 0.025                                                  # the trackway rides on the marsh; mud sinks
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
 H_MESH = sample(hf, MX, MZ)
@@ -256,8 +289,12 @@ river_core = np.clip(-riv / 0.12, 0, 1)
 bank = np.clip(1 - np.abs(riv - 0.18) / 0.32, 0, 1) * (1 - river_core)
 lake_bank = np.clip(1 - np.abs(blk["lake"] - 0.15) / 0.3, 0, 1) * (1 - lake_core)
 water_all = np.maximum(river_core, lake_core) * (1 - road)
-zone_a = np.clip(-blk["palms"] / 0.4, 0, 1) + np.clip(-blk["ruins"] / 0.3, 0, 1)
-zone_b = np.clip(-blk["dune"] / 0.6, 0, 1) + np.clip(-blk["pillar"] / 0.5, 0, 1) + np.clip(-blk["ore"] / 0.12, 0, 1)
+if THEME == "highland":
+    water_all = np.maximum(river_core, lake_core)                                                  # (the stream runs over its fords)
+zone_a = np.clip(-blk["palms"] / 0.4, 0, 1) + np.clip(-blk["ruins"] / 0.3, 0, 1) + np.clip(-blk["stones"] / 0.5, 0, 1)
+zone_b = np.clip(-blk["dune"] / 0.6, 0, 1) + np.clip(-blk["pillar"] / 0.5, 0, 1) + np.clip(-blk["ore"] / 0.12, 0, 1) + \
+    np.clip(-blk["slag"] / 0.5, 0, 1)
+trees_z = np.clip(-blk["trees"] / 0.5, 0, 1)
 sleeper = np.zeros(X.shape)
 rail = np.zeros(X.shape)
 if THEME == "canyon":
@@ -266,7 +303,11 @@ if THEME == "canyon":
     for off in (0.24,):
         rail = np.maximum(rail, np.exp(-((dist - off) / 0.022) ** 2) * road)
 img4 = to_image("mask4", np.stack([water_all, np.maximum(bank, lake_bank) * (1 - road), np.clip(zone_a, 0, 1), np.clip(zone_b, 0, 1)], 2))
-img5 = to_image("mask5", np.stack([sleeper, rail, np.clip(-blk["ore"] / 0.12, 0, 1), np.zeros(X.shape)], 2))
+if THEME == "bog":                       # the trackways: planks laid across the road, dark gaps between them
+    ph = np.abs(along / 0.27 - np.round(along / 0.27)) * 0.27
+    sleeper = np.clip((ph - 0.012) / 0.012, 0, 1) * np.clip((HALF + 0.06 + (fbm(0.3, 2, 103) - 0.5) * 0.12 - dist) / 0.04, 0, 1)
+    sleeper *= (1 - slow)
+img5 = to_image("mask5", np.stack([sleeper, rail, np.clip(-blk["ore"] / 0.12, 0, 1), trees_z], 2))
 
 
 # ------------------------------------------------------------------------------------------------ ground material
@@ -364,7 +405,7 @@ road_m, edge_m, rut_m, out_m = nb.tex(img1)
 lane_m, slow_m, tun_m, chev_m = nb.tex(img2)
 lake_m, lava_m, rock_m, heat_m = nb.tex(img3)
 water_m, bank_m, zonea_m, zoneb_m = nb.tex(img4)
-sleep_m, rail_m, ore_m, _unused = nb.tex(img5)
+sleep_m, rail_m, ore_m, trees_m = nb.tex(img5)
 big = nb.noise(0.35, 4, 0.6)
 mid = nb.noise(1.6, 4, 0.6)
 fine = nb.noise(14.0, 2, 0.5)
@@ -471,6 +512,94 @@ elif THEME == "canyon":
     mal = nb.math("MULTIPLY", nb.ramp(nb.noise(24.0, 2, 0.5), 0.74, 0.8), nb.math("SUBTRACT", 1.0, road_m))    # malachite flecks
     c = nb.mix(nb.math("MULTIPLY", mal, 0.8), c, (0.18, 0.6, 0.42))
     rough = nb.mixf(rail_m, 0.9, 0.3)
+elif THEME == "highland":
+    # moorland: short grass, purple heather, brown bracken, dark damp hollows; a forest floor of needles under the pines
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.3, 0.42, 0.16), (0.43, 0.53, 0.22))
+    heather = nb.ramp(nb.noise(0.9, 4, 0.6), 0.55, 0.65)
+    c = nb.mix(nb.math("MULTIPLY", heather, 0.85), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.36, 0.18, 0.36), (0.56, 0.3, 0.54)))
+    bracken = nb.ramp(nb.noise(1.3, 3, 0.6, distort=0.5), 0.66, 0.74)
+    c = nb.mix(nb.math("MULTIPLY", bracken, 0.6), c, (0.52, 0.38, 0.2))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.5), c, (0.2, 0.33, 0.13))
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.22), c, (0.48, 0.62, 0.26))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.14, 0.28, 0.1), (0.22, 0.36, 0.14)))
+    c = nb.mix(nb.math("MULTIPLY", trees_m, 0.85), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.24, 0.19, 0.11), (0.34, 0.27, 0.15)))
+    c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.5), c, nb.mix(nb.ramp(nb.voronoi(16.0, "Distance"), 0.3, 0.1), (0.42, 0.44, 0.3), (0.56, 0.55, 0.5)))
+    track = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.44, 0.36, 0.26), (0.56, 0.47, 0.34))                 # a stony track
+    cobble = nb.ramp(nb.voronoi(9.0, "Distance"), 0.3, 0.12)
+    track = nb.mix(nb.math("MULTIPLY", cobble, 0.55), track, (0.58, 0.56, 0.52))
+    track = nb.mix(nb.math("MULTIPLY", rut_m, 0.6), track, (0.34, 0.27, 0.19))
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.5), c, (0.34, 0.4, 0.18))
+    c = nb.mix(road_m, c, track)
+    bankc = nb.mix(nb.ramp(nb.voronoi(18.0, "Distance"), 0.35, 0.1), (0.4, 0.4, 0.38), (0.62, 0.6, 0.56))
+    c = nb.mix(nb.math("MULTIPLY", bank_m, 0.9), c, bankc)                                        # stony banks
+    water = nb.mix(nb.ramp(nb.noise(0.7, 3, 0.6), 0.3, 0.7), (0.1, 0.27, 0.33), (0.18, 0.39, 0.45))
+    water = nb.mix(nb.math("MULTIPLY", nb.ramp(water_m, 0.4, 0.0), 1.0), water, (0.3, 0.46, 0.44))  # shallows at the edges
+    water = nb.mix(nb.math("MULTIPLY", nb.math("MULTIPLY", road_m, cobble), 0.6), water, (0.46, 0.5, 0.48))   # the ford's cobbles
+    water = nb.mix(nb.math("MULTIPLY", road_m, 0.25), water, (0.36, 0.42, 0.4))
+    c = nb.mix(water_m, c, water)
+    rough = nb.mixf(water_m, 0.9, 0.2)
+elif THEME == "forge":
+    # soot, cinders and rusty ore earth; glassy slag heaps; a packed-cinder road with a clay wallow; lava pools, fissures
+    c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.1), (0.22, 0.18, 0.15))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.4, 0.22, 0.11))            # rusty ore earth
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.34, 0.22), 0.6), c, (0.07, 0.065, 0.06))          # charcoal
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(fine, 0.6, 0.75), 0.35), c, (0.34, 0.28, 0.24))
+    fiss = nb.ramp(nb.voronoi(0.8, "Distance", "DISTANCE_TO_EDGE"), 0.014, 0.0)
+    fiss = nb.math("MULTIPLY", fiss, nb.ramp(nb.noise(0.5, 2, 0.5), 0.62, 0.7))
+    fiss = nb.math("MULTIPLY", fiss, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", road_m, edge_m)))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.08, 0.07, 0.06), (0.15, 0.12, 0.1)))
+    slagc = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.09, 0.09, 0.11), (0.17, 0.16, 0.19))
+    slagc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(9.0, 2, 0.5), 0.66, 0.74), 0.6), slagc, (0.16, 0.26, 0.26))   # glassy sheen
+    c = nb.mix(zoneb_m, c, slagc)
+    cind = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.33, 0.29, 0.26), (0.44, 0.38, 0.33))                  # the road: packed cinder
+    cind = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(30.0, "Distance"), 0.22, 0.1), 0.35), cind, (0.22, 0.2, 0.19))
+    cind = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(26.0, 2, 0.5), 0.72, 0.78), 0.5), cind, (0.5, 0.3, 0.16))       # iron flakes
+    cind = nb.mix(nb.math("MULTIPLY", rut_m, 0.7), cind, (0.24, 0.21, 0.19))
+    clay = nb.mix(nb.ramp(nb.noise(2.5, 3, 0.6), 0.3, 0.7), (0.3, 0.2, 0.13), (0.4, 0.27, 0.17))     # the wallow: wet clay
+    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.4, 3, 0.6), 0.62, 0.7), 0.7), clay, (0.18, 0.12, 0.08))
+    cind = nb.mix(slow_m, cind, clay)
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.6), c, (0.12, 0.1, 0.09))
+    c = nb.mix(road_m, c, cind)
+    c = nb.mix(nb.math("MULTIPLY", heat_m, 0.45), c, (0.55, 0.18, 0.05))                          # heat glow round the lava
+    lava = nb.mix(nb.ramp(nb.noise(0.9, 4, 0.6, distort=1.5), 0.35, 0.7), (1.0, 0.42, 0.06), (1.0, 0.85, 0.35))
+    crust = nb.ramp(nb.voronoi(2.0, "Distance", "DISTANCE_TO_EDGE"), 0.08, 0.16)
+    lava = nb.mix(nb.math("MULTIPLY", crust, 0.75), lava, (0.16, 0.07, 0.05))
+    c = nb.mix(lava_m, c, lava)
+    em = nb.mix(lava_m, nb.mix(fiss, (0, 0, 0), (1.0, 0.42, 0.08)), lava)
+    nb.link(em, nb.b.inputs["Emission Color"])
+    nb.b.inputs["Emission Strength"].default_value = 1.6
+    rough = nb.mixf(nb.math("MAXIMUM", zoneb_m, nb.math("MULTIPLY", slow_m, road_m)), 0.88, 0.35)
+elif THEME == "bog":
+    # a marsh: sedge, red and green sphagnum, peat; plank trackways, a mud wallow where they meet, black bog pools
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.25, 0.3, 0.12), (0.36, 0.38, 0.16))
+    red = nb.ramp(nb.noise(1.1, 4, 0.6), 0.56, 0.66)
+    c = nb.mix(nb.math("MULTIPLY", red, 0.8), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.46, 0.2, 0.12), (0.62, 0.32, 0.17)))   # red sphagnum
+    green = nb.ramp(nb.noise(1.7, 3, 0.6, distort=0.4), 0.64, 0.72)
+    c = nb.mix(nb.math("MULTIPLY", green, 0.7), c, (0.46, 0.54, 0.18))                              # bright moss
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.42, 0.26), 0.7), c, (0.15, 0.12, 0.08))           # wet peat hollows
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.6, 3, 0.6), 0.6, 0.66), 0.45), c, (0.48, 0.44, 0.24))   # dry tawny grass
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.4, 0.48, 0.2))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.11, 0.16, 0.07), (0.17, 0.22, 0.1)))
+    c = nb.mix(nb.math("MULTIPLY", trees_m, 0.8), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.18, 0.16, 0.09), (0.27, 0.23, 0.13)))
+    mud = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.24, 0.18, 0.12), (0.32, 0.24, 0.15))                    # mud under and round the planks
+    mud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.8, 3, 0.6), 0.6, 0.68), 0.7), mud, (0.12, 0.1, 0.07))    # puddles
+    plank = nb.n("ShaderNodeTexWave", wave_type="BANDS", bands_direction="X")
+    plank.inputs["Scale"].default_value = 40.0
+    plank.inputs["Distortion"].default_value = 3.0
+    plank.inputs["Detail"].default_value = 2.0
+    nb.link(nb.uvn.outputs["Object"], plank.inputs["Vector"])
+    wood = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.4, 0.29, 0.18), (0.52, 0.39, 0.25))
+    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(plank.outputs["Fac"], 0.6, 0.9), 0.3), wood, (0.32, 0.22, 0.13))   # grain
+    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.0, 3, 0.6), 0.62, 0.7), 0.5), wood, (0.26, 0.24, 0.16))  # weathered grey-green
+    trk = nb.mix(sleep_m, mud, wood)
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.6), c, (0.2, 0.17, 0.1))
+    c = nb.mix(road_m, c, trk)
+    pool = nb.mix(nb.ramp(nb.noise(0.8, 3, 0.6), 0.3, 0.7), (0.11, 0.12, 0.08), (0.2, 0.2, 0.13))   # dark peaty water
+    pool = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.5, 2, 0.5), 0.4, 0.7), 0.35), pool, (0.3, 0.36, 0.38))   # the sky in it
+    pool = nb.mix(nb.math("MULTIPLY", nb.ramp(water_m, 0.7, 0.2), 1.0), pool, (0.32, 0.38, 0.14))    # green scum at the edges
+    pool = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(6.0, 2, 0.5), 0.66, 0.72), nb.ramp(water_m, 0.9, 0.4)), pool, (0.42, 0.48, 0.18))
+    c = nb.mix(water_m, c, pool)
+    rough = nb.mixf(nb.math("MAXIMUM", water_m, nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 1.0, sleep_m))), 0.88, 0.22)
 else:   # volcano
     c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.11), (0.24, 0.2, 0.18))
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.36, 0.22, 0.15))         # rusty ash
@@ -665,7 +794,8 @@ def place_list(pts, s_lo, s_hi, sink=0.0, tilt=0.0):
 
 rd = lambda x, z: sample(dist, x, z)
 inside_pf = lambda x, z: sample(outside, x, z) < 0.5
-BLK_ALL = np.minimum.reduce([blk[k] for k in ("palms", "dune", "ruins", "pillar", "ore")])
+BLK_ALL = np.minimum.reduce([blk[k] for k in ("palms", "dune", "ruins", "pillar", "ore", "slag")])
+PATCH = fbm(0.9, 4, 0)                   # where heather (highland) and rushes (bog) grow thick
 no_blk = lambda x, z: (sample(blk["lake"], x, z) > 0.2) & (sample(blk["lava"], x, z) > 0.3) & (sample(blk["rocks"], x, z) > 0.1) & \
     (sample(BLK_ALL, x, z) > 0.15)
 
@@ -752,6 +882,76 @@ elif THEME == "canyon":
     ore = simple_mat("Malachite", (0.12, 0.5, 0.36), 0.5, var=(0.24, 0.66, 0.48))
     pts = scatter(260 if not PREVIEW else 60, lambda x, z: (rd(x, z) > HALF + 0.3) & no_blk(x, z))
     merged("Ore", blob_template(1), place_list(pts, 0.012, 0.03, sink=0.25), ore)
+elif THEME == "highland":
+    dry_w = lambda x, z: (sample(water_all, x, z) < 0.05)
+    blades = blade_mat("Blades", (0.26, 0.42, 0.13), (0.4, 0.56, 0.19), (0.64, 0.74, 0.32))
+    pts = scatter(18000 if not PREVIEW else 3000, lambda x, z: (rd(x, z) > HALF + 0.1) & no_blk(x, z) & dry_w(x, z) & (sample(bank, x, z) < 0.5))
+    merged("Tufts", tuft_template(9, 0.11, 0.014), place_list(pts, 0.75, 1.4), blades)
+    heath = blade_mat("Heather", (0.22, 0.26, 0.12), (0.38, 0.26, 0.34), (0.66, 0.42, 0.66))
+    pts = scatter(5200 if not PREVIEW else 800, lambda x, z: (rd(x, z) > HALF + 0.25) & no_blk(x, z) & dry_w(x, z) &
+                  (sample(PATCH, x, z) > 0.55))
+    merged("Heather", tuft_template(11, 0.09, 0.016), place_list(pts, 0.8, 1.4), heath)
+    brack = blade_mat("Bracken", (0.3, 0.26, 0.12), (0.48, 0.36, 0.18), (0.66, 0.5, 0.26))
+    pts = scatter(1500 if not PREVIEW else 300, lambda x, z: (rd(x, z) > HALF + 0.5) & no_blk(x, z) & dry_w(x, z))
+    merged("Bracken", tuft_template(7, 0.17, 0.022), place_list(pts, 0.8, 1.3), brack)
+    reeds = blade_mat("Reeds", (0.2, 0.34, 0.12), (0.34, 0.5, 0.18), (0.6, 0.66, 0.32))
+    pts = scatter(1400 if not PREVIEW else 300, lambda x, z: (np.abs(sample(blk["lake"], x, z) - 0.05) < 0.25) & (rd(x, z) > HALF + 0.2))
+    merged("Reeds", tuft_template(8, 0.3, 0.012), place_list(pts, 0.7, 1.3), reeds)
+    for k, col in enumerate([(1.0, 0.86, 0.24), (1.0, 1.0, 0.94), (0.62, 0.5, 0.96)]):          # tormentil, eyebright, harebells
+        centres = scatter(55 if not PREVIEW else 15, lambda x, z: (rd(x, z) > HALF + 0.5) & inside_pf(x, z) & no_blk(x, z) & dry_w(x, z))
+        pts = []
+        for cx, cz in centres:
+            for _ in range(int(RNG.integers(3, 7))):
+                pts.append((cx + RNG.normal(0, 0.12), cz + RNG.normal(0, 0.12)))
+        merged("Flowers%d" % k, flower_template(5, 0.035), place_list(pts, 0.8, 1.2), simple_mat("Petal%d" % k, col, 0.45))
+    peb = simple_mat("Pebble", (0.46, 0.44, 0.4), 0.8, var=(0.62, 0.6, 0.55))
+    pts = scatter(3200 if not PREVIEW else 500, lambda x, z: (rd(x, z) < HALF + 0.15) & dry_w(x, z))
+    merged("Pebbles", blob_template(1), place_list(pts, 0.015, 0.045, sink=0.35), peb)
+    stone = simple_mat("BankStone", (0.5, 0.5, 0.48), 0.75, var=(0.68, 0.67, 0.63))
+    pts = scatter(1300 if not PREVIEW else 200, lambda x, z: (sample(bank, x, z) > 0.35) & (rd(x, z) > HALF))
+    merged("BankStones", blob_template(1), place_list(pts, 0.025, 0.07, sink=0.4), stone)
+    pts = scatter(240 if not PREVIEW else 60, lambda x, z: (sample(riv, x, z) < 0.0) & (rd(x, z) < HALF - 0.1))
+    merged("FordStones", blob_template(2), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.06, 0.11, sink=0.7)], stone)   # stepping stones
+    pts = scatter(90, lambda x, z: (np.abs(rd(x, z) - HALF - 0.35) < 0.35) & no_blk(x, z) & dry_w(x, z))
+    merged("Stones", blob_template(2), place_list(pts, 0.05, 0.13, sink=0.45), simple_mat("Stone", (0.52, 0.52, 0.5), 0.8, var=(0.66, 0.65, 0.62)))
+elif THEME == "forge":
+    cinder = simple_mat("Cinder", (0.17, 0.14, 0.12), 0.8, var=(0.3, 0.25, 0.21))
+    pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
+    merged("Cinders", blob_template(1), place_list(pts, 0.015, 0.05, sink=0.3), cinder)
+    slag = simple_mat("Slag", (0.1, 0.1, 0.12), 0.3, var=(0.18, 0.2, 0.22))
+    pts = scatter(900 if not PREVIEW else 200, lambda x, z: (sample(blk["slag"], x, z) < 0.25) & (rd(x, z) > HALF + 0.1))
+    merged("SlagLumps", blob_template(2), place_list(pts, 0.03, 0.1, sink=0.35, tilt=0.4), slag)
+    ore = simple_mat("Ore", (0.36, 0.18, 0.09), 0.8, var=(0.5, 0.26, 0.12))
+    pts = scatter(700 if not PREVIEW else 150, lambda x, z: (rd(x, z) > HALF + 0.2) & no_blk(x, z) & (sample(blk["slag"], x, z) > 0.3))
+    merged("Ore", blob_template(1), place_list(pts, 0.02, 0.05, sink=0.3), ore)
+    peb = simple_mat("Pebble", (0.4, 0.36, 0.32), 0.75, var=(0.52, 0.47, 0.42))
+    pts = scatter(1600 if not PREVIEW else 300, lambda x, z: (rd(x, z) < HALF + 0.2) & (sample(slow, x, z) < 0.3))
+    merged("Pebbles", blob_template(1), place_list(pts, 0.012, 0.03, sink=0.3), peb)
+    ember = simple_mat("Ember", (0.3, 0.1, 0.05), 0.6, emit=(1.0, 0.4, 0.08), strength=3.0)
+    pts = scatter(240 if not PREVIEW else 60, lambda x, z: (rd(x, z) > HALF + 0.3) & no_blk(x, z))
+    merged("Embers", blob_template(1), place_list(pts, 0.012, 0.028, sink=0.2), ember)
+    dead = simple_mat("DeadGrass", (0.32, 0.27, 0.18), 0.85, var=(0.42, 0.36, 0.24))
+    pts = scatter(500 if not PREVIEW else 100, lambda x, z: (sample(outside, x, z) > 0.3) & no_blk(x, z))
+    merged("DeadTufts", tuft_template(7, 0.09, 0.011), place_list(pts, 0.7, 1.2), dead)
+elif THEME == "bog":
+    wet = lambda x, z: (sample(water_all, x, z) < 0.05)
+    sedge = blade_mat("Sedge", (0.2, 0.28, 0.1), (0.34, 0.44, 0.16), (0.58, 0.62, 0.3))
+    pts = scatter(20000 if not PREVIEW else 3000, lambda x, z: (rd(x, z) > HALF + 0.12) & no_blk(x, z) & wet(x, z))
+    merged("Tufts", tuft_template(9, 0.14, 0.012), place_list(pts, 0.75, 1.5), sedge)
+    rush = blade_mat("Rushes", (0.14, 0.24, 0.08), (0.24, 0.36, 0.12), (0.4, 0.48, 0.18))
+    pts = scatter(3400 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.2) & wet(x, z) &
+                  ((np.abs(sample(blk["lake"], x, z) - 0.05) < 0.4) | (sample(PATCH, x, z) > 0.6)))
+    merged("Rushes", tuft_template(10, 0.3, 0.009), place_list(pts, 0.7, 1.3), rush)
+    cotton = simple_mat("Cotton", (0.96, 0.95, 0.9), 0.6)
+    centres = scatter(160 if not PREVIEW else 40, lambda x, z: (rd(x, z) > HALF + 0.3) & no_blk(x, z) & wet(x, z))
+    pts = []
+    for cx, cz in centres:
+        for _ in range(int(RNG.integers(4, 10))):
+            pts.append((cx + RNG.normal(0, 0.15), cz + RNG.normal(0, 0.15)))
+    merged("Cotton", blob_template(1), [((x, y, h + 0.14 * s / 0.03), yw, s, None) for ((x, y, h), yw, s, t) in place_list(pts, 0.02, 0.032)], cotton)
+    moss = simple_mat("Moss", (0.34, 0.44, 0.14), 0.9, var=(0.5, 0.26, 0.14))
+    pts = scatter(900 if not PREVIEW else 150, lambda x, z: (rd(x, z) > HALF + 0.15) & no_blk(x, z) & wet(x, z))
+    merged("MossLumps", blob_template(2), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.05, 0.12, sink=0.7)], moss)
 else:
     cinder = simple_mat("Cinder", (0.16, 0.13, 0.12), 0.8, var=(0.3, 0.25, 0.22))
     pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
@@ -781,7 +981,8 @@ log("rendered")
 from PIL import Image
 im = np.asarray(Image.open(OUT + ".raw.png").convert("RGB")).astype(np.float32) / 255.0
 # brightness: the game lights this plane again, so bring the playfield's mean to the old painted level
-TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4}[THEME]
+TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4, "highland": 0.4, "forge": 0.26,
+          "bog": 0.33}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()

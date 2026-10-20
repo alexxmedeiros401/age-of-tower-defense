@@ -2811,7 +2811,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # (the spear's full reach holds over frames 6-10: 7; the Sun Priest's strike over 10-18: 11), where the 30 Hz samples
 # either side of it agree.
 const CLIP_FPS := 24.0
-const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
+const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
@@ -2940,13 +2940,14 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.albedo_color = Color(1.0, 0.9, 0.6)
 			m.albedo_texture = _mote_tex()
-		"fury_wave", "fury_ring":                      # Forge Fury's wave of heat and the glow under each tower
+		"fury_wave", "fury_ring", "cry_wave", "cry_ring":   # Forge Fury's wave of heat and the glow under each tower; War Cry's
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
-			m.albedo_color = Color(1.0, 0.5, 0.16) if key == "fury_wave" else Color(1.0, 0.42, 0.1)
+			m.albedo_color = {"fury_wave": Color(1.0, 0.5, 0.16), "fury_ring": Color(1.0, 0.42, 0.1), "cry_wave": Color(0.42, 0.7, 1.0),
+				"cry_ring": Color(0.36, 0.62, 1.0)}[key]
 		"shield_panel", "shield_shard":               # the Shield Bot's energy shield, and its shards when it breaks
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -3003,13 +3004,14 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.albedo_color = {"sun_flash": Color(1.0, 0.8, 0.36), "sun_flash_white": Color(1.0, 0.97, 0.86),
 				"sun_glint": Color(1.0, 0.9, 0.55)}[key]
 			m.albedo_texture = _mote_tex()
-		"ember", "fire_flash":                       # a burning arrow's embers and the burst where it lands
+		"ember", "fire_flash", "cry_mote", "cry_flash":   # a burning arrow's embers and the burst where it lands; War Cry's
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 			m.billboard_keep_scale = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-			m.albedo_color = Color(1.0, 0.5, 0.12) if key == "ember" else Color(1.0, 0.56, 0.2)
+			m.albedo_color = {"ember": Color(1.0, 0.5, 0.12), "fire_flash": Color(1.0, 0.56, 0.2), "cry_mote": Color(0.45, 0.72, 1.0),
+				"cry_flash": Color(0.6, 0.82, 1.0)}[key]
 			m.albedo_texture = _mote_tex()
 		"root":                                      # the Druid's roots (vertex colours: bark, moss)
 			m.vertex_color_use_as_albedo = true
@@ -3173,8 +3175,11 @@ func _prewarm_arrows() -> void:
 	_mi(_slash_mesh(), _atk_mat("slash"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_cleave_mesh(), _atk_mat("cleave"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	_mi(_wave_mesh(), _atk_mat("flare_wave"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
-	for key in ["fury_wave", "fury_ring"]:
+	for key in ["fury_wave", "fury_ring", "cry_wave", "cry_ring"]:
 		_mi(_wave_mesh(), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+	for key in ["cry_mote", "cry_flash"]:
+		var mi2 := _mi(_fx_mesh("mote"), _atk_mat(key), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
+		mi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mi(_fx_mesh("spark"), _atk_mat("hammer_spark"), holder, Vector3.ZERO, Vector3.ZERO, Vector3.ONE * 0.05)
 	var hm := Node3D.new()
 	hm.scale = Vector3.ONE * 0.05
@@ -4189,7 +4194,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "sun_priest", "kira"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
@@ -4319,8 +4324,8 @@ func _handle_events() -> void:
 				var u2 = sim.get_unit(ev.id)
 				if u2 != null and u2.type == "club_warrior":
 					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
-				elif u2 != null and u2.type == "spear_guard" and _hq_clips(ev.id):
-					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point
+				elif u2 != null and u2.type in ["spear_guard", "brenna"] and _hq_clips(ev.id):
+					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's too)
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type == "axe_warrior" and _hq_clips(ev.id):
@@ -4755,6 +4760,7 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 # At full reach (THRUST in tools/blender/hq/anim_spear.py) a narrow golden lance of light flies on from the spear's point
 # to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
+const BRENNA_TIP := Vector3(-0.2, 1.25, 1.6)       # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 
 
 ## The lance: a long thin double cone, bright at its head, fading to nothing at its tail (head at the origin, along +Z).
@@ -4786,7 +4792,7 @@ func _lance_mesh() -> ArrayMesh:
 func _spear_thrust(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	# (the robots' hits are held now; the lances leave the spear's point as his clip reaches full reach)
-	var lead := _at_attack_frame(uid, ATTACK_FRAME.spear_guard, 0.08, func() -> void: _spear_reach(uid, targets))
+	var lead := _at_attack_frame(uid, float(ATTACK_FRAME.get(str(u.type), 7)), 0.08, func() -> void: _spear_reach(uid, targets))
 	for tid in targets:
 		if _robot_point(int(tid), 0.0) != Vector3.INF:
 			_hold_hit(int(tid), lead + 0.14)
@@ -4814,7 +4820,9 @@ func _spear_reach(uid: int, targets: Array) -> void:
 func _spear_lance(uid: int, tid: int) -> void:
 	var from := Vector3.INF
 	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
-		from = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * GUARD_TIP
+		var su = sim.get_unit(uid)
+		var tip := BRENNA_TIP if su != null and str(su.type) == "brenna" else GUARD_TIP
+		from = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * tip
 	if from == Vector3.INF:
 		var u = sim.get_unit(uid)
 		if u == null:                                 # (sold mid-thrust)
@@ -6020,24 +6028,26 @@ func _anvil_strike(hid: int, big: bool) -> void:
 		_fury_wave(at)
 
 
-## The wave of heat rolls out over the whole field from the anvil; each tower glows as it reaches it.
-func _fury_wave(at: Vector3) -> void:
+## The wave of heat rolls out over the whole field from the anvil; each tower glows as it reaches it (`cry`: Brenna's
+## War Cry, in blue).
+func _fury_wave(at: Vector3, cry := false) -> void:
 	var spd := maxf(float(speed), 0.01)
 	var R := 24.0
 	for t in sim.towers:                                    # (out past the farthest tower: it glows as the wave gets there)
 		R = maxf(R, Vector2(float(t.pos.x) - at.x, float(t.pos.y) - at.z).length() + 1.0)
 	# always drawn (one node, once a cast; the effects cap dropped it on a busy field)
-	var w := _mi(_wave_mesh(), _atk_mat("fury_wave"), self, Vector3(at.x, 0.12, at.z), Vector3.ZERO, Vector3(0.4, 1.0, 0.4))
+	var w := _mi(_wave_mesh(), _atk_mat("cry_wave" if cry else "fury_wave"), self, Vector3(at.x, 0.12, at.z), Vector3.ZERO, Vector3(0.4, 1.0, 0.4))
 	w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": w, "t": 0.0, "life": R / FURY_SPEED / spd + 0.15, "kind": "wave", "r": R, "speed": FURY_SPEED * spd})
 	for t in sim.towers:
 		var tid := int(t.id)
 		var tp := _v3(t.pos, 0.0)
-		_fx_after(Vector2(tp.x - at.x, tp.z - at.z).length() / FURY_SPEED / spd, func() -> void: _fury_glow(tid))
+		_fx_after(Vector2(tp.x - at.x, tp.z - at.z).length() / FURY_SPEED / spd, func() -> void: _fury_glow(tid, cry))
 
 
-## A tower the wave reached glows like a forge (a hot ring round its feet, embers rising) until the fury ends.
-func _fury_glow(tid: int) -> void:
+## A tower the wave reached glows like a forge (a hot ring round its feet, embers rising) until the fury ends (`cry`: a
+## blue ring and blue motes).
+func _fury_glow(tid: int, cry := false) -> void:
 	if not tower_nodes.has(tid) or not is_instance_valid(tower_nodes[tid]) or sim.tick >= sim.fury_until:
 		return
 	var tn: Node3D = tower_nodes[tid]
@@ -6047,12 +6057,12 @@ func _fury_glow(tid: int) -> void:
 	var r := 0.95
 	if t != null:
 		r = float(defs.footprints.get("towers", {}).get(str(t.type), 0.95)) if defs.has("footprints") else 0.95
-	var g := _mi(_wave_mesh(), _atk_mat("fury_ring"), tn, Vector3(0, 0.08, 0), Vector3.ZERO, Vector3(r, 1.0, r))
+	var g := _mi(_wave_mesh(), _atk_mat("cry_ring" if cry else "fury_ring"), tn, Vector3(0, 0.08, 0), Vector3.ZERO, Vector3(r, 1.0, r))
 	g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	tn.set_meta("fury_fx", true)
-	effects.append({"node": g, "t": 0.0, "life": INF, "kind": "fury", "tid": tid, "r": r, "ember_t": randf() * 0.3})
+	effects.append({"node": g, "t": 0.0, "life": INF, "kind": "fury", "tid": tid, "r": r, "ember_t": randf() * 0.3, "cry": cry})
 	if _fx_room(3):
-		var f := _mi(_fx_mesh("flash"), _atk_mat("fire_flash"), self, tn.global_position + Vector3(0, 0.5, 0))
+		var f := _mi(_fx_mesh("flash"), _atk_mat("cry_flash" if cry else "fire_flash"), self, tn.global_position + Vector3(0, 0.5, 0))
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 0.8})
 
@@ -6074,10 +6084,62 @@ func _tick_fury(fx: Dictionary, n: Node3D) -> void:
 	fx.ember_t = 0.0
 	var a := randf() * TAU
 	var at := n.global_position + Vector3(cos(a), 0.0, sin(a)) * float(fx.r) * randf_range(0.4, 0.9) + Vector3(0, 0.1, 0)
-	var em := _mi(_fx_mesh("mote"), _atk_mat("ember"), self, at, Vector3.ZERO, Vector3.ONE * randf_range(0.5, 0.9))
+	var em := _mi(_fx_mesh("mote"), _atk_mat("cry_mote" if bool(fx.get("cry", false)) else "ember"), self, at, Vector3.ZERO,
+		Vector3.ONE * randf_range(0.5, 0.9))
 	em.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": em, "t": 0.0, "life": randf_range(0.6, 0.9), "kind": "glint", "s": randf_range(0.6, 0.9),
 		"v": Vector3(randf_range(-0.2, 0.2), randf_range(0.8, 1.4), randf_range(-0.2, 0.2))})
+
+
+# ---------------------------------------------------------------- Brenna Ironhide (Iron Age HQ)
+# Her thrust is the Spear Guard's (_spear_thrust: a lance of light from her spear's point at full reach, BRENNA_TIP).
+# War Cry (tools/blender/hq/anim_brenna.py): she beats her spear's shaft on her shield twice (BRENNA_CLASH: a clang and
+# sparks off the shield), then flings spear and shield up and roars (BRENNA_ROAR): a blue wave rolls out over the field
+# and every tower it reaches glows blue (and attacks faster: the sim's fury) until the cry fades.
+const BRENNA_CLASH := [11, 19]                       # anim_brenna.CLASH
+const BRENNA_ROAR := 26                              # anim_brenna.ROAR
+const BRENNA_SHIELD := Vector3(0.1, 1.2, 0.4)        # where the shaft strikes the shield (Yaw-local, at the clash; measured)
+
+
+func _brenna_cry() -> void:
+	var hid := int(sim.hero.id)
+	for i in BRENNA_CLASH.size():
+		var at := float(BRENNA_CLASH[i]) / CLIP_FPS
+		_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void: _shield_clash(hid)))
+	var ar := float(BRENNA_ROAR) / CLIP_FPS
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", ar, ar, func() -> void: _cry_roar(hid)))
+
+
+## The shaft strikes the shield: a clang, a flash and a few sparks off its rim.
+func _shield_clash(hid: int) -> void:
+	if not tower_nodes.has(hid) or not is_instance_valid(tower_nodes[hid]) or not (tower_nodes[hid] as Node3D).has_meta("yaw"):
+		return
+	var at := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * BRENNA_SHIELD
+	_sfx("shield_up", -3.0, 0.08, 0.05)
+	var f := _mi(_fx_mesh("flash"), _atk_mat("cry_flash"), self, at)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.18, "kind": "flash", "s": 0.6})
+	var n: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if _fx_room(n):
+		for i in n:
+			var sk := _mi(_fx_mesh("spark"), _atk_mat("hammer_spark"), self, at)
+			sk.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var a := randf() * TAU
+			var v := Vector3(cos(a) * randf_range(0.8, 2.0), randf_range(1.2, 2.6), sin(a) * randf_range(0.8, 2.0))
+			sk.look_at_from_position(sk.position, sk.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sk, "t": 0.0, "life": randf_range(0.2, 0.35), "kind": "spark", "v": v})
+	shake = maxf(shake, 0.12)
+
+
+## The roar: the War Cry rolls out over the field from where she stands.
+func _cry_roar(hid: int) -> void:
+	var at := _v3(sim.hero.pos, 0.0) if sim.hero != null else Vector3.ZERO
+	if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]):
+		at = (tower_nodes[hid] as Node3D).global_position
+	_sfx("drum", 0.0, 0.0, 0.3)
+	_sfx("ab_forge_fury", -6.0, 0.0, 0.5)
+	shake = maxf(shake, 0.5)
+	_fury_wave(at, true)
 
 
 # ---------------------------------------------------------------- Iron Age robots
@@ -6969,6 +7031,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_solar_flare" if str(ev.ability) == "solar_flare" else "explosion", 0.0, 0.0, 0.5)
 			return
 		"fury":
+			if sim.hero != null and str(sim.hero.type) == "brenna" and _hq_clips(sim.hero.id):
+				_brenna_cry()                               # she beats spear on shield and roars: a blue wave over the towers
+				_banner(aname, Color(0.5, 0.75, 1.0))
+				return
 			if sim.hero != null and str(sim.hero.type) == "tarek" and _hq_clips(sim.hero.id):
 				_tarek_fury()                               # v0.9.26: three blows on the anvil, a wave of heat, glowing towers
 				_banner(aname, Color(1, 0.6, 0.2))
