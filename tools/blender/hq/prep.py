@@ -21,12 +21,14 @@ def paint_skin(ob):
     a.data.foreach_set("value", np.clip(w, 0, 1))
 
 
-def paint_eyes(ob):
+def paint_eyes(ob, iris=None):
+    """Sclera, iris (brown unless the character gives `iris` = (outer ring, inner ring) colours), pupil, highlight."""
     me = ob.data
     V = np.zeros(len(me.vertices) * 3, np.float32)
     me.vertices.foreach_get("co", V)
     V = V.reshape(-1, 3).astype(np.float64)
-    sclera, iris_o, iris_i, pupil, hi = lin((0.95, 0.93, 0.88)), lin((0.28, 0.16, 0.06)), lin((0.62, 0.42, 0.16)), lin((0.03, 0.02, 0.02)), lin((1, 1, 1))
+    io, ii = iris if iris is not None else ((0.28, 0.16, 0.06), (0.62, 0.42, 0.16))
+    sclera, iris_o, iris_i, pupil, hi = lin((0.95, 0.93, 0.88)), lin(io), lin(ii), lin((0.03, 0.02, 0.02)), lin((1, 1, 1))
     cols = np.zeros((len(V), 4), np.float32)
     for i, p in enumerate(V):
         sx = 1 if p[0] > 0 else -1

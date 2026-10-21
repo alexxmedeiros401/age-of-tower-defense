@@ -75,7 +75,7 @@ def char_stage():
         prep.region_masks(o)
     prep.paint_skin(hi["Skin"])
     if "Eyes" in hi:                                 # (a full helm hides the face: no eyes)
-        prep.paint_eyes(hi["Eyes"])
+        prep.paint_eyes(hi["Eyes"], getattr(CH, "IRIS", None))
     if hasattr(CH, "paint_extra"):
         CH.paint_extra(hi)
     mats.assign_all(list(hi.values()), getattr(CH, "MAT_OVERRIDES", None))

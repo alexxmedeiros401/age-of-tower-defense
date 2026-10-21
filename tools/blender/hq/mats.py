@@ -746,31 +746,58 @@ def bow(name="HQ_Bow"):
     return g.finish(c, rough, g.bump(g.math("MULTIPLY", tw, g.reg(5)), 0.3, 0.002))
 
 
-def arrows(name="HQ_Arrows"):
-    """Reed shafts (label 0 / 7), leaf-shaped bronze heads (6), red and white fletching (8)."""
+def yew_bow(name="HQ_Longbow", sap=(0.88, 0.76, 0.54), heart=(0.66, 0.32, 0.12), grip=(0.24, 0.14, 0.08), horn=(0.86, 0.8, 0.66)):
+    """A yew self bow: the orange-brown heartwood of the belly (label 0) with a fine grain along the limbs and a few
+    darker pin knots; the pale sapwood of the back (7); a leather grip (5); horn nocks (6)."""
     g = new(name)
     p = g.obj()
-    shaft = g.mix(g.noise(g.scale_vec(p, (70.0, 70.0, 12.0)), 1.0, 2.0), g.rgb((0.76, 0.6, 0.34)), g.rgb((0.6, 0.44, 0.24)))
-    c = shaft
-    c = g.mix(g.reg(6), c, g.rgb((0.9, 0.62, 0.3)))
+    grain = g.noise(g.scale_vec(p, (12.0, 12.0, 160.0)), 1.0, 3.0, 0.5)
+    c = g.mix(g.remap(grain, 0.3, 0.7, 0.0, 1.0), g.rgb(heart), g.rgb(tuple(x * 0.78 for x in heart)))
+    knots = g.smooth(g.noise(p, 26.0, 2.0), 0.7, 0.76)
+    c = g.mix(g.math("MULTIPLY", knots, 0.6), c, g.rgb(tuple(x * 0.5 for x in heart)))
+    sw = g.mix(g.remap(grain, 0.3, 0.7, 0.0, 1.0), g.rgb(sap), g.rgb(tuple(x * 0.9 for x in sap)))
+    c = g.mix(g.reg(7), c, sw)
+    tw = g.wave(p, 300.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(5), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb(grip), g.rgb(tuple(x * 0.7 for x in grip))))
+    c = g.mix(g.reg(6), c, g.mix(g.noise(p, 40.0, 2.0), g.rgb(horn), g.rgb(tuple(x * 0.85 for x in horn))))
+    rough = g.mixf(g.reg(5), g.mixf(g.reg(6), 0.42, 0.3), 0.75)
+    return g.finish(c, rough, g.bump(g.math("ADD", g.math("MULTIPLY", grain, 0.3), g.math("MULTIPLY", tw, g.reg(5))), 0.25, 0.0015))
+
+
+def arrows(name="HQ_Arrows", shaft=((0.76, 0.6, 0.34), (0.6, 0.44, 0.24)), head=(0.9, 0.62, 0.3), head_rough=0.3,
+           fletch=((0.86, 0.14, 0.08), (0.97, 0.95, 0.9)), crest=None, crest2=None, head_hi=None):
+    """Reed shafts (label 0 / 7), leaf-shaped bronze heads (6), red and white fletching (8); optionally painted cresting
+    bands on the shafts (5 `crest`, 9 `crest2`). Medieval: ash shafts, steel bodkins, grey goose feathers."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(g.scale_vec(p, (70.0, 70.0, 12.0)), 1.0, 2.0), g.rgb(shaft[0]), g.rgb(shaft[1]))
+    hc = g.rgb(head) if head_hi is None else g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.5, 0.56), 0.7), g.rgb(head), g.rgb(head_hi))
+    c = g.mix(g.reg(6), c, hc)
     split = g.smooth(g.noise(p, 22.0, 1.0), 0.47, 0.53)
-    c = g.mix(g.reg(8), c, g.mix(split, g.rgb((0.86, 0.14, 0.08)), g.rgb((0.97, 0.95, 0.9))))
-    return g.finish(c, g.mixf(g.reg(6), 0.62, 0.3))
+    c = g.mix(g.reg(8), c, g.mix(split, g.rgb(fletch[0]), g.rgb(fletch[1])))
+    if crest is not None:
+        c = g.mix(g.reg(5), c, g.rgb(crest))
+    if crest2 is not None:
+        c = g.mix(g.reg(9), c, g.rgb(crest2))
+    return g.finish(c, g.mixf(g.reg(6), 0.62, head_rough))
 
 
-def quiver(name="HQ_Quiver", base=(0.56, 0.16, 0.09)):
-    """Red-dyed leather quiver: ochre bands (label 5), a bronze rim (6), the arrows' reed shafts (7) and fletching (8)."""
+def quiver(name="HQ_Quiver", base=(0.56, 0.16, 0.09), band=(0.9, 0.62, 0.2), rim=(0.88, 0.6, 0.3), shaft=(0.74, 0.58, 0.33),
+           fletch=((0.86, 0.14, 0.08), (0.97, 0.95, 0.9)), crest2=(0.72, 0.12, 0.08), worn=(0.78, 0.45, 0.3), scratch=(0.22, 0.06, 0.04)):
+    """Dyed leather quiver: `band`s (label 5), a metal rim (6), the arrows' shafts (7) and fletching (8), a second
+    cresting colour on the shafts (9)."""
     g = new(name)
     p = g.obj()
     c = g.mix(g.noise(p, 9.0, 3.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.3) for x in base)))
-    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.55), c, g.rgb((0.78, 0.45, 0.3)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.58), 0.55), c, g.rgb(worn))
     scr = g.smooth(g.noise(g.scale_vec(p, (120.0, 120.0, 30.0)), 1.0, 2.0), 0.62, 0.68)
-    c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb((0.22, 0.06, 0.04)))
-    c = g.mix(g.reg(5), c, g.rgb((0.9, 0.62, 0.2)))
-    c = g.mix(g.reg(6), c, g.rgb((0.88, 0.6, 0.3)))
-    c = g.mix(g.reg(7), c, g.rgb((0.74, 0.58, 0.33)))
+    c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb(scratch))
+    c = g.mix(g.reg(5), c, g.rgb(band))
+    c = g.mix(g.reg(6), c, g.rgb(rim))
+    c = g.mix(g.reg(7), c, g.rgb(shaft))
     split = g.smooth(g.noise(p, 22.0, 1.0), 0.47, 0.53)
-    c = g.mix(g.reg(8), c, g.mix(split, g.rgb((0.86, 0.14, 0.08)), g.rgb((0.97, 0.95, 0.9))))
+    c = g.mix(g.reg(8), c, g.mix(split, g.rgb(fletch[0]), g.rgb(fletch[1])))
+    c = g.mix(g.reg(9), c, g.rgb(crest2))
     return g.finish(c, g.mixf(g.reg(6), 0.6, 0.3), g.bump(g.math("ADD", g.noise(p, 90.0, 3.0), scr), 0.2, 0.003))
 
 
