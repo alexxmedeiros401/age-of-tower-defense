@@ -60,6 +60,7 @@ var hero_def: Dictionary = {}
 var hero_levels: Array = []
 var fury_until := 0
 var fury_speed := 0.0
+var pending_quakes: Array = []    # [{t, st, dmg}]: a quake that lands a moment after the cast (Cassia's charge: "delay")
 
 # persistent Legacy perks (all neutral unless apply_perks() is called)
 var perks := {}
@@ -590,11 +591,14 @@ func use_ability() -> bool:
 				_damage(alive[i], dmg, "blunt", src)
 		"quake":
 			var st := float(ab.stun) + float(ab.get("stun_per_level", 0.0)) * lv
-			for e in enemies.duplicate():
-				if e.alive:
-					e.stun_until = maxi(e.stun_until, tick + int(st * (0.25 if e.boss else 1.0) / TICK))
-					hit_ids.append(e.id)
-					_damage(e, dmg, "blunt", src)
+			if float(ab.get("delay", 0.0)) > 0.0:
+				# (v0.9.45: the blow lands when the hero's clip strikes it, not at the cast)
+				pending_quakes.append({"t": tick + int(float(ab.delay) / TICK), "st": st, "dmg": dmg})
+				for e in enemies:
+					if e.alive:
+						hit_ids.append(e.id)
+			else:
+				_quake(st, dmg)
 		"flare":
 			var fsrc := {"hero": true, "tower_id": -1, "expose": float(ab.expose), "expose_time": float(ab.expose_time)}
 			for e in enemies.duplicate():
@@ -642,6 +646,15 @@ func use_ability() -> bool:
 	events.append({"e": "ability", "ability": str(ab.id), "type": ability_type(), "pos": hero.pos, "radius": float(ab.get("radius", 0.0)), "hits": hit_pos,
 		"ids": hit_ids})
 	return true
+
+
+## Every robot on the field is stunned (a boss a quarter as long) and hurt.
+func _quake(st: float, dmg: float) -> void:
+	var src := {"hero": true, "tower_id": -1}
+	for e in enemies.duplicate():
+		if e.alive:
+			e.stun_until = maxi(e.stun_until, tick + int(st * (0.25 if e.boss else 1.0) / TICK))
+			_damage(e, dmg, "blunt", src)
 
 
 func ability_type() -> String:
@@ -1012,6 +1025,11 @@ func step() -> void:
 	if state == "lost":
 		return
 	tick += 1
+
+	# a hero's quake landing
+	while not pending_quakes.is_empty() and int(pending_quakes[0].t) <= tick:
+		var q: Dictionary = pending_quakes.pop_front()
+		_quake(float(q.st), float(q.dmg))
 
 	# spawns
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= tick:

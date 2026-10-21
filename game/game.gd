@@ -2594,7 +2594,7 @@ func _refresh_tower_node(t: Dictionary) -> void:
 		col = Color(1.0, 0.45, 0.15)
 	elif t.branch == "B":
 		col = Color(0.25, 0.8, 1.0)
-	if t.type == "torsion_catapult" and n.has_meta("anim"):
+	if t.type in ["torsion_catapult", "onager"] and n.has_meta("anim"):
 		_torsion_ammo(n, str(t.stats.get("dtype", "")) == "fire")
 	elif t.type == "ballista" and n.has_meta("anim"):
 		_ballista_ammo(n, str(t.stats.get("dtype", "")) == "fire")
@@ -2905,7 +2905,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -2969,6 +2969,15 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		return _atk_cache[key]
 	var m := StandardMaterial3D.new()
 	match key:
+		"oracle_eye":                                # v0.9.44: the eye the Oracle's vision opens over a robot
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.vertex_color_use_as_albedo = true
+			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+			m.billboard_keep_scale = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.no_depth_test = true
+			m.render_priority = 1
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"tar":                                       # glossy black tar
 			m.albedo_color = Color(0.05, 0.038, 0.03)
 			m.roughness = 0.2
@@ -4135,6 +4144,12 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				fx.v *= 0.9
 				n.scale = Vector3.ONE * (0.6 + k * 1.6)
 				_fade(n, k)
+			"eye":
+				_tick_eye(fx, n)
+			"vapour":
+				n.position += (fx.v as Vector3) * dt + Vector3(sin(fx.t * 2.2 + float(fx.ph)) * 0.08, 0, cos(fx.t * 1.7 + float(fx.ph)) * 0.06) * dt
+				n.scale = Vector3.ONE * (0.35 + k * 0.9)
+				_fade(n, 0.25 + 0.75 * k)
 			"glob":
 				_tick_glob(fx, n)
 			"spike":
@@ -4287,7 +4302,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
@@ -4417,8 +4432,11 @@ func _handle_events() -> void:
 				var u2 = sim.get_unit(ev.id)
 				if u2 != null and u2.type == "club_warrior":
 					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
-				elif u2 != null and u2.type in ["spear_guard", "brenna"] and _hq_clips(ev.id):
-					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's too)
+				elif u2 != null and u2.type in ["spear_guard", "brenna", "legionary"] and _hq_clips(ev.id):
+					if u2.type == "legionary":
+						_legion_bash(u2)                        # v0.9.42: the shield's boss slams forward first...
+					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's,
+					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type == "axe_warrior" and _hq_clips(ev.id):
@@ -4459,6 +4477,10 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "sun_priest" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_sun_beams(u3, tg3)                         # v0.9.24: beams of sunlight from the disc on his staff
+				elif u3 != null and u3.type == "oracle" and not tg3.is_empty() and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_sun_beams(u3, tg3)                         # v0.9.44: visions flash from her laurel to the robots...
+					_oracle_eyes(u3, tg3)                       # ...and an eye opens over each: its weak spot laid bare
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
@@ -4519,10 +4541,10 @@ func _handle_events() -> void:
 					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
 					var su = sim.get_unit(int(ev.get("tower", -1)))
-					if su != null and (su.type in ["boulder_catapult", "torsion_catapult"] or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
+					if su != null and (su.type in ["boulder_catapult", "torsion_catapult", "onager"] or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
 						boulder = true
-						hot_b = su.type in ["boulder_catapult", "torsion_catapult"] and str(ev.get("dtype", "")) == "fire"
-						pot = hot_b and su.type == "torsion_catapult"
+						hot_b = su.type in ["boulder_catapult", "torsion_catapult", "onager"] and str(ev.get("dtype", "")) == "fire"
+						pot = hot_b and su.type in ["torsion_catapult", "onager"]
 					elif su != null and (su.type == "bronze_archer" or str(su.stats.get("proj", "")) == "arrow"):
 						arrow = true
 						_arrow_hit_unseen(su, ev)
@@ -4615,6 +4637,8 @@ func _handle_events() -> void:
 # in the ground), and the bronze head strikes sparks. Fire Archer (Path A) arrows burn in flight, trailing embers, and
 # burst into flame where they land. The arrows leave the string at RELEASE in tools/blender/hq/anim_archer.py.
 const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at full draw (model units, Godot axes, Yaw node)
+# v0.9.41: the Cretan Archer (anim_cretan.py) shoots kneeling: the same draw 0.37 lower (anim_cretan.KNEEL_DROP)
+const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12)}
 const ARROW_LEN := 0.78
 
 
@@ -4711,8 +4735,8 @@ func _robot_type(eid: int) -> String:
 	return ""
 
 
-## An arrow in flight. From the HQ Bronze Archer it starts at his bow and settles onto the sim's projectile as it flies
-## (see _arrow_flight); other archers' arrows start above their tower as before.
+## An arrow in flight. From the HQ Bronze Archer (and the kneeling Cretan Archer) it starts at his bow and settles onto
+## the sim's projectile as it flies (see _arrow_flight); other archers' arrows start above their tower as before.
 func _arrow_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	var fire := dt == "fire"
 	_mi(_arrow_mesh(fire), null, root)
@@ -4724,10 +4748,10 @@ func _arrow_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	var e = sim._enemy_by_id(int(p.get("target", -1)))
 	var hit_h := _hit_height(e)
 	var launch := root.position
-	if u != null and u.type == "bronze_archer" and tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("anim") \
+	if u != null and BOW_TIPS.has(u.type) and tower_nodes.has(u.id) and (tower_nodes[u.id] as Node3D).has_meta("anim") \
 			and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
-		launch = yaw.global_transform * ARCHER_BOW
+		launch = yaw.global_transform * BOW_TIPS[u.type]
 	root.position = launch
 	var aim: Vector2 = p.aim
 	root.set_meta("h0", launch.y)
@@ -4854,6 +4878,8 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 # to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
 const BRENNA_TIP := Vector3(-0.22, 1.24, 1.7)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
+const LEGION_TIP := Vector3(-0.254, 1.125, 1.119)  # the Legionary's gladius point at full reach (anim_legionary.STAB)
+const LANCE_TIPS := {"spear_guard": GUARD_TIP, "brenna": BRENNA_TIP, "legionary": LEGION_TIP}
 
 
 ## The lance: a long thin double cone, bright at its head, fading to nothing at its tail (head at the origin, along +Z).
@@ -4909,12 +4935,58 @@ func _spear_reach(uid: int, targets: Array) -> void:
 		i += 1
 
 
+# ---------------------------------------------------------------- Legionary (v0.9.42)
+# His attack (tools/blender/hq/anim_legionary.py): the scutum's boss slams forward at BASH (a flash of gold off the boss,
+# a ring of dust kicked up at the shield's foot, the thud of it) and the gladius thrusts out round the shield's edge at
+# STAB (ATTACK_FRAME): a lance of light from its point to each robot hit, as the Spear Guard's (_spear_thrust).
+const LEGION_BASH := 6
+const LEGION_BOSS := Vector3(0.103, 1.004, 0.94)  # the boss at full reach (model units, Godot axes, Yaw node)
+
+
+func _legion_bash(u: Dictionary) -> void:
+	var uid := int(u.id)
+	_at_attack_frame(uid, float(LEGION_BASH), 0.05, func() -> void: _legion_boss_hit(uid))
+
+
+func _legion_boss_hit(uid: int) -> void:
+	var u = sim.get_unit(uid)
+	if u == null or not tower_nodes.has(uid) or not is_instance_valid(tower_nodes[uid]):
+		return
+	var tn: Node3D = tower_nodes[uid]
+	var at := _v3(u.pos, 1.0)
+	var fwd := Vector3(u.facing.x, 0.0, u.facing.y)
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
+	if tn.has_meta("yaw"):
+		var yt := (tn.get_meta("yaw") as Node3D).global_transform
+		at = yt * LEGION_BOSS
+		fwd = (yt.basis * Vector3(0, 0, 1)).normalized()
+		fwd.y = 0.0
+		fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [5, 3, 1][gl]
+	if _fx_room(n + 1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at + fwd * 0.08)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.18, "kind": "flash", "s": 0.8})
+		for k in n:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at + fwd * 0.06)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v := (fwd * randf_range(0.6, 1.2) + fwd.cross(Vector3.UP) * randf_range(-0.9, 0.9) + Vector3(0, randf_range(0.1, 0.9), 0)).normalized() * randf_range(2.2, 4.0)
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v})
+	var foot := Vector3(at.x, 0.15, at.z) + fwd * 0.15
+	_dust_fx(foot, [5, 3, 2][gl], 0.5)
+	_ring_fx(foot, 0.8, Color(1.0, 0.85, 0.5), 0.25)
+	_sfx("hammer_hit", -9.0, 0.15, 0.05)
+	shake = maxf(shake, 0.08)
+
+
 ## Launched at full reach: from the spear's point (where the turning model holds it now) to the robot.
 func _spear_lance(uid: int, tid: int) -> void:
 	var from := Vector3.INF
 	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
 		var su = sim.get_unit(uid)
-		var tip := BRENNA_TIP if su != null and str(su.type) == "brenna" else GUARD_TIP
+		var tip: Vector3 = LANCE_TIPS.get(str(su.type), GUARD_TIP) if su != null else GUARD_TIP
 		from = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * tip
 	if from == Vector3.INF:
 		var u = sim.get_unit(uid)
@@ -4965,6 +5037,9 @@ func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
 # Priest's path (A), burning orange on the Solar Lance's (B). Where a beam strikes: a burst of light and motes (embers on
 # Path B). A robot the pulse destroys blows up when its beam lands.
 const SUN_DISC := Vector3(-0.087, 2.05, 1.242)     # the disc as he drives the staff at the robots (model units, Godot axes, Yaw node)
+# v0.9.44: the Oracle's visions leave from the tip of her laurel as she sweeps it out at the robots (anim_oracle.SEE)
+const ORACLE_LAUREL := Vector3(-0.1, 1.45, 0.95)
+const SUN_POINTS := {"sun_priest": SUN_DISC, "oracle": ORACLE_LAUREL}
 const BEAM_GROW := 0.06                           # seconds for a beam to reach its robot
 
 
@@ -5011,7 +5086,7 @@ func _sun_beams(u: Dictionary, targets: Array) -> void:
 	var ts := clampf(_clip_delay(uid, 9) / 0.3, 0.25, 1.0)
 	var kind := _sun_kind(u)
 	# (the robots' hits are held now; the beams leave the disc as his clip reaches RELEASE)
-	var lead := _at_attack_frame(uid, ATTACK_FRAME.sun_priest, 0.08, func() -> void: _sun_release(uid, targets, kind, ts))
+	var lead := _at_attack_frame(uid, float(ATTACK_FRAME.get(str(u.type), ATTACK_FRAME.sun_priest)), 0.08, func() -> void: _sun_release(uid, targets, kind, ts))
 	var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
 	var i := 0
 	for tid in targets:
@@ -5049,7 +5124,9 @@ func _sun_release(uid: int, targets: Array, kind: int, ts: float) -> void:
 ## Where the disc is now (the turning model holds it there at RELEASE); INF without the model.
 func _sun_disc(uid: int) -> Vector3:
 	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
-		return ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * SUN_DISC
+		var su = sim.get_unit(uid)
+		var src: Vector3 = SUN_POINTS.get(str(su.type), SUN_DISC) if su != null else SUN_DISC
+		return ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * src
 	return Vector3.INF
 
 
@@ -6309,6 +6386,10 @@ func _drone_heal(did: int, radius: float) -> void:
 const TORSION_BALL := Vector3(0.301, 1.58, 0.354)  # the ball at the top of the arm's swing (model units, Godot axes, Yaw node)
 const TORSION_BALL_R := 0.078                       # its radius (model units: torsion.py BALL_R)
 const TORSION_FLY := 0.75                           # the shot's size in flight (of its 0.17 mesh)
+# v0.9.43: the Onager (anim_onager.py) throws the same way, from its sling: the stone leaves the pouch as the sling whips
+# over the arm's tip (its SLAM, frame 7, the same clip time). Path A's fire pots ride its stone and carry bones too.
+const ONAGER_STONE := Vector3(0.3, 1.394, 0.89)     # the stone as the sling lets it go (model units, Godot axes, Yaw node)
+const LOB_FROM := {"torsion_catapult": TORSION_BALL, "onager": ONAGER_STONE}
 
 
 func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
@@ -6327,6 +6408,8 @@ func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	root.set_meta("lob_cap", float(p.flight) * 0.6)          # thrown by then at the latest (sim seconds into its flight)
 	# it leaves the cup the size it was in it (the ball, or the pot riding on it at 0.56), and grows to its flight size
 	root.set_meta("lob_size", 0.56 if dt == "fire" else TORSION_BALL_R / 0.17)
+	if u != null:
+		root.set_meta("lob_at", LOB_FROM.get(str(u.type), TORSION_BALL))
 	if u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		root.set_meta("lob_tid", int(u.id))                  # in the cup until its clip reaches the release (_torsion_flight)
 		root.visible = false
@@ -6356,7 +6439,7 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 				or ap.current_animation_position + step >= TORSION_THROW_T
 			if go:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
-				pn.set_meta("lob_from", yt * TORSION_BALL)
+				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
 				pn.set_meta("s0", float(pn.get_meta("lob_size")) * yt.basis.get_scale().x)
 				# the pot lay along the throw in the cup (the stone bone's +Y = the Yaw node's +Z): it leaves that way
 				if pn.has_meta("pot"):
@@ -6677,6 +6760,111 @@ func _ballista_ammo(n: Node3D, hot: bool) -> void:
 	n.set_meta("bal_fire", true)
 
 
+# ---------------------------------------------------------------- Oracle (Classical Age HQ, v0.9.44)
+# Vapours rise from her tripod's cauldron while she stands (_oracle_vapour). At SEE (anim_oracle.py: she sweeps the
+# laurel out at the robots) visions flash from the laurel's tip to every robot the pulse hit (_sun_beams: golden; white
+# on the Pythia's path, burning on the Sun Oracle's) and an eye opens over each, gold ringed in violet, staring a moment
+# and closing: the robot's weak spot laid bare (the sim's "expose").
+const ORACLE_VAPOUR := Vector3(0.25, 1.13, 0.22)     # above the cauldron (model units, Godot axes, Yaw node)
+
+
+func _oracle_eyes(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var ids := targets.duplicate()
+	var big := str(u.get("branch", "")) == "A"
+	_at_attack_frame(uid, float(ATTACK_FRAME.oracle), 0.08, func() -> void:
+		var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
+		var i := 0
+		for tid in ids:
+			if i >= cap or not _fx_room(1):
+				break
+			var t := int(tid)
+			var h := _hit_height_of(_robot_type(t)) * 2.0 + 0.45
+			var at := _robot_point(t, h)
+			if at == Vector3.INF:
+				continue
+			var e := _mi(_eye_mesh(), _atk_mat("oracle_eye"), self, at)
+			e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": e, "t": -0.06 * i, "life": 1.0, "kind": "eye", "tid": t, "h": h, "s": 0.62 if big else 0.5})
+			i += 1)
+
+
+## An eye, flat in the XY plane (it faces the camera): an almond of gold with a violet rim, a dark iris, a bright pupil.
+func _eye_mesh() -> ArrayMesh:
+	if _atk_cache.has("eye_mesh"):
+		return _atk_cache["eye_mesh"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 16
+	var w := 0.5
+	var hh := 0.26
+	var outline := []
+	for i in n + 1:
+		var tt := float(i) / n
+		outline.append(Vector2(lerpf(-w, w, tt), hh * sin(PI * tt)))
+	for i in range(n - 1, 0, -1):
+		var tt := float(i) / n
+		outline.append(Vector2(lerpf(-w, w, tt), -hh * sin(PI * tt)))
+	var rims := [[1.18, Color(0.45, 0.2, 0.62, 0.9)], [1.0, Color(1.0, 0.86, 0.42, 0.95)]]
+	for rim in rims:
+		var sc: float = rim[0]
+		var col: Color = rim[1]
+		for i in outline.size():
+			var a: Vector2 = outline[i] * sc
+			var b: Vector2 = outline[(i + 1) % outline.size()] * sc
+			for v in [Vector3.ZERO, Vector3(a.x, a.y, 0.002 * sc), Vector3(b.x, b.y, 0.002 * sc)]:
+				st.set_color(col)
+				st.add_vertex(v + Vector3(0, 0, 0.01 * (1.2 - sc)))
+	for ring in [[0.2, Color(0.28, 0.1, 0.4, 1.0), 0.02], [0.085, Color(1.0, 1.0, 0.92, 1.0), 0.03]]:
+		var r: float = ring[0]
+		var c: Color = ring[1]
+		var z: float = ring[2]
+		for i in 14:
+			var a0 := TAU * i / 14.0
+			var a1 := TAU * (i + 1) / 14.0
+			for v in [Vector3(0, 0, z), Vector3(cos(a0) * r, sin(a0) * r, z), Vector3(cos(a1) * r, sin(a1) * r, z)]:
+				st.set_color(c)
+				st.add_vertex(v)
+	var m := st.commit()
+	_atk_cache["eye_mesh"] = m
+	return m
+
+
+## The eye over a robot: it opens (its height grows), stares while it follows the robot, and closes and fades.
+func _tick_eye(fx: Dictionary, n: Node3D) -> void:
+	n.visible = fx.t >= 0.0
+	if fx.t < 0.0:
+		return
+	var at := _robot_point(int(fx.tid), float(fx.h))
+	if at != Vector3.INF:
+		n.position = n.position.lerp(at, 0.5)
+	var k: float = clampf(fx.t / float(fx.life), 0.0, 1.0)
+	var open := clampf(k / 0.18, 0.0, 1.0) * clampf((1.0 - k) / 0.22, 0.0, 1.0)
+	var s := float(fx.s) * (0.85 + 0.15 * clampf(k / 0.18, 0.0, 1.0))
+	n.scale = Vector3(s, s * maxf(open, 0.04), s)
+	if k > 0.75:
+		_fade(n, (k - 0.75) / 0.25)
+
+
+## Vapour rising from the cauldron: a pale golden wisp now and then, drifting up and spreading as it fades.
+func _oracle_vapour(tn: Node3D, dt: float) -> void:
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	if gl >= 2 or not tn.has_meta("yaw"):
+		return
+	var vt: float = float(tn.get_meta("vap_t", randf() * 0.4)) - dt
+	if vt > 0.0:
+		tn.set_meta("vap_t", vt)
+		return
+	tn.set_meta("vap_t", [0.42, 0.7][gl])
+	if not _fx_room(1):
+		return
+	var at := ((tn.get_meta("yaw") as Node3D).global_transform) * ORACLE_VAPOUR
+	var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.98, 0.93, 0.78, 0.38)), self, at + Vector3(randf_range(-0.05, 0.05), 0.0, randf_range(-0.05, 0.05)))
+	pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": pf, "t": 0.0, "life": 2.0, "kind": "vapour", "v": Vector3(randf_range(-0.06, 0.06), 0.42, randf_range(-0.06, 0.06)),
+		"ph": randf() * TAU})
+
+
 # ---------------------------------------------------------------- Druid (Iron Age HQ, v0.9.38)
 # The call (tools/blender/hq/anim_druid.py): he heaves his staff up and drives its foot into the earth (HIT): the stone
 # in its head flares, a ring of green light runs out over the ground, and gnarled roots burst up round every robot the
@@ -6907,8 +7095,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if utype == "bronze_archer" or pj == "arrow":
 		_arrow_proj(root, p, u, dt)            # v0.9.21: a real arrow, loosed from the HQ archer's bow
 		return root
-	if utype == "torsion_catapult":
+	if utype == "torsion_catapult" or (utype == "onager" and u != null and _hq_clips(int(u.id))):
 		_torsion_proj(root, p, u, dt)          # v0.9.23: a dressed stone ball (or a burning pitch pot) from the cup
+		                                       # (v0.9.43: the Onager's from its sling)
 		return root
 	if utype == "tarek":
 		_mi(_box(0.26, 0.16, 0.16), _mat("hot_hammer", Color(0.9, 0.45, 0.15), {"emit": Color(1, 0.4, 0.1), "emit_e": 1.2}), root)
@@ -7407,6 +7596,8 @@ func _sync_visuals(alpha: float) -> void:
 		_spin_flicker(tn, pdt, 0.0 if sim.tick < int(t.get("stun_until", 0)) else 9.0)
 		if tn.has_meta("anim"):
 			_hq_anim_tick(tn, sim.tick < int(t.get("stun_until", 0)))
+			if t.type == "oracle":
+				_oracle_vapour(tn, pdt)
 		if tn.has_meta("orb"):
 			var orb: Node3D = tn.get_meta("orb")
 			orb.scale = orb.scale.lerp(Vector3.ONE * (1.0 + 0.1 * sin(time_s * 4.0)), 0.1)

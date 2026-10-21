@@ -688,9 +688,11 @@ def quartz(name="HQ_Quartz", col=(0.62, 0.36, 0.92), strength=1.2):
 
 
 # ======================================================================================= Bronze Age (v0.9.21)
-def bronze(name="HQ_Bronze", base=(0.7, 0.44, 0.19), hi=(0.98, 0.8, 0.5), dark=(0.3, 0.17, 0.08), patina=(0.3, 0.56, 0.48)):
+def bronze(name="HQ_Bronze", base=(0.7, 0.44, 0.19), hi=(0.98, 0.8, 0.5), dark=(0.3, 0.17, 0.08), patina=(0.3, 0.56, 0.48),
+           gilt=None):
     """Polished bronze, hand-painted: warm golden brown, bright on edges and ridges and on faces turned to the sky, dark in
-    the recesses, a little green patina in the deepest crevices, fine hammer marks. (Baked: there is no metal channel.)"""
+    the recesses, a little green patina in the deepest crevices, fine hammer marks. (Baked: there is no metal channel.)
+    `gilt`: a sculpt label painted gold (trim on a helmet)."""
     g = new(name)
     p = g.obj()
     c = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1.0, x * 1.15) for x in base)))
@@ -702,6 +704,10 @@ def bronze(name="HQ_Bronze", base=(0.7, 0.44, 0.19), hi=(0.98, 0.8, 0.5), dark=(
     nz = g.node("ShaderNodeSeparateXYZ")
     g.put(nz.inputs[0], g.geo("Normal"))
     c = g.mix(g.math("MULTIPLY", g.smooth(nz.outputs["Z"], 0.3, 0.95), 0.28), c, g.rgb(hi))
+    if gilt is not None:
+        gc = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), g.rgb((0.88, 0.66, 0.2)), g.rgb((1.0, 0.93, 0.64)))
+        gc = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.55), gc, g.rgb((0.44, 0.28, 0.06)))
+        c = g.mix(g.reg(gilt), c, gc)
     ham = g.voronoi(p, 90.0, 1.0, "F1", "Distance")
     h = g.math("ADD", g.math("MULTIPLY", ham, 0.3), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
     return g.finish(c, g.mixf(pat, 0.3, 0.7), g.bump(h, 0.12, 0.002))
@@ -910,6 +916,48 @@ def limestone(name="HQ_Limestone"):
     return g.finish(c, g.mixf(g.reg(6), 0.85, 0.55), g.bump(h, 0.3, 0.005))
 
 
+def marble(name="HQ_Marble", base=(0.93, 0.91, 0.87), warm=(0.9, 0.84, 0.74), vein=(0.58, 0.6, 0.65)):
+    """White marble (Classical Age): grey veins wandering through it, warm cream in patches, grey-brown grime in the
+    joints and crevices, bright on worn edges, fine pits; label 5 = worn red paint, 6 = polished smooth and bright
+    (worn by feet), 7 = weathered dark (lichen, rain streaks)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.35, 0.65, 0.0, 1.0), g.rgb(base), g.rgb(warm))
+    v1 = g.smooth(g.wave(p, 2.2, 14.0, 4.0, "BANDS", "DIAGONAL"), 0.9, 0.985)
+    v2 = g.smooth(g.wave(g.scale_vec(p, (1.0, 1.7, 0.6)), 3.4, 18.0, 3.0, "BANDS", "X"), 0.93, 0.99)
+    c = g.mix(g.math("MULTIPLY", v1, 0.5), c, g.rgb(vein))
+    c = g.mix(g.math("MULTIPLY", v2, 0.3), c, g.rgb(vein))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.6), c, g.rgb((0.56, 0.52, 0.46)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.5), c, g.rgb((1.0, 0.99, 0.96)))
+    pits = g.smooth(g.noise(p, 70.0, 2.0, 0.6), 0.64, 0.7)
+    c = g.mix(g.math("MULTIPLY", pits, 0.3), c, g.rgb((0.66, 0.63, 0.58)))
+    worn = g.math("SUBTRACT", 1.0, g.math("MULTIPLY", g.smooth(pt, 0.52, 0.6), 0.8))
+    red = g.mix(g.math("MULTIPLY", g.remap(g.noise(p, 40.0, 2.0), 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb((0.72, 0.18, 0.1)), g.rgb((0.56, 0.13, 0.07)))
+    c = g.mix(g.math("MULTIPLY", g.reg(5), worn), c, red)
+    c = g.mix(g.math("MULTIPLY", g.reg(6), 0.45), c, g.rgb((0.98, 0.97, 0.93)))
+    lich = g.mix(g.noise(p, 9.0, 3.0), g.rgb((0.44, 0.46, 0.38)), g.rgb((0.62, 0.62, 0.54)))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), g.smooth(g.noise(p, 6.0, 3.0), 0.4, 0.6)), c, lich)
+    h = g.math("ADD", g.math("MULTIPLY", pits, -0.4), g.math("MULTIPLY", g.noise(p, 14.0, 3.0, 0.5), 0.6))
+    return g.finish(c, g.mixf(g.reg(6), 0.5, 0.28), g.bump(h, 0.16, 0.004))
+
+
+def straw_target(name="HQ_StrawTarget"):
+    """A coiled straw archery target: pale straw coils with fine fibres, darker between the coils; painted rings
+    (label 5 red, 6 black, 7 white) and a rope binding (8)."""
+    g = new(name)
+    p = g.obj()
+    fib = g.noise(g.scale_vec(p, (160.0, 160.0, 160.0)), 1.0, 2.0)
+    c = g.mix(g.remap(fib, 0.3, 0.7, 0.0, 1.0), g.rgb((0.84, 0.72, 0.44)), g.rgb((0.68, 0.55, 0.3)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), c, g.rgb((0.42, 0.32, 0.16)))
+    c = g.mix(g.math("MULTIPLY", g.reg(5), 0.9), c, g.rgb((0.76, 0.15, 0.08)))
+    c = g.mix(g.math("MULTIPLY", g.reg(6), 0.9), c, g.rgb((0.1, 0.08, 0.07)))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), 0.9), c, g.rgb((0.94, 0.91, 0.83)))
+    c = g.mix(g.reg(8), c, g.rgb((0.5, 0.36, 0.2)))
+    return g.finish(c, 0.85, g.bump(fib, 0.25, 0.002))
+
+
 def plaster(name="HQ_Plaster", base=(0.94, 0.91, 0.84), paint=(0.72, 0.14, 0.08)):
     """Lime plaster: off-white, faint brush marks and grime in the hollows; label 5 = a red painted band."""
     g = new(name)
@@ -1073,6 +1121,62 @@ def mail(name="HQ_Mail", base=(0.36, 0.37, 0.4)):
     br = g.mix(g.math("MULTIPLY", ring, 0.6), g.rgb((0.55, 0.34, 0.14)), g.rgb((0.95, 0.72, 0.4)))
     c = g.mix(g.reg(5), c, br)
     return g.finish(c, g.mixf(rs, 0.38, 0.8), g.bump(ring, 0.35, 0.002))
+
+
+def roman_steel(name="HQ_RomanSteel", base=(0.42, 0.43, 0.46)):
+    """Polished iron armour (Classical Age): bright blue-grey plates (_iron_col, kept polished: little rust), label 6 =
+    brass fittings (hinges, buckles, rivets, edging), 5 = red-dyed leather."""
+    g = new(name)
+    p = g.obj()
+    c, rs = _iron_col(g, p, base=base, hi=(0.86, 0.88, 0.92), dark=(0.12, 0.12, 0.14), rust=(0.42, 0.24, 0.12))
+    pt = g.geo("Pointiness")
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.78, 0.58, 0.22)), g.rgb((1.0, 0.88, 0.52)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.36, 0.22, 0.08)))
+    c = g.mix(g.reg(6), c, br)
+    red = g.mix(g.noise(p, 9.0, 3.0), g.rgb((0.6, 0.1, 0.07)), g.rgb((0.46, 0.07, 0.05)))
+    c = g.mix(g.reg(5), c, red)
+    h = g.math("ADD", g.math("MULTIPLY", g.voronoi(p, 70.0, 1.0, "F1", "Distance"), 0.2), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.15))
+    rough = g.mixf(g.reg(5), g.mixf(g.reg(6), g.mixf(rs, 0.26, 0.7), 0.3), 0.8)
+    return g.finish(c, rough, g.bump(h, 0.12, 0.002))
+
+
+def scutum(name="HQ_Scutum", red=(0.66, 0.1, 0.06), gold=(0.95, 0.74, 0.28)):
+    """A legionary's shield: red-painted hide over plywood (brush marks, worn dark at the bottom, chipped at the edges),
+    label 5 = gold paint (wings, bolts, borders), 6 = brass edging, 7 = iron (the boss and its plate), 8 = the bare wood
+    of the back."""
+    g = new(name)
+    p = g.obj()
+    brush = g.remap(g.noise(g.scale_vec(p, (60.0, 60.0, 15.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    c = g.mix(g.math("MULTIPLY", brush, 0.35), g.rgb(red), g.rgb(tuple(x * 0.78 for x in red)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), c, g.rgb((0.3, 0.05, 0.03)))
+    chip = g.math("MULTIPLY", g.smooth(pt, 0.53, 0.6), g.smooth(g.noise(p, 30.0, 2.0), 0.45, 0.55))
+    c = g.mix(g.math("MULTIPLY", chip, 0.6), c, g.rgb((0.62, 0.45, 0.3)))
+    gc = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(gold), g.rgb(tuple(x * 0.82 for x in gold)))
+    c = g.mix(g.reg(5), c, gc)
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.76, 0.56, 0.22)), g.rgb((1.0, 0.88, 0.52)))
+    c = g.mix(g.reg(6), c, br)
+    ir, rs = _iron_col(g, p, base=(0.4, 0.41, 0.44), hi=(0.85, 0.87, 0.9))
+    c = g.mix(g.reg(7), c, ir)
+    wood = g.mix(g.noise(g.scale_vec(p, (40.0, 40.0, 3.0)), 1.0, 3.0), g.rgb((0.5, 0.34, 0.2)), g.rgb((0.36, 0.23, 0.13)))
+    c = g.mix(g.reg(8), c, wood)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(6), g.reg(7)), g.mixf(g.reg(5), 0.62, 0.42), 0.3)
+    return g.finish(c, rough, g.bump(g.math("ADD", brush, g.noise(p, 90.0, 2.0)), 0.12, 0.002))
+
+
+def gladius(name="HQ_Gladius"):
+    """A short sword: a polished steel blade (label 0) with a darker fuller, a bone grip with finger ridges (5), brass
+    guard and pommel fittings (6)."""
+    g = new(name)
+    p = g.obj()
+    c, rs = _iron_col(g, p, base=(0.55, 0.57, 0.6), hi=(0.95, 0.96, 0.98), dark=(0.2, 0.2, 0.22), rust=(0.4, 0.25, 0.14))
+    bone_c = g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.9, 0.84, 0.7)), g.rgb((0.74, 0.66, 0.5)))
+    c = g.mix(g.reg(5), c, bone_c)
+    pt = g.geo("Pointiness")
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.78, 0.58, 0.22)), g.rgb((1.0, 0.88, 0.52)))
+    c = g.mix(g.reg(6), c, br)
+    rough = g.mixf(g.reg(5), g.mixf(g.reg(6), 0.2, 0.3), 0.6)
+    return g.finish(c, rough, g.bump(g.noise(p, 60.0, 2.0), 0.08, 0.001))
 
 
 def plaid(name="HQ_Plaid", base=(0.2, 0.36, 0.18), stripe=(0.62, 0.13, 0.08), line=(0.88, 0.74, 0.3),
