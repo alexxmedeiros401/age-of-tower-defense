@@ -186,6 +186,10 @@ def bush(w=0.9, h=0.5, seed=0, mat="maquis", flowers=None):
             u[2] = abs(u[2]) + 0.4
             u = u / np.linalg.norm(u)
             q = v3((u[0] * w * 0.47, u[1] * w * 0.45, h * 0.28 + u[2] * h * 0.62))
+            for _ in range(12):                               # (settled down onto the leaves, not floating over them)
+                if c.eval(q[None, :].astype(F32), margin=0.2)[0] < 0.0:
+                    break
+                q = q * v3((0.95, 0.95, 0.93))
             fl.add(Sphere(q, 0.022 * w), k=0.0)
         out.append(("Flowers", fl, fine(0.005, 0.01), flowers))
     return out
