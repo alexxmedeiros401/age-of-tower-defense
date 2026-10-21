@@ -61,8 +61,8 @@ for k, top in CLOAK_TOP.items():
     BONES.append(("cloak." + k, top, (top[0], top[1] + 0.06, top[2] - CLOAK_LEN), "spine"))
 
 MATS = {
-    "armor": ("armor", dict(name="RB_CloakerArmor", base=SLATE, labels=[(1, VIOLET, 0.35), (2, SEAM, 0.6), (3, DARK, 0.5)],
-                            seams=[2], wear=0.8)),
+    "armor": ("armor", dict(name="RB_CloakerArmor", base=SLATE, metal=(0.5, 0.52, 0.56), labels=[(1, VIOLET, 0.35), (2, SEAM, 0.6),
+                                                                                       (3, DARK, 0.5)], seams=[2], wear=0.4)),
     "cloak": ("gunmetal", dict(name="RB_CloakerCloak", base=(0.14, 0.15, 0.18), edge=(0.42, 0.44, 0.5),
                                labels=[(1, VIOLET, 0.35), (2, (0.06, 0.06, 0.07), 0.6)], seams=[2])),
     "frame": ("gunmetal", dict(name="RB_CloakerFrame", labels=[(1, VIOLET, 0.35), (2, (0.08, 0.08, 0.09), 0.6)], seams=[2])),
@@ -142,8 +142,8 @@ def parts(fine=False):
         return np.maximum(hem - P[:, 2], P[:, 2] - F(1.2))
     f.add(Inter(Shell(mb, 0.0, 0.02), Func(mantle_keep, (-0.5, -0.4, 0.8), (0.5, 0.4, 1.4)), 0.006))
     f.add(Ellipsoid((0, 0.03, 1.19), (0.13, 0.12, 0.06)), k=0.04)                                      # the hood's fold at its neck
-    f.paint(Func(lambda P: (F(0.99) + F(0.07) * np.abs(np.mod(np.arctan2(P[:, 0], -(P[:, 1] - F(0.04))) * F(9.0 / (2 * math.pi)) + F(0.5), F(1.0)) - F(0.5)) * F(2.0) + F(0.025)) - P[:, 2],
-                 (-0.5, -0.4, 0.8), (0.5, 0.4, 1.4)), 1)
+    f.paint(Func(lambda P: P[:, 2] - (F(0.99) + F(0.07) * np.abs(np.mod(np.arctan2(P[:, 0], -(P[:, 1] - F(0.04))) * F(9.0 / (2 * math.pi)) + F(0.5), F(1.0)) - F(0.5)) * F(2.0) + F(0.025)),
+                 (-0.5, -0.4, 0.8), (0.5, 0.4, 1.4)), 1)                                             # violet along its points
     out.append(("Mantle", f, vx, "spine", "cloak"))
     f = Field("Face")
     f.add(Ellipsoid(hc + v3((0, 0.01, -0.01)), (0.085, 0.1, 0.11)))
@@ -173,7 +173,7 @@ def parts(fine=False):
         lo_a, hi_a = lim[k]
         f = Field("Cloak" + k)
         f.add(Func(lambda P, lo_a=lo_a, hi_a=hi_a: cape_sd(P, lo_a, hi_a), (-0.5, -0.45, 0.38), (0.5, 0.5, 1.22)))
-        f.paint(Func(lambda P: (cape_hem(_cape_angle(P)) + F(0.035)) - P[:, 2], (-0.5, -0.45, 0.38), (0.5, 0.5, 1.22)), 1)
+        f.paint(Func(lambda P: P[:, 2] - (cape_hem(_cape_angle(P)) + F(0.035)), (-0.5, -0.45, 0.38), (0.5, 0.5, 1.22)), 1)   # its violet hem
         f.paint(Func(lambda P: np.abs(P[:, 2] - F(0.8)) - F(0.004), (-0.5, -0.45, 0.38), (0.5, 0.5, 1.22)), 2)
         out.append(("Cloak" + k, f, vx, "cloak." + k, "cloak"))
     # ---- arms: thin, jointed; a stiletto in the right fist, a hooked claw for the left hand

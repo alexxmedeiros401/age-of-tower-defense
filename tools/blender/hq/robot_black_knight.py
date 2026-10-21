@@ -62,8 +62,8 @@ for s in ("L", "R"):
     ]
 
 MATS = {
-    "armor": ("armor", dict(name="RB_KnightArmor", base=BLACK, metal=(0.52, 0.54, 0.58), grime=(0.05, 0.05, 0.06),
-                            labels=[(1, GOLD, 0.3), (2, SEAM, 0.6), (3, RED, 0.45)], seams=[2], wear=0.9, scale=2.0, rough=0.3)),
+    "armor": ("armor", dict(name="RB_KnightArmor", base=BLACK, metal=(0.4, 0.41, 0.45), grime=(0.05, 0.05, 0.06),
+                            labels=[(1, GOLD, 0.3), (2, SEAM, 0.6), (3, RED, 0.45)], seams=[2], wear=0.4, scale=2.0, rough=0.3)),
     "frame": ("gunmetal", dict(name="RB_KnightFrame", base=(0.16, 0.16, 0.18), labels=[(1, GOLD, 0.3), (2, (0.06, 0.06, 0.07), 0.6)],
                                seams=[2], scale=2.0)),
     "chrome": ("chrome", dict(name="RB_KnightBlade", base=(0.78, 0.8, 0.86))),
@@ -88,7 +88,7 @@ BLADE_L = 1.75
 SH_C = v3(J["elbow_L"]) + (v3(J["wrist_L"]) - v3(J["elbow_L"])) * 0.55 + v3((0.13, -0.06, 0.0))
 SH_N = norm(v3((0.55, -0.83, 0.0)))
 SH_UP = norm(v3((0.0, 0.0, 1.0)) - SH_N * 0.0)
-SH_W, SH_H = 0.42, 0.72
+SH_W, SH_H = 0.5, 0.86
 
 
 def rivets(f, pts, r=0.016):
@@ -172,8 +172,9 @@ def parts(fine=False):
     f = Field("Plume")                                      # a crimson plume from a gold socket on the crown, sweeping back
     sock = hc + v3((0, 0.02, 0.29))
     f.add(Cylinder(sock, 0.05, 0.05, rr=0.012))
-    pts = [sock + v3((0, 0.0, 0.03)), sock + v3((0, 0.12, 0.12)), sock + v3((0, 0.32, 0.1)), sock + v3((0, 0.48, -0.04)), sock + v3((0, 0.56, -0.2))]
-    rads = [0.06, 0.09, 0.1, 0.08, 0.04]
+    pts = [sock + v3((0, 0.0, 0.03)), sock + v3((0, 0.13, 0.15)), sock + v3((0, 0.34, 0.15)), sock + v3((0, 0.54, -0.02)),
+           sock + v3((0, 0.63, -0.24)), sock + v3((0, 0.64, -0.46))]
+    rads = [0.075, 0.12, 0.13, 0.115, 0.08, 0.035]
     for i in range(len(pts) - 1):
         f.add(RoundCone(pts[i], pts[i + 1], rads[i], rads[i + 1], disp=lambda P: F(0.008) * np.sin(P[:, 0] * F(90)), disp_amp=0.008), k=0.03)
     f.paint(Cylinder(sock, 0.07, 0.07), 1)
@@ -216,7 +217,8 @@ def parts(fine=False):
         v = q @ up.astype(F)
         w = q @ n.astype(F) + F(0.12) * (u / F(SH_W)) ** 2                          # a curved face
         return np.maximum(_kite_2d(u, v), np.abs(w) - F(0.03))
-    lo, hi = c - 0.55, c + 0.55
+    corners = [c + acr * (su * (SH_W + 0.05)) + up * sv + n * (sn * 0.2) for su in (-1, 1) for sv in (-SH_H - 0.05, SH_H * 0.6) for sn in (-1, 1)]
+    lo, hi = np.min(corners, 0), np.max(corners, 0)
     f = Field("Shield")
     f.add(Func(shield, lo, hi), k=0.0)
     def border(P):
@@ -302,8 +304,27 @@ def parts(fine=False):
 
 
 # ---------------------------------------------------------------------------------------------------------- clips
-SWORD_HOLD = {"upperarm.R": Vector((-0.2, -0.32, -1.0)), "forearm.R": Vector((-0.04, -0.9, -0.42)), "hand.R": Vector((0.0, -0.95, -0.3))}
-SHIELD_HOLD = {"upperarm.L": Vector((0.3, -0.25, -1.0)), "forearm.L": Vector((-0.35, -0.9, 0.1)), "hand.L": Vector((-0.35, -0.9, 0.0))}
+# (the sword and the shield are aimed whole: "frame" aims turn the right fist so the blade points where it should, and
+# the left forearm so the shield faces the robots)
+SW_AX, SW_FLAT = Vector(tuple(SWORD_AX)), Vector(tuple(SWORD_FLAT))
+FA_L = (Vector(J["wrist_L"]) - Vector(J["elbow_L"])).normalized()
+SH_NV = Vector(tuple(SH_N))
+SWORD_HOLD = {"upperarm.R": Vector((-0.2, -0.32, -1.0)), "forearm.R": Vector((-0.04, -0.9, -0.42))}
+SWORD_DIR = Vector((0.06, -1.0, 0.4)).normalized()            # held out before it, its point a little up
+SKY_DIR = Vector((0.0, -0.12, 1.0)).normalized()
+SHIELD_HOLD = {"upperarm.L": Vector((0.25, -0.35, -1.0))}
+SHIELD_FA = Vector((-0.95, -0.3, 0.15)).normalized()          # the shield arm across its front,
+SHIELD_FACE = Vector((0.05, -1.0, 0.0)).normalized()          # the shield facing the robots
+OUT_FA = Vector((1.0, 0.1, 0.25)).normalized()                # (summon: the shield arm out to its side, still facing them)
+OUT_FACE = Vector((0.0, -1.0, 0.0))
+
+
+def sword_aim(d):
+    return ("frame", SW_AX, Vector(d).normalized(), SW_FLAT, Vector((1.0, 0.0, 0.0)))
+
+
+def shield_aim(fa, face):
+    return ("frame", FA_L, Vector(fa).normalized(), SH_NV, Vector(face))
 
 
 def _legs(arm, t, step=WALK_STEP):
@@ -326,14 +347,11 @@ def summon(arm, frames=WALK_FRAMES):
         aims = _legs(arm, t)
         aims["spine"] = (Vector((0, 0.16 * k, 1.0)), 0.0)
         aims["head"] = Vector((0, -0.25 + 0.75 * k, 1.0))
-        up_r = SWORD_HOLD["upperarm.R"].lerp(Vector((-0.25, -0.15, 1.0)), k).normalized()
-        fo_r = SWORD_HOLD["forearm.R"].lerp(Vector((0.05, 0.0, 1.0)), k).normalized()
-        aims["upperarm.R"] = up_r
-        aims["forearm.R"] = fo_r
-        aims["hand.R"] = SWORD_HOLD["hand.R"].lerp(Vector((0.0, 0.25, 1.0)), k).normalized()
-        aims["upperarm.L"] = SHIELD_HOLD["upperarm.L"].lerp(Vector((0.9, -0.2, -0.35)), k).normalized()
-        aims["forearm.L"] = SHIELD_HOLD["forearm.L"].lerp(Vector((0.6, -0.6, 0.1)), k).normalized()
-        aims["hand.L"] = SHIELD_HOLD["hand.L"].lerp(Vector((0.6, -0.6, 0.0)), k).normalized()
+        aims["upperarm.R"] = SWORD_HOLD["upperarm.R"].lerp(Vector((-0.25, -0.15, 1.0)), k).normalized()
+        aims["forearm.R"] = SWORD_HOLD["forearm.R"].lerp(Vector((0.05, 0.0, 1.0)), k).normalized()
+        aims["hand.R"] = sword_aim(SWORD_DIR.slerp(SKY_DIR, k))
+        aims["upperarm.L"] = SHIELD_HOLD["upperarm.L"].lerp(Vector((0.9, -0.1, -0.2)), k).normalized()
+        aims["forearm.L"] = shield_aim(SHIELD_FA.slerp(OUT_FA, k), SHIELD_FACE.slerp(OUT_FACE, k))
         aims["core"] = Vector((0, -1, 0))
         c = math.cos(4 * math.pi * t)
         ch, _ = P.solve(aims, root_off=Vector((0, 0, -0.04 * c + 0.04)), root_rot=Quaternion(Vector((1, 0, 0)), -0.03),
@@ -345,10 +363,11 @@ def summon(arm, frames=WALK_FRAMES):
 def clips(arm):
     def extra(t, aims):
         aims.update({k: v.normalized() for k, v in SWORD_HOLD.items()})
+        aims["hand.R"] = sword_aim(SWORD_DIR + Vector((0.0, 0.0, 0.05 * math.sin(2 * math.pi * t))))
         sw = 0.04 * math.sin(2 * math.pi * t)
         aims["upperarm.L"] = (SHIELD_HOLD["upperarm.L"] + Vector((0, sw, 0))).normalized()
-        aims["forearm.L"] = SHIELD_HOLD["forearm.L"].normalized()
-        aims["hand.L"] = SHIELD_HOLD["hand.L"].normalized()
+        aims["forearm.L"] = shield_aim(SHIELD_FA, SHIELD_FACE)
+        aims.pop("hand.L", None)
         aims["core"] = Vector((0, -1, 0))
     ra.walk(arm, J, "Walk", frames=WALK_FRAMES, step=WALK_STEP, lift=0.12, bob=0.05, sway=0.06, arm_swing=0.12, lean=0.06,
             twist=0.1, heavy=1.6, extra=extra)
