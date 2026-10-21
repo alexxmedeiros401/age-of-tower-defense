@@ -327,13 +327,13 @@ def himation_field():
         + F(0.0015) * NOISE(P * F(25))
     def cloth(P):
         d = base.eval(P, margin=0.14)
-        return np.maximum(d - (F(0.066) - folds(P)), F(0.036) - d)
+        return np.maximum(d - (F(0.055) - folds(P)), F(0.031) - d)          # (just over the chiton, 0.006-0.03)
     fd.add(Inter(Func(cloth, (-0.8, -0.65, 0.3), (0.8, 0.65, 1.7)), Func(_drape, (-1, -1, 0.3), (1, 1, 1.7)), 0.008), 0.0)
-    # the roll along its top edge round her waist
+    # the roll along its top edge round her waist (hugging her: a soft roll, not a hoop)
     def roll(P):
         z = P[:, 2]
-        return np.abs(z - (F(0.9) + F(0.05) * P[:, 0])) - F(0.025)
-    fd.add(Inter(Shell(base, 0.07, 0.04, pad=0.14), Func(roll, (-1, -1, 0.7), (1, 1, 1.1)), 0.008), 0.006)
+        return np.abs(z - (F(0.9) + F(0.05) * P[:, 0])) - F(0.023)
+    fd.add(Inter(Shell(base, 0.055, 0.022, pad=0.14), Func(roll, (-1, -1, 0.7), (1, 1, 1.1)), 0.008), 0.006)
     fd.paint(Func(lambda P: np.abs(_drape(P) + F(0.022)) - F(0.022), (-1, -1, 0.3), (1, 1, 1.7)), 5)
     fd.paint(Func(lambda P: np.abs(_drape(P) + F(0.052)) - F(0.004), (-1, -1, 0.3), (1, 1, 1.7)), 6)
     return fd

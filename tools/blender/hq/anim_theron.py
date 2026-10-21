@@ -72,8 +72,9 @@ C_LF, C_RF = (0.18, -0.1), (-0.17, 0.1)
 BUTT_C = V(-0.34, -0.42, 0.0)
 SD_C = V(-0.04, 0.16, 1.0)
 FIN_C = V(-0.3, -1.0, 0.05)
-# the left hand raised before his face, palm out, fingers spread up
-L_C = (V(0.3, -0.42, 1.42), V(0.1, -1.0, 0.1), V(0.2, -0.2, 1.0))
+# the left hand raised out to his side at shoulder height, palm out toward the robots, fingers spread up (clear of his
+# face from the game's camera)
+L_C = (V(0.44, -0.34, 1.3), V(0.25, -1.0, 0.1), V(0.4, -0.15, 1.0))
 
 
 def combat_pose(arm, t):
