@@ -27,36 +27,52 @@ from spear import (J, SKIN, NAIL, LIP, MOUTH, BROW, LASH, STUBBLE, HS, DZ, HPIV,
 
 
 def skin_field():
+    """His body (hidden in the armour). The head is trimmed to sit well inside the helm (no ear or nose through the
+    steel) and painted dark there (the vision slit shows only shadow)."""
     fd = Field("Skin")
     body_parts(fd)
+    lo, hi = v3((-0.45, -0.45, HELM_BOT)), v3((0.45, 0.45, 2.1))
+    def trim(P):
+        return np.maximum(np.maximum(-(helm_dist(P) + F(0.035)), F(HELM_BOT + 0.035) - P[:, 2]), _helm_rho(P) - F(1.6))
+    fd.sub(Func(trim, lo, hi), 0.004)
+    fd.paint(Func(lambda P: np.maximum(F(HELM_BOT + 0.05) - P[:, 2], np.abs(P[:, 0]) - F(0.26)), lo, hi), MOUTH)
     return fd
 
 
 # ======================================================================================= the great helm
-HELM_C = v3((0.0, 0.0, 1.7))
-HELM_RX, HELM_RY = 0.23, 0.262   # (round his ears and his nose, with room to spare)
-HELM_BOT = 1.4                   # its foot, resting on the gorget
-HELM_TOP = 1.95                  # the top plate's rim (it domes a little above)
-SLIT_Z = 1.682                   # the vision slit (at his eyes)
+HELM_C = v3((0.0, 0.0, 1.66))
+HELM_RX, HELM_RY = 0.212, 0.245  # its half widths at the cheeks (the head inside is trimmed to fit: skin_field)
+HELM_BOT = 1.41                  # its foot, resting on the gorget
+HELM_TOP = 1.885                 # the top plate's rim (it domes a little above)
+SLIT_Z = 1.682                   # the vision slit
+
+
+def _helm_r(z):
+    """The helm's half widths (x, y) and its centre's y at height z: an upright oval, drawn in a little at the foot and
+    more toward the crown (a sugarloaf's shoulder), the crown set back a little."""
+    t = smoothstep(1.7, 1.93, z) ** 2
+    b = smoothstep(1.56, 1.42, z)
+    return F(HELM_RX) - F(0.05) * t - F(0.012) * b, F(HELM_RY) - F(0.06) * t - F(0.012) * b, F(0.015) * t
 
 
 def _helm_rho(P):
-    q = P - HELM_C.astype(F)
-    return np.sqrt((q[:, 0] / F(HELM_RX)) ** 2 + (q[:, 1] / F(HELM_RY)) ** 2)
+    rx, ry, cy = _helm_r(P[:, 2])
+    return np.sqrt((P[:, 0] / rx) ** 2 + ((P[:, 1] - cy) / ry) ** 2)
 
 
 def helm_dist(P):
-    """The helm's outer surface: an upright oval drum with a keel down the face, a low dome on top."""
-    q = P - HELM_C.astype(F)
-    a = np.arctan2(q[:, 0], -q[:, 1])                                     # 0 = straight ahead
-    keel = F(0.022) * np.exp(-(a / F(0.32)) ** 2)                         # the face plate's two halves meet in a ridge
-    taper = F(0.012) * smoothstep(1.6, 1.46, P[:, 2])                     # drawn in a little at the foot
-    side = (_helm_rho(P) - F(1.0)) * F(HELM_RX) - keel + taper
-    top = P[:, 2] - (F(HELM_TOP) + F(0.035) * np.clip(F(1) - _helm_rho(P) ** 2, 0, 1))
+    """The helm's outer surface: the oval drum with a keel down the face, a low dome on top."""
+    rx, ry, cy = _helm_r(P[:, 2])
+    x, y = P[:, 0], P[:, 1] - cy
+    a = np.arctan2(x, -y)                                                 # 0 = straight ahead
+    keel = F(0.03) * np.exp(-(a / F(0.36)) ** 2) * smoothstep(1.43, 1.5, P[:, 2]) * smoothstep(1.92, 1.8, P[:, 2])
+    rho = np.sqrt((x / rx) ** 2 + (y / ry) ** 2)
+    side = (rho - F(1.0)) * rx - keel
+    top = P[:, 2] - (F(HELM_TOP) + F(0.04) * np.clip(F(1) - rho ** 2, 0, 1))
     bot = F(HELM_BOT) - P[:, 2]
-    q2 = np.stack([np.maximum(side + F(0.012), 0), np.maximum(top + F(0.012), 0)], 1)
+    q2 = np.stack([np.maximum(side + F(0.016), 0), np.maximum(top + F(0.016), 0)], 1)
     inside = np.minimum(np.maximum(side, top), 0)
-    return np.maximum(np.sqrt((q2 ** 2).sum(1)) + inside - F(0.012), bot)
+    return np.maximum(np.sqrt((q2 ** 2).sum(1)) + inside - F(0.016), bot)
 
 
 def helm_field():
@@ -107,30 +123,31 @@ def crest_field():
     sweeping up and back from its top."""
     fd = Field("Crest")
     zc = HELM_TOP + 0.012
+    rx0, ry0, cy0 = (float(np.ravel(v)[0]) for v in _helm_r(np.array([zc], F)))
     def torse(P):
-        q = P - HELM_C.astype(F)
-        rho = _helm_rho(P)
-        r = (rho - F(1.0)) * F(HELM_RX)
+        rho = np.sqrt((P[:, 0] / F(rx0)) ** 2 + ((P[:, 1] - F(cy0)) / F(ry0)) ** 2)
+        r = (rho - F(1.0)) * F(rx0)
         return np.sqrt(r * r + (P[:, 2] - F(zc)) ** 2) - F(0.024)
     lo, hi = HELM_C - v3((0.3, 0.3, -0.1)), HELM_C + v3((0.3, 0.3, 0.4))
     twist = lambda P: F(0.004) * np.abs(np.sin(np.arctan2(P[:, 0], -P[:, 1]) * F(9) + (P[:, 2] - F(zc)) * F(80)))
     fd.add(Func(torse, lo, hi, disp=twist, disp_amp=0.005), 0.0)
     fd.paint(Func(lambda P: np.sin(np.arctan2(P[:, 0], -P[:, 1]) * F(9) + (P[:, 2] - F(zc)) * F(80)), lo, hi), 5)
-    # the plume: seven feathers from a socket on the top plate, rising and sweeping back
-    base = v3((0.0, 0.06, HELM_TOP + 0.04))
-    fd.add(Sphere(base, 0.03), 0.01)
+    # the plume: nine feathers, blue and yellow by turns, from a socket on the top plate, rising and sweeping back
+    base = v3((0.0, 0.05, HELM_TOP + 0.035))
+    fd.add(Sphere(base, 0.034), 0.01)
     barbs = lambda P: F(0.0018) * NOISE(P * np.array([120, 120, 40], F))
-    for k in range(7):
-        s = (k - 3) / 3.0
-        out = norm(v3((s * 0.5, 0.35 + 0.15 * (1 - abs(s)), 1.0)))
-        back = norm(v3((s * 0.35, 1.0, -0.1)))
+    for k in range(9):
+        s = (k - 4) / 4.0
+        out = norm(v3((s * 0.55, 0.3 + 0.12 * (1 - abs(s)), 1.0)))
+        back = norm(v3((s * 0.45, 1.0, -0.15)))
         p0 = base + out * 0.02
-        p1 = p0 + out * 0.13
-        p2 = p1 + norm(out + back * 0.9) * 0.13
-        p3 = p2 + norm(back + v3((0, 0, -0.25))) * 0.12
+        p1 = p0 + out * (0.15 + 0.03 * (1 - abs(s)))
+        p2 = p1 + norm(out + back * 1.1) * 0.16
+        p3 = p2 + norm(back + v3((0, 0, -0.35))) * 0.15
+        p4 = p3 + norm(back + v3((0, 0, -0.9))) * 0.07
         nrm = norm(np.cross(back, v3((1, 0, 0)))) if abs(s) < 0.9 else v3((0, 0, 1))
-        fd.add(Lock([p0, p1, p2, p3], [0.02, 0.032, 0.03, 0.012], [0.006, 0.006, 0.005, 0.003], [nrm] * 4, k=0.008,
-                    disp=barbs, disp_amp=0.002), 0.008)
+        fd.add(Lock([p0, p1, p2, p3, p4], [0.022, 0.04, 0.042, 0.03, 0.012], [0.007, 0.007, 0.006, 0.005, 0.003], [nrm] * 5,
+                    k=0.008, disp=barbs, disp_amp=0.002), 0.008, 5 if k % 2 else 0)
     return fd
 
 
@@ -161,12 +178,74 @@ def _wing(fd, c, n, r, label=0):
     fd.add(Torus(c - n * (0.16 - math.sqrt(max(0.18 ** 2 - r * r, 0.0))) + n * 0.002, r - 0.004, 0.0045, R=R), 0.002, label)
 
 
+def arm_hull(side):
+    """The arm's prims as in his skin (spear.body_parts): plates and mail wrap these, bulges and all."""
+    sx = -1 if side == "R" else 1
+    sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
+    h = Field("ArmHull" + side)
+    h.add(RoundCone(sh, el, 0.095, 0.072), 0.0)
+    h.add(Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.025, 0)), (0.085, 0.088, 0.125), R=rot_from_axes(z_axis=el - sh)), 0.04)
+    h.add(RoundCone(el, wr, 0.07, 0.054), 0.035)
+    h.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.09, 0.08, 0.13), R=rot_from_axes(z_axis=wr - el)), 0.04)
+    h.add(Sphere(el + v3((0, 0.025, 0)), 0.055), 0.028)
+    return h
+
+
+def leg_hull(side):
+    hip, kn, an = J["hip_" + side], J["knee_" + side], J["ankle_" + side]
+    h = Field("LegHull" + side)
+    h.add(RoundCone(hip, kn, 0.135, 0.088), 0.0)
+    h.add(Ellipsoid(lerp(hip, kn, 0.42) + v3((0, -0.022, 0)), (0.122, 0.115, 0.185), R=rot_from_axes(z_axis=kn - hip)), 0.048)
+    h.add(Sphere(kn + v3((0, -0.03, 0.0)), 0.068), 0.038)
+    h.add(RoundCone(kn, an, 0.084, 0.056), 0.038)
+    h.add(Ellipsoid(lerp(kn, an, 0.3) + v3((0, 0.03, 0)), (0.095, 0.092, 0.14), R=rot_from_axes(z_axis=an - kn)), 0.043)
+    return h
+
+
+def chest_prims():
+    """His torso without the pectorals, one smooth swell over the chest instead: a globose breastplate's shape (the
+    tabard hangs over it)."""
+    tp = torso_prims()
+    return [tp[0], tp[1], tp[4], tp[5], (Ellipsoid((0, -0.055, 1.29), (0.27, 0.16, 0.19)), 0.06)]
+
+
+def breast_hull():
+    b = Field("BreastHull")
+    for p, k in chest_prims():
+        b.add(p, k)
+    b.add(traps(), 0.06)
+    return b
+
+
+def pauldron_field():
+    """The pauldrons (their own part: they follow the arm only partway, so a raised arm slides out from under them):
+    layered lames over each shoulder, stepping down the arm, a rolled edge at the top. Polished steel (0)."""
+    fd = Field("Pauldrons")
+    for side in ("R", "L"):
+        sx = -1 if side == "R" else 1
+        sh = J["shoulder_" + side]
+        ph = Field("PauldronHull")
+        ph.add(deltoid(side), 0.0)
+        ph.add(Ellipsoid(sh + v3((sx * -0.08, 0.0, 0.05)), (0.12, 0.13, 0.08)), 0.05)
+        out_ax = norm(v3((sx * 0.55, 0.0, -0.84)))
+        top = sh + v3((sx * -0.06, 0.0, 0.14))
+        def p_keep(P, sh=sh, sx=sx, top=top, out_ax=out_ax):
+            t = (P - top.astype(F)) @ out_ax.astype(F)
+            inner = F(0.13) - P[:, 0] * F(sx)                                    # not over his neck
+            return np.maximum(np.maximum(-t - F(0.02), t - F(0.27)), inner)
+        fd.add(Inter(Shell(ph, 0.085, 0.014, pad=0.1, disp=_lames(top, out_ax, 0.055, 0.007), disp_amp=0.008),
+                     Func(p_keep, sh - 0.45, sh + 0.45), 0.004), 0.004)
+        fd.add(Inter(Shell(ph, 0.095, 0.016, pad=0.1), Func(lambda P, top=top, out_ax=out_ax, sx=sx: np.maximum(
+            np.abs((P - top.astype(F)) @ out_ax.astype(F) + F(0.012)) - F(0.012), F(0.13) - P[:, 0] * F(sx)), sh - 0.45, sh + 0.45), 0.003), 0.004)
+    return fd
+
+
 def plate_field():
     """Polished steel (label 0), brass rivets and buckles (6), red-dyed leather straps (5)."""
     fd = Field("Plate")
     hammer = lambda P: F(0.0007) * NOISE(P * F(45))
     # breastplate and backplate (under the tabard: they show at its armholes and its neck)
-    cb = cuirass_base()
+    cb = breast_hull()
     def bp_keep(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         top = z - (F(1.47) + F(0.3) * smoothstep(0.17, 0.25, np.abs(x)))
@@ -186,31 +265,17 @@ def plate_field():
         sx = -1 if side == "R" else 1
         sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
         hip, kn, an = J["hip_" + side], J["knee_" + side], J["ankle_" + side]
-        # pauldron: layered lames over the shoulder, stepping down the arm, a rolled edge at the top
-        ph = Field("PauldronHull")
-        ph.add(deltoid(side), 0.0)
-        ph.add(Ellipsoid(sh + v3((sx * -0.08, 0.0, 0.05)), (0.12, 0.13, 0.08)), 0.05)
-        out_ax = norm(v3((sx * 0.55, 0.0, -0.84)))
-        top = sh + v3((sx * -0.06, 0.0, 0.14))
-        def p_keep(P, sh=sh, sx=sx, top=top, out_ax=out_ax):
-            t = (P - top.astype(F)) @ out_ax.astype(F)
-            inner = F(0.13) - P[:, 0] * F(sx)                                    # not over his neck
-            return np.maximum(np.maximum(-t - F(0.02), t - F(0.27)), inner)
-        fd.add(Inter(Shell(ph, 0.085, 0.014, pad=0.1, disp=_lames(top, out_ax, 0.055, 0.007), disp_amp=0.008),
-                     Func(p_keep, sh - 0.45, sh + 0.45), 0.004), 0.004)
-        fd.add(Inter(Shell(ph, 0.095, 0.016, pad=0.1), Func(lambda P, top=top, out_ax=out_ax, sx=sx: np.maximum(
-            np.abs((P - top.astype(F)) @ out_ax.astype(F) + F(0.012)) - F(0.012), F(0.13) - P[:, 0] * F(sx)), sh - 0.45, sh + 0.45), 0.003), 0.004)
-        # rerebrace, couter (with its fan wing on the outside), vambrace
-        arm_u = RoundCone(sh, el, 0.095, 0.072)
-        fd.add(Inter(Shell(arm_u, 0.022, 0.011, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(sh, el, 0.42, 0.86), sh - 0.4, sh + 0.4), 0.003), 0.003)
-        cop = Sphere(el + v3((0, 0.025, 0)), 0.055)
-        fd.add(Inter(Shell(cop, 0.026, 0.012, pad=0.05), Func(_band(sh, wr, 0.4, 0.62), el - 0.3, el + 0.3), 0.004), 0.004)
+        # rerebrace, couter (a cop over the elbow's point, a fan wing on the outside), vambrace: round the arm's hull
+        ah = arm_hull(side)
+        fd.add(Inter(Shell(ah, 0.027, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(sh, el, 0.42, 0.86), sh - 0.4, sh + 0.4), 0.003), 0.003)
+        fd.add(Inter(Shell(ah, 0.039, 0.012, pad=0.06), Func(_band(sh, wr, 0.42, 0.6), el - 0.3, el + 0.3), 0.004), 0.004)
+        cop = el + v3((0, 0.045, 0))
+        fd.add(Inter(Shell(Sphere(cop, 0.06), 0.048, 0.012), Func(lambda P, el=el: F(el[1] + 0.02) - P[:, 1], el - 0.3, el + 0.3), 0.004), 0.004)
         ax_ue = norm(el - sh)
         out = norm(np.cross(ax_ue, v3((0, 1, 0)))) * sx
         out = norm(out - ax_ue * (out @ ax_ue))
-        _wing(fd, el + v3((0, 0.02, 0)) + out * 0.072, out, 0.052)
-        arm_f = RoundCone(el, wr, 0.07, 0.054)
-        fd.add(Inter(Shell(arm_f, 0.021, 0.011, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(el, wr, 0.16, 0.8), el - 0.4, el + 0.4), 0.003), 0.003)
+        _wing(fd, el + v3((0, 0.02, 0)) + out * 0.11, out, 0.052)
+        fd.add(Inter(Shell(ah, 0.027, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(el, wr, 0.16, 0.8), el - 0.4, el + 0.4), 0.003), 0.003)
         # gauntlet: a flared cuff and plates over the back of the hand and the fingers
         ax_f = norm(wr - el)
         fd.add(Inter(Shell(RoundCone(wr - ax_f * 0.11, wr + ax_f * 0.01, 0.083, 0.06), 0.006, 0.01, pad=0.05),
@@ -219,16 +284,14 @@ def plate_field():
         hand(hh, side)
         hwr, hf, hn, ht = hand_frame(side)
         fd.add(Shell(hh, 0.006, 0.008, pad=0.04, disp=_lames(hwr, hf, 0.03, 0.004), disp_amp=0.005), 0.003)
-        # cuisse (from under the tabard to the knee), poleyn with its fan wing, greave, lamed sabaton
-        thigh = RoundCone(hip, kn, 0.135, 0.088)
-        fd.add(Inter(Shell(thigh, 0.024, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(hip, kn, 0.3, 0.86), hip - 0.4, hip + 0.4), 0.003), 0.003)
-        knee = Sphere(kn + v3((0, -0.03, 0.0)), 0.068)
-        fd.add(Inter(Shell(knee, 0.026, 0.012, pad=0.05), Func(_band(hip, an, 0.42, 0.6), kn - 0.3, kn + 0.3), 0.004), 0.004)
-        _wing(fd, kn + v3((sx * 0.085, -0.02, 0.0)), norm(v3((sx * 1.0, -0.35, 0.0))), 0.05)
-        shin = Field("Shin")
-        shin.add(RoundCone(kn, an, 0.084, 0.056), 0.0)
-        shin.add(Ellipsoid(lerp(kn, an, 0.3) + v3((0, 0.03, 0)), (0.095, 0.092, 0.14), R=rot_from_axes(z_axis=an - kn)), 0.043)
-        fd.add(Inter(Shell(shin, 0.022, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(kn, an, 0.18, 0.92), kn - 0.4, kn + 0.4), 0.003), 0.003)
+        # cuisse (from under the tabard to the knee), poleyn (a cop over the kneecap, a fan wing), greave: round the hull
+        lh = leg_hull(side)
+        fd.add(Inter(Shell(lh, 0.027, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(hip, kn, 0.3, 0.86), hip - 0.4, hip + 0.4), 0.003), 0.003)
+        fd.add(Inter(Shell(lh, 0.039, 0.012, pad=0.06), Func(_band(hip, an, 0.42, 0.6), kn - 0.3, kn + 0.3), 0.004), 0.004)
+        kc = kn + v3((0, -0.05, 0.0))
+        fd.add(Inter(Shell(Sphere(kc, 0.07), 0.05, 0.012), Func(lambda P, kn=kn: P[:, 1] - F(kn[1] - 0.03), kn - 0.3, kn + 0.3), 0.004), 0.004)
+        _wing(fd, kn + v3((sx * 0.125, -0.02, 0.0)), norm(v3((sx * 1.0, -0.35, 0.0))), 0.05)
+        fd.add(Inter(Shell(lh, 0.027, 0.012, pad=0.06, disp=hammer, disp_amp=0.001), Func(_band(kn, an, 0.18, 0.92), kn - 0.4, kn + 0.4), 0.003), 0.003)
         ft = Field("FootHull")
         foot(ft, side)
         Rz = euler(0, 0, sx * 0.1)
@@ -246,7 +309,7 @@ BELT_Z = 0.94
 
 def tabard_base():
     b = Field("TabardBase")
-    for p, k in torso_prims():
+    for p, k in chest_prims():
         b.add(p, k)
     b.add(traps(), 0.06)
     b.add(RoundCone((0, 0.035, 0.92), (0, 0.035, 0.5), 0.245, 0.3), 0.08)
@@ -270,7 +333,7 @@ def tabard_field():
         arm = np.where(np.abs(x) > F(0.17), -(((y - F(0.06)) / F(0.19)) ** 2 + ((z - F(1.34)) / F(0.24)) ** 2 - F(1.0)) * F(0.1), F(-1.0))
         slit = np.where((z < F(0.88)) & (np.abs(y - F(0.035)) < F(0.05)), F(0.05) - np.abs(y - F(0.035)), F(-1.0))
         return np.maximum(np.maximum(np.maximum(neck, arm), tabard_hem(P) - z), slit)
-    fd.add(Inter(Shell(base, 0.068, 0.012, pad=0.12, disp=folds, disp_amp=0.006), Func(cut, (-1, -1, 0.4), (1, 1, 1.7)), 0.004), 0.0)
+    fd.add(Inter(Shell(base, 0.062, 0.012, pad=0.12, disp=folds, disp_amp=0.006), Func(cut, (-1, -1, 0.4), (1, 1, 1.7)), 0.004), 0.0)
     def edge(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         hem = P[:, 2] - (tabard_hem(P) + F(0.032))
@@ -294,6 +357,20 @@ def mail_field():
     fd.add(Inter(Shell(kb, 0.05, 0.01, pad=0.1, disp=lambda P: F(0.0015) * NOISE(P * F(20)), disp_amp=0.002),
                  Func(lambda P: np.maximum(F(TAB_HEM - 0.07) - P[:, 2], P[:, 2] - F(0.86)), (-1, -1, 0.3), (1, 1, 1.0)), 0.004), 0.0)
     fd.paint(Func(lambda P: P[:, 2] - F(TAB_HEM - 0.05), (-1, -1, 0.3), (1, 1, 1.0)), 5)
+    return fd
+
+
+def chainmail_field():
+    """Mail under the plates on his arms and legs (iron rings, label 0): it shows where the plates part as he moves."""
+    fd = Field("Chainmail")
+    rings = lambda P: F(0.0012) * NOISE(P * F(30))
+    for side in ("R", "L"):
+        sh, wr = J["shoulder_" + side], J["wrist_" + side]
+        hip, an = J["hip_" + side], J["ankle_" + side]
+        fd.add(Inter(Shell(arm_hull(side), 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
+                     Func(_band(sh, wr, 0.14, 0.96), sh - 0.6, sh + 0.6), 0.003), 0.003)
+        fd.add(Inter(Shell(leg_hull(side), 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
+                     Func(_band(hip, an, 0.12, 0.95), hip - 0.9, hip + 0.9), 0.003), 0.003)
     return fd
 
 
@@ -398,8 +475,8 @@ MAT_NAME = "KnightMat"
 MESH_NAME = "Knight"
 BASE_MODULE = "knight_base"
 ANIM_MODULE = "anim_knight"
-PARTS = ["Skin", "Helm", "Crest", "Plate", "Tabard", "Mail", "Leather", "Sword"]
-REGION_PARTS = ("Skin", "Helm", "Crest", "Plate", "Tabard", "Mail", "Leather", "Sword")
+PARTS = ["Skin", "Helm", "Crest", "Pauldrons", "Plate", "Chainmail", "Tabard", "Mail", "Leather", "Sword"]
+REGION_PARTS = ("Skin", "Helm", "Crest", "Pauldrons", "Plate", "Tabard", "Mail", "Leather", "Sword")
 BLUE = (0.14, 0.27, 0.62)
 YELLOW = (0.9, 0.68, 0.16)
 MAT_OVERRIDES = {
@@ -407,12 +484,15 @@ MAT_OVERRIDES = {
     "Helm": ("roman_steel", {"name": "HQ_KnightSteel", "base": (0.46, 0.47, 0.5)}),
     "Crest": ("wool", {"name": "HQ_KnightCrest", "base": BLUE, "border": YELLOW, "stripe": YELLOW}),
     "Plate": ("roman_steel", {"name": "HQ_KnightSteel", "base": (0.46, 0.47, 0.5)}),
+    "Pauldrons": ("roman_steel", {"name": "HQ_KnightSteel", "base": (0.46, 0.47, 0.5)}),
+    "Chainmail": ("mail", {"name": "HQ_KnightMail", "base": (0.56, 0.57, 0.61)}),
     "Tabard": ("wool", {"name": "HQ_KnightTabard", "base": BLUE, "border": YELLOW, "stripe": YELLOW}),
     "Mail": ("mail", {"name": "HQ_KnightMail", "base": (0.56, 0.57, 0.61)}),
     "Leather": ("leather_dyed", {"name": "HQ_KnightLeather", "base": (0.3, 0.18, 0.1), "dyed": (0.5, 0.1, 0.07)}),
     "Sword": ("roman_steel", {"name": "HQ_GreatSword", "base": (0.52, 0.54, 0.58)}),
 }
-LOW_TARGETS = {"Skin": 1500, "Helm": 2200, "Crest": 1400, "Plate": 7400, "Tabard": 2400, "Mail": 700, "Leather": 900,
+LOW_TARGETS = {"Skin": 1200, "Helm": 2000, "Crest": 1800, "Pauldrons": 2000, "Plate": 6400, "Chainmail": 1400,
+               "Tabard": 2400, "Mail": 700, "Leather": 900,
                "Sword": 900}
 AO_EXCLUDE = ["Sword"]
 
@@ -427,6 +507,9 @@ def weight_rules():
     return {
         "Helm": ("rigid", "head"), "Crest": ("rigid", "head"),
         "Plate": ("transfer", body, None),
+        "Pauldrons": ("transfer", {"chest", "clavicle.R", "clavicle.L", "upperarm.R", "upperarm.L"},
+                      {"upperarm.R": 0.45, "upperarm.L": 0.45}),
+        "Chainmail": ("transfer", body, None),
         "Tabard": ("transfer", TORSO | {"clavicle.R", "clavicle.L", "thigh.R", "thigh.L"}, {"thigh.R": 0.45, "thigh.L": 0.45}),
         "Mail": ("transfer", TORSO | {"thigh.R", "thigh.L"}, {"thigh.R": 0.5, "thigh.L": 0.5}),
         "Leather": ("transfer", TORSO, None),
@@ -441,6 +524,8 @@ def uv_boost(c, part):
         return 1.5
     if part == "Sword":
         return 0.8
+    if part == "Chainmail":
+        return 0.5                  # (mostly under the plates)
     return 1.0
 
 
@@ -453,7 +538,9 @@ def sculpt_parts(fine=True):
         ("Skin", skin_field(), 0.004 if fine else 0.006),
         ("Helm", helm_field(), 0.0022 if fine else 0.003),
         ("Crest", crest_field(), 0.0022 if fine else 0.003),
+        ("Pauldrons", pauldron_field(), 0.0024 if fine else 0.0034),
         ("Plate", plate_field(), 0.0024 if fine else 0.0034),
+        ("Chainmail", chainmail_field(), 0.003 if fine else 0.004),
         ("Tabard", tabard_field(), 0.0026 if fine else 0.0036),
         ("Mail", mail_field(), 0.0026 if fine else 0.0036),
         ("Leather", leather_field(), 0.0022 if fine else 0.003),

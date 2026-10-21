@@ -74,7 +74,8 @@ def char_stage():
     for o in hi.values():
         prep.region_masks(o)
     prep.paint_skin(hi["Skin"])
-    prep.paint_eyes(hi["Eyes"])
+    if "Eyes" in hi:                                 # (a full helm hides the face: no eyes)
+        prep.paint_eyes(hi["Eyes"])
     if hasattr(CH, "paint_extra"):
         CH.paint_extra(hi)
     mats.assign_all(list(hi.values()), getattr(CH, "MAT_OVERRIDES", None))
@@ -83,7 +84,8 @@ def char_stage():
     for nm, tgt in CH.LOW_TARGETS.items():
         if nm in hi and nm not in glow:
             low[nm] = lp.decimated_copy(hi[nm], tgt, nm + "_low")
-    low["Eyes"] = lp.eyes_low()
+    if "Eyes" in hi:
+        low["Eyes"] = lp.eyes_low()
     for nm, o in low.items():
         lp.tag_part(o, PART_IDS[nm])
     log("lowpoly", {k: len(v.data.polygons) for k, v in low.items()}, "%.0fs" % (time.time() - T))
