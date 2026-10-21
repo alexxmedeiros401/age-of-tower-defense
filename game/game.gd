@@ -1718,7 +1718,7 @@ const DECOR_V2 := {
 			["Bush", 6], ["Rock_A", 5], ["Rock_B", 6], ["Rock_C", 3], ["Column_A", 2], ["Fallen", 1], ["Amphorae", 1]],
 		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 110, "cover_s": 0.9,
 		"marks": [["Temple", Vector2(-4.0, -10.9), 0.85, 2.6, {"yaw": PI * 0.5}], ["Farm", Vector2(8.5, -10.9), 0.85, 2.2, {"yaw": 0.0}],
-			["Press", Vector2(-11.0, 11.0), 0.9, 1.5], ["Wall", Vector2(2.5, 11.3), 1.0, 1.4, {"yaw": 0.0}],
+			["Press", Vector2(-7.0, 11.2), 0.9, 1.5], ["Wall", Vector2(2.5, 11.3), 1.0, 1.4, {"yaw": 0.0}],
 			["Farm", Vector2(-16.8, -10.4), 0.7, 1.8, {"yaw": 0.3}], ["Amphorae", Vector2(9.5, 10.9), 1.0, 0.8]]},
 	# Marble Coast: umbrella pines and cypresses, maquis, white limestone; a lighthouse, fishing boats on the inlet, a
 	# long aqueduct along the shore (and one arch of it over each road where the roads run under it: _tunnel_build)
