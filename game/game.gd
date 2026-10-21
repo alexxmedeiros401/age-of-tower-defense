@@ -1396,7 +1396,7 @@ func _city_kit(p: Vector2) -> bool:
 	return true
 
 
-## v0.9.39: the sculpted Iron city (iron_city.glb): a hill fort's gate, earth ramparts under a palisade, two timber gate
+## v0.9.40: the sculpted Iron city (iron_city.glb): a hill fort's gate, earth ramparts under a palisade, two timber gate
 ## towers, roundhouses and a granary inside; fires burn in the iron baskets before the towers, smoke rises off a roof.
 func _iron_city_kit(p: Vector2) -> bool:
 	var path := "res://assets/decor/iron_city.glb"
@@ -1465,7 +1465,7 @@ func _build_decor() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
 	var th: String = map.get("theme", "meadow")
-	if _v2_kit(th):                              # (v0.9.39: before era_decor, which has the Iron Age themes too)
+	if _v2_kit(th):                              # (v0.9.40: before era_decor, which has the Iron Age themes too)
 		_build_decor_v2()
 		return
 	if EraDecor.handles(th):
@@ -1628,7 +1628,7 @@ const DECOR_V2 := {
 		"cover": [["Tuft", 1]], "cover_n": 40, "cover_s": 0.7,
 		"marks": [["Mine", Vector2(-6.0, -11.0), 0.9, 2.7], ["Smelter", Vector2(-12.0, 10.8), 0.9, 1.9], ["Mesa_C", Vector2(12.0, -11.6), 1.6, 2.2],
 			["Mine", Vector2(4.0, 11.4), 0.8, 2.7]]},
-	# v0.9.39: the Iron Age kits (decor_iron.py). Highland Ford: Scots pines and birches, heather, gorse and bracken on
+	# v0.9.40: the Iron Age kits (decor_iron.py). Highland Ford: Scots pines and birches, heather, gorse and bracken on
 	# the moor, reeds and rushes on the stream's banks; a broch, roundhouses, a stone circle.
 	"highland": {"kit": "iron_decor_highland", "count": 100, "ambient": true,
 		"scatter": [["Pine_A", 12], ["Pine_B", 12], ["Pine_C", 8], ["Birch_A", 9], ["Birch_B", 6], ["Heather_A", 10], ["Heather_B", 8],
@@ -1653,7 +1653,7 @@ const DECOR_V2 := {
 		"marks": [["Crannog", Vector2(3.5, -10.8), 0.85, 2.7], ["Idol", Vector2(-8.5, 10.9), 1.0, 1.3], ["PeatStack", Vector2(11.5, -10.4), 1.3, 0.9],
 			["Crannog", Vector2(-15.8, -10.6), 0.7, 2.2]]},
 }
-## v0.9.39: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
+## v0.9.40: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
 const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26]}
 const MARK_SMOKE := {"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
 	"Bloomery": Vector3(-0.45, 1.45, 0.05)}
@@ -2033,7 +2033,7 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 					var rr := rad + r.randf_range(0.05, 0.3)
 					_decor_single(["Papyrus", "Reeds", "Papyrus"][k % 3], Vector3(cos(a0) * rr, 0, sin(a0) * rr), r.randf() * TAU, r.randf_range(0.5, 0.72), n)
 				return true
-			if th in ["highland", "bog"]:     # v0.9.39: lochans and bog pools move in the ground too; reeds and rushes round them
+			if th in ["highland", "bog"]:     # v0.9.40: lochans and bog pools move in the ground too; reeds and rushes round them
 				var ring := ["Reeds", "Rushes", "Reeds"] if th == "highland" else ["Reeds", "Rushes", "Cotton"]
 				for k in 9:
 					var a8 := TAU * k / 9.0 + r.randf() * 0.4
@@ -2054,7 +2054,7 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				var a2 := TAU * k / 7.0 + r.randf() * 0.4
 				_decor_single(rim[k % 2], Vector3(cos(a2) * rad * 0.95, 0, sin(a2) * rad * 0.95), r.randf() * TAU, r.randf_range(0.45, 0.65), n)
 			return false     # keep the old glowing pool, light and pulse on top of the new rim
-		"stones":                         # v0.9.39: a ring of standing stones on the moor
+		"stones":                         # v0.9.40: a ring of standing stones on the moor
 			for k in 6:
 				var a9 := TAU * k / 6.0 + 0.3
 				_decor_single("Menhir_A" if k % 2 == 0 else "Menhir_B", Vector3(cos(a9), 0, sin(a9)) * rad * 0.72, PI * 0.5 - a9,
@@ -12427,7 +12427,8 @@ func _run_demo() -> void:
 			for i in 4:
 				await get_tree().process_frame
 			await _shot("showcase_%s_city.png" % tag)
-		for a6 in args:                              # (--look=x,z: a landmark from the south)
+		var nlook := 0
+		for a6 in args:                              # (--look=x,z: a landmark from the south; several are numbered)
 			if a6.begins_with("--look="):
 				var xz := a6.trim_prefix("--look=").split(",")
 				var lp := Vector3(float(xz[0]), 0.0, float(xz[1]))
@@ -12435,7 +12436,8 @@ func _run_demo() -> void:
 				cam.look_at(lp + Vector3(0, 1.0, 0))
 				for i in 4:
 					await get_tree().process_frame
-				await _shot("showcase_%s_look.png" % tag)
+				await _shot("showcase_%s_look%s.png" % [tag, "" if nlook == 0 else str(nlook)])
+				nlook += 1
 		get_tree().quit()
 		return
 	if "--shoot-timeline" in args:

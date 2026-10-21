@@ -6,7 +6,7 @@ Models so far: the four Bronze Age towers (`assets/towers/bronze_archer.glb`, v0
 `club_warrior.glb`, `tar_shaman.glb`, `boulder_catapult.glb`), both Stone Age heroes (`assets/heroes/ugo.glb`,
 `mara.glb`), the Bronze Age heroes Kira (`kira.glb`, v0.9.25) and Tarek (`tarek.glb`, v0.9.26), the Iron Age's Javelin Thrower (`javelin_thrower.glb`, v0.9.32), Ballista (`ballista.glb`, v0.9.33), Axe Warrior (`axe_warrior.glb`, v0.9.34) and Druid (`druid.glb`, v0.9.38), its heroes Kael (`kael.glb`, v0.9.36) and Brenna (`brenna.glb`, v0.9.39), the five Stone Age robots (`assets/robots/walker.glb`, `scout.glb`, `brute.glb`, `carrier.glb`,
 `prime_walker.glb`, v0.9.18), the three Stone Age map kits (`assets/decor/stone_decor.glb`, `stone_decor_snow.glb`,
-`stone_decor_volcano.glb`) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
+`stone_decor_volcano.glb`), the Bronze and Iron Age map kits and cities (below) and the time portal (`assets/decor/time_portal.glb`). The Stone Age map grounds are rendered
 by `../map_ground_hq.py` (below).
 
 | Unit | Character module | Base module | Clips |
@@ -127,7 +127,32 @@ about a hundred islands with a comb-like outline that the decimation cannot redu
 budget). A kit's bake peaks near 3.9 GB: build the kits one at a time with nothing else heavy running (a coarse
 character sculpt beside the desert bake got it killed); `--stage game` then `--stage export` resume a kit from its sculpt.
 Map checks: `--demo --shoot-showcase --map=<id> --boss --city --look=x,z` adds a shot of the city at the road's end
-and one of the landmark at (x, z).
+and one of the landmark at (x, z) (several `--look`s are numbered: `_look`, `_look1`, ...).
+
+### Iron Age map kits and the Iron city (v0.9.40)
+
+```
+python3 decor_build.py -- --theme highland|forge|bog|iron_city --out D --fine --tex 2048 --ao 24 --shots D/shots --each
+```
+
+`decor_iron.py` sculpts them (`decor_props.py` hands these themes over), `decor_mats.py` paints them (its Iron Age
+section). Highland Ford (`iron_decor_highland.glb`): Scots pines (scaly grey trunks turning orange higher up,
+flat-topped crowns of needle pads), silver birches, heather cushions (tufts purple at the tips), gorse dotted with
+blossom (`ray_hit` points on its own surface), bracken with broad fronds, mossy granite, standing stones, stumps, logs,
+reeds and rushes; landmarks: a broch, roundhouses, a stone circle. Ember Forge (`iron_decor_forge.glb`): charred dead
+trees with embers in their cracks, rust-stained ironstone, slag heaps, roasted ore heaps, cordwood, charcoal clamps;
+landmarks: a bloomery (two clay shaft furnaces) and a smithy (a thatched shed over a hearth and an anvil). Mirefen Bog
+(`iron_decor_bog.glb`): willows (stems spreading under a lumpy crown), alders, drowned snags, reeds, rushes, cotton grass,
+sphagnum hummocks, bog oak, peat stacks; landmarks: crannogs and a carved idol in a ring of stakes. The city
+(`iron_city.glb`, one prop: City) is the hill fort at the end of every Iron Age road: ramparts that taper into the
+hillside under a palisade, two timber gate towers, roundhouses and a granary inside (game.gd lights the fire baskets and
+the smoke). game.gd `MARK_FIRES` / `MARK_SMOKE` say where a landmark burns or smokes (prop-local). Thatch reads as thatch
+only with a wobble on the roof's surface (`Func(roof.fn, ..., **wob(...))`); flat thatch looks like planks.
+
+Game meshes: Highland Ford 25.5k triangles, Ember Forge 16.5k, Mirefen Bog 18.9k, the city 15.0k (one 2048 atlas
+each, imported with `size_limit` 2048). Their grounds are `map_ground_hq.py` renders like the others; the lochans and
+pools move (`tools/water_mask.py <map> --src <the ground tool's water mask>`), and Ember Forge's lava too
+(`tools/lava_mask.py ember_forge`).
 
 ### Grounds (v0.9.18)
 
