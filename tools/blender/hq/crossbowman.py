@@ -59,12 +59,12 @@ def head(fd):
         ec = eye_c(sx)
         squint = sx > 0
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.006 if squint else 0.016))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.008 if squint else 0.021))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, -hr(0.012 if squint else 0.024))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)),
-                       Plane(ec + v3((0, 0, hr(0.004 if squint else 0.014))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+                       Plane(ec + v3((0, 0, hr(0.006 if squint else 0.019))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3 if squint else 2):                                                   # crow's feet
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.684 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.026, 0.012, 0.006 - 0.01 * k)), hr(0.0022), hr(0.0014)), hr(0.003))
@@ -154,7 +154,7 @@ def beard_field():
 
 
 # ======================================================================================= mail coif
-COIF_HEM_Z = 1.21          # the cape's hem over his shoulders
+COIF_HEM_Z = 1.31          # the cape's hem over his shoulders
 
 
 def coif_head_base():
@@ -165,14 +165,13 @@ def coif_head_base():
     b.add(E((0, -0.132, 1.5), (0.086, 0.07, 0.066)), 0.05)
     for sx in (-1, 1):
         b.add(Sphere(hp((sx * 0.128, -0.05, 1.56)), hr(0.052)), 0.05)
-        b.add(Ellipsoid(hp((sx * 0.178, 0.035, 1.66)), v3((0.03, 0.05, 0.065)) * HS), 0.03)                # (the ears under it)
     return b
 
 
 def mantle_base():
+    """The shoulders and the top of the chest (no pectorals: the cape lies smooth over the padding)."""
     b = Field("Mantle")
-    for p, k in torso_prims()[:4]:
-        b.add(p, k)
+    b.add(Ellipsoid((0, 0.05, 1.22), (0.27, 0.21, 0.27), R=euler(-0.12, 0, 0)), 0.0)
     b.add(traps(), 0.06)
     b.add(neck_prim(), 0.05)
     for side in ("R", "L"):
@@ -190,7 +189,7 @@ def coif_open(P):
 
 def coif_hem(P):
     a = np.arctan2(P[:, 0], -(P[:, 1] - F(0.06)))
-    return F(COIF_HEM_Z) - F(0.035) * np.abs(np.sin(a)) + F(0.01) * np.sin(a * F(9)) + F(0.004) * NOISE(P * F(12))
+    return F(COIF_HEM_Z) - F(0.05) * np.abs(np.sin(a)) + F(0.008) * np.sin(a * F(9)) + F(0.004) * NOISE(P * F(12))
 
 
 def mail_field():
@@ -205,7 +204,7 @@ def mail_field():
         return np.maximum(-coif_open(P), coif_hem(P) - P[:, 2])
     shape = Field("CoifShape")
     shape.add(Shell(hb, 0.012, 0.012, pad=0.08, disp=drape, disp_amp=0.002), 0.0)
-    shape.add(Inter(Shell(mb, 0.056, 0.014, pad=0.12, disp=drape, disp_amp=0.002),
+    shape.add(Inter(Shell(mb, 0.05, 0.012, pad=0.12, disp=drape, disp_amp=0.002),
                     Func(lambda P: P[:, 2] - F(1.62), lo, hi), 0.02), 0.03)
     fd.add(Inter(Func(lambda P: shape.eval(P), lo, hi), Func(keep, lo, hi), 0.004), 0.0)
     # a roll of mail round the face (the coif's edge turned back)
@@ -279,8 +278,12 @@ HEM_Z = 0.52
 
 def gambeson_base():
     b = Field("GambesonBase")
-    for p, k in torso_prims():
+    tp = torso_prims()
+    for i, (p, k) in enumerate(tp):
+        if i in (2, 3):                     # (no pectorals: the padding lies smooth and round over the chest)
+            continue
         b.add(p, k)
+    b.add(Ellipsoid((0, -0.04, 1.25), (0.24, 0.13, 0.13)), 0.06)
     b.add(traps(), 0.06)
     b.add(RoundCone((0, 0.035, 0.92), (0, 0.035, 0.47), 0.24, 0.31), 0.08)
     for side in ("R", "L"):
@@ -363,7 +366,7 @@ def gambeson_field():
         x, z = P[:, 0], P[:, 2]
         neck = z - (F(1.5) - F(0.03) * np.exp(-(x / F(0.1)) ** 2) + F(0.3) * smoothstep(0.14, 0.22, np.abs(x)))
         return np.maximum(np.maximum(neck, _cuff_cut(P)), gambeson_hem(P) - z)
-    fd.add(Inter(Shell(base, 0.03, 0.03, pad=0.1, disp=quilting, disp_amp=0.007), Func(keep, (-1, -1, 0.4), (1, 1, 1.7)), 0.005), 0.0)
+    fd.add(Inter(Shell(base, 0.028, 0.026, pad=0.1, disp=quilting, disp_amp=0.007), Func(keep, (-1, -1, 0.4), (1, 1, 1.7)), 0.005), 0.0)
     fd.paint(Func(lambda P: P[:, 2] - (gambeson_hem(P) + F(0.028)), (-1, -1, 0.4), (1, 1, 0.65)), 5)
     fd.paint(Func(lambda P: np.maximum(-_cuff_cut(P) - F(0.03), F(1.0) - P[:, 2] - F(0.4)), (-1, -1, 0.5), (1, 1, 1.2)), 5)
     return fd
@@ -712,9 +715,9 @@ MAT_OVERRIDES = {
                       "brow": ((0.2, 0.12, 0.07), (0.38, 0.24, 0.14)),
                       "extra": ((LASH, (0.12, 0.08, 0.05), 0.5), (RED_NOSE, (0.82, 0.42, 0.36), 0.45))}),
     "Beard": ("hair", BROWN_HAIR),
-    "Mail": ("mail", {"name": "HQ_XbowMail"}),
+    "Mail": ("mail", {"name": "HQ_XbowMail", "base": (0.56, 0.57, 0.61)}),
     "Steel": ("roman_steel", {"name": "HQ_KettleHat"}),
-    "Gambeson": ("linen", {"name": "HQ_Gambeson", "base": BLUE, "border": YELLOW, "stripe": (0.1, 0.12, 0.3)}),
+    "Gambeson": ("wool", {"name": "HQ_Gambeson", "base": BLUE, "border": YELLOW, "stripe": (0.1, 0.12, 0.3)}),
     "Hose": ("wool", {"name": "HQ_Hose", "base": YELLOW, "border": YELLOW, "stripe": BLUE}),
     "Leather": ("leather_dyed", {"name": "HQ_XbowLeather", "base": (0.38, 0.22, 0.12), "dyed": (0.42, 0.1, 0.07)}),
     "Quiver": ("siege", {"name": "HQ_XbowQuiver", "wood": (0.56, 0.38, 0.22), "wood2": (0.42, 0.27, 0.15), "red": YELLOW,
