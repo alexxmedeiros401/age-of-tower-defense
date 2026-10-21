@@ -11031,7 +11031,7 @@ func _start_game() -> void:
 	if not demo:
 		music.play()
 	_sfx("click")
-	if not demo and _first_visit():
+	if not demo and not _capture_run() and _first_visit():
 		_robot_roster(map_id, true)
 		return
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
@@ -11041,6 +11041,15 @@ func _start_game() -> void:
 
 
 ## True the first time this map is entered. Old saves first count robots from maps already beaten as met.
+## A scripted capture or test run (--shoot-*, --autowin): no first-visit robot card (it would pause the sim and stall
+## the run).
+func _capture_run() -> bool:
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--shoot") or str(a) == "--autowin":
+			return true
+	return false
+
+
 func _first_visit() -> bool:
 	if not Progress.seen_ready():
 		for m in map_order:
