@@ -51,11 +51,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0056)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.2, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0056)), Plane(ec + v3((0, 0, hr(0.0215))), (sx * 0.2, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0044)), Plane(ec + v3((0, 0, -hr(0.024))), (sx * -0.12, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0044)), Plane(ec + v3((0, 0, -hr(0.027))), (sx * -0.12, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0135))), (sx * 0.2, 0.05, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.2, 0.05, -1.0)), hr(0.002)), LASH)
         flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.011)))                                    # lashes flicked out at the corner
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.013), hr(0.006), hr(0.005))), hr(0.0042), hr(0.0014)), hr(0.004), LASH)
     fd.add(RoundCone(hp((0, -0.18, 1.724)), hp((0, -0.22, 1.644)), hr(0.0115), hr(0.0155)), hr(0.016), SKIN)
@@ -77,6 +77,12 @@ def head(fd):
     scar = [hp((0.018, -0.196, 1.512)), hp((0.03, -0.19, 1.494)), hp((0.038, -0.18, 1.478))]
     fd.sub(Chain(scar, [hr(0.0025), hr(0.003), hr(0.002)], k=hr(0.002)), hr(0.002))
     fd.paint(Chain(scar, [hr(0.006), hr(0.007), hr(0.005)], k=hr(0.004)), SCAR)
+
+
+def deltoid(side):
+    """Her shoulder's cap: slimmer than Kira's (under the tunic's sleeve and the shoulder strips it read as a pad)."""
+    sx = -1 if side == "R" else 1
+    return Sphere(J["shoulder_" + side] + v3((sx * 0.012, -0.004, 0.0)), 0.074)
 
 
 def body_parts(fd):
@@ -347,27 +353,30 @@ def pteruges_field():
             return np.maximum(F(z1) - round_end - P[:, 2], P[:, 2] - F(CUIRASS_Z + 0.01))
         fd.add(Inter(Func(strips, (-0.6, -0.6, 0.55), (0.6, 0.6, 1.05)), Func(keep, (-1, -1, 0.5), (1, 1, 1.05)), 0.003), 0.003)
         fd.paint(Func(lambda P, z1=z1: np.maximum(P[:, 2] - F(z1 + 0.026), F(z1 - 0.05) - P[:, 2]), (-1, -1, 0.5), (1, 1, 1.0)), 5)
-    # the shoulder rows: strips hanging from the armhole over the deltoid
+    # the shoulder rows: a fringe of strips hanging from the cuirass' armhole down over the upper arm, flaring a little
     for side in ("R", "L"):
         sx = -1 if side == "R" else 1
         sh, el = J["shoulder_" + side], J["elbow_" + side]
-        hull = Field("ArmHull")
-        hull.add(deltoid(side), 0.0)
-        hull.add(upper_arm(side), 0.045)
         ax = norm(el - sh)
-        def shtex(P, sh=sh, ax=ax):
-            q = P - sh.astype(F)
-            a = np.arctan2(q[:, 1], q[:, 2] * F(0.6) + F(0.1))
-            s = np.mod(a * F(12 / math.pi), F(1.0))
-            return F(0.007) * smoothstep(0.12, 0.0, np.minimum(s, F(1) - s))
-        def sh_strips(P, hull=hull, shtex=shtex):
-            d = hull.eval(P, margin=0.1)
-            return np.maximum(d - (F(0.036) - shtex(P)), F(0.016) - d)
-        def sh_keep(P, sh=sh, ax=ax, sx=sx):
-            t = (P - sh.astype(F)) @ ax.astype(F)
-            return np.maximum(np.maximum(t - F(0.15), F(-0.01) - t), F(0.22) - P[:, 0] * F(sx))
-        fd.add(Inter(Func(sh_strips, sh - 0.3, sh + 0.3), Func(sh_keep, sh - 0.4, sh + 0.4), 0.003), 0.003)
-        fd.paint(Func(lambda P, sh=sh, ax=ax: np.abs((P - sh.astype(F)) @ ax.astype(F) - F(0.137)) - F(0.014), sh - 0.4, sh + 0.4), 5)
+        top = sh + v3((0, 0, 0.035)) - ax * 0.01
+        cone = RoundCone(top, top + ax * 0.2, 0.076, 0.09)
+        def shtex(P, top=top, ax=ax):
+            q = P - top.astype(F)
+            ref = norm(np.cross(ax, v3((0, 1, 0))))
+            u = q @ ref.astype(F)
+            w = q @ norm(np.cross(ax, ref)).astype(F)
+            a = np.arctan2(w, u)
+            s_ = np.mod(a * F(14 / (2 * math.pi)), F(1.0))
+            return F(0.007) * smoothstep(0.12, 0.0, np.minimum(s_, F(1) - s_)) + F(0.0008) * NOISE(P * F(40))
+        def sh_strips(P, cone=cone, shtex=shtex):
+            d = cone(P)
+            return np.maximum(d - (F(0.012) - shtex(P)), -d)
+        def sh_keep(P, top=top, ax=ax, sx=sx):
+            t = (P - top.astype(F)) @ ax.astype(F)
+            # (from just under the armhole's rim to its rounded strip ends; the inner side, against her body, left open)
+            return np.maximum(np.maximum(t - F(0.17), F(0.035) - t), F(0.2) - P[:, 0] * F(sx))
+        fd.add(Inter(Func(sh_strips, top - 0.3, top + 0.35), Func(sh_keep, top - 0.4, top + 0.4), 0.003), 0.003)
+        fd.paint(Func(lambda P, top=top, ax=ax: np.abs((P - top.astype(F)) @ ax.astype(F) - F(0.155)) - F(0.014), top - 0.4, top + 0.4), 5)
     return fd
 
 
