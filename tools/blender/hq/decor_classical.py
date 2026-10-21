@@ -454,23 +454,35 @@ def statue(seed=0, h=1.5):
 
 
 def lion(seed=0):
-    """A marble lion lying on a plinth, head up and turned to watch the road, its mane in heavy locks."""
+    """A marble lion lying on a plinth, head up and turned to watch the road: a heavy mane in rows of locks framing its
+    face, a broad muzzle, its forepaws stretched out before it, its haunches gathered, its tail curled round its flank."""
     f = Field("Lion")
     f.add(RoundBox((0, 0, 0.22), (0.62, 0.28, 0.22), 0.02))
     f.add(RoundBox((0, 0, 0.47), (0.66, 0.31, 0.03), 0.012), k=0.01)
+    f.sub(RoundBox((0, -0.28, 0.22), (0.5, 0.02, 0.14), 0.01), k=0.004)                      # a sunk panel on its face
     z0 = 0.5
-    f.add(Ellipsoid((0.08, 0, z0 + 0.16), (0.42, 0.2, 0.16)), k=0.0)                        # the body lying down
-    f.add(Ellipsoid((-0.28, 0, z0 + 0.24), (0.2, 0.22, 0.22)), k=0.08)                     # the chest and mane
-    for k in range(12):                                                                     # the mane's locks
-        a = 2 * math.pi * k / 12
-        f.add(Ellipsoid((-0.32 + 0.04 * math.cos(a), 0.18 * math.sin(a), z0 + 0.32 + 0.14 * math.cos(a)), (0.07, 0.07, 0.09)), k=0.03)
-    head = v3((-0.46, -0.06, z0 + 0.36))
-    f.add(Ellipsoid(head, (0.13, 0.12, 0.12)), k=0.04)
-    f.add(Ellipsoid(head + v3((-0.11, -0.02, -0.03)), (0.07, 0.07, 0.06)), k=0.03)          # muzzle
+    f.add(Ellipsoid((0.12, 0, z0 + 0.15), (0.36, 0.17, 0.14)), k=0.0)                      # the body lying down
+    f.add(Ellipsoid((0.3, 0, z0 + 0.16), (0.17, 0.19, 0.15)), k=0.05)                      # haunches
+    f.add(Ellipsoid((-0.22, 0, z0 + 0.22), (0.18, 0.2, 0.21)), k=0.06)                     # the chest under the mane
+    head = v3((-0.4, -0.04, z0 + 0.4))
+    for ring, (rr, n) in enumerate(((0.16, 14), (0.205, 18))):                             # the mane: two rows of locks
+        for k in range(n):
+            a = 2 * math.pi * (k + 0.5 * ring) / n
+            d = v3((0.25, math.cos(a), math.sin(a)))
+            d = d / np.linalg.norm(d)
+            p = head + v3((0.06 + 0.04 * ring, 0, -0.02)) + v3((0, d[1], d[2])) * rr
+            f.add(Ellipsoid(p, (0.07, 0.055, 0.075), R=rot_from_axes(z_axis=v3((0.3, d[1], d[2])))), k=0.02)
+    f.add(Sphere(head, 0.13), k=0.03)                                                        # the face
+    f.add(Ellipsoid(head + v3((-0.12, 0, -0.04)), (0.08, 0.075, 0.065)), k=0.03)              # the broad muzzle
+    f.add(Sphere(head + v3((-0.19, 0, -0.02)), 0.035), k=0.015)                              # the nose
     for sd in (-1, 1):
-        f.add(Ellipsoid((-0.42, sd * 0.14, z0 + 0.05), (0.16, 0.06, 0.05)), k=0.03)          # forepaws stretched out
-        f.add(Ellipsoid((0.3, sd * 0.16, z0 + 0.1), (0.14, 0.07, 0.1)), k=0.04)              # haunches
-    f.add(Chain([v3((0.48, 0.1, z0 + 0.08)), v3((0.6, 0.2, z0 + 0.03)), v3((0.52, 0.3, z0 + 0.02))], [0.03, 0.025, 0.035], k=0.01), k=0.02)
+        f.sub(Sphere(head + v3((-0.1, sd * 0.055, 0.045)), 0.022), k=0.008)                  # deep-set eyes
+        f.add(Sphere(head + v3((0.02, sd * 0.1, 0.11)), 0.035), k=0.02)                      # the ears in the mane
+        f.add(RoundCone((-0.42, sd * 0.13, z0 + 0.06), (-0.66, sd * 0.13, z0 + 0.04), 0.06, 0.05), k=0.04)   # forepaws
+        f.add(Ellipsoid((-0.68, sd * 0.13, z0 + 0.04), (0.06, 0.05, 0.035)), k=0.02)
+        f.add(Ellipsoid((0.34, sd * 0.17, z0 + 0.08), (0.15, 0.06, 0.09)), k=0.04)           # hind legs gathered
+    f.add(Chain([v3((0.46, 0.12, z0 + 0.06)), v3((0.58, 0.22, z0 + 0.03)), v3((0.42, 0.3, z0 + 0.02)), v3((0.2, 0.28, z0 + 0.03))],
+                [0.03, 0.026, 0.022, 0.03], k=0.01), k=0.02)                                 # the tail round its flank
     f.paint(Func(lambda P: (P[:, 2] - F32(0.18)).astype(F32), (-1, -1, -0.1), (1, 1, 1.5)), 7)
     ground_cut(f)
     return [("Lion", f, fine(0.006, 0.012), "marble")]
