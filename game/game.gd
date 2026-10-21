@@ -2905,7 +2905,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -3050,6 +3050,19 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 			m.albedo_color = {"fury_wave": Color(1.0, 0.5, 0.16), "fury_ring": Color(1.0, 0.42, 0.1), "cry_wave": Color(0.42, 0.7, 1.0),
 				"cry_ring": Color(0.36, 0.62, 1.0)}[key]
+		"ghost_shield":                               # v0.9.45: Cassia's charge, a wall of shields of red light
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = Color(1.0, 0.36, 0.22, 0.55)
+		"charge_wave":                                # ...and the line it sweeps across the ground (vertex colours fade it)
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.vertex_color_use_as_albedo = true
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
+			m.albedo_color = Color(1.0, 0.42, 0.24)
 		"shield_panel", "shield_shard":               # the Shield Bot's energy shield, and its shards when it breaks
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -4164,6 +4177,10 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				_tick_hammer(fx, n)
 			"javelin":
 				_tick_javelin(fx, n)
+			"drift":                                   # v0.9.45: a shield of Cassia's wall sweeping out across the field
+				n.position += (fx.v as Vector3) * dt
+				n.scale = (fx.s0 as Vector3) * minf(1.0, fx.t / 0.12)
+				_fade(n, clampf((k - 0.65) / 0.35, 0.0, 1.0))
 			"jav_up":                                  # Kael's javelin climbing out of sight
 				n.position += (fx.v as Vector3) * dt
 				n.visible = fx.t < float(fx.life) - 0.1
@@ -4302,7 +4319,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle", "theron"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
@@ -4341,6 +4358,8 @@ func _handle_events() -> void:
 				if sim.hero != null:
 					_hq_play(sim.hero.id, "Ability")
 				_ability_fx(ev)
+			"quake_land":                               # v0.9.45: a hero's quake landing a moment after the cast
+				_quake_land(ev)
 			"upgrade":
 				var t = sim.get_tower(ev.id)
 				_refresh_tower_node(t)
@@ -4484,6 +4503,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
+				elif u3 != null and u3.type == "theron" and not tg3.is_empty() and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_theron_pulse(u3, tg3)                      # v0.9.46: the sun on his staff flares, a ring of gold runs out
 				elif u3 != null:
 					var pcol := Color(0.4, 1.0, 0.5)
 					if u3.type == "sun_priest":
@@ -6760,6 +6782,231 @@ func _ballista_ammo(n: Node3D, hot: bool) -> void:
 	n.set_meta("bal_fire", true)
 
 
+# ---------------------------------------------------------------- Cassia the Legate (Classical Age HQ, v0.9.45)
+# Shield Charge (tools/blender/hq/anim_cassia.py): she thrusts her gladius up and forward, the order to charge (CASSIA_ORDER:
+# a gleam off its point, the horn), drops behind her shield and charges, slamming its boss forward (anim_cassia.SLAM): the
+# sim lands the stun and the damage then (heroes.json "delay", its "quake_land" event). A flash off the boss, dust, the
+# thud; a wall of shields of red light bursts out from her and sweeps across the field; each robot it reaches is struck
+# (a flash, sparks) and thrown back a little.
+const CASSIA_ORDER := 12                              # anim_cassia.ORDER
+const CASSIA_BLADE := Vector3(-0.26, 2.05, 0.42)      # the gladius' point at the order (Yaw-local; measured)
+const CASSIA_BOSS := Vector3(0.1, 1.0, 0.95)          # the shield's boss at the slam (Yaw-local; measured)
+const CHARGE_SPEED := 11.0                            # the wall's pace across the field (units a second at 1x)
+
+
+func _cassia_order(hid: int) -> void:
+	var at := float(CASSIA_ORDER) / CLIP_FPS
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void: _cassia_gleam(hid)))
+
+
+## The order: a gleam runs off the raised gladius' point and the horn sounds.
+func _cassia_gleam(hid: int) -> void:
+	_sfx("wave_horn", -3.0, 0.0, 0.3)
+	if not tower_nodes.has(hid) or not is_instance_valid(tower_nodes[hid]) or not (tower_nodes[hid] as Node3D).has_meta("yaw"):
+		return
+	var p := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * CASSIA_BLADE
+	for s2 in [0.9, 0.45]:
+		var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if s2 < 0.6 else "sun_flash"), self, p)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.4, "kind": "flash", "s": s2})
+
+
+func _quake_land(ev: Dictionary) -> void:
+	var ids: Array = ev.get("ids", [])
+	if sim.hero != null and str(sim.hero.type) == "cassia" and _hq_clips(sim.hero.id):
+		_cassia_slam(int(sim.hero.id), ids)
+		return
+	_quake_fx(_v3(ev.pos, 0.3), ids)
+	shake = 1.4
+	_sfx("ab_earthquake", 0.0, 0.0, 0.5)
+
+
+## The slam: the boss strikes, and the wall of shields sweeps out across the field from her.
+func _cassia_slam(hid: int, ids: Array) -> void:
+	var at := _v3(sim.hero.pos, 0.0)
+	var boss := at + Vector3(0, 1.0, 0)
+	if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]):
+		var tn: Node3D = tower_nodes[hid]
+		at = tn.global_position
+		if tn.has_meta("yaw"):
+			boss = (tn.get_meta("yaw") as Node3D).global_transform * CASSIA_BOSS
+	var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, boss)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 1.3})
+	_dust_fx(Vector3(boss.x, 0.15, boss.z), [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)], 0.7)
+	_sfx("hammer_hit", -2.0, 0.05, 0.05)
+	_sfx("ab_earthquake", -5.0, 0.0, 0.5)
+	shake = maxf(shake, 0.9)
+	var spd := CHARGE_SPEED * maxf(float(speed), 0.01)    # (the wall keeps this pace, whatever the speed does next)
+	var R := 8.0
+	var hits := []
+	for t in ids:
+		var p := _robot_point(int(t), 0.0)
+		if p != Vector3.INF:
+			var d := Vector2(p.x - at.x, p.z - at.z).length()
+			R = maxf(R, d + 1.0)
+			hits.append([int(t), d])
+	# always drawn (a ring of a dozen shields and a line on the ground, once a cast): the effects cap only thins the strikes
+	var n: int = [14, 10, 7][clampi(Progress.gfx_level(), 0, 2)]
+	var sm := _ghost_shield_mesh()
+	for i in n:
+		var a := TAU * (float(i) + 0.5) / float(n)
+		var d3 := Vector3(sin(a), 0.0, cos(a))
+		var sh := _mi(sm, _atk_mat("ghost_shield"), self, Vector3(at.x, 0.62, at.z) + d3 * 0.9)
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sh.look_at(sh.position + d3, Vector3.UP)
+		effects.append({"node": sh, "t": 0.0, "life": R / spd, "kind": "drift", "v": d3 * spd, "s0": Vector3(0.85, 1.2, 1.0)})
+	var w := _mi(_wave_mesh(), _atk_mat("charge_wave"), self, Vector3(at.x, 0.12, at.z), Vector3.ZERO, Vector3(0.9, 1.0, 0.9))
+	w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": w, "t": 0.0, "life": R / spd + 0.15, "kind": "wave", "r": R, "speed": spd})
+	for h in hits:
+		var tid: int = h[0]
+		var eta: float = maxf(float(h[1]) - 0.9, 0.0) / spd
+		_hold_hit(tid, eta)
+		_fx_after(eta, func() -> void: _charge_strike(tid))
+
+
+## The wall reaches a robot: a flash of gold where the shields strike it, sparks, and it is thrown back a little.
+func _charge_strike(tid: int) -> void:
+	var p := _robot_point(tid, _hit_height_of(_robot_type(tid)))
+	if p != Vector3.INF and _fx_room(3):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, p)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.2, "kind": "flash", "s": 0.75})
+		for k in 2:
+			var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, p)
+			sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var v := Vector3(randf_range(-1.5, 1.5), randf_range(1.0, 2.4), randf_range(-1.5, 1.5))
+			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+			effects.append({"node": sp, "t": 0.0, "life": 0.22, "kind": "spark", "v": v})
+	_land_hit(tid, 0.22)
+
+
+## A shield of the wall: an oval of light (a flattened sphere), its face along local +Z.
+func _ghost_shield_mesh() -> Mesh:
+	if _atk_cache.has("ghost_shield_mesh"):
+		return _atk_cache["ghost_shield_mesh"]
+	var m := SphereMesh.new()
+	m.radius = 0.5
+	m.height = 1.0
+	m.radial_segments = 16
+	m.rings = 8
+	var st := SurfaceTool.new()
+	st.create_from(m, 0)
+	var mesh := st.commit()
+	var arr := mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	for i in verts.size():
+		verts[i] = Vector3(verts[i].x * 0.82, verts[i].y * 1.1, verts[i].z * 0.08)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	_atk_cache["ghost_shield_mesh"] = out
+	return out
+
+
+# ---------------------------------------------------------------- Theron of Delphi (Classical Age HQ, v0.9.46)
+# His pulse (tools/blender/hq/anim_theron.py): he lifts his staff and strikes its foot down (HIT, ATTACK_FRAME): the sun
+# on its head flares and a ring of gold runs out over the ground from his feet; each robot it slows glints gold.
+# Prophecy: he raises the staff high, head thrown back (VISION: the sun's eye blazes and a great golden eye opens in the
+# air over him, staring out across the field), then levels it at the robots (FLARE): the sun bursts, a wave of sunlight
+# rolls out and every robot in reach catches fire as it reaches it (Kira's burn) and lies open to every hit (the sim's
+# "expose").
+const THERON_SUN_HIT := Vector3(-0.3, 1.86, 0.52)    # the sun at the strike (Yaw-local; measured)
+const THERON_SUN_UP := Vector3(-0.3, 2.62, 0.2)      # raised high at the vision (Yaw-local; measured)
+const THERON_SUN_FLARE := Vector3(-0.25, 1.36, 1.2)  # levelled at the robots (Yaw-local; measured)
+const THERON_VISION := 20                            # anim_theron.VISION
+const THERON_FLARE := 34                             # anim_theron.FLARE
+
+
+func _theron_sun(uid: int, p: Vector3) -> Vector3:
+	if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+		return ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * p
+	return Vector3.INF
+
+
+func _theron_pulse(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var ids := targets.duplicate()
+	var R := float(u.stats.get("range", 3.2))
+	_at_attack_frame(uid, float(ATTACK_FRAME.theron), 0.1, func() -> void:
+		var sun := _theron_sun(uid, THERON_SUN_HIT)
+		if sun != Vector3.INF:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash"), self, sun)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.8})
+		var at := _v3(u.pos, 0.3)
+		_ring_fx(at, R, Color(1.0, 0.82, 0.4), 0.55)
+		var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
+		var i := 0
+		for tid in ids:
+			if i >= cap or not _fx_room(1):
+				break
+			var t := int(tid)
+			var p := _robot_point(t, _hit_height_of(_robot_type(t)))
+			if p == Vector3.INF:
+				continue
+			var g := _mi(_fx_mesh("flash"), _atk_mat("sun_glint"), self, p)
+			g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": g, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.5})
+			i += 1)
+
+
+func _theron_prophecy(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var R := float(ev.get("radius", 5.5))
+	var at_v := float(THERON_VISION) / CLIP_FPS
+	var at_f := float(THERON_FLARE) / CLIP_FPS
+	var ids := []
+	for tid in ev.get("ids", []):
+		var t := int(tid)
+		var at := _robot_point(t, 0.0)
+		if at == Vector3.INF:
+			continue
+		_hold_hit(t, at_f + Vector2(at.x - hp.x, at.z - hp.z).length() / FLARE_SPEED)
+		ids.append(t)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_v, at_v, func() -> void: _theron_vision(hid, hp)))
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_f, at_f, func() -> void: _theron_burst(hid, hp, R, ids)))
+	var snd := "ab_solar_flare"
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", maxf(at_f - 0.45 * float(speed), 0.0), maxf(at_f - 0.45 * float(speed), 0.0),
+		func() -> void: _sfx(snd, 0.0, 0.0, 0.5)))
+
+
+## The vision: the sun on his staff blazes and a great golden eye opens in the air over him, staring out a moment.
+func _theron_vision(hid: int, hp: Vector3) -> void:
+	var sun := _theron_sun(hid, THERON_SUN_UP)
+	if sun != Vector3.INF:
+		for s2 in [1.2, 0.6]:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if s2 < 1.0 else "sun_flash"), self, sun)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.5, "kind": "flash", "s": s2})
+	var e := _mi(_eye_mesh(), _atk_mat("oracle_eye"), self, Vector3(hp.x, 3.4, hp.z))
+	e.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": e, "t": 0.0, "life": 1.7, "kind": "eye", "tid": -1, "h": 0.0, "s": 2.4})
+	_sfx("summon", -6.0, 0.0, 0.3)
+
+
+## The sun levelled at the robots bursts: a wave of sunlight rolls out from him and each robot in reach catches fire.
+func _theron_burst(hid: int, hp: Vector3, R: float, ids: Array) -> void:
+	var sun := _theron_sun(hid, THERON_SUN_FLARE)
+	if sun == Vector3.INF:
+		sun = hp + Vector3(0, 1.4, 0)
+	var spd := FLARE_SPEED * maxf(float(speed), 0.01)
+	for s2 in [1.6, 0.9]:
+		var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash_white" if s2 < 1.0 else "sun_flash"), self, sun)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.45, "kind": "flash", "s": s2})
+	var w := _mi(_wave_mesh(), _atk_mat("flare_wave"), self, Vector3(hp.x, 0.12, hp.z), Vector3.ZERO, Vector3(FLARE_R0, 1.0, FLARE_R0))
+	w.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": w, "t": 0.0, "life": R / spd + 0.15, "kind": "wave", "r": R, "speed": spd})
+	for t in ids:
+		var tid := int(t)
+		var at := _robot_point(tid, 0.0)
+		var d := Vector2(at.x - hp.x, at.z - hp.z).length() if at != Vector3.INF else 0.0
+		_fx_after(maxf(d - FLARE_R0, 0.0) / spd, func() -> void: _flare_burn(tid))
+	shake = maxf(shake, 0.6)
+
+
 # ---------------------------------------------------------------- Oracle (Classical Age HQ, v0.9.44)
 # Vapours rise from her tripod's cauldron while she stands (_oracle_vapour). At SEE (anim_oracle.py: she sweeps the
 # laurel out at the robots) visions flash from the laurel's tip to every robot the pulse hit (_sun_beams: golden; white
@@ -7289,12 +7536,20 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_stone_rain" if _era_index() < 4 else "airstrike", 0.0, 0.0, 0.5)
 			return
 		"quake":
+			if sim.hero != null and str(sim.hero.type) == "cassia" and _hq_clips(sim.hero.id) and float(sim.hero_def.ability.get("delay", 0.0)) > 0.0:
+				_cassia_order(int(sim.hero.id))             # v0.9.45: the order to charge; the charge lands with the sim (quake_land)
+				_banner(aname, Color(1.0, 0.5, 0.4))
+				return
 			_quake_fx(hp, ev.get("ids", []))
 			shake = 1.4
 			_banner(aname, Color(0.85, 0.6, 1.0))
 			_sfx("ab_earthquake", 0.0, 0.0, 0.5)
 			return
 		"flare":
+			if sim.hero != null and str(sim.hero.type) == "theron" and _hq_clips(sim.hero.id):
+				_theron_prophecy(ev, hp)                    # v0.9.46: the great eye opens over him, the sun burns them
+				_banner(aname, Color(1.0, 0.86, 0.45))
+				return
 			if sim.hero != null and _hq_clips(sim.hero.id):
 				_kira_flare(ev, hp)                         # v0.9.25: the raised sword blazes, a wave of sunlight rolls out
 				_banner(aname, C_GOLD)

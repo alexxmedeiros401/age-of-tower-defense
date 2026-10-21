@@ -598,7 +598,7 @@ func use_ability() -> bool:
 					if e.alive:
 						hit_ids.append(e.id)
 			else:
-				_quake(st, dmg)
+				hit_ids = _quake(st, dmg)
 		"flare":
 			var fsrc := {"hero": true, "tower_id": -1, "expose": float(ab.expose), "expose_time": float(ab.expose_time)}
 			for e in enemies.duplicate():
@@ -648,13 +648,16 @@ func use_ability() -> bool:
 	return true
 
 
-## Every robot on the field is stunned (a boss a quarter as long) and hurt.
-func _quake(st: float, dmg: float) -> void:
+## Every robot on the field is stunned (a boss a quarter as long) and hurt. Returns their ids.
+func _quake(st: float, dmg: float) -> Array:
 	var src := {"hero": true, "tower_id": -1}
+	var ids := []
 	for e in enemies.duplicate():
 		if e.alive:
 			e.stun_until = maxi(e.stun_until, tick + int(st * (0.25 if e.boss else 1.0) / TICK))
+			ids.append(e.id)
 			_damage(e, dmg, "blunt", src)
+	return ids
 
 
 func ability_type() -> String:
@@ -1029,7 +1032,8 @@ func step() -> void:
 	# a hero's quake landing
 	while not pending_quakes.is_empty() and int(pending_quakes[0].t) <= tick:
 		var q: Dictionary = pending_quakes.pop_front()
-		_quake(float(q.st), float(q.dmg))
+		var qids := _quake(float(q.st), float(q.dmg))
+		events.append({"e": "quake_land", "ids": qids, "pos": hero.pos if hero != null else Vector2.ZERO})
 
 	# spawns
 	while not spawn_queue.is_empty() and spawn_queue[0].t <= tick:
