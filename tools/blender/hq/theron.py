@@ -169,7 +169,7 @@ def hair_field():
     o = HEAD_C[None, :] + dirs * 0.6
     h, ok = ray_hit(surf, o, -dirs, tmax=0.7)
     for p, d, good in zip(h, dirs, ok):
-        if not good or hair_keep(p[None, :].astype(F))[0] > -0.006:
+        if not good or hair_keep(p[None, :].astype(F))[0] > 0.002:   # (curls to the hair's edge: no smooth rim)
             continue
         _curl(fd, p, norm(v3(d)), 0.0165)
     return fd
@@ -208,11 +208,12 @@ def beard_field():
     for c, r in BEARD_LOBES:
         mass.add(Ellipsoid(v3(c), r), 0.04)
     surf = Func(lambda P: mass.eval(P, margin=0.05) - F(0.002), (-0.4, -0.5, 1.2), (0.4, 0.3, 1.8))
-    # rows of curls over its front and sides (rays in toward the beard's middle)
-    rows = np.arange(1.32, 1.62, 0.026)
+    # rows of curls all over it: its front, round his jaw to his ears and up his cheeks (rays in toward the beard's
+    # middle); the curls may straddle its edge, so no smooth rim of beard shows round them
+    rows = np.arange(1.32, 1.68, 0.026)
     rs = np.random.RandomState(11)
     for j, z0 in enumerate(rows):
-        for a0 in np.arange(-1.25, 1.26, 0.2) + (0.1 if j % 2 else 0.0):
+        for a0 in np.arange(-2.4, 2.41, 0.2) + (0.1 if j % 2 else 0.0):
             a = a0 + rs.uniform(-0.05, 0.05)                    # (a little irregular: curls, not a pine cone)
             z = z0 + rs.uniform(-0.007, 0.007)
             d = v3((math.sin(a), -math.cos(a), 0.0))
@@ -221,7 +222,7 @@ def beard_field():
             if not ok[0]:
                 continue
             p = h[0]
-            if beard_mask(p[None, :].astype(F))[0] > -0.004 and p[2] > 1.44:
+            if beard_mask(p[None, :].astype(F))[0] > 0.003 and p[2] > 1.44:
                 continue
             _curl(fd, p, d, 0.0155 * rs.uniform(0.85, 1.12))
     # the moustache: two heavy locks from under the nose, drooping past his mouth into the beard

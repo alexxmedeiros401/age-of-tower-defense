@@ -171,6 +171,7 @@ def classical_materials(dark):
         "dark": dark, "turf": DM.dry_turf("DK_Turf", turf_top),
         "limestone": DM.limestone_rock("DK_Limestone"), "rock": DM.limestone_rock("DK_Rock"),
         "marble": mats.marble("DK_Marble"),
+        "marble_fine": mats.marble("DK_MarbleFine", vein_scale=2.6),     # (the statues: finer veins at their size)
         "ashlar": DM.ashlar("DK_Ashlar", base=(0.86, 0.8, 0.68), joint=(0.5, 0.45, 0.36), course=0.3, block=0.6,
                             grime7=(0.52, 0.48, 0.4)),
         "flags": mats.flagstone("DK_Flags", base=(0.7, 0.66, 0.58), alt=(0.78, 0.72, 0.6)),

@@ -916,15 +916,16 @@ def limestone(name="HQ_Limestone"):
     return g.finish(c, g.mixf(g.reg(6), 0.85, 0.55), g.bump(h, 0.3, 0.005))
 
 
-def marble(name="HQ_Marble", base=(0.93, 0.91, 0.87), warm=(0.9, 0.84, 0.74), vein=(0.58, 0.6, 0.65)):
+def marble(name="HQ_Marble", base=(0.93, 0.91, 0.87), warm=(0.9, 0.84, 0.74), vein=(0.58, 0.6, 0.65), vein_scale=1.0):
     """White marble (Classical Age): grey veins wandering through it, warm cream in patches, grey-brown grime in the
     joints and crevices, bright on worn edges, fine pits; label 5 = worn red paint, 6 = polished smooth and bright
-    (worn by feet), 7 = weathered dark (lichen, rain streaks)."""
+    (worn by feet), 7 = weathered dark (lichen, rain streaks). vein_scale > 1: finer, closer veins (small statues)."""
     g = new(name)
     p = g.obj()
     c = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.35, 0.65, 0.0, 1.0), g.rgb(base), g.rgb(warm))
-    v1 = g.smooth(g.wave(p, 2.2, 14.0, 4.0, "BANDS", "DIAGONAL"), 0.9, 0.985)
-    v2 = g.smooth(g.wave(g.scale_vec(p, (1.0, 1.7, 0.6)), 3.4, 18.0, 3.0, "BANDS", "X"), 0.93, 0.99)
+    pv = p if vein_scale == 1.0 else g.scale_vec(p, (vein_scale, vein_scale, vein_scale))
+    v1 = g.smooth(g.wave(pv, 2.2, 14.0, 4.0, "BANDS", "DIAGONAL"), 0.9, 0.985)
+    v2 = g.smooth(g.wave(g.scale_vec(pv, (1.0, 1.7, 0.6)), 3.4, 18.0, 3.0, "BANDS", "X"), 0.93, 0.99)
     c = g.mix(g.math("MULTIPLY", v1, 0.5), c, g.rgb(vein))
     c = g.mix(g.math("MULTIPLY", v2, 0.3), c, g.rgb(vein))
     pt = g.geo("Pointiness")

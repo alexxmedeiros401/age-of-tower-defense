@@ -454,7 +454,7 @@ def statue(seed=0, h=1.5):
     f.add(Ellipsoid((0.11 * s, 0.01, z0 + 0.5 * s), (0.08 * s, 0.07 * s, 0.3 * s), disp=folds, disp_amp=0.01), k=0.04)   # the cloak's fall
     f.paint(Func(lambda P: (P[:, 2] - F32(0.2)).astype(F32), (-1, -1, -0.1), (1, 1, 2.5)), 7)
     ground_cut(f)
-    return [("Statue", f, fine(0.006, 0.012), "marble")]
+    return [("Statue", f, fine(0.006, 0.012), "marble_fine")]
 
 
 def lion(seed=0):
@@ -489,7 +489,7 @@ def lion(seed=0):
                 [0.03, 0.026, 0.022, 0.03], k=0.01), k=0.02)                                 # the tail round its flank
     f.paint(Func(lambda P: (P[:, 2] - F32(0.18)).astype(F32), (-1, -1, -0.1), (1, 1, 1.5)), 7)
     ground_cut(f)
-    return [("Lion", f, fine(0.006, 0.012), "marble")]
+    return [("Lion", f, fine(0.006, 0.012), "marble_fine")]
 
 
 # ------------------------------------------------------------------------------------------------ buildings
