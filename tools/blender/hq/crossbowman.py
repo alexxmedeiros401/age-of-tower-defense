@@ -283,7 +283,7 @@ def gambeson_base():
         if i in (2, 3):                     # (no pectorals: the padding lies smooth and round over the chest)
             continue
         b.add(p, k)
-    b.add(Ellipsoid((0, -0.04, 1.25), (0.24, 0.13, 0.13)), 0.06)
+    b.add(Ellipsoid((0, -0.055, 1.29), (0.27, 0.16, 0.19)), 0.06)          # (big enough to cover his chest)
     b.add(traps(), 0.06)
     b.add(RoundCone((0, 0.035, 0.92), (0, 0.035, 0.47), 0.24, 0.31), 0.08)
     for side in ("R", "L"):
@@ -616,8 +616,8 @@ def crossbow_field():
     # the prod: a flat steel bow through the stock, tapering to its tips, with little hooks for the string
     ss = np.linspace(-1.0, 1.0, 25)
     pts = [prod_point(s) for s in ss]
-    ws = [0.017 - 0.007 * abs(s) for s in ss]
-    ts = [0.0075 - 0.003 * abs(s) for s in ss]
+    ws = [0.024 - 0.01 * abs(s) for s in ss]                 # (stout: it reads at a distance)
+    ts = [0.011 - 0.004 * abs(s) for s in ss]
     fd.add(Lock(pts, ws, ts, [A] * len(pts), k=0.006), 0.004, 6)
     for s in (-1.0, 1.0):
         tp = prod_point(s)
@@ -661,7 +661,7 @@ def crossbow_field():
 def string_field():
     fd = Field("String")
     t1, t2 = prod_tips()
-    fd.add(Chain([t1, nut_point(), t2], [0.0042, 0.0042, 0.0042], k=0.002), 0.0)
+    fd.add(Chain([t1, nut_point(), t2], [0.0052, 0.0052, 0.0052], k=0.002), 0.0)
     return fd
 
 
