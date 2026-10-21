@@ -7016,9 +7016,9 @@ func _ghost_shield_mesh() -> Mesh:
 # air over him, staring out across the field), then levels it at the robots (FLARE): the sun bursts, a wave of sunlight
 # rolls out and every robot in reach catches fire as it reaches it (Kira's burn) and lies open to every hit (the sim's
 # "expose").
-const THERON_SUN_HIT := Vector3(-0.3, 1.86, 0.52)    # the sun at the strike (Yaw-local; measured)
-const THERON_SUN_UP := Vector3(-0.3, 2.62, 0.2)      # raised high at the vision (Yaw-local; measured)
-const THERON_SUN_FLARE := Vector3(-0.25, 1.36, 1.2)  # levelled at the robots (Yaw-local; measured)
+const THERON_SUN_HIT := Vector3(-0.423, 1.694, 0.563)    # the sun at the strike (Yaw-local; measured)
+const THERON_SUN_UP := Vector3(-0.287, 2.591, 0.24)    # raised high at the vision (Yaw-local; measured)
+const THERON_SUN_FLARE := Vector3(-0.226, 1.354, 1.237)  # levelled at the robots (Yaw-local; measured)
 const THERON_VISION := 20                            # anim_theron.VISION
 const THERON_FLARE := 34                             # anim_theron.FLARE
 
