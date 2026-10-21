@@ -37,11 +37,11 @@ def head(fd):
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.06, 1.594), (0.142, 0.132, 0.126)), 0.07, SKIN)
-    fd.add(E((0, -0.133, 1.503), (0.077, 0.066, 0.064)), 0.05, SKIN)
+    fd.add(E((0, -0.06, 1.594), (0.136, 0.129, 0.125)), 0.07, SKIN)                            # (a woman's jaw: firm, not broad)
+    fd.add(E((0, -0.132, 1.505), (0.072, 0.063, 0.062)), 0.05, SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.11, -0.118, 1.636), 0.042), 0.05, SKIN)
-        fd.add(S((sx * 0.118, -0.05, 1.562), 0.047), 0.05, SKIN)
+        fd.add(S((sx * 0.108, -0.119, 1.642), 0.039), 0.05, SKIN)                                 # high cheekbones
+        fd.add(S((sx * 0.113, -0.05, 1.566), 0.043), 0.05, SKIN)
         pts = [hp((sx * 0.15, -0.06, 1.744)), hp((sx * 0.115, -0.13, 1.75)), hp((sx * 0.062, -0.164, 1.748))]
         fd.add(Chain(pts, [hr(0.011), hr(0.016), hr(0.014)], k=hr(0.02)), hr(0.03), SKIN)
     for sx in (-1, 1):
@@ -51,16 +51,18 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, hr(0.014))), (sx * 0.2, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0056)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.2, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0044)), Plane(ec + v3((0, 0, -hr(0.024))), (sx * -0.12, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.011))), (sx * 0.2, 0.05, -1.0)), hr(0.002)), LASH)
-    fd.add(RoundCone(hp((0, -0.18, 1.724)), hp((0, -0.222, 1.642)), hr(0.013), hr(0.017)), hr(0.016), SKIN)
-    fd.add(S((0, -0.2, 1.69), 0.015), hr(0.01), SKIN)                                                # the bump on the bridge
-    fd.add(S((0, -0.222, 1.632), 0.021), hr(0.013), SKIN)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0135))), (sx * 0.2, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.011)))                                    # lashes flicked out at the corner
+        fd.add(RoundCone(flick, flick + v3((sx * hr(0.013), hr(0.006), hr(0.005))), hr(0.0042), hr(0.0014)), hr(0.004), LASH)
+    fd.add(RoundCone(hp((0, -0.18, 1.724)), hp((0, -0.22, 1.644)), hr(0.0115), hr(0.0155)), hr(0.016), SKIN)
+    fd.add(S((0, -0.199, 1.69), 0.012), hr(0.01), SKIN)                                              # the bump on the bridge
+    fd.add(S((0, -0.219, 1.634), 0.0185), hr(0.013), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.024, -0.203, 1.619), 0.015), hr(0.01), SKIN)
+        fd.add(S((sx * 0.022, -0.201, 1.62), 0.0135), hr(0.01), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.012, -0.216, 1.608)), v3((0.007, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     slot = [hp((-0.055, -0.167, 1.552)), hp((-0.029, -0.189, 1.548)), hp((0, -0.195, 1.547)), hp((0.029, -0.189, 1.548)),
             hp((0.055, -0.167, 1.552))]
@@ -68,8 +70,8 @@ def head(fd):
     fd.paint(Chain(slot, [hr(0.003), hr(0.0044), hr(0.0048), hr(0.0044), hr(0.003)], k=hr(0.004)), MOUTH)
     up_lip = [(-0.053, -0.164, 1.556), (-0.028, -0.182, 1.556), (0, -0.187, 1.558), (0.028, -0.182, 1.556), (0.053, -0.164, 1.556)]
     lo_lip = [(-0.045, -0.166, 1.547), (-0.024, -0.182, 1.537), (0, -0.186, 1.535), (0.024, -0.182, 1.537), (0.045, -0.166, 1.547)]
-    fd.add(Chain([hp(p) for p in up_lip], [hr(0.0035), hr(0.006), hr(0.0065), hr(0.006), hr(0.0035)], k=hr(0.006)), hr(0.009), LIP)
-    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.0042), hr(0.0075), hr(0.0082), hr(0.0075), hr(0.0042)], k=hr(0.007)), hr(0.009), LIP)
+    fd.add(Chain([hp(p) for p in up_lip], [hr(0.0037), hr(0.0066), hr(0.0072), hr(0.0066), hr(0.0037)], k=hr(0.006)), hr(0.009), LIP)
+    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.0045), hr(0.0082), hr(0.009), hr(0.0082), hr(0.0045)], k=hr(0.007)), hr(0.009), LIP)
     for sx in (-1, 1):
         fd.add(Ellipsoid(hp((sx * 0.174, 0.035, 1.66)), v3((0.024, 0.043, 0.054)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
     scar = [hp((0.018, -0.196, 1.512)), hp((0.03, -0.19, 1.494)), hp((0.038, -0.18, 1.478))]
@@ -136,7 +138,7 @@ def helmet_hull():
 def head_hull():
     fd = Field("HeadHull")
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.0)
-    fd.add(Ellipsoid(hp((0, -0.06, 1.594)), v3((0.142, 0.132, 0.126)) * HS), 0.07)
+    fd.add(Ellipsoid(hp((0, -0.06, 1.594)), v3((0.136, 0.129, 0.125)) * HS), 0.07)
     fd.add(neck_prim(), 0.05)
     return fd
 
