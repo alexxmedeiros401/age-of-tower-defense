@@ -12,8 +12,12 @@ cracks, a mine railway down the road, copper-green flecks (canyon); heather moor
 banks forded by a cobbled track, peaty lochans (highland); soot, cinders and rusty ore earth, glassy slag heaps, a
 packed-cinder road with a clay wallow, lava pools and glowing fissures (forge); a marsh of sedge, red and green
 sphagnum and peat, plank trackways laid across the road, a sucking mud wallow where they meet, black bog pools with scum
-at their edges (bog). For highland and bog, --watersrc PATH also writes the exact water mask (the stream, its fords, the
-lochans, the bog pools) for tools/water_mask.py --src PATH.
+at their edges (bog); Classical Age (v0.9.48): a dry Mediterranean hillside of golden grass, red earth and limestone,
+tilled red earth under the olive groves, a dusty track scuffed smooth on the downhill runs and loose scree on the climbs
+(olive); coastal scrub on sandy ground, white beaches and a turquoise inlet the Roman road bridges, its flagstones in
+the aqueducts' shadow (coast); a hill of pale limestone, its crevices grassy, the road paved with marble slabs, marble
+paving round the ruins and the statues (acropolis). For highland, bog and coast, --watersrc PATH also writes the exact
+water mask (the stream, its fords, the lochans, the bog pools, the inlet) for tools/water_mask.py --src PATH.
 Output: assets/textures/ground_<map_id>.png (same coverage as tools/gen_ground.py: x -21..19, z -13..13).
 """
 import sys, os, math, time
@@ -97,7 +101,8 @@ tun_al = np.zeros(X.shape)
 if zf["tunnel"]:
     td, tun_al = g.poly_dist(zf["tunnel"])
     tun = np.exp(-(td / 0.3) ** 2) * np.clip((dist - HALF - 0.1) / 0.1, 0, 1)
-blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore", "trees", "stones", "slag")}
+blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore", "trees", "stones", "slag",
+                                         "statue")}
 BLOCKERS = []
 for bl in m.get("blockers", []):
     bx, bz, br = bl[0], bl[1], bl[2]
@@ -113,7 +118,7 @@ for rv in m.get("rivers", []):
     rdd, _ra = g.poly_dist([rv["pts"]], margin=6.0)
     riv = np.minimum(riv, rdd + (fbm(1.5, 3, 41) - 0.5) * 0.4 - float(rv["width"]) / 2)     # < 0 in the water
 log("masks", g.w, g.h)
-if arg("--watersrc") and THEME in ("highland", "bog"):
+if arg("--watersrc") and THEME in ("highland", "bog", "coast"):
     from PIL import Image as _Im
     _w = np.maximum(np.clip(-riv / 0.12, 0, 1), np.clip(-blk["lake"] / 0.15, 0, 1))
     _Im.fromarray((np.clip(_w, 0, 1) * 255).astype(np.uint8)).save(arg("--watersrc"))
@@ -152,20 +157,20 @@ sc.world = wd
 wd.use_nodes = True
 SKY = {"meadow": (0.62, 0.74, 0.95), "snow": (0.66, 0.78, 1.0), "volcano": (0.6, 0.38, 0.3), "delta": (0.62, 0.76, 0.95),
        "desert": (0.72, 0.78, 0.92), "canyon": (0.74, 0.7, 0.72), "highland": (0.62, 0.72, 0.9), "forge": (0.56, 0.42, 0.36),
-       "bog": (0.64, 0.72, 0.78)}[THEME]
+       "bog": (0.64, 0.72, 0.78), "olive": (0.66, 0.76, 0.95), "coast": (0.64, 0.77, 0.96), "acropolis": (0.66, 0.76, 0.95)}[THEME]
 wd.node_tree.nodes["Background"].inputs["Color"].default_value = SKY + (1,)
 wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1.05, "snow": 1.0, "volcano": 0.8, "delta": 1.05,
                                                                     "desert": 1.0, "canyon": 0.95, "highland": 1.0, "forge": 0.82,
-                                                                    "bog": 0.98}[THEME]
+                                                                    "bog": 0.98, "olive": 1.05, "coast": 1.05, "acropolis": 1.05}[THEME]
 # the game's sun: Godot rotation (-52, -36, 0) -> light travelling (0.362, -0.788, -0.498) in Godot = (x, y_b, z_b)
 # (0.362, 0.498, -0.788) in Blender (y_b = -z_godot)
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
 sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6, "highland": 2.6, "forge": 2.3,
-                   "bog": 2.5}[THEME]
+                   "bog": 2.5, "olive": 2.8, "coast": 2.75, "acropolis": 2.8}[THEME]
 sun.data.angle = math.radians(8)
 sun.data.color = {"meadow": (1.0, 0.95, 0.86), "snow": (1.0, 0.98, 0.96), "volcano": (1.0, 0.75, 0.55), "delta": (1.0, 0.95, 0.86),
                   "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78), "highland": (1.0, 0.95, 0.87), "forge": (1.0, 0.8, 0.62),
-                  "bog": (0.98, 0.96, 0.86)}[THEME]
+                  "bog": (0.98, 0.96, 0.86), "olive": (1.0, 0.95, 0.84), "coast": (1.0, 0.96, 0.88), "acropolis": (1.0, 0.95, 0.85)}[THEME]
 d = Vector((0.362, 0.498, -0.788))
 sun.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 sc.collection.objects.link(sun)
@@ -244,6 +249,18 @@ if THEME == "bog":
     lk = blk["lake"]
     hf = np.where(lk < 0, -0.055, hf) + np.exp(-((lk - 0.08) / 0.16) ** 2) * 0.02
     hf += road * 0.03 * (1 - slow) - slow * 0.025                                                  # the trackway rides on the marsh; mud sinks
+if THEME == "olive":
+    hf += (fbm(1.8, 4, 111) - 0.5) * 0.08 * (1 - road)                                             # the rolling hillside
+    hf += slow * (0.012 + (fbm(0.22, 2, 112) - 0.5) * 0.05)                                          # loose scree on the climbs
+    hf += np.clip(-blk["trees"] / 1.0, 0, 1) * 0.02                                                 # the groves' low terraces
+if THEME == "coast":
+    hf += (fbm(1.4, 4, 121) - 0.5) * 0.06 * (1 - road)
+    hf = np.where((riv < 0) & (road < 0.5), -0.09, hf)                                             # the inlet (not under the bridge)
+    hf -= np.exp(-((riv - 0.15) / 0.35) ** 2) * 0.03 * (1 - road)                                   # its beaches shelving down to it
+if THEME == "acropolis":
+    hf += (fbm(0.9, 4, 131) - 0.5) * 0.06 * (1 - road)
+    hf += np.clip((fbm(0.6, 3, 132) - 0.55) / 0.2, 0, 1) * 0.04 * (1 - road)                       # ledges of bare limestone
+    hf += np.clip(-blk["statue"] / 0.6, 0, 1) * 0.02                                                # the statues' paved plinths
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
 H_MESH = sample(hf, MX, MZ)
@@ -291,7 +308,8 @@ lake_bank = np.clip(1 - np.abs(blk["lake"] - 0.15) / 0.3, 0, 1) * (1 - lake_core
 water_all = np.maximum(river_core, lake_core) * (1 - road)
 if THEME == "highland":
     water_all = np.maximum(river_core, lake_core)                                                  # (the stream runs over its fords)
-zone_a = np.clip(-blk["palms"] / 0.4, 0, 1) + np.clip(-blk["ruins"] / 0.3, 0, 1) + np.clip(-blk["stones"] / 0.5, 0, 1)
+zone_a = np.clip(-blk["palms"] / 0.4, 0, 1) + np.clip(-blk["ruins"] / 0.3, 0, 1) + np.clip(-blk["stones"] / 0.5, 0, 1) + \
+    np.clip(-blk["statue"] / 0.3, 0, 1)
 zone_b = np.clip(-blk["dune"] / 0.6, 0, 1) + np.clip(-blk["pillar"] / 0.5, 0, 1) + np.clip(-blk["ore"] / 0.12, 0, 1) + \
     np.clip(-blk["slag"] / 0.5, 0, 1)
 trees_z = np.clip(-blk["trees"] / 0.5, 0, 1)
@@ -307,6 +325,9 @@ if THEME == "bog":                       # the trackways: planks laid across the
     ph = np.abs(along / 0.27 - np.round(along / 0.27)) * 0.27
     sleeper = np.clip((ph - 0.012) / 0.012, 0, 1) * np.clip((HALF + 0.06 + (fbm(0.3, 2, 103) - 0.5) * 0.12 - dist) / 0.04, 0, 1)
     sleeper *= (1 - slow)
+if THEME == "acropolis":                 # the marble slabs: joints across the road and one down its middle
+    ph = np.abs(along / 0.62 - np.round(along / 0.62)) * 0.62
+    sleeper = np.maximum(np.exp(-(ph / 0.014) ** 2), np.exp(-(dist / 0.014) ** 2)) * np.clip((HALF - 0.04 - dist) / 0.04, 0, 1)
 img5 = to_image("mask5", np.stack([sleeper, rail, np.clip(-blk["ore"] / 0.12, 0, 1), trees_z], 2))
 
 
@@ -600,6 +621,83 @@ elif THEME == "bog":
     pool = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(6.0, 2, 0.5), 0.66, 0.72), nb.ramp(water_m, 0.9, 0.4)), pool, (0.42, 0.48, 0.18))
     c = nb.mix(water_m, c, pool)
     rough = nb.mixf(nb.math("MAXIMUM", water_m, nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 1.0, sleep_m))), 0.88, 0.22)
+elif THEME == "olive":
+    # a dry hillside: golden grass, greener hollows, red earth and limestone showing through; red earth under the olives
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.6, 0.52, 0.26), (0.74, 0.64, 0.34))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.6), c, (0.42, 0.46, 0.2))
+    terra = nb.ramp(nb.noise(1.1, 4, 0.6, distort=0.4), 0.62, 0.72)
+    c = nb.mix(nb.math("MULTIPLY", terra, 0.75), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.52, 0.3, 0.18), (0.64, 0.4, 0.24)))
+    lime = nb.ramp(nb.noise(2.2, 3, 0.6), 0.7, 0.76)
+    c = nb.mix(nb.math("MULTIPLY", lime, 0.6), c, (0.8, 0.77, 0.68))
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.82, 0.72, 0.42))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.36, 0.34, 0.18), (0.46, 0.42, 0.22)))
+    grove = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.5, 0.32, 0.2), (0.6, 0.4, 0.26))
+    grove = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(30.0, 2, 0.5), 0.66, 0.72), 0.6), grove, (0.56, 0.6, 0.46))   # fallen leaves
+    c = nb.mix(nb.math("MULTIPLY", trees_m, 0.85), c, grove)
+    flag = nb.ramp(nb.voronoi(3.2, "Distance", "DISTANCE_TO_EDGE"), 0.02, 0.06)
+    c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.75), c, nb.mix(nb.math("SUBTRACT", 1.0, flag), (0.84, 0.82, 0.76), (0.56, 0.52, 0.46)))
+    track = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.66, 0.54, 0.38), (0.77, 0.66, 0.49))                  # a dusty track
+    track = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(30.0, "Distance"), 0.22, 0.1), 0.35), track, (0.52, 0.44, 0.34))
+    track = nb.mix(nb.math("MULTIPLY", rut_m, 0.55), track, (0.56, 0.44, 0.3))
+    run = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.8, 0.7, 0.54), (0.88, 0.8, 0.64))     # the downhill runs: scuffed smooth
+    run = nb.mix(nb.math("MULTIPLY", chev_m, 0.75), run, (0.96, 0.92, 0.8))
+    track = nb.mix(lane_m, track, run)
+    scree = nb.mix(nb.ramp(nb.voronoi(14.0, "Distance"), 0.35, 0.08), (0.48, 0.45, 0.4), (0.74, 0.72, 0.66))    # the climbs: scree
+    track = nb.mix(slow_m, track, scree)
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.5), c, (0.56, 0.48, 0.26))
+    c = nb.mix(road_m, c, track)
+    rough = 0.9
+elif THEME == "coast":
+    # coastal scrub on sandy ground, limestone, white beaches, a turquoise inlet; a Roman road of flagstones
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.72, 0.64, 0.44), (0.83, 0.74, 0.53))
+    maq = nb.ramp(nb.noise(1.3, 4, 0.6, distort=0.4), 0.56, 0.66)
+    c = nb.mix(nb.math("MULTIPLY", maq, 0.8), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.26, 0.36, 0.16), (0.36, 0.46, 0.2)))
+    lime = nb.ramp(nb.noise(2.0, 3, 0.6), 0.7, 0.77)
+    c = nb.mix(nb.math("MULTIPLY", lime, 0.6), c, (0.88, 0.86, 0.8))
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.9, 0.82, 0.6))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.4, 0.4, 0.26), (0.5, 0.48, 0.32)))
+    flag = nb.ramp(nb.voronoi(3.2, "Distance", "DISTANCE_TO_EDGE"), 0.02, 0.06)
+    c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.75), c, nb.mix(nb.math("SUBTRACT", 1.0, flag), (0.86, 0.84, 0.78), (0.58, 0.54, 0.48)))
+    pave = nb.mix(nb.ramp(nb.noise(2.5, 3, 0.6), 0.3, 0.7), (0.6, 0.58, 0.54), (0.73, 0.71, 0.65))   # the flagstones
+    pflag = nb.ramp(nb.voronoi(2.8, "Distance", "DISTANCE_TO_EDGE"), 0.02, 0.055)
+    pave = nb.mix(nb.math("SUBTRACT", 1.0, pflag), pave, (0.36, 0.34, 0.3))
+    pave = nb.mix(nb.math("MULTIPLY", rut_m, 0.3), pave, (0.5, 0.48, 0.44))
+    pave = nb.mix(nb.math("MULTIPLY", tun_m, 0.6), pave, (0.32, 0.31, 0.3))                            # in the aqueducts' shadow
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.5), c, (0.6, 0.56, 0.42))
+    c = nb.mix(road_m, c, pave)
+    beach = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.88, 0.82, 0.64), (0.96, 0.91, 0.76))
+    beach = nb.mix(nb.math("MULTIPLY", nb.ramp(bank_m, 0.5, 1.0), 0.6), beach, (0.7, 0.62, 0.46))   # wet sand by the water
+    c = nb.mix(nb.math("MULTIPLY", bank_m, 0.95), c, beach)
+    water = nb.mix(nb.ramp(nb.noise(0.7, 3, 0.6), 0.3, 0.7), (0.05, 0.3, 0.44), (0.1, 0.42, 0.55))
+    water = nb.mix(nb.math("MULTIPLY", nb.ramp(water_m, 0.5, 0.0), 1.0), water, (0.24, 0.66, 0.68))   # turquoise shallows
+    c = nb.mix(water_m, c, water)
+    rough = nb.mixf(water_m, 0.9, 0.18)
+elif THEME == "acropolis":
+    # a hill of pale limestone, its crevices grassy, pockets of red earth; a road of marble slabs
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.68, 0.64, 0.56), (0.8, 0.76, 0.68))
+    crev = nb.ramp(nb.voronoi(1.4, "Distance", "DISTANCE_TO_EDGE"), 0.03, 0.0)
+    c = nb.mix(nb.math("MULTIPLY", crev, 0.7), c, (0.4, 0.38, 0.28))
+    gr = nb.ramp(nb.noise(1.2, 4, 0.6, distort=0.4), 0.58, 0.68)
+    c = nb.mix(nb.math("MULTIPLY", gr, 0.75), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.52, 0.5, 0.26), (0.66, 0.6, 0.32)))   # dry grass
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.32, 0.22), 0.6), c, (0.36, 0.42, 0.2))                                  # scrub
+    terra = nb.ramp(nb.noise(2.4, 3, 0.6), 0.7, 0.76)
+    c = nb.mix(nb.math("MULTIPLY", terra, 0.6), c, (0.6, 0.36, 0.22))
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.88, 0.84, 0.76))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.46, 0.42, 0.34), (0.56, 0.52, 0.42)))
+    flag = nb.ramp(nb.voronoi(3.2, "Distance", "DISTANCE_TO_EDGE"), 0.02, 0.06)
+    c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.8), c, nb.mix(nb.math("SUBTRACT", 1.0, flag), (0.9, 0.88, 0.82), (0.6, 0.56, 0.5)))
+    marble = nb.mix(nb.ramp(nb.noise(2.2, 3, 0.6), 0.3, 0.7), (0.84, 0.82, 0.76), (0.93, 0.91, 0.86))
+    vein = nb.n("ShaderNodeTexWave", wave_type="BANDS", bands_direction="DIAGONAL")
+    vein.inputs["Scale"].default_value = 1.6
+    vein.inputs["Distortion"].default_value = 12.0
+    vein.inputs["Detail"].default_value = 4.0
+    nb.link(nb.uvn.outputs["Object"], vein.inputs["Vector"])
+    marble = nb.mix(nb.math("MULTIPLY", nb.ramp(vein.outputs["Fac"], 0.9, 0.98), 0.4), marble, (0.62, 0.62, 0.64))
+    marble = nb.mix(sleep_m, marble, (0.5, 0.47, 0.42))                                                  # the slabs' joints
+    marble = nb.mix(nb.math("MULTIPLY", rut_m, 0.2), marble, (0.72, 0.7, 0.64))
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.55), c, (0.6, 0.56, 0.48))
+    c = nb.mix(road_m, c, marble)
+    rough = nb.mixf(road_m, 0.9, 0.55)
 else:   # volcano
     c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.11), (0.24, 0.2, 0.18))
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.36, 0.22, 0.15))         # rusty ash
@@ -794,7 +892,7 @@ def place_list(pts, s_lo, s_hi, sink=0.0, tilt=0.0):
 
 rd = lambda x, z: sample(dist, x, z)
 inside_pf = lambda x, z: sample(outside, x, z) < 0.5
-BLK_ALL = np.minimum.reduce([blk[k] for k in ("palms", "dune", "ruins", "pillar", "ore", "slag")])
+BLK_ALL = np.minimum.reduce([blk[k] for k in ("palms", "dune", "ruins", "pillar", "ore", "slag", "statue")])
 PATCH = fbm(0.9, 4, 0)                   # where heather (highland) and rushes (bog) grow thick
 no_blk = lambda x, z: (sample(blk["lake"], x, z) > 0.2) & (sample(blk["lava"], x, z) > 0.3) & (sample(blk["rocks"], x, z) > 0.1) & \
     (sample(BLK_ALL, x, z) > 0.15)
@@ -952,6 +1050,58 @@ elif THEME == "bog":
     moss = simple_mat("Moss", (0.34, 0.44, 0.14), 0.9, var=(0.5, 0.26, 0.14))
     pts = scatter(900 if not PREVIEW else 150, lambda x, z: (rd(x, z) > HALF + 0.15) & no_blk(x, z) & wet(x, z))
     merged("MossLumps", blob_template(2), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.05, 0.12, sink=0.7)], moss)
+elif THEME in ("olive", "coast", "acropolis"):
+    dry_w = lambda x, z: (sample(water_all, x, z) < 0.05) & (sample(bank, x, z) < 0.4)
+    gold = blade_mat("DryGrass", (0.42, 0.38, 0.18), (0.62, 0.55, 0.28), (0.86, 0.78, 0.5))
+    n_dry = {"olive": 15000, "coast": 9000, "acropolis": 6000}[THEME]
+    acc = (lambda x, z: (rd(x, z) > HALF + 0.1) & no_blk(x, z) & dry_w(x, z)) if THEME != "acropolis" else \
+        (lambda x, z: (rd(x, z) > HALF + 0.1) & no_blk(x, z) & (sample(PATCH, x, z) > 0.45))
+    pts = scatter(n_dry if not PREVIEW else 2000, acc)
+    merged("Tufts", tuft_template(9, 0.12, 0.013), place_list(pts, 0.75, 1.45), gold)
+    green = blade_mat("GreenGrass", (0.24, 0.36, 0.12), (0.38, 0.5, 0.18), (0.6, 0.68, 0.3))
+    pts = scatter(3000 if not PREVIEW else 400, lambda x, z: (rd(x, z) > HALF + 0.3) & no_blk(x, z) & dry_w(x, z) & (sample(PATCH, x, z) < 0.4))
+    merged("GreenTufts", tuft_template(9, 0.1, 0.013), place_list(pts, 0.75, 1.3), green)
+    # thyme, sage and lentisk cushions; the coast's maquis and the hill's scrub as bigger rounded bushes
+    herb = simple_mat("Herb", (0.38, 0.44, 0.3), 0.85, var=(0.5, 0.42, 0.52))
+    pts = scatter(1400 if not PREVIEW else 200, lambda x, z: (rd(x, z) > HALF + 0.35) & no_blk(x, z) & dry_w(x, z))
+    merged("Herbs", blob_template(1), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.035, 0.07, sink=0.45)], herb)
+    if THEME in ("coast", "acropolis"):
+        bush = simple_mat("Maquis", (0.18, 0.28, 0.12), 0.85, var=(0.3, 0.38, 0.16))
+        pts = scatter((700 if THEME == "coast" else 300) if not PREVIEW else 100,
+                      lambda x, z: (rd(x, z) > HALF + 0.6) & no_blk(x, z) & dry_w(x, z))
+        merged("Maquis", blob_template(2), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.08, 0.16, sink=0.4)], bush)
+    flowers = {"olive": [(0.86, 0.12, 0.1), (1.0, 0.84, 0.22), (1.0, 1.0, 0.94)], "coast": [(1.0, 0.84, 0.22), (0.9, 0.5, 0.74), (1.0, 1.0, 0.94)],
+               "acropolis": [(0.86, 0.12, 0.1), (1.0, 0.84, 0.22)]}[THEME]                   # poppies, broom, chamomile, sea pinks
+    for k, col in enumerate(flowers):
+        centres = scatter(55 if not PREVIEW else 15, lambda x, z: (rd(x, z) > HALF + 0.5) & inside_pf(x, z) & no_blk(x, z) & dry_w(x, z))
+        pts = []
+        for cx, cz in centres:
+            for _ in range(int(RNG.integers(3, 8))):
+                pts.append((cx + RNG.normal(0, 0.12), cz + RNG.normal(0, 0.12)))
+        merged("Flowers%d" % k, flower_template(5, 0.038), place_list(pts, 0.8, 1.25), simple_mat("Petal%d" % k, col, 0.45))
+    lime = simple_mat("Limestone", (0.72, 0.7, 0.64), 0.8, var=(0.86, 0.84, 0.78))
+    if THEME != "acropolis":
+        pts = scatter(2600 if not PREVIEW else 400, lambda x, z: (rd(x, z) < HALF + 0.15) & dry_w(x, z))
+        merged("Pebbles", blob_template(1), place_list(pts, 0.014, 0.04, sink=0.35), lime)
+    pts = scatter(150, lambda x, z: (np.abs(rd(x, z) - HALF - 0.35) < 0.35) & no_blk(x, z) & dry_w(x, z))
+    merged("Stones", blob_template(2), place_list(pts, 0.05, 0.13, sink=0.45, tilt=0.2), lime)
+    if THEME == "olive":
+        pts = scatter(900 if not PREVIEW else 150, lambda x, z: (sample(slow, x, z) > 0.5))
+        merged("Scree", blob_template(1), place_list(pts, 0.02, 0.06, sink=0.3, tilt=0.4), lime)                # the climbs' loose stones
+    if THEME == "coast":
+        sand = simple_mat("BeachStone", (0.7, 0.66, 0.58), 0.6, var=(0.86, 0.82, 0.74))
+        pts = scatter(1100 if not PREVIEW else 200, lambda x, z: (sample(bank, x, z) > 0.4) & (rd(x, z) > HALF))
+        merged("BeachStones", blob_template(1), place_list(pts, 0.015, 0.045, sink=0.4), sand)
+        shell = simple_mat("Shell", (0.98, 0.94, 0.88), 0.5, var=(0.94, 0.78, 0.7))
+        pts = scatter(500 if not PREVIEW else 100, lambda x, z: (sample(bank, x, z) > 0.3) & (rd(x, z) > HALF))
+        merged("Shells", blob_template(1), [(p, y, s, None) for (p, y, s, t) in place_list(pts, 0.012, 0.022, sink=0.5)], shell)
+    if THEME == "acropolis":
+        marb = simple_mat("Rubble", (0.86, 0.84, 0.78), 0.6, var=(0.94, 0.92, 0.86))
+        pts = scatter(500 if not PREVIEW else 100, lambda x, z: ((sample(blk["ruins"], x, z) < 0.6) | (sample(blk["statue"], x, z) < 0.5)) &
+                      (rd(x, z) > HALF + 0.2))
+        merged("Rubble", blob_template(1), place_list(pts, 0.03, 0.09, sink=0.3, tilt=0.5), marb)
+        pts = scatter(1200 if not PREVIEW else 200, lambda x, z: (rd(x, z) > HALF + 0.1) & no_blk(x, z))
+        merged("Chips", blob_template(1), place_list(pts, 0.012, 0.035, sink=0.3), lime)
 else:
     cinder = simple_mat("Cinder", (0.16, 0.13, 0.12), 0.8, var=(0.3, 0.25, 0.22))
     pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
@@ -982,7 +1132,7 @@ from PIL import Image
 im = np.asarray(Image.open(OUT + ".raw.png").convert("RGB")).astype(np.float32) / 255.0
 # brightness: the game lights this plane again, so bring the playfield's mean to the old painted level
 TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4, "highland": 0.4, "forge": 0.26,
-          "bog": 0.33}[THEME]
+          "bog": 0.33, "olive": 0.5, "coast": 0.53, "acropolis": 0.56}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()

@@ -324,7 +324,7 @@ def _strip_tex(n, ph):
     def fn(P):
         a = np.arctan2(P[:, 0], -(P[:, 1] - F(0.035)))
         s = np.mod(a * F(n / (2 * math.pi)) + F(ph), F(1.0))
-        return F(0.004) * smoothstep(0.08, 0.0, np.minimum(s, F(1) - s)) + F(0.0008) * NOISE(P * F(40))
+        return F(0.006) * smoothstep(0.1, 0.0, np.minimum(s, F(1) - s)) + F(0.0008) * NOISE(P * F(40))
     return fn
 
 
@@ -356,16 +356,16 @@ def pteruges_field():
         def shtex(P, sh=sh, ax=ax):
             q = P - sh.astype(F)
             a = np.arctan2(q[:, 1], q[:, 2] * F(0.6) + F(0.1))
-            s = np.mod(a * F(9 / math.pi), F(1.0))
-            return F(0.004) * smoothstep(0.1, 0.0, np.minimum(s, F(1) - s))
+            s = np.mod(a * F(12 / math.pi), F(1.0))
+            return F(0.007) * smoothstep(0.12, 0.0, np.minimum(s, F(1) - s))
         def sh_strips(P, hull=hull, shtex=shtex):
             d = hull.eval(P, margin=0.1)
-            return np.maximum(d - (F(0.046) - shtex(P)), F(0.026) - d)
+            return np.maximum(d - (F(0.036) - shtex(P)), F(0.016) - d)
         def sh_keep(P, sh=sh, ax=ax, sx=sx):
             t = (P - sh.astype(F)) @ ax.astype(F)
-            return np.maximum(np.maximum(t - F(0.17), F(-0.02) - t), F(0.21) - P[:, 0] * F(sx))
+            return np.maximum(np.maximum(t - F(0.15), F(-0.01) - t), F(0.22) - P[:, 0] * F(sx))
         fd.add(Inter(Func(sh_strips, sh - 0.3, sh + 0.3), Func(sh_keep, sh - 0.4, sh + 0.4), 0.003), 0.003)
-        fd.paint(Func(lambda P, sh=sh, ax=ax: np.abs((P - sh.astype(F)) @ ax.astype(F) - F(0.155)) - F(0.016), sh - 0.4, sh + 0.4), 5)
+        fd.paint(Func(lambda P, sh=sh, ax=ax: np.abs((P - sh.astype(F)) @ ax.astype(F) - F(0.137)) - F(0.014), sh - 0.4, sh + 0.4), 5)
     return fd
 
 
@@ -410,7 +410,7 @@ def cloak_hull():
     fd.add(traps(), 0.06)
     for side in ("R", "L"):
         fd.add(deltoid(side), 0.06)
-    fd.add(RoundCone((0, 0.14, 1.12), (0, 0.24, 0.32), 0.27, 0.4), 0.12)       # it hangs behind her hips and legs
+    fd.add(RoundCone((0, 0.14, 1.12), (0, 0.22, 0.32), 0.26, 0.34), 0.12)      # it hangs behind her hips and legs
     return fd
 
 
@@ -425,10 +425,10 @@ def cloak_field():
     def folds(P):
         a = np.arctan2(P[:, 0], P[:, 1] - F(0.0))
         k = smoothstep(1.25, 0.9, P[:, 2])
-        return F(0.012) * np.sin(a * F(7) + F(0.6) * NOISE(P * F(3))) * k + F(0.0015) * NOISE(P * F(25))
+        return F(0.02) * np.sin(a * F(6) + F(0.6) * NOISE(P * F(3))) * k + F(0.0015) * NOISE(P * F(25))
     def cloth(P):
         d = hull.eval(P, margin=0.14)
-        return np.maximum(d - (F(0.072) - folds(P)), F(0.05) - d)
+        return np.maximum(d - (F(0.08) - folds(P)), F(0.05) - d)
     def keep(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         wrap = F(0.13) * smoothstep(0.12, 0.24, np.abs(x)) * smoothstep(1.24, 1.4, z)

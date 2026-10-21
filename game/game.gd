@@ -423,7 +423,7 @@ func _build_world() -> void:
 	if base_id == "city":
 		_build_city(end_pt)
 	elif base_id != "cave":
-		if not (base_id == "hillfort" and _iron_city_kit(end_pt)):
+		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
@@ -879,11 +879,17 @@ func _tunnel_build(pi: int, d0: float, d1: float) -> void:
 	var parts := {"body": [], "trim": [], "dark": []}
 	_tunnel_ramp(pi, s[0], s[1], look, parts)
 	_tunnel_ramp(pi, s[3], s[2], look, parts)
+	var aq := str(map.get("theme", "")) == "coast" and _v2_kit("coast")     # (Marble Coast: the old aqueduct over each portal)
 	if float(s[2]) - float(s[1]) < 3.2:
 		_tunnel_portal(pi, float(s[1]) - 0.02, float(s[2]) + 0.02, true, true, look, parts)
+		if aq:
+			_aqueduct_over(pi, (float(s[1]) + float(s[2])) * 0.5)
 	else:
 		_tunnel_portal(pi, float(s[1]) - 0.02, float(s[1]) + TUN_PORTAL, true, false, look, parts)
 		_tunnel_portal(pi, float(s[2]) - TUN_PORTAL, float(s[2]) + 0.02, false, true, look, parts)
+		if aq:
+			_aqueduct_over(pi, float(s[1]) + TUN_PORTAL * 0.5)
+			_aqueduct_over(pi, float(s[2]) - TUN_PORTAL * 0.5)
 	var am := ArrayMesh.new()
 	var tech: bool = look[2] == "tech"
 	var mm := {
@@ -905,6 +911,35 @@ func _tunnel_build(pi: int, d0: float, d1: float) -> void:
 	mi.mesh = am
 	mi.name = "Tunnel"
 	add_child(mi)
+
+
+## v0.9.4x: on Marble Coast a broken stretch of aqueduct stands over a tunnel portal, its arch across the road (the
+## portal block reads as the arch's buried foot, the road ducking under it).
+func _aqueduct_over(pi: int, d: float) -> void:
+	var c := sim.pos_at(d, pi)
+	var t := sim.dir_at(d, pi)
+	var side := Vector2(-t.y, t.x)
+	_decor_single("Aqueduct", _v3(c), atan2(-side.y, side.x), 1.0)
+
+
+## Marble Coast: a stone bridge's parapets where a road crosses the inlet.
+func _coast_bridges() -> void:
+	var seen := {}
+	for pi in sim.paths.size():
+		var pts: PackedVector2Array = sim.paths[pi].pts
+		for rv in map.get("rivers", []):
+			var rp: Array = rv.pts
+			for i in pts.size() - 1:
+				for j in rp.size() - 1:
+					var hit = Geometry2D.segment_intersects_segment(pts[i], pts[i + 1], Vector2(rp[j][0], rp[j][1]), Vector2(rp[j + 1][0], rp[j + 1][1]))
+					if hit == null:
+						continue
+					var key := str((hit as Vector2).snapped(Vector2(0.5, 0.5)))
+					if seen.has(key):
+						continue
+					seen[key] = true
+					var t := (pts[i + 1] - pts[i]).normalized()
+					_decor_single("Bridge", _v3(hit as Vector2), atan2(-t.y, t.x), 1.0)
 
 
 ## One ramp: the sunken road from its lip (distance `lip` along path pi) down to the portal at `under`, fading from
@@ -1420,6 +1455,30 @@ func _iron_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## The sculpted Classical city (classical_city.glb): a walled city's gate, two square towers of cut stone with
+## crenellations, an arched gateway with bronze-studded doors, the walls running off both ways, red banners; town houses
+## under terracotta roofs and a temple's front inside. Fires burn in the bronze braziers before the towers.
+func _classical_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/classical_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:
+		_campfire(n, Vector3(-0.15, 1.1, sd * 1.45), 1.4, 0.36)
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -1652,11 +1711,38 @@ const DECOR_V2 := {
 		"cover": [["Tuft", 4]], "cover_n": 110, "cover_s": 0.9,
 		"marks": [["Crannog", Vector2(3.5, -10.8), 0.85, 2.7], ["Idol", Vector2(-8.5, 10.9), 1.0, 1.3], ["PeatStack", Vector2(11.5, -10.4), 1.3, 0.9],
 			["Crannog", Vector2(-15.8, -10.6), 0.7, 2.2]]},
+	# The Classical Age kits (decor_classical.py). Olive Hills: olive groves and cypresses, thyme and sage, limestone,
+	# marble ruins; a ruined temple, farmhouses, an olive press, a terrace wall
+	"olive": {"kit": "classical_decor_olive", "count": 96, "ambient": true,
+		"scatter": [["Olive_A", 14], ["Olive_B", 12], ["Olive_C", 9], ["Cypress_A", 10], ["Cypress_B", 8], ["Herb_A", 9], ["Herb_B", 8],
+			["Bush", 6], ["Rock_A", 5], ["Rock_B", 6], ["Rock_C", 3], ["Column_A", 2], ["Fallen", 1], ["Amphorae", 1]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 110, "cover_s": 0.9,
+		"marks": [["Temple", Vector2(-4.0, -10.9), 0.85, 2.6, {"yaw": PI * 0.5}], ["Farm", Vector2(8.5, -10.9), 0.85, 2.2, {"yaw": 0.0}],
+			["Press", Vector2(-11.0, 11.0), 0.9, 1.5], ["Wall", Vector2(2.5, 11.3), 1.0, 1.4, {"yaw": 0.0}],
+			["Farm", Vector2(-16.8, -10.4), 0.7, 1.8, {"yaw": 0.3}], ["Amphorae", Vector2(9.5, 10.9), 1.0, 0.8]]},
+	# Marble Coast: umbrella pines and cypresses, maquis, white limestone; a lighthouse, fishing boats on the inlet, a
+	# long aqueduct along the shore (and one arch of it over each road where the roads run under it: _tunnel_build)
+	"coast": {"kit": "classical_decor_coast", "count": 92, "ambient": true,
+		"scatter": [["Pine_A", 11], ["Pine_B", 8], ["Pine_C", 8], ["Cypress_A", 7], ["Cypress_B", 5], ["Maquis_A", 10], ["Maquis_B", 8],
+			["Herb_A", 7], ["Rock_A", 6], ["Rock_B", 7], ["Rock_C", 4], ["Column_A", 2], ["Blocks", 1], ["Amphorae", 1]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 100, "cover_s": 0.85,
+		"marks": [["Lighthouse", Vector2(15.6, -10.8), 0.95, 1.5, {"yaw": 0.0}], ["Boat", Vector2(12.3, -10.7), 0.9, 1.2, {"force": true, "yaw": PI * 0.5 - 0.1}],
+			["Aqueduct_Long", Vector2(-6.0, -11.3), 0.85, 4.0, {"yaw": 0.0}], ["Boat", Vector2(12.2, 11.2), 0.85, 1.2, {"force": true, "yaw": PI * 0.5 + 0.12}],
+			["Amphorae", Vector2(5.5, 11.0), 1.0, 0.8], ["Column_B", Vector2(-12.5, 11.0), 1.0, 0.8]]},
+	# Acropolis: olives, cypresses, limestone and scrub, the ruins; the temple of the hill, a theatre, an altar, statues
+	"acropolis": {"kit": "classical_decor_acropolis", "count": 84, "ambient": true,
+		"scatter": [["Olive_A", 10], ["Olive_B", 8], ["Cypress_A", 10], ["Cypress_B", 9], ["Herb_A", 8], ["Maquis_A", 8], ["Rock_A", 8],
+			["Rock_B", 9], ["Rock_C", 5], ["Column_A", 4], ["Column_C", 3], ["Blocks", 3], ["Fallen", 3]],
+		"cover": [["Tuft", 3]], "cover_n": 80, "cover_s": 0.8,
+		"marks": [["Temple", Vector2(-3.0, -11.5), 0.75, 3.4, {"yaw": PI * 0.5}], ["Theatre", Vector2(8.0, 11.4), 0.8, 2.6, {"yaw": 0.0}],
+			["Altar", Vector2(-12.0, 10.8), 0.9, 1.2, {"yaw": 0.0}], ["Statue", Vector2(5.0, -10.6), 0.9, 1.0, {"yaw": 0.0}],
+			["Lion", Vector2(-9.5, -10.8), 0.85, 1.2, {"yaw": 0.0}], ["Statue", Vector2(-1.0, 10.9), 0.85, 1.0, {"yaw": 0.0}]]},
 }
 ## v0.9.40: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
-const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26]}
+const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26],
+	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2]}
 const MARK_SMOKE := {"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
-	"Bloomery": Vector3(-0.45, 1.45, 0.05)}
+	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0)}
 
 
 ## v0.9.28: a theme's HQ kit is used once its GLB is in the game.
@@ -1901,6 +1987,8 @@ func _build_decor_v2() -> void:
 		put.call(_pick_weighted(dt.cover, r), p3, r.randf_range(0.8, 1.3) * cs, r.randf() * TAU)
 	for nm in batches:
 		_decor_batch(nm, batches[nm], not (nm in ["Tuft", "Flowers"]))
+	if str(map.get("theme", "")) == "coast":
+		_coast_bridges()
 
 
 func _build_cave_v2(p: Vector2) -> void:
@@ -2023,6 +2111,7 @@ func _export_decor(path: String) -> void:
 
 ## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
 ## glowing basalt. The ground texture still paints the zone itself.
+var _statue_n := 0                   # (the acropolis' statue zones take turns: a statue, then the lion)
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
 	var th := str(map.get("theme", "meadow"))
 	match kind:
@@ -2062,6 +2151,10 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			return true
 		"trees":                          # a stand of three trees
 			var trio := ["Pine_A", "Birch_A", "Pine_B"] if th == "highland" else ["Willow_A", "Alder", "Snag_A"]
+			if th in ["olive", "acropolis"]:  # (the Classical Age: an olive with two cypresses, or two olives and a cypress)
+				trio = ["Olive_A", "Cypress_A", "Olive_B"] if th == "olive" else ["Cypress_A", "Olive_A", "Cypress_B"]
+			elif th == "coast":
+				trio = ["Pine_A", "Cypress_A", "Pine_C"]
 			for k in 3:
 				var a10 := TAU * k / 3.0 + r.randf() * 0.5
 				_decor_single(trio[k], Vector3(cos(a10), 0, sin(a10)) * rad * 0.42, r.randf() * TAU, r.randf_range(0.8, 1.0), n)
@@ -2096,6 +2189,15 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 		"pillar":
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
 			return true
+		"statue":                         # v0.9.4x: a marble statue (or the lion) on its plinth, a column drum and scrub by it
+			if th != "acropolis":
+				return false
+			_statue_n += 1
+			_decor_single("Statue" if _statue_n % 2 == 1 else "Lion", Vector3.ZERO, r.randf_range(-0.3, 0.3), rad / 1.45, n)
+			_decor_single("Column_C", Vector3(rad * 0.62, 0, rad * 0.35), r.randf() * TAU, 0.8, n)
+			_decor_single("Herb_A", Vector3(-rad * 0.55, 0, rad * 0.45), r.randf() * TAU, 0.9, n)
+			_decor_single("Maquis_A", Vector3(-rad * 0.35, 0, -rad * 0.6), r.randf() * TAU, 0.75, n)
+			return true
 		"ore":                            # a copper pool (moving, turquoise) ringed with malachite
 			var pm2 := _lava_pool_mat(rad * 0.85, r.randf() * 10.0)
 			pm2.set_shader_parameter("hot", Color(0.72, 1.0, 0.92))
@@ -2122,6 +2224,7 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 func _build_blockers() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 5
+	_statue_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
@@ -4319,7 +4422,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle", "theron"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle", "theron", "cassia"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
@@ -4451,7 +4554,7 @@ func _handle_events() -> void:
 				var u2 = sim.get_unit(ev.id)
 				if u2 != null and u2.type == "club_warrior":
 					_club_smash(u2, ev.get("targets", []))      # v0.9.20: the smash lands on the robots, no ring
-				elif u2 != null and u2.type in ["spear_guard", "brenna", "legionary"] and _hq_clips(ev.id):
+				elif u2 != null and u2.type in ["spear_guard", "brenna", "legionary", "cassia"] and _hq_clips(ev.id):
 					if u2.type == "legionary":
 						_legion_bash(u2)                        # v0.9.42: the shield's boss slams forward first...
 					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's,
@@ -4901,7 +5004,8 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
 const BRENNA_TIP := Vector3(-0.22, 1.24, 1.7)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 const LEGION_TIP := Vector3(-0.254, 1.125, 1.119)  # the Legionary's gladius point at full reach (anim_legionary.STAB)
-const LANCE_TIPS := {"spear_guard": GUARD_TIP, "brenna": BRENNA_TIP, "legionary": LEGION_TIP}
+const CASSIA_TIP := Vector3(-0.2, 1.1, 1.0)        # Cassia's gladius point at full reach (anim_cassia.THRUST; measured)
+const LANCE_TIPS := {"spear_guard": GUARD_TIP, "brenna": BRENNA_TIP, "legionary": LEGION_TIP, "cassia": CASSIA_TIP}
 
 
 ## The lance: a long thin double cone, bright at its head, fading to nothing at its tail (head at the origin, along +Z).

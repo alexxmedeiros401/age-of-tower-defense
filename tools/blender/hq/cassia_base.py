@@ -139,8 +139,7 @@ def eagle(fd, W, R):
 
 
 def gold_field():
-    """The laurel wreath inlaid round the porphyry disc; the bronze cups of the glass roundels; the eagle on its wreath,
-    the crossbar's finials and the banner's fringe."""
+    """The laurel wreath inlaid round the porphyry disc and the bronze cups of the glass roundels."""
     fd = Field("Gold")
     # the inlaid wreath: pairs of leaves along a ring round the disc, a hair proud of the marble
     n = 22
@@ -158,7 +157,13 @@ def gold_field():
     for i in range(N_GLOW):
         c = glow_pos(i)
         fd.add(Torus(c + v3((0, 0, -0.002)), 0.034, 0.008), 0.0)
-    # the aquila
+    return fd
+
+
+def aquila_field():
+    """The gold eagle on its wreath at the top of the pole, the crossbar's finials and the banner's fringe (its own part:
+    one field spanning the deck and the pole top would mesh a grid of hundreds of millions of voxels)."""
+    fd = Field("Aquila")
     top, fwd, side = aquila_frame()
     W = lambda x, y, z: top + side * x + fwd * y + v3((0, 0, z))
     R = rot_from_axes(y_axis=fwd, z_axis=(0, 0, 1))
@@ -326,17 +331,18 @@ def flower_geometry(seed=43):
 
 def fields():
     return [("Ground", ground_field(), 0.008), ("Marble", marble_field(), 0.0042), ("Porphyry", porphyry_field(), 0.004),
-            ("Glowstones", glowstones_field(), 0.0025), ("Gold", gold_field(), 0.0018), ("Banner", banner_field(), 0.0024),
+            ("Glowstones", glowstones_field(), 0.0025), ("Gold", gold_field(), 0.0018), ("Aquila", aquila_field(), 0.0018),
+            ("Banner", banner_field(), 0.0024),
             ("Wood", wood_field(), 0.0024), ("Pebbles", pebbles_field(), 0.004)]
 
 
 REGION_PARTS = ("Marble", "Wood")
-LOW_TARGETS = {"Ground": 1400, "Marble": 4200, "Porphyry": 300, "Glowstones": 300, "Gold": 2400, "Banner": 500, "Wood": 2200,
+LOW_TARGETS = {"Ground": 1400, "Marble": 4200, "Porphyry": 300, "Glowstones": 300, "Gold": 1000, "Aquila": 1400, "Banner": 500, "Wood": 2200,
                "Pebbles": 340}
 MAT_OVERRIDES = {"Marble": ("marble", {"name": "HQ_TribunalMarble"}),
                  "Porphyry": ("granite", {"name": "HQ_Porphyry", "base": (0.4, 0.1, 0.12), "feld": (0.6, 0.26, 0.28),
                                           "quartz": (0.5, 0.34, 0.34), "mica": (0.12, 0.04, 0.05)}),
-                 "Gold": ("gold", {"name": "HQ_TribunalGold"}),
+                 "Gold": ("gold", {"name": "HQ_TribunalGold"}), "Aquila": ("gold", {"name": "HQ_AquilaGold"}),
                  "Banner": ("cloth", {"name": "HQ_Vexillum", "col": (0.72, 0.09, 0.08)}),
                  "Wood": ("siege", {"name": "HQ_TrophyWood", "wood": (0.54, 0.38, 0.24), "wood2": (0.38, 0.26, 0.15),
                                     "red": (0.5, 0.06, 0.05), "metal": "iron"}),

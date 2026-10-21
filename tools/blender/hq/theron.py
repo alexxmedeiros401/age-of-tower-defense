@@ -210,8 +210,11 @@ def beard_field():
     surf = Func(lambda P: mass.eval(P, margin=0.05) - F(0.002), (-0.4, -0.5, 1.2), (0.4, 0.3, 1.8))
     # rows of curls over its front and sides (rays in toward the beard's middle)
     rows = np.arange(1.32, 1.62, 0.026)
-    for j, z in enumerate(rows):
-        for a in np.arange(-1.25, 1.26, 0.2) + (0.1 if j % 2 else 0.0):
+    rs = np.random.RandomState(11)
+    for j, z0 in enumerate(rows):
+        for a0 in np.arange(-1.25, 1.26, 0.2) + (0.1 if j % 2 else 0.0):
+            a = a0 + rs.uniform(-0.05, 0.05)                    # (a little irregular: curls, not a pine cone)
+            z = z0 + rs.uniform(-0.007, 0.007)
             d = v3((math.sin(a), -math.cos(a), 0.0))
             o = v3((0.0, -0.12, z)) + d * 0.5
             h, ok = ray_hit(surf, [o], [-d], tmax=0.6)
@@ -220,7 +223,7 @@ def beard_field():
             p = h[0]
             if beard_mask(p[None, :].astype(F))[0] > -0.004 and p[2] > 1.44:
                 continue
-            _curl(fd, p, d, 0.0155)
+            _curl(fd, p, d, 0.0155 * rs.uniform(0.85, 1.12))
     # the moustache: two heavy locks from under the nose, drooping past his mouth into the beard
     strands = lambda P: F(0.002) * NOISE(P * np.array([80, 80, 30], F))
     for sx in (-1, 1):
@@ -308,6 +311,7 @@ def dress_base():
         b.add(deltoid(side), 0.05)
         b.add(upper_arm(side), 0.045)
     b.add(RoundCone((0, 0.03, 0.9), (0, 0.035, 0.12), 0.2, 0.28), 0.09)                  # to his ankles
+    b.add(Ellipsoid((0, -0.02, 1.22), (0.19, 0.15, 0.16)), 0.08)                           # one smooth chest under the cloth
     return b
 
 
@@ -361,11 +365,11 @@ def himation_field():
         + F(0.0015) * NOISE(P * F(25))
     def cloth(P):
         d = base.eval(P, margin=0.14)
-        return np.maximum(d - (F(0.07) - folds(P)), F(0.038) - d)
+        return np.maximum(d - (F(0.052) - folds(P)), F(0.027) - d)
     fd.add(Inter(Func(cloth, (-0.85, -0.65, 0.2), (0.85, 0.65, 1.75)), Func(_drape, (-1, -1, 0.2), (1, 1, 1.75)), 0.008), 0.0)
-    def roll(P):
-        return np.abs(P[:, 2] - (F(0.96) - F(0.06) * P[:, 0])) - F(0.026)
-    fd.add(Inter(Shell(base, 0.074, 0.042, pad=0.14), Func(roll, (-1, -1, 0.8), (1, 1, 1.1)), 0.008), 0.006)
+    def roll(P):                                   # (hugging his waist: a soft roll, not a hoop)
+        return np.abs(P[:, 2] - (F(0.955) - F(0.06) * P[:, 0])) - F(0.024)
+    fd.add(Inter(Shell(base, 0.05, 0.022, pad=0.14), Func(roll, (-1, -1, 0.8), (1, 1, 1.1)), 0.008), 0.006)
     fd.paint(Func(lambda P: np.abs(_drape(P) + F(0.024)) - F(0.024), (-1, -1, 0.2), (1, 1, 1.75)), 5)
     fd.paint(Func(lambda P: np.abs(_drape(P) + F(0.056)) - F(0.004), (-1, -1, 0.2), (1, 1, 1.75)), 6)
     return fd

@@ -392,9 +392,10 @@ def sandstone(name="DK_Sandstone", base=(0.82, 0.69, 0.5), dark=(0.6, 0.47, 0.32
     return g.finish(c, g.mixf(g.reg(6), 0.86, 0.3), g.bump(h, 0.32, 0.005))
 
 
-def ashlar(name="DK_Ashlar", base=(0.84, 0.74, 0.56), joint=(0.46, 0.38, 0.27), course=0.3, block=0.62):
+def ashlar(name="DK_Ashlar", base=(0.84, 0.74, 0.56), joint=(0.46, 0.38, 0.27), course=0.3, block=0.62, grime7=None):
     """Dressed limestone blocks laid in courses (joints sunk a little in the normal map): the step pyramid, plinths and
-    platforms. Labels as sandstone: 5 red, 7 blue, 6 gold."""
+    platforms. Labels as sandstone: 5 red, 7 blue, 6 gold. `grime7` (a colour): label 7 is weathering instead (rain
+    streaks and grime low down, the Classical Age's walls)."""
     g = new(name)
     p = g.obj()
     sep = g.node("ShaderNodeSeparateXYZ")
@@ -419,7 +420,11 @@ def ashlar(name="DK_Ashlar", base=(0.84, 0.74, 0.56), joint=(0.46, 0.38, 0.27), 
     c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 1.2, 2.0), 0.58, 0.72), 0.25), c, g.rgb((0.62, 0.52, 0.38)))
     red = g.mix(g.math("MULTIPLY", g.remap(g.noise(p, 30.0, 2.0), 0.3, 0.7, 0.0, 1.0), 0.3), g.rgb((0.72, 0.2, 0.1)), g.rgb((0.55, 0.14, 0.07)))
     c = g.mix(g.reg(5), c, red)
-    c = g.mix(g.reg(7), c, g.rgb((0.14, 0.32, 0.64)))
+    if grime7 is None:
+        c = g.mix(g.reg(7), c, g.rgb((0.14, 0.32, 0.64)))
+    else:
+        streak = g.remap(g.noise(g.scale_vec(p, (9.0, 9.0, 1.2)), 1.0, 2.0), 0.3, 0.7, 0.35, 0.85)
+        c = g.mix(g.math("MULTIPLY", g.reg(7), streak), c, g.rgb(grime7))
     c = g.mix(g.reg(6), c, g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.86, 0.62, 0.2)), g.rgb((1.0, 0.9, 0.55))))
     h = g.math("ADD", g.math("MULTIPLY", joint_m, -0.8), g.math("MULTIPLY", g.noise(p, 22.0, 3.0), 0.3))
     return g.finish(c, g.mixf(g.reg(6), 0.86, 0.3), g.bump(h, 0.3, 0.006))
@@ -799,3 +804,46 @@ def bog_oak(name="DK_BogOak"):
     c = g.mix(g.math("MULTIPLY", _up(g, 0.55, 0.95), 0.55), c, g.rgb((0.32, 0.28, 0.24)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.4), c, g.rgb((0.4, 0.36, 0.3)))
     return g.finish(c, 0.7, g.bump(g.math("SUBTRACT", grain, split), 0.6, 0.006))
+
+
+# ------------------------------------------------------------------------------------------------ Classical Age
+def limestone_rock(name="DK_Limestone", base=(0.8, 0.78, 0.71), hi=(0.9, 0.88, 0.82), grime=(0.48, 0.46, 0.4)):
+    """Pale Mediterranean limestone: cream-grey, pitted, sharp pale edges, dark grey-brown in the cracks, crusts of grey
+    and orange lichen on the faces turned to the sky; label 7 = rain-streaked grime low down."""
+    g = new(name)
+    p = g.obj()
+    macro = g.noise(p, 2.4, 3.0, 0.55)
+    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb(base), g.rgb(hi))
+    pits = g.smooth(g.noise(p, 75.0, 2.0, 0.6), 0.62, 0.68)
+    c = g.mix(g.math("MULTIPLY", pits, 0.45), c, g.rgb(tuple(x * 0.62 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.65), c, g.rgb((0.36, 0.34, 0.3)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.6), c, g.rgb((0.97, 0.96, 0.92)))
+    up = _up(g, 0.45, 0.85)
+    lich = g.math("MULTIPLY", up, g.smooth(g.noise(p, 7.0, 3.0, 0.6), 0.6, 0.66))
+    c = g.mix(g.math("MULTIPLY", lich, 0.7), c, g.mix(g.noise(p, 30.0, 2.0), g.rgb((0.62, 0.62, 0.56)), g.rgb((0.7, 0.68, 0.6))))
+    orange = g.math("MULTIPLY", up, g.smooth(g.noise(p, 11.0, 3.0, 0.6), 0.68, 0.72))
+    c = g.mix(g.math("MULTIPLY", orange, 0.6), c, g.rgb((0.86, 0.6, 0.26)))
+    streak = g.remap(g.noise(g.scale_vec(p, (9.0, 9.0, 1.2)), 1.0, 2.0), 0.3, 0.7, 0.35, 0.85)
+    c = g.mix(g.math("MULTIPLY", g.reg(7), streak), c, g.rgb(grime))
+    h = g.math("ADD", g.math("MULTIPLY", pits, -0.6), g.noise(p, 16.0, 4.0, 0.6))
+    return g.finish(c, 0.82, g.bump(h, 0.35, 0.006))
+
+
+def dry_turf(name="DK_Turf", top=((0.6, 0.52, 0.26), (0.74, 0.64, 0.34)), earth=((0.52, 0.32, 0.2), (0.62, 0.42, 0.27))):
+    """The ground a Classical Age landmark sits in: dry golden grass on top, red-brown earth on the sides and bare
+    patches, pebbles."""
+    g = new(name)
+    p = g.obj()
+    up = _up(g, 0.5, 0.85)
+    grass = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(top[0]), g.rgb(top[1]))
+    blades = g.smooth(g.noise(g.scale_vec(p, (60.0, 60.0, 8.0)), 1.0, 2.0), 0.55, 0.65)
+    grass = g.mix(g.math("MULTIPLY", blades, 0.4), grass, g.rgb(tuple(min(1.0, x * 1.2) for x in top[1])))
+    soil = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(earth[0]), g.rgb(earth[1]))
+    peb = g.smooth(g.voronoi(p, 22.0), 0.12, 0.08)
+    soil = g.mix(g.math("MULTIPLY", peb, 0.5), soil, g.rgb((0.74, 0.7, 0.62)))
+    bare = g.smooth(g.noise(p, 2.0, 3.0, 0.6), 0.6, 0.68)
+    m = g.math("MULTIPLY", up, g.math("SUBTRACT", 1.0, bare))
+    c = g.mix(m, soil, grass)
+    return g.finish(c, 0.9, g.bump(g.math("ADD", peb, g.math("MULTIPLY", blades, 0.5)), 0.3, 0.006))
+

@@ -1,7 +1,7 @@
 """HQ map kits: sculpt every prop of a Stone Age theme, bake them all into one texture atlas, export one GLB with one mesh
 per prop (named as game.gd DECOR_V2 expects: Pine_A, Rock_C, Mammoth, Cave, ...), each at the origin, ground at y = 0.
 
-    python3 decor_build.py -- --theme meadow|snow|volcano --out DIR [--stage sculpt|game|export|all] [--fine]
+    python3 decor_build.py -- --theme meadow|snow|volcano|...|olive|coast|acropolis|classical_city --out DIR [--stage sculpt|game|export|all] [--fine]
                               [--tex 2048] [--ao 24] [--only Pine_A,Rock_A] [--shots DIR]
 
 Props are sculpted side by side (so their ambient occlusion doesn't mix), baked per part, then split and moved back to
@@ -38,16 +38,20 @@ GAME = os.path.join(OUT, "kit_game.blend")
 GLB = arg("--glb", {"meadow": "stone_decor", "snow": "stone_decor_snow", "volcano": "stone_decor_volcano",
                    "portal": "time_portal", "delta": "bronze_decor_delta", "desert": "bronze_decor_desert",
                    "canyon": "bronze_decor_canyon", "city": "bronze_city", "highland": "iron_decor_highland",
-                   "forge": "iron_decor_forge", "bog": "iron_decor_bog", "iron_city": "iron_city"}[THEME])
+                   "forge": "iron_decor_forge", "bog": "iron_decor_bog", "iron_city": "iron_city",
+                   "olive": "classical_decor_olive", "coast": "classical_decor_coast", "acropolis": "classical_decor_acropolis",
+                   "classical_city": "classical_city"}[THEME])
 BRONZE = THEME in ("delta", "desert", "canyon", "city")
 IRON = THEME in ("highland", "forge", "bog", "iron_city")
+CLASSICAL = THEME in ("olive", "coast", "acropolis", "classical_city")
 G0, G1, S0 = 0.05, 0.6, 0.7          # swatch strip: grass gradient rows, then flat colours (as in build_game.base_stage)
 SWATCHES = [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (0.96, 0.52, 0.76), (0.3, 0.5, 0.18)]
 GRASS = {"meadow": ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)), "snow": ((0.3, 0.27, 0.16), (0.62, 0.56, 0.36)),
          "volcano": ((0.16, 0.13, 0.1), (0.5, 0.42, 0.3)), "delta": ((0.19, 0.4, 0.1), (0.56, 0.75, 0.27)),
          "desert": ((0.46, 0.38, 0.19), (0.86, 0.75, 0.46)), "canyon": ((0.38, 0.29, 0.15), (0.76, 0.62, 0.37)),
          "highland": ((0.2, 0.3, 0.1), (0.56, 0.62, 0.28)), "forge": ((0.2, 0.16, 0.11), (0.5, 0.42, 0.27)),
-         "bog": ((0.24, 0.3, 0.11), (0.66, 0.6, 0.3))
+         "bog": ((0.24, 0.3, 0.11), (0.66, 0.6, 0.3)), "olive": ((0.36, 0.34, 0.14), (0.8, 0.7, 0.36)),
+         "coast": ((0.3, 0.34, 0.16), (0.72, 0.7, 0.42)), "acropolis": ((0.34, 0.34, 0.16), (0.74, 0.68, 0.36))
          }.get(THEME, ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)))
 
 
@@ -72,7 +76,8 @@ def materials():
                                                            labels=[(2, (0.1, 0.1, 0.12), 0.6)], seams=[2], scale=2.0),
         "portal_armor": __import__("robot_mats").armor(name="DK_PortalArmor", labels=[(1, (1.0, 0.47, 0.08), 0.35),
                                                        (2, (0.2, 0.2, 0.22), 0.6), (3, (0.08, 0.08, 0.09), 0.4)], seams=[2], scale=2.0),
-    } if not (BRONZE or IRON) else (bronze_materials(dark.mat) if BRONZE else iron_materials(dark.mat))
+    } if not (BRONZE or IRON or CLASSICAL) else (bronze_materials(dark.mat) if BRONZE else
+                                                  (iron_materials(dark.mat) if IRON else classical_materials(dark.mat)))
 
 
 def bronze_materials(dark):
@@ -151,6 +156,43 @@ def iron_materials(dark):
         "quartz": DM.flat("DK_Quartz", (0.94, 0.94, 0.9), 0.3, hi=(1.0, 1.0, 1.0)),
         "pottery": mats.terracotta("DK_Pottery", base=(0.46, 0.32, 0.22)),
         "banner": mats.wool("DK_Banner", base=(0.16, 0.3, 0.64), border=(0.94, 0.92, 0.86), stripe=(0.1, 0.12, 0.2)),
+        "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
+    }
+
+
+def classical_materials(dark):
+    """The Classical Age kits' materials: pale limestone and marble, dry golden turf, olive, cypress, umbrella pine and
+    maquis, whitewash and terracotta, cut stone, bronze, and everything the olive hills, the coast, the acropolis and
+    the walled city are made of."""
+    th = THEME
+    turf_top = {"olive": ((0.6, 0.52, 0.26), (0.74, 0.64, 0.34)), "coast": ((0.62, 0.58, 0.36), (0.78, 0.72, 0.48)),
+                "acropolis": ((0.56, 0.52, 0.3), (0.7, 0.64, 0.38))}.get(th, ((0.6, 0.52, 0.26), (0.74, 0.64, 0.34)))
+    return {
+        "dark": dark, "turf": DM.dry_turf("DK_Turf", turf_top),
+        "limestone": DM.limestone_rock("DK_Limestone"), "rock": DM.limestone_rock("DK_Rock"),
+        "marble": mats.marble("DK_Marble"),
+        "ashlar": DM.ashlar("DK_Ashlar", base=(0.86, 0.8, 0.68), joint=(0.5, 0.45, 0.36), course=0.3, block=0.6,
+                            grime7=(0.52, 0.48, 0.4)),
+        "flags": mats.flagstone("DK_Flags", base=(0.7, 0.66, 0.58), alt=(0.78, 0.72, 0.6)),
+        "olive_bark": mats.bark_wood("DK_OliveBark", bark=(0.4, 0.38, 0.33), wood=(0.74, 0.62, 0.44)),
+        "olive_leaves": DM.leaves("DK_OliveLeaves", base=(0.26, 0.32, 0.18), hi=(0.62, 0.68, 0.5)),
+        "olive_fruit": DM.flat("DK_OliveFruit", (0.12, 0.13, 0.06), 0.35, hi=(0.3, 0.3, 0.14)),
+        "cypress": DM.leaves("DK_Cypress", base=(0.05, 0.14, 0.06), hi=(0.2, 0.34, 0.14)),
+        "pine_bark": DM.scots_bark("DK_PineBark"), "needles": DM.needles("DK_Needles", "meadow"),
+        "maquis": DM.leaves("DK_Maquis", base=(0.13, 0.22, 0.08), hi=(0.36, 0.44, 0.2)),
+        "herb": DM.leaves("DK_Herb", base=(0.3, 0.35, 0.24), hi=(0.6, 0.64, 0.46)),
+        "flower_purple": DM.flat("DK_FlowerPurple", (0.6, 0.42, 0.86), 0.6, hi=(0.8, 0.66, 0.98)),
+        "flower_pink": DM.flat("DK_FlowerPink", (0.94, 0.5, 0.72), 0.6, hi=(1.0, 0.76, 0.86)),
+        "pottery": mats.terracotta("DK_Pottery"), "tiles": mats.terracotta("DK_Tiles", base=(0.74, 0.34, 0.18)),
+        "plaster": mats.plaster("DK_Plaster"),
+        "timber": mats.siege("DK_Timber", wood=(0.52, 0.37, 0.24), wood2=(0.38, 0.26, 0.16), red=(0.66, 0.14, 0.08),
+                             blue=(0.14, 0.32, 0.6), metal="bronze"),
+        "boat": mats.siege("DK_Boat", wood=(0.3, 0.22, 0.15), wood2=(0.22, 0.15, 0.1), red=(0.92, 0.9, 0.82),
+                           blue=(0.12, 0.3, 0.6), metal="bronze"),
+        "basket": mats.basket(), "bronze": mats.bronze("DK_Bronze"),
+        "sailcloth": mats.linen("DK_Sailcloth", base=(0.86, 0.8, 0.66)),
+        "rope": DM.flat("DK_Rope", (0.62, 0.52, 0.36), 0.8, hi=(0.76, 0.66, 0.48)),
+        "banner": mats.wool("DK_Banner", base=(0.64, 0.08, 0.06), border=(0.98, 0.78, 0.26), stripe=(0.42, 0.3, 0.16)),
         "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
     }
 
@@ -440,7 +482,7 @@ def game_stage():
             g.name = p
             objs[p] = g
     rng = np.random.default_rng(3)
-    if THEME in ("meadow", "volcano", "delta", "desert", "canyon", "highland", "forge", "bog"):
+    if THEME in ("meadow", "volcano", "delta", "desert", "canyon", "highland", "forge", "bog", "olive", "coast", "acropolis"):
         V, F, UV = [], [], []
         for k in range(3):                          # a clump of three tufts
             v, f, u = tuft_geometry(rng)
@@ -450,7 +492,7 @@ def game_stage():
             F += [tuple(base + i for i in q) for q in f]
             UV += u
         objs["Tuft"] = mesh_from("Tuft", V, F, UV, kmat)
-    if THEME in ("meadow", "delta", "highland"):
+    if THEME in ("meadow", "delta", "highland", "olive", "coast"):
         V, F, UV = flowers_geometry(rng)
         objs["Flowers"] = mesh_from("Flowers", V, F, UV, kmat)
     bpy.data.objects.remove(bm_all)
