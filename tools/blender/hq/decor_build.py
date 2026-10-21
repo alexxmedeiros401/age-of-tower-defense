@@ -175,7 +175,7 @@ def classical_materials(dark):
                             grime7=(0.52, 0.48, 0.4)),
         "flags": mats.flagstone("DK_Flags", base=(0.7, 0.66, 0.58), alt=(0.78, 0.72, 0.6)),
         "olive_bark": mats.bark_wood("DK_OliveBark", bark=(0.4, 0.38, 0.33), wood=(0.74, 0.62, 0.44)),
-        "olive_leaves": DM.leaves("DK_OliveLeaves", base=(0.26, 0.32, 0.18), hi=(0.62, 0.68, 0.5)),
+        "olive_leaves": DM.leaves("DK_OliveLeaves", base=(0.33, 0.39, 0.27), hi=(0.72, 0.78, 0.64)),     # (silvery grey-green)
         "olive_fruit": DM.flat("DK_OliveFruit", (0.12, 0.13, 0.06), 0.35, hi=(0.3, 0.3, 0.14)),
         "cypress": DM.leaves("DK_Cypress", base=(0.05, 0.14, 0.06), hi=(0.2, 0.34, 0.14)),
         "pine_bark": DM.scots_bark("DK_PineBark"), "needles": DM.needles("DK_Needles", "meadow"),

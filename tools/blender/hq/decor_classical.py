@@ -166,54 +166,87 @@ def stone_pine(h=3.6, seed=0, twin=False):
 
 
 def bush(w=0.9, h=0.5, seed=0, mat="maquis", flowers=None):
-    """A rounded evergreen bush (myrtle, lentisk, oleander): lumpy clumps on a low mound, flowers dotted over it."""
+    """A rounded evergreen bush (myrtle, lentisk, oleander): lumpy leafy clumps on a low mound, flowers dotted over it."""
     rng = np.random.default_rng(seed)
     c = Field("Leaves")
-    for j in range(9):
+    for j in range(15):
         a = rng.uniform(0, 2 * math.pi)
-        rr = rng.uniform(0.0, 0.32) * w
-        q = v3((math.cos(a) * rr, math.sin(a) * rr, h * rng.uniform(0.3, 0.6)))
-        r = w * rng.uniform(0.22, 0.32)
-        c.add(Ellipsoid(q, (r, r * 0.95, r * 0.8 * h / (w * 0.55))), k=0.06 * w)
-    c.add(Ellipsoid((0, 0, h * 0.25), (w * 0.45, w * 0.42, h * 0.5)), k=0.08 * w)
+        rr = rng.uniform(0.05, 0.36) * w
+        q = v3((math.cos(a) * rr, math.sin(a) * rr, h * rng.uniform(0.3, 0.66) * (1.0 - 0.5 * (rr / (0.4 * w)) ** 2)))
+        r = w * rng.uniform(0.15, 0.24)
+        c.add(Ellipsoid(q, (r, r * 0.95, r * 0.82 * h / (w * 0.55)), **wob(14.0 / w, 0.022 * w, seed * 31 + j)), k=0.035 * w)
+    c.add(Ellipsoid((0, 0, h * 0.2), (w * 0.38, w * 0.35, h * 0.42)), k=0.05 * w)
     c.inter(Plane((0, 0, -0.03), (0, 0, -1)))
     out = [("Leaves", c, fine(0.009, 0.018), mat)]
     if flowers:
         fl = Field("Flowers")
-        for j in range(16):
+        for j in range(26):
             u = rng.normal(size=3)
             u[2] = abs(u[2]) + 0.4
             u = u / np.linalg.norm(u)
-            q = v3((u[0] * w * 0.48, u[1] * w * 0.46, h * 0.3 + u[2] * h * 0.62))
-            fl.add(Sphere(q, 0.035 * w), k=0.0)
-        out.append(("Flowers", fl, fine(0.006, 0.012), flowers))
+            q = v3((u[0] * w * 0.47, u[1] * w * 0.45, h * 0.28 + u[2] * h * 0.62))
+            fl.add(Sphere(q, 0.022 * w), k=0.0)
+        out.append(("Flowers", fl, fine(0.005, 0.01), flowers))
     return out
 
 
 def herb(w=0.55, h=0.22, seed=0):
-    """A herb cushion (thyme, sage): a low dome of tiny tufts, grey-green, purple flower heads poking out."""
+    """A herb cushion (thyme, sage): a low dome of tiny tufts, grey-green, small purple flower heads poking out."""
     rng = np.random.default_rng(seed)
     c = Field("Herb")
-    for j in range(14):
+    for j in range(16):
         a = rng.uniform(0, 2 * math.pi)
         rr = rng.uniform(0, 0.38) * w
         q = v3((math.cos(a) * rr, math.sin(a) * rr, h * (0.6 - 0.5 * (rr / (0.4 * w)) ** 2)))
-        r = w * rng.uniform(0.12, 0.18)
-        c.add(Ellipsoid(q, (r, r, r * 0.8)), k=0.03 * w)
+        r = w * rng.uniform(0.11, 0.17)
+        c.add(Ellipsoid(q, (r, r, r * 0.8), **wob(30.0 / w, 0.012 * w, seed * 17 + j)), k=0.025 * w)
     c.inter(Plane((0, 0, -0.03), (0, 0, -1)))
     fl = Field("Flowers")
-    for j in range(12):
+    for j in range(22):
         a = rng.uniform(0, 2 * math.pi)
-        rr = rng.uniform(0, 0.36) * w
-        q = v3((math.cos(a) * rr, math.sin(a) * rr, h * (0.75 - 0.5 * (rr / (0.4 * w)) ** 2) + 0.03))
-        fl.add(Ellipsoid(q, (0.02, 0.02, 0.035)), k=0.0)
+        rr = rng.uniform(0, 0.37) * w
+        q = v3((math.cos(a) * rr, math.sin(a) * rr, h * (0.72 - 0.5 * (rr / (0.4 * w)) ** 2) + 0.025))
+        fl.add(Ellipsoid(q, (0.013, 0.013, 0.022)), k=0.0)
     return [("Herb", c, fine(0.006, 0.012), "herb"), ("Flowers", fl, fine(0.005, 0.01), "flower_purple")]
 
 
 def limestone(w=1.6, h=0.5, seed=0, n_extra=2):
-    """A pale limestone outcrop: the rock() shape with its faces pitted and a ledge or two."""
-    parts = rock(w, h, seed, "meadow", n_extra)
-    return [(n, f, v, "limestone") for n, f, v, m in parts]
+    """A pale limestone outcrop: blocky beds stacked in ledges, each a little narrower than the one under it, their faces
+    leaning in, uneven; a crack or two; loose blocks at its foot."""
+    rng = np.random.default_rng(seed)
+    f = Field("Rock")
+
+    def block(cx, cy, z0, th, hx, hy, k_seed, k=0.01 * w):
+        planes = [((cx, cy, z0 + th), (rng.normal() * 0.08, rng.normal() * 0.08, 1.0)), ((cx, cy, z0 - 0.01), (0, 0, -1))]
+        a0 = rng.uniform(0, 2 * math.pi)
+        n_side = 7
+        for kk in range(n_side):
+            a = a0 + 2 * math.pi * kk / n_side + rng.uniform(-0.25, 0.25)
+            r = rng.uniform(0.85, 1.0)
+            ex = (cx + math.cos(a) * hx * r, cy + math.sin(a) * hy * r, z0)
+            nrm = (math.cos(a) * hy, math.sin(a) * hx, rng.uniform(0.08, 0.3) * max(hx, hy))
+            planes.append((ex, nrm))
+        lo = (cx - hx - 0.1, cy - hy - 0.1, z0 - 0.1)
+        hi = (cx + hx + 0.1, cy + hy + 0.1, z0 + th + 0.1)
+        f.add(convex_w(planes, lo, hi, amp=0.022 * w, scale=3.5 / w, seed=k_seed), k=k)
+    layers = 3 if n_extra > 1 else 2
+    z = -0.08
+    for L in range(layers):
+        th = h * (0.6 if L == 0 else 0.34) * rng.uniform(0.85, 1.15)
+        sc = 1.0 - 0.24 * L
+        block(rng.uniform(-0.08, 0.08) * w, rng.uniform(-0.08, 0.08) * w, z, th + 0.02, w * 0.46 * sc, w * 0.4 * sc, seed * 10 + L)
+        z += th
+    for i in range(n_extra):                                   # loose blocks at its foot
+        a = rng.uniform(0, 2 * math.pi)
+        rr = w * rng.uniform(0.45, 0.55)
+        sz = w * rng.uniform(0.1, 0.16)
+        block(rr * math.cos(a), rr * math.sin(a), -0.06, sz * 1.2, sz, sz * 0.85, seed * 10 + 5 + i, k=0.0)
+    for i in range(2):                                         # cracks running in from its edge, down its faces
+        a = rng.uniform(0, 2 * math.pi)
+        f.sub(RoundBox((math.cos(a) * w * 0.4, math.sin(a) * w * 0.36, h * 0.55), (w * 0.16, 0.011, h * 0.42), 0.004, R=Rz(a),
+                       **wob(6.0 / w, 0.02 * w, seed * 3 + i)), k=0.006)
+    f.inter(Plane((0, 0, -0.08), (0, 0, -1)))
+    return [("Rock", f, vx(w) * 0.8, "limestone")]
 
 
 # ------------------------------------------------------------------------------------------------ marble ruins
@@ -947,18 +980,21 @@ def classical_city(seed=0):
     br = Field("Braziers")                                                                # bronze braziers on tripods
     for sy in (-1, 1):
         c = v3((-0.15, sy * (TY + 0.1), 0.0))
-        for k in range(3):
+        for k in range(3):                                        # three legs curving out to lion's paws
             a = 2 * math.pi * k / 3 + 0.5
-            br.add(RoundCone(c + v3((0.2 * math.cos(a), 0.2 * math.sin(a), -0.03)), c + v3((0.05 * math.cos(a), 0.05 * math.sin(a), 0.95)),
-                             0.022, 0.018), k=0.006)
-        br.add(Torus(c + v3((0, 0, 0.45)), 0.12, 0.012), k=0.006)                         # the ring binding the legs
-        br.add(Ellipsoid(c + v3((0, 0, 1.02)), (0.2, 0.2, 0.09)), k=0.02)
-        br.sub(Ellipsoid(c + v3((0, 0, 1.08)), (0.17, 0.17, 0.07)), k=0.01)
+            d = v3((math.cos(a), math.sin(a), 0.0))
+            br.add(Chain([c + d * 0.34 + v3((0, 0, 0.04)), c + d * 0.24 + v3((0, 0, 0.3)), c + d * 0.15 + v3((0, 0, 0.62)),
+                          c + d * 0.19 + v3((0, 0, 0.96))], [0.026, 0.022, 0.02, 0.022], k=0.01), k=0.006)
+            br.add(Ellipsoid(c + d * 0.36 + v3((0, 0, 0.03)), (0.05, 0.04, 0.035), R=Rz(a)), k=0.01)
+        br.add(Torus(c + v3((0, 0, 0.5)), 0.17, 0.013), k=0.006)                          # the ring binding the legs
+        br.add(Ellipsoid(c + v3((0, 0, 1.04)), (0.27, 0.27, 0.12)), k=0.02)              # the bowl, wide and deep
+        br.add(Torus(c + v3((0, 0, 1.1)), 0.26, 0.022), k=0.01)                           # its rolled rim
+        br.sub(Ellipsoid(c + v3((0, 0, 1.12)), (0.23, 0.23, 0.09)), k=0.01)
     ground_cut(br)
     out.append(("Braziers", br, fine(0.005, 0.01), "bronze"))
     cg = Field("Coals")
     for sy in (-1, 1):
-        cg.add(Ellipsoid((-0.15, sy * (TY + 0.1), 1.05), (0.15, 0.15, 0.05), **wob(25.0, 0.008, seed + 5 + sy)))
+        cg.add(Ellipsoid((-0.15, sy * (TY + 0.1), 1.08), (0.21, 0.21, 0.06), **wob(25.0, 0.008, seed + 5 + sy)))
     out.append(("Coals", cg, fine(0.005, 0.01), "glow_fire"))
     bn = Field("Banners")                                                                 # red banners down the towers' fronts
     B0, B1 = 0.95, 2.08
