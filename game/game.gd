@@ -5004,7 +5004,7 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
 const BRENNA_TIP := Vector3(-0.22, 1.24, 1.7)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 const LEGION_TIP := Vector3(-0.254, 1.125, 1.119)  # the Legionary's gladius point at full reach (anim_legionary.STAB)
-const CASSIA_TIP := Vector3(-0.2, 1.1, 1.0)        # Cassia's gladius point at full reach (anim_cassia.THRUST; measured)
+const CASSIA_TIP := Vector3(-0.213, 1.109, 1.229)  # Cassia's gladius point at full reach (anim_cassia.THRUST; measured)
 const LANCE_TIPS := {"spear_guard": GUARD_TIP, "brenna": BRENNA_TIP, "legionary": LEGION_TIP, "cassia": CASSIA_TIP}
 
 
@@ -6893,8 +6893,8 @@ func _ballista_ammo(n: Node3D, hot: bool) -> void:
 # thud; a wall of shields of red light bursts out from her and sweeps across the field; each robot it reaches is struck
 # (a flash, sparks) and thrown back a little.
 const CASSIA_ORDER := 12                              # anim_cassia.ORDER
-const CASSIA_BLADE := Vector3(-0.26, 2.05, 0.42)      # the gladius' point at the order (Yaw-local; measured)
-const CASSIA_BOSS := Vector3(0.1, 1.0, 0.95)          # the shield's boss at the slam (Yaw-local; measured)
+const CASSIA_BLADE := Vector3(-0.276, 2.229, 0.554)  # the gladius' point at the order (Yaw-local; measured)
+const CASSIA_BOSS := Vector3(-0.068, 0.929, 1.152)   # the shield's boss at the slam (Yaw-local; measured)
 const CHARGE_SPEED := 11.0                            # the wall's pace across the field (units a second at 1x)
 
 

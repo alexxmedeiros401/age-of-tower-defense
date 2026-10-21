@@ -340,13 +340,14 @@
     "stun": 1.5,
     "stun_per_level": 0.1,
     "damage": 29,
-    "damage_per_level": 11
+    "damage_per_level": 11,
+    "delay": 1.3
    },
    "swing": [
     -0.9,
     1.2
    ],
-   "model_scale": 0.55
+   "model_scale": 0.7
   },
   "theron": {
    "legacy_unlock": 15,
