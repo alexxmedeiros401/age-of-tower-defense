@@ -419,8 +419,9 @@ def cloak_hull():
     for p, k in torso_prims():
         fd.add(p, k)
     fd.add(traps(), 0.06)
-    for side in ("R", "L"):
-        fd.add(deltoid(side), 0.06)
+    for side in ("R", "L"):                     # (a flat yoke over each shoulder's top, not round over the deltoid)
+        sx = -1 if side == "R" else 1
+        fd.add(Ellipsoid(J["shoulder_" + side] + v3((sx * -0.035, 0.03, 0.025)), (0.07, 0.075, 0.045)), 0.07)
     fd.add(RoundCone((0, 0.14, 1.12), (0, 0.22, 0.32), 0.26, 0.34), 0.12)      # it hangs behind her hips and legs
     return fd
 
@@ -439,10 +440,11 @@ def cloak_field():
         return F(0.02) * np.sin(a * F(6) + F(0.6) * NOISE(P * F(3))) * k + F(0.0015) * NOISE(P * F(25))
     def cloth(P):
         d = hull.eval(P, margin=0.14)
-        return np.maximum(d - (F(0.08) - folds(P)), F(0.05) - d)
+        lift = F(0.012) * smoothstep(1.2, 0.9, P[:, 2])            # (looser where it hangs free behind her)
+        return np.maximum(d - (F(0.064) + lift - folds(P)), F(0.038) + lift - d)
     def keep(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        wrap = F(0.13) * smoothstep(0.12, 0.24, np.abs(x)) * smoothstep(1.24, 1.4, z)
+        wrap = F(0.05) * smoothstep(0.12, 0.24, np.abs(x)) * smoothstep(1.24, 1.4, z)     # just over the shoulders' tops
         back = F(0.02) - y + F(0.14) * smoothstep(1.3, 1.0, z) - wrap
         top = z - (F(1.47) - F(0.06) * np.clip(-(y - F(0.05)) / F(0.15), 0, 1) + F(0.25) * smoothstep(0.14, 0.24, np.abs(x)))
         hem = F(CLOAK_HEM) + F(0.03) * np.sin(x * F(14)) + F(0.012) * NOISE(P * F(8)) - z
