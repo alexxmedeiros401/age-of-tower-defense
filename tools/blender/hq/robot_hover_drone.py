@@ -1,5 +1,5 @@
 """Hover Drone, HQ: the Classical Age's swarming flyer, a drone of the Hydra's hive. A sleek white wasp of a machine: a
-rounded head pod with one big glowing amber eye in a gold bezel under a red brow plate, a red Greek-key band round the
+rounded head pod with one big glowing amber eye in a gold bezel, a hoplite's red tufted crest along its top, a red Greek-key band round the
 pod, two gold feeler antennae; a gunmetal thorax with two pairs of long blade wings on gold hinges (they buzz in a
 blur); a ribbed tail pod banded red and gold, ending in a gold sting with an amber thruster glowing at its tip; three
 pairs of little folded legs under it. It darts: bobbing, rolling and pitching, its tail swaying and its eye scanning.

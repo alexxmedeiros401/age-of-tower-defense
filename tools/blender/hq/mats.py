@@ -1052,9 +1052,10 @@ def granite(name="HQ_Granite", base=(0.62, 0.38, 0.33), feld=(0.8, 0.5, 0.42), q
     return g.finish(c, g.mixf(hollow, 0.36, 0.75), g.bump(h, 0.1, 0.002))
 
 
-def flagstone(name="HQ_Flagstone", base=(0.42, 0.39, 0.36), alt=(0.53, 0.47, 0.39)):
+def flagstone(name="HQ_Flagstone", base=(0.42, 0.39, 0.36), alt=(0.53, 0.47, 0.39), stain=None):
     """Worn flagstones: a warm dark grey (label 7 = a lighter, browner stone for some of the flags), pale on worn edges,
-    dark grit in the joints and hollows, fine pits; label 5 = soot (black, dull), 6 = hammer scale and charcoal grit."""
+    dark grit in the joints and hollows, fine pits; label 5 = soot (black, dull), 6 = hammer scale and charcoal grit;
+    `stain`: a colour for label 8, spilled brews soaked into the stone (glossy at their hearts)."""
     g = new(name)
     p = g.obj()
     macro = g.remap(g.noise(p, 3.0, 3.0, 0.55), 0.35, 0.65, 0.0, 1.0)
@@ -1070,7 +1071,12 @@ def flagstone(name="HQ_Flagstone", base=(0.42, 0.39, 0.36), alt=(0.53, 0.47, 0.3
     grit = g.math("MULTIPLY", g.reg(6), g.smooth(g.noise(p, 150.0, 1.0), 0.6, 0.66))
     c = g.mix(grit, c, g.rgb((0.07, 0.065, 0.06)))
     h = g.math("ADD", g.math("MULTIPLY", speck, 0.4), g.noise(p, 14.0, 4.0, 0.6))
-    return g.finish(c, g.mixf(soot, 0.8, 0.95), g.bump(h, 0.3, 0.005))
+    rough = g.mixf(soot, 0.8, 0.95)
+    if stain is not None:
+        st = g.math("MULTIPLY", g.reg(8), g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.5, 1.0))
+        c = g.mix(st, c, g.mix(g.noise(p, 30.0, 2.0), g.rgb(stain), g.rgb(tuple(min(1.0, x * 1.3) for x in stain))))
+        rough = g.mixf(st, rough, 0.3)
+    return g.finish(c, rough, g.bump(h, 0.3, 0.005))
 
 
 def charcoal(name="HQ_Charcoal"):
@@ -1322,6 +1328,24 @@ ASSIGN = {
     "Hood": saber, "Cape": saber, "Fangs": fang, "Feather": feather, "Cloth": cloth, "Dais": dais, "Amber": amber,
     "Wolf": wolf, "Club": club_wood, "Flint": flint, "Rope": cord, "Quartz": quartz,
 }
+
+
+def vials(name="HQ_Vials", glass=(0.8, 0.9, 0.88)):
+    """Glassware with coloured brews: pale green-white glossy glass (label 0, brighter on its rims and edges), brews of
+    green (5), amber (6), violet (7) and red (8), cork stoppers (9), wax seals (10)."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 30.0, 2.0), g.rgb(tuple(x * 0.86 for x in glass)), g.rgb(glass))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.6), c, g.rgb((0.97, 1.0, 0.99)))
+    for lab, col, hi in ((5, (0.24, 0.82, 0.18), (0.62, 1.0, 0.45)), (6, (0.92, 0.52, 0.08), (1.0, 0.8, 0.35)),
+                         (7, (0.48, 0.2, 0.74), (0.74, 0.5, 0.95)), (8, (0.74, 0.1, 0.08), (0.98, 0.4, 0.3))):
+        cc = g.mix(g.remap(g.noise(p, 25.0, 2.0), 0.35, 0.65, 0.0, 1.0), g.rgb(col), g.rgb(hi))
+        c = g.mix(g.reg(lab), c, cc)
+    cork = g.mix(g.noise(p, 90.0, 2.0), g.rgb((0.52, 0.36, 0.2)), g.rgb((0.72, 0.55, 0.34)))
+    c = g.mix(g.reg(9), c, cork)
+    c = g.mix(g.reg(10), c, g.rgb((0.62, 0.08, 0.06)))
+    rough = g.mixf(g.math("MAXIMUM", g.reg(9), g.reg(10)), 0.06, 0.75)
+    return g.finish(c, rough)
 
 
 def assign_all(objs, overrides=None):

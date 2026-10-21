@@ -361,14 +361,19 @@ def mail_field():
 
 
 def chainmail_field():
-    """Mail under the plates on his arms and legs (iron rings, label 0): it shows where the plates part as he moves."""
+    """Mail under the plates (iron rings, label 0): a shirt over his body from the hips up, sleeves over his shoulders and
+    arms, chausses on his legs; it shows where the plates part as he moves (the armholes, a raised arm's pit)."""
     fd = Field("Chainmail")
     rings = lambda P: F(0.0012) * NOISE(P * F(30))
+    fd.add(Inter(Shell(breast_hull(), 0.012, 0.008, pad=0.06, disp=rings, disp_amp=0.0015),
+                 Func(lambda P: np.maximum(F(0.62) - P[:, 2], P[:, 2] - F(1.46)), (-0.6, -0.5, 0.5), (0.6, 0.5, 1.6)), 0.004), 0.0)
     for side in ("R", "L"):
         sh, wr = J["shoulder_" + side], J["wrist_" + side]
         hip, an = J["hip_" + side], J["ankle_" + side]
-        fd.add(Inter(Shell(arm_hull(side), 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
-                     Func(_band(sh, wr, 0.14, 0.96), sh - 0.6, sh + 0.6), 0.003), 0.003)
+        mh = arm_hull(side)
+        mh.add(deltoid(side), 0.055)
+        fd.add(Inter(Shell(mh, 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
+                     Func(_band(sh, wr, -0.12, 0.96), sh - 0.6, sh + 0.6), 0.003), 0.003)
         fd.add(Inter(Shell(leg_hull(side), 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
                      Func(_band(hip, an, 0.12, 0.95), hip - 0.9, hip + 0.9), 0.003), 0.003)
     return fd
@@ -491,7 +496,7 @@ MAT_OVERRIDES = {
     "Leather": ("leather_dyed", {"name": "HQ_KnightLeather", "base": (0.3, 0.18, 0.1), "dyed": (0.5, 0.1, 0.07)}),
     "Sword": ("roman_steel", {"name": "HQ_GreatSword", "base": (0.52, 0.54, 0.58)}),
 }
-LOW_TARGETS = {"Skin": 1200, "Helm": 2000, "Crest": 1800, "Pauldrons": 2000, "Plate": 6400, "Chainmail": 1400,
+LOW_TARGETS = {"Skin": 1200, "Helm": 2000, "Crest": 1800, "Pauldrons": 2000, "Plate": 6400, "Chainmail": 2000,
                "Tabard": 2400, "Mail": 700, "Leather": 900,
                "Sword": 900}
 AO_EXCLUDE = ["Sword"]
