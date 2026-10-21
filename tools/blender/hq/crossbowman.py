@@ -524,11 +524,11 @@ def quiver_field():
 
 
 # ======================================================================================= the crossbow
-P_FWD = 0.2                # left fist -> the prod's middle (along the stock)
-S_FWD = 0.25               # left fist -> the stock's front end
-NUT_BACK = 0.24            # left fist -> the nut
-GRIP_BACK = 0.4            # left fist -> the right hand's grip on the stock's wrist
-BUTT_BACK = 0.64           # left fist -> the butt's end
+P_FWD = 0.38               # left fist -> the prod's middle (along the stock)
+S_FWD = 0.43               # left fist -> the stock's front end
+NUT_BACK = 0.04            # left fist -> the nut (just behind his left hand, which holds the stock from below)
+GRIP_BACK = 0.2            # left fist -> the right hand's grip on the stock's wrist
+BUTT_BACK = 0.45           # left fist -> the butt's end
 PROD_HALF = 0.3
 PROD_DRAW = 0.075          # the prod's tips bent back toward him (spanned)
 STOCK_TOP = 0.03           # the stock's top face above its axis (the groove, the string's line)
@@ -585,7 +585,7 @@ def _stock_dist(P):
     u = q @ A.astype(F)                                      # along: -BUTT_BACK (butt) .. S_FWD (front)
     s = q @ S.astype(F)
     h = q @ U.astype(F)
-    butt = smoothstep(-0.38, -0.56, u)                       # the butt deepens and widens toward its end
+    butt = smoothstep(-(GRIP_BACK + 0.04), -(BUTT_BACK - 0.04), u)    # the butt deepens and widens toward its end
     wrist = np.exp(-((u + F(GRIP_BACK)) / F(0.06)) ** 2)      # slimmer where the right hand takes it
     half_w = F(0.022) + F(0.008) * butt - F(0.003) * wrist
     top = F(STOCK_TOP)
