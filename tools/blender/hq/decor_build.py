@@ -179,6 +179,7 @@ def classical_materials(dark):
         "olive_fruit": DM.flat("DK_OliveFruit", (0.12, 0.13, 0.06), 0.35, hi=(0.3, 0.3, 0.14)),
         "cypress": DM.leaves("DK_Cypress", base=(0.05, 0.14, 0.06), hi=(0.2, 0.34, 0.14)),
         "pine_bark": DM.scots_bark("DK_PineBark"), "needles": DM.needles("DK_Needles", "meadow"),
+        "pine_crown": DM.leaves("DK_PineCrown", base=(0.09, 0.19, 0.07), hi=(0.3, 0.42, 0.16)),      # (the umbrella pines' dark crowns)
         "maquis": DM.leaves("DK_Maquis", base=(0.13, 0.22, 0.08), hi=(0.36, 0.44, 0.2)),
         "herb": DM.leaves("DK_Herb", base=(0.3, 0.35, 0.24), hi=(0.6, 0.64, 0.46)),
         "flower_purple": DM.flat("DK_FlowerPurple", (0.6, 0.42, 0.86), 0.6, hi=(0.8, 0.66, 0.98)),

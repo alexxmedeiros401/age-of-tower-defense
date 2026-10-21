@@ -154,15 +154,16 @@ def stone_pine(h=3.6, seed=0, twin=False):
             p1 = top + ob * L * 0.5 + v3((0, 0, L * 0.25))
             p2 = top + ob * L + v3((0, 0, L * 0.3))
             f.add(Chain([top, p1, p2], [0.05 * s, 0.035 * s, 0.018 * s], k=0.01), k=0.03 * s)
-            for q in (p1, p2):
-                r = s * rng.uniform(0.3, 0.42)
-                c.add(Ellipsoid(q + v3((0, 0, 0.1 * s)), (r, r * 0.95, r * 0.32), **wob(7.0 / s, 0.04 * s, seed * 50 + si * 10 + j)), k=0.1 * s)
-        for j in range(5):                                    # filling the umbrella's flat top
+            for q in (p1, p2):                                # clumps of needles at the branch ends
+                r = s * rng.uniform(0.24, 0.33)
+                c.add(Ellipsoid(q + v3((0, 0, 0.1 * s)), (r, r * 0.95, r * 0.55), **wob(9.0 / s, 0.05 * s, seed * 50 + si * 10 + j)), k=0.05 * s)
+        for j in range(9):                                    # the umbrella's broad, gently domed top, lumpy
             u = rng.uniform(-1, 1, 2)
-            q = crown_c + v3((u[0] * 0.5 * s, u[1] * 0.5 * s, 0.14 * s))
-            r = s * rng.uniform(0.34, 0.44)
-            c.add(Ellipsoid(q, (r, r * 0.95, r * 0.3), **wob(7.0 / s, 0.04 * s, seed * 70 + si * 10 + j)), k=0.1 * s)
-    return [("Trunk", f, fine(0.008, 0.016), "pine_bark"), ("Crown", c, vx(h), "needles")]
+            rr = math.hypot(u[0], u[1])
+            q = crown_c + v3((u[0] * 0.55 * s, u[1] * 0.55 * s, (0.2 - 0.08 * rr) * s))
+            r = s * rng.uniform(0.28, 0.38)
+            c.add(Ellipsoid(q, (r, r * 0.95, r * 0.5), **wob(9.0 / s, 0.05 * s, seed * 70 + si * 10 + j)), k=0.06 * s)
+    return [("Trunk", f, fine(0.008, 0.016), "pine_bark"), ("Crown", c, vx(h), "pine_crown")]
 
 
 def bush(w=0.9, h=0.5, seed=0, mat="maquis", flowers=None):
