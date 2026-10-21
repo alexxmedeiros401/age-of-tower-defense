@@ -12801,12 +12801,13 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm"] else 1.0
+			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 			cam.fov = 30
 			for k in (6 if frames_dir else 1):
-				cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.2, 0)) * big
-				cam.look_at(bn.global_position + Vector3(0, 0.75 * big, 0))
+				cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.2, 0)) * big + Vector3(0, fly_y, 0)
+				cam.look_at(bn.global_position + Vector3(0, 0.75 * big + fly_y, 0))
 				cam_base = cam.position
 				shake = 0.0
 				await _wait_ticks(2 if k == 0 else 3)
@@ -12836,6 +12837,15 @@ func _run_demo() -> void:
 					shake = 0.0
 					await _wait_ticks(2)
 					await _shot("bots_emp_%02d.png" % k)
+			if type == "hydra_swarm":             # v0.9.47: its heads rear back, the hive's hatches spring open, drones fly out
+				be.summon_cd = 0.0
+				for k in 10:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 2.6, 0)) * big
+					cam.look_at(bn.global_position + Vector3(0, 0.85 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.2 / TICK))
+					await _shot("bots_summon_%d.png" % k)
 			if type == "repair_drone":            # v0.9.27: it mends the robots round it
 				for o in sim.enemies:
 					if o.alive and o.id != be.id and not o.boss and (o.pos as Vector2).distance_to(be.pos) < 4.0:
