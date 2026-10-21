@@ -12881,14 +12881,16 @@ func _run_demo() -> void:
 		get_tree().quit()
 		return
 	if "--shoot-hero-hq" in args:
-		# HQ hero check: Ugo + two Rock Slingers fighting, close-up, rank-up cheer, Stone Rain (+ optional frames)
+		# HQ hero check: the hero + two of the era's first tower fighting, close-up, rank-up cheer, the ability (+ optional
+		# frames)
 		_start_game()
 		sim.gold += 8000
 		sim.place_hero(_demo_spot("", true))
+		var mate: String = sim.tower_types()[0] if not sim.tower_types().is_empty() else "rock_slinger"
 		for k in 2:
-			var spot := _demo_spot("rock_slinger")
+			var spot := _demo_spot(mate)
 			if spot != Vector2.INF:
-				sim.place_tower("rock_slinger", spot)
+				sim.place_tower(mate, spot)
 		_handle_events()
 		sim.wave = 2
 		var kinds := ["walker", "scout", "walker", "brute", "walker", "scout", "walker", "walker", "scout", "walker", "walker", "brute"]
