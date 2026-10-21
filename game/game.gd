@@ -5164,7 +5164,7 @@ func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
 # Path B). A robot the pulse destroys blows up when its beam lands.
 const SUN_DISC := Vector3(-0.087, 2.05, 1.242)     # the disc as he drives the staff at the robots (model units, Godot axes, Yaw node)
 # v0.9.44: the Oracle's visions leave from the tip of her laurel as she sweeps it out at the robots (anim_oracle.SEE)
-const ORACLE_LAUREL := Vector3(-0.1, 1.45, 0.95)
+const ORACLE_LAUREL := Vector3(-0.47, 1.48, 0.7)      # the laurel's tip at SEE (anim_oracle; measured)
 const SUN_POINTS := {"sun_priest": SUN_DISC, "oracle": ORACLE_LAUREL}
 const BEAM_GROW := 0.06                           # seconds for a beam to reach its robot
 
@@ -7116,7 +7116,7 @@ func _theron_burst(hid: int, hp: Vector3, R: float, ids: Array) -> void:
 # laurel out at the robots) visions flash from the laurel's tip to every robot the pulse hit (_sun_beams: golden; white
 # on the Pythia's path, burning on the Sun Oracle's) and an eye opens over each, gold ringed in violet, staring a moment
 # and closing: the robot's weak spot laid bare (the sim's "expose").
-const ORACLE_VAPOUR := Vector3(0.25, 1.13, 0.22)     # above the cauldron (model units, Godot axes, Yaw node)
+const ORACLE_VAPOUR := Vector3(0.25, 1.08, 0.22)     # above the cauldron (model units, Godot axes, Yaw node; measured)
 
 
 func _oracle_eyes(u: Dictionary, targets: Array) -> void:
