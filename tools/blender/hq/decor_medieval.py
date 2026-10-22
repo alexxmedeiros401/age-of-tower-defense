@@ -540,10 +540,17 @@ def hut(seed=0):
     lg.sub(RoundBox((0.15, -hy, 0.25), (0.12, 0.12, 0.25), 0.01), k=0.004)                        # the door
     lg.add(RoundBox((0.15, -hy + 0.02, 0.25), (0.11, 0.02, 0.24), 0.006), k=0.0, label=5)
     rf = Field("Roof")
-    rf.add(gable((0, 0), hx + 0.22, hy + 0.2, wh - 0.02, wh + 0.52, axis="x"))
-    rf.ops[-1][1].disp = lambda P: NOISE.fbm(P * F32(7) + F32(seed), 3) * F32(0.02)
-    rf.ops[-1][1].disp_amp = 0.025
+    # the sod: thick and hummocky, slumping a little over the eaves (the planks under it show at the edges)
+    rf.add(gable((0, 0), hx + 0.2, hy + 0.17, wh - 0.03, wh + 0.54, axis="x"))
+    rf.ops[-1][1].disp = lambda P: NOISE.fbm(P * F32(4.5) + F32(seed), 3) * F32(0.045)
+    rf.ops[-1][1].disp_amp = 0.05
+    for k in range(5):                                                          # hummocks on the slopes
+        u, sy = rng.uniform(-hx, hx), rng.choice((-1, 1))
+        t = rng.uniform(0.25, 0.75)
+        rf.add(Ellipsoid((u, sy * (hy + 0.17) * t, wh + 0.54 - 0.5 * t + 0.03), (rng.uniform(0.1, 0.16), 0.09, 0.05),
+                         R=Rz(rng.uniform(-0.4, 0.4))), k=0.04)
     wd = Field("Wood")
+    wd.add(gable((0, 0), hx + 0.26, hy + 0.24, wh - 0.06, wh + 0.44, axis="x"), k=0.0, label=5)    # the plank roof
     wd.add(Cylinder((0.62, -0.78, 0.14), 0.15, 0.28, rr=0.02), k=0.0, label=5)                       # the chopping block
     ax = unit(v3((0.2, -0.3, 1.0)))
     wd.add(RoundCone(v3((0.62, -0.78, 0.29)), v3((0.62, -0.78, 0.29)) + ax * 0.5, 0.016, 0.014), k=0.0, label=11)   # the axe's haft

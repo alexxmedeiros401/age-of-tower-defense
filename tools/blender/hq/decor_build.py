@@ -232,7 +232,7 @@ def medieval_materials(dark):
         "drystone": DM.drystone("DK_DryStone"),
         "hay": DM.thatch("DK_Hay", base=(0.8, 0.66, 0.34), old=(0.66, 0.56, 0.32)), "wattle": mats.basket(),
         "sacking": mats.linen("DK_Sacking", base=(0.62, 0.5, 0.34), border=(0.42, 0.32, 0.2), stripe=(0.3, 0.24, 0.16)),
-        "logs": DM.timber_log("DK_Logs"), "turf_roof": DM.turf("DK_TurfRoof", "meadow"),
+        "logs": DM.timber_log("DK_Logs"), "turf_roof": DM.turf_roof("DK_TurfRoof"),
         "chapel_stone": DM.ashlar("DK_ChapelStone", base=(0.6, 0.58, 0.53), joint=(0.32, 0.3, 0.27), course=0.22, block=0.4,
                                   grime7=(0.34, 0.36, 0.28)),
         "ivy": DM.leaves("DK_Ivy", base=(0.07, 0.2, 0.06), hi=(0.22, 0.4, 0.12)),

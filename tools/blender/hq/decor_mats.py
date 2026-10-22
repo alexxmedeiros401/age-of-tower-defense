@@ -254,6 +254,24 @@ def turf(name="DK_Turf", theme="meadow"):
     return g.finish(c, 0.85, g.bump(peb, 0.3, 0.006))
 
 
+def turf_roof(name="DK_TurfRoof"):
+    """A sod roof in the deep wood (Darkwood's hut): dark, damp grass and moss in hummocks, bare black earth where the
+    sod has slumped, paler moss on the crowns; earth on the cut edges. (Meadow grass read as a lime-green slab there.)"""
+    g = new(name)
+    p = g.obj()
+    up = _up(g, 0.35, 0.7)
+    gr = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.07, 0.13, 0.04)), g.rgb((0.15, 0.24, 0.07)))
+    moss = g.smooth(g.noise(p, 7.0, 3.0), 0.55, 0.66)
+    gr = g.mix(g.math("MULTIPLY", moss, 0.6), gr, g.rgb((0.26, 0.32, 0.1)))
+    blades = g.noise(g.scale_vec(p, (55.0, 55.0, 55.0)), 1.0, 2.0)
+    gr = g.mix(g.math("MULTIPLY", blades, 0.4), gr, g.rgb((0.05, 0.09, 0.03)))
+    bare = g.smooth(g.noise(p, 2.2, 3.0, 0.5), 0.6, 0.7)
+    earth = g.mix(g.noise(p, 9.0, 2.0), g.rgb((0.08, 0.06, 0.04)), g.rgb((0.17, 0.12, 0.08)))
+    gr = g.mix(g.math("MULTIPLY", bare, 0.8), gr, earth)
+    c = g.mix(up, earth, gr)
+    return g.finish(c, 0.92, g.bump(g.math("ADD", g.math("MULTIPLY", blades, 0.6), moss), 0.5, 0.008))
+
+
 def glow(name, col, strength=2.5):
     g = new(name)
     return g.finish(g.rgb(col), 0.3, emit=g.rgb(col), emit_strength=strength)
