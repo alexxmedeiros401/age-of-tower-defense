@@ -31,7 +31,8 @@ EYE_C = v3((0, -0.385, 0.94))              # the eye (the ring's centre, on the 
 ROTORS = {"FL": v3((0.44, -0.17, 1.0)), "FR": v3((-0.44, -0.17, 1.0)), "BL": v3((0.44, 0.27, 1.0)), "BR": v3((-0.44, 0.27, 1.0))}
 DUCT_R = 0.125
 PIVOT = v3((0, 0.03, 0.675))               # the claw's ball joint under the belly (the bomb swings about it)
-B = v3((0, 0.03, 0.445))                   # the bomb's centre (rest)
+HUB = v3((0, 0.03, 0.585))                 # the claw's hub, on a rod from the ball joint
+B = v3((0, 0.03, 0.37))                    # the bomb's centre (rest): it hangs low, to show under the pod from above
 RB = 0.19                                  # its radius
 FUSE_D = norm(v3((0, -1.0, -0.5)))         # its fuse: at the front, a little below the equator
 FINGERS = [math.radians(45 + 90 * i) for i in range(4)]     # the claw's fingers (azimuths), between the seams
@@ -39,7 +40,7 @@ FINGERS = [math.radians(45 + 90 * i) for i in range(4)]     # the claw's fingers
 BONES = [
     ("root", tuple(C), tuple(C + v3((0, 0, 0.1))), None),
     ("eye", tuple(EYE_C + v3((0, 0.03, 0))), tuple(EYE_C + v3((0, -0.09, 0))), "root"),
-    ("bomb", tuple(PIVOT), tuple(PIVOT + v3((0, 0, -0.23))), "root"),
+    ("bomb", tuple(PIVOT), tuple(B), "root"),
 ]
 for k, p in ROTORS.items():
     BONES.append(("rotor." + k, tuple(p), tuple(p + v3((0, 0, 0.08))), "root"))
@@ -171,20 +172,21 @@ def parts(fine=False):
     out.append(("Pylon", f, vs, "root", "frame"))
     # ---- the claw: a hub on the ball joint, four hooked fingers wrapped round the bomb's top half
     f = Field("Claw")
-    f.add(Cylinder(PIVOT + v3((0, 0, -0.022)), 0.068, 0.05, rr=0.016))
-    f.paint(Cylinder(PIVOT + v3((0, 0, -0.022)), 0.075, 0.016), 1)
+    f.add(RoundCone(PIVOT, HUB, 0.026, 0.03))                                        # the rod down from the ball joint
+    f.add(Torus(PIVOT + v3((0, 0, -0.045)), 0.03, 0.01), k=0.004)
+    f.add(Cylinder(HUB, 0.07, 0.05, rr=0.016), k=0.01)
+    f.paint(Cylinder(HUB, 0.077, 0.016), 1)
     for a in FINGERS:
         u = v3((math.cos(a), math.sin(a), 0))
         def sp(th, r):                                                                 # a point over the bomb at polar angle th
             return B + (u * math.sin(th) + v3((0, 0, 1)) * math.cos(th)) * r
-        pts = [PIVOT + v3((0, 0, -0.03)) + u * 0.05, sp(math.radians(28), RB + 0.03), sp(math.radians(62), RB + 0.028),
+        pts = [HUB + v3((0, 0, -0.01)) + u * 0.052, sp(math.radians(28), RB + 0.03), sp(math.radians(62), RB + 0.028),
                sp(math.radians(92), RB + 0.024), sp(math.radians(110), RB + 0.004)]
         rads = [0.024, 0.023, 0.02, 0.017, 0.011]
         for i in range(len(pts) - 1):
             f.add(RoundCone(pts[i], pts[i + 1], rads[i], rads[i + 1]), k=0.008)
         for i in (1, 2):
             f.add(Sphere(pts[i], 0.028), k=0.006)
-            f.paint(Sphere(pts[i], 0.031), 1)
     out.append(("Claw", f, vs, "bomb", "frame"))
     # ---- the bomb: a round black iron ball, grooved along three seams (an equator and two meridians) that glow cyan
     f = Field("Bomb")
@@ -214,10 +216,10 @@ def parts(fine=False):
     f.add(RoundCone(wick0, wick1, 0.011, 0.009))
     out.append(("Wick", f, vs, "bomb", "rubber"))
     f = Field("FuseGlow")
-    f.add(Sphere(wick1, 0.024))
-    for d in ((0, -1, 0.3), (0.8, -0.4, 0.4), (-0.8, -0.4, 0.4), (0, -0.3, 1.0), (0.5, -0.6, -0.6), (-0.5, -0.6, -0.6)):
+    f.add(Sphere(wick1, 0.03))
+    for d in ((0, -1, 0.3), (0.8, -0.4, 0.4), (-0.8, -0.4, 0.4), (0, -0.3, 1.0), (0.5, -0.6, -0.6), (-0.5, -0.6, -0.6), (0, 0.3, 0.6)):
         dd = norm(d)
-        f.add(RoundCone(wick1, wick1 + dd * 0.05, 0.011, 0.002), k=0.006)
+        f.add(RoundCone(wick1, wick1 + dd * 0.065, 0.014, 0.002), k=0.007)
     out.append(("FuseGlow", f, vs, "bomb", "glow"))
     return out
 
@@ -230,7 +232,7 @@ def clips(arm):
         look = 0.28 * math.sin(w) + 0.08 * math.sin(3 * w)
         aims["eye"] = Vector((math.sin(look), -math.cos(look), -0.1))
         # the bomb hangs plumb from its ball joint and sways a little (fore and aft twice a loop, side to side once)
-        sw = Quaternion(Vector((1, 0, 0)), 0.11 * math.sin(2 * w + 0.7)) @ Quaternion(Vector((0, 1, 0)), 0.07 * math.sin(w + 1.9))
+        sw = Quaternion(Vector((1, 0, 0)), 0.12 * math.sin(2 * w + 0.7)) @ Quaternion(Vector((0, 1, 0)), 0.08 * math.sin(w + 1.9))
         aims["bomb"] = sw @ down
     ra.hover(arm, "Fly", frames=48, bob=0.045, tilt=0.1, roll=0.06,
              spin_bones=("rotor.FL", "rotor.FR", "rotor.BR", "rotor.BL"), spin_turns=6, extra=extra)
