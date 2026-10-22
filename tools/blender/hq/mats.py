@@ -1391,3 +1391,69 @@ def assign_all(objs, overrides=None):
                 cache[key] = ASSIGN[key]()
         o.data.materials.clear()
         o.data.materials.append(cache[key])
+
+
+# ======================================================================================= Gunpowder Age (the Musketeer)
+def matchlock(name="HQ_Matchlock", wood=(0.42, 0.22, 0.11), wood2=(0.27, 0.13, 0.065), ash=(0.68, 0.53, 0.34)):
+    """Arms and kit of the Gunpowder Age: oiled walnut (label 0, its grain along Y; 10 along X; 11 along Z), darker in
+    the hollows, pale on worn edges; pale ash (14); brass (5); forged iron (6, _iron_col); polished steel (7); twisted
+    hemp match cord (8); brown leather (9); a charred black match end (12); black paint or leather, worn through to a
+    sheen on the edges (13)."""
+    g = new(name)
+    p = g.obj()
+    gy = g.noise(g.scale_vec(p, (60.0, 3.0, 60.0)), 1.0, 4.0, 0.62)
+    gx = g.noise(g.scale_vec(p, (3.0, 60.0, 60.0)), 1.0, 4.0, 0.62)
+    gz = g.noise(g.scale_vec(p, (60.0, 60.0, 3.0)), 1.0, 4.0, 0.62)
+    gr = g.mixf(g.reg(11), g.mixf(g.reg(10), gy, gx), gz)
+    c = g.mix(g.remap(gr, 0.3, 0.7, 0.0, 1.0), g.rgb(wood), g.rgb(wood2))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(g.scale_vec(p, (14.0, 1.5, 14.0)), 1.0, 3.0), 0.55, 0.7), 0.4), c,
+              g.rgb(tuple(x * 0.6 for x in wood2)))                                          # walnut figure
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.5), c, g.rgb((0.12, 0.06, 0.03)))
+    worn = g.smooth(pt, 0.51, 0.57)
+    c = g.mix(g.math("MULTIPLY", worn, 0.45), c, g.rgb(tuple(min(1.0, x * 1.55) for x in wood)))
+    ashc = g.mix(g.remap(gr, 0.3, 0.7, 0.0, 1.0), g.rgb(ash), g.rgb(tuple(x * 0.8 for x in ash)))
+    ashc = g.mix(g.math("MULTIPLY", worn, 0.4), ashc, g.rgb(tuple(min(1.0, x * 1.15) for x in ash)))
+    c = g.mix(g.reg(14), c, ashc)
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.76, 0.54, 0.2)), g.rgb((1.0, 0.88, 0.56)))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.36, 0.22, 0.08)))
+    c = g.mix(g.reg(5), c, br)
+    ic, rs = _iron_col(g, p)
+    c = g.mix(g.reg(6), c, ic)
+    sc, _ = _iron_col(g, p, base=(0.5, 0.52, 0.56), hi=(0.92, 0.94, 0.97), dark=(0.15, 0.15, 0.17), rust=(0.42, 0.26, 0.14))
+    c = g.mix(g.reg(7), c, sc)
+    tw = g.wave(p, 240.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(8), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb((0.56, 0.45, 0.32)), g.rgb((0.32, 0.25, 0.17))))
+    hide = g.mix(g.noise(p, 9.0, 3.0), g.rgb((0.34, 0.2, 0.1)), g.rgb((0.45, 0.28, 0.14)))
+    hide = g.mix(g.math("MULTIPLY", worn, 0.5), hide, g.rgb((0.62, 0.43, 0.26)))
+    c = g.mix(g.reg(9), c, hide)
+    blk = g.mix(g.noise(p, 20.0, 2.0), g.rgb((0.055, 0.05, 0.05)), g.rgb((0.11, 0.1, 0.095)))
+    blk = g.mix(g.math("MULTIPLY", worn, 0.6), blk, g.rgb((0.32, 0.29, 0.26)))
+    c = g.mix(g.reg(13), c, blk)
+    c = g.mix(g.reg(12), c, g.mix(g.noise(p, 60.0, 2.0), g.rgb((0.04, 0.035, 0.03)), g.rgb((0.2, 0.17, 0.15))))
+    rough = g.mixf(g.reg(5), g.mixf(g.reg(14), 0.5, 0.62), 0.3)
+    rough = g.mixf(g.reg(6), rough, g.mixf(rs, 0.4, 0.8))
+    rough = g.mixf(g.reg(7), rough, 0.26)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(8), g.reg(12)), rough, 0.9)
+    rough = g.mixf(g.reg(9), rough, 0.62)
+    rough = g.mixf(g.reg(13), rough, 0.42)
+    h = g.math("ADD", g.math("MULTIPLY", gr, 0.6), g.math("MULTIPLY", tw, g.math("MULTIPLY", g.reg(8), 1.5)))
+    h = g.math("ADD", h, g.math("MULTIPLY", g.noise(p, 90.0, 2.0), g.math("MAXIMUM", g.reg(6), g.reg(9))))
+    return g.finish(c, rough, g.bump(h, 0.28, 0.003))
+
+
+def plume(name="HQ_Plume", col=(0.55, 0.08, 0.08), col2=(0.95, 0.93, 0.87)):
+    """Ostrich plumes: soft, fluffy barbs, label 0 in `col`, label 5 in `col2`; darker in the hollows between the
+    fronds, lighter on their crests, fine barb lines."""
+    g = new(name)
+    p = g.obj()
+    barbs = g.wave(p, 150.0, 4.0, 2.0, "BANDS", "DIAGONAL")
+    fluff = g.noise(p, 110.0, 2.0, 0.6)
+    c0 = g.mix(g.remap(g.noise(p, 10.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(min(1.0, x * 1.3) for x in col)))
+    c1 = g.mix(g.remap(g.noise(p, 10.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col2), g.rgb(tuple(x * 0.86 for x in col2)))
+    c = g.mix(g.reg(5), c0, c1)
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.55), c, g.rgb((0.45, 0.42, 0.42)), blend="MULTIPLY")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.3), c, g.rgb((0.3, 0.27, 0.25)), blend="ADD")
+    c = g.mix(g.math("MULTIPLY", g.smooth(barbs, 0.6, 0.9), 0.28), c, g.rgb((0.6, 0.58, 0.56)), blend="MULTIPLY")
+    return g.finish(c, 0.88, g.bump(g.math("ADD", g.math("MULTIPLY", barbs, 0.6), fluff), 0.32, 0.002))
