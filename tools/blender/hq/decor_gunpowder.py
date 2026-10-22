@@ -1353,7 +1353,9 @@ def crates(seed=0):
     o = v3((-0.52, -0.32, 0.13))                                    # the open crate
     cr.add(RoundBox(o, (0.18, 0.15, 0.13), 0.01, R=Rz(-0.3)), k=0.0, label=10)
     cr.sub(RoundBox(o + v3((0, 0, 0.06)), (0.155, 0.125, 0.13), 0.005, R=Rz(-0.3)), k=0.0)
-    cr.add(RoundBox((-0.78, -0.6, 0.2), (0.17, 0.02, 0.15), 0.008, R=Rz(-0.3) @ euler(0.35, 0, 0)), k=0.0, label=10)   # its lid
+    nf = Rz(-0.3) @ v3((0, -1, 0))                                  # its lid propped against its front, its foot on the sand
+    cr.add(RoundBox(v3((o[0], o[1], 0.141)) + nf * 0.216, (0.17, 0.016, 0.15), 0.008, R=Rz(-0.3) @ euler(-0.34, 0, 0)),
+           k=0.004, label=10)
     st.add(Ellipsoid(o + v3((0, 0, 0.1)), (0.15, 0.12, 0.05), **wob(30.0, 0.008, seed)), k=0.0)
     for j in range(6):
         q = o + Rz(-0.3) @ v3((-0.09 + 0.09 * (j % 3), -0.045 + 0.09 * (j // 3), 0.13))
@@ -1391,23 +1393,24 @@ def bales(seed=0):
     return [("Bales", f, fine(0.006, 0.012), "bales"), ("Sacks", sk, fine(0.006, 0.012), "bales")]
 
 
-def rope_coil(seed=0, R0=0.27, r=0.024):
-    """A coil of heavy rope flaked down on the sand, a second turn lying over the first, its end trailing off."""
+def rope_coil(seed=0, R0=0.27, r=0.025):
+    """A coil of heavy rope flaked down on the sand, a second turn lying over the first, its end trailing off. (Its
+    turns lie a little apart and clear of the ground, so the rope stays one closed tube that thins cleanly.)"""
     f = Field("Rope")
+    turns, step = 2.4, 0.064
     pts = []
-    turns = 3.3
-    for i in range(70):
-        t = i / 69 * turns
-        rr = R0 - 0.052 * t
+    for i in range(60):
+        t = i / 59 * turns
+        rr = R0 - step * t
         a = 2 * math.pi * t
-        pts.append(v3((math.cos(a) * rr, math.sin(a) * rr, r * 0.9)))
+        pts.append(v3((math.cos(a) * rr, math.sin(a) * rr, r * 1.05)))
     f.add(Chain(pts, [r] * len(pts), k=0.004), k=0.0, label=8)
-    top = [v3((math.cos(a) * (R0 - 0.06), math.sin(a) * (R0 - 0.06), r * 2.6)) for a in np.linspace(0.3, 4.2, 18)]
+    rt = R0 - step * 0.5                                            # (the top turn rests in the groove between the first two)
+    top = [v3((math.cos(a) * rt, math.sin(a) * rt, r * 2.55)) for a in np.linspace(0.3, 4.2, 16)]
     f.add(Chain(top, [r] * len(top), k=0.004), k=0.004, label=8)
-    tail = [v3((R0, 0, r * 0.9)), v3((R0 + 0.15, -0.12, r * 0.9)), v3((R0 + 0.28, -0.05, r * 0.9)), v3((R0 + 0.45, -0.16, r * 0.9))]
+    tail = [v3((R0, 0, r * 1.05)), v3((R0 + 0.15, -0.12, r * 1.05)), v3((R0 + 0.28, -0.05, r * 1.05)), v3((R0 + 0.45, -0.16, r * 1.05))]
     f.add(Chain(tail, [r] * len(tail), k=0.004), k=0.004, label=8)
-    f.inter(Plane((0, 0, 0.0), (0, 0, -1)))
-    return [("Rope", f, fine(0.004, 0.008), "rope")]
+    return [("Rope", f, fine(0.005, 0.01), "rope")]
 
 
 def anchor(seed=0):
@@ -1944,7 +1947,7 @@ def gabion(wk, ea, c, r=0.27, h=0.62, seed=0, stakes=14):
         a = 2 * math.pi * (k + 0.5) / stakes
         p = c + v3((math.cos(a) * (r - 0.006), math.sin(a) * (r - 0.006), 0))
         wk.add(RoundCone(p + v3((0, 0, h - 0.06)), p + v3((0, 0, h + 0.05)), 0.011, 0.008), k=0.004)
-    ea.add(Ellipsoid(c + v3((0, 0, h - 0.04)), (r - 0.02, r - 0.02, 0.07), **wob(9.0, 0.012, seed)), k=0.0)
+    ea.add(Ellipsoid(c + v3((0, 0, h - 0.02)), (r - 0.02, r - 0.02, 0.085), **wob(9.0, 0.01, seed)), k=0.0)
 
 
 def gabions(seed=0, n=4):
@@ -2206,8 +2209,9 @@ def mortar(seed=0):
     return out
 
 
-def shot_pyramid(seed=0, n=4, r=0.075):
-    """Round shot stacked in a square pyramid on two planks."""
+def shot_pyramid(seed=0, n=3, r=0.085):
+    """Round shot stacked in a square pyramid on two planks. (The balls stand a hair apart: balls touching at points
+    make a mesh that will not thin.)"""
     f = Field("Shot")
     z0 = 0.04
     for k in range(n):
@@ -2216,7 +2220,7 @@ def shot_pyramid(seed=0, n=4, r=0.075):
             for j in range(m):
                 x = (i - (m - 1) / 2) * 2 * r
                 y = (j - (m - 1) / 2) * 2 * r
-                f.add(Sphere((x, y, z0 + r + k * r * math.sqrt(2)), r), k=0.0)
+                f.add(Sphere((x, y, z0 + r + k * r * math.sqrt(2)), r - 0.003), k=0.0)
     out = [("Shot", f, fine(0.005, 0.01), "shot")]
     wd = Field("Planks")
     for y in (-0.12, 0.12):
@@ -2917,7 +2921,7 @@ def KITS(theme):
             "Rock_A": (lambda: limestone(1.5, 0.5, 435), 650), "Rock_B": (lambda: limestone(0.95, 0.32, 436, 1), 420),
             "Rock_C": (lambda: limestone(2.1, 0.62, 437, 3), 850), "Driftwood": (lambda: driftwood(438), 600),
             "Crates": (lambda: crates(439), 1300), "Barrels": (lambda: barrels(440), 1200), "Bales": (lambda: bales(441), 1000),
-            "Rope": (lambda: rope_coil(442), 500), "Anchor": (lambda: anchor(443), 700), "Rowboat": (lambda: rowboat(444), 1400),
+            "Rope": (lambda: rope_coil(442), 600), "Anchor": (lambda: anchor(443), 700), "Rowboat": (lambda: rowboat(444), 1400),
             "Nets": (lambda: nets(445), 1200), "Treasure": (lambda: treasure(446), 1400),
             "Ship": (lambda: brigantine(447), 7000), "Jetty": (lambda: jetty(448), 2200), "Tavern": (lambda: tavern(449), 4800),
             "Lookout": (lambda: lookout(450), 2200),

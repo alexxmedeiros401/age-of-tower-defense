@@ -550,6 +550,21 @@ def mesh_from(name, V, F, UV, mat):
 
 
 # ------------------------------------------------------------------------------------------------ game
+def fill_misses(maps, ob):
+    """Texels inside the atlas's islands that no bake ray reached come out black, glossy and flat: where the thinned
+    mesh lies inside its sculpt by more than the cage (thin leaves, guy ropes, the bumpy earth in a gabion). Give them
+    the values of the nearest texel that was baked."""
+    from scipy.ndimage import distance_transform_edt
+    inside = bk.uv_mask(ob, TEX)
+    miss = inside & (maps["DIFFUSE"][..., :3].max(-1) <= 0.0)
+    good = inside & ~miss
+    if miss.any() and good.any():
+        _, (iy, ix) = distance_transform_edt(~good, return_indices=True)
+        for a in maps.values():
+            a[miss] = a[iy[miss], ix[miss]]
+    log("misses filled: %d texels (%.1f%% of the islands)" % (int(miss.sum()), 100.0 * miss.sum() / max(1, int(inside.sum()))))
+
+
 def game_stage():
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=HI)
@@ -585,8 +600,11 @@ def game_stage():
     uv.foreach_set("uv", co)
     log("uv %.0fs" % (time.time() - T))
     groups = [([pid[o.name]], [o]) for o in bake_hi]
+    # (the Gunpowder Age's kits: a deeper cage, and the texels no ray reached filled; see fill_misses)
     maps = bk.bake_groups(kitob, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.35,
-                          extrusion=0.02, maxdist=0.06)
+                          extrusion=0.035 if GUNPOWDER else 0.02, maxdist=0.08 if GUNPOWDER else 0.06)
+    if GUNPOWDER:
+        fill_misses(maps, kitob)
     log("bakes %.0fs" % (time.time() - T))
     from mats import lin
     def paint(a):
