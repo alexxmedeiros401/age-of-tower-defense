@@ -235,7 +235,7 @@ def beard_field():
     # the fork: two short locks below the chin, parting to points
     for sx in (-1, 1):
         pts = [hp((sx * 0.014, -0.18, 1.468)), hp((sx * 0.03, -0.2, 1.44)), hp((sx * 0.048, -0.214, 1.414)), hp((sx * 0.066, -0.222, 1.392))]
-        fd.add(Lock(pts, [hr(0.042), hr(0.034), hr(0.022), hr(0.006)], [hr(0.024), hr(0.021), hr(0.015), hr(0.005)],
+        fd.add(Lock(pts, [hr(0.052), hr(0.046), hr(0.032), hr(0.009)], [hr(0.03), hr(0.028), hr(0.02), hr(0.007)],
                     [norm(v3((sx * 0.25, -1.0, -0.3)))] * 4, k=hr(0.01), disp=beard_tex, disp_amp=0.005), hr(0.012))
     # the moustache
     for sx in (-1, 1):
@@ -254,8 +254,8 @@ def beard_field():
         Q = hinv(P)
         y, z = Q[:, 1], Q[:, 2]
         top = F(1.8)
-        bot = F(1.69) - F(0.08) * smoothstep(-0.02, 0.12, y)
-        return np.maximum(np.maximum(z - top, bot - z), F(-0.035) - y)
+        bot = F(1.738) - F(0.11) * smoothstep(0.06, 0.16, y)
+        return np.maximum(np.maximum(z - top, bot - z), F(0.03) - y)
     fd.add(Inter(Shell(Ellipsoid(HEAD_C, HEAD_RAD), 0.006, 0.016, pad=0.06, disp=stub, disp_amp=0.004),
                  Func(band, HEAD_C - 0.4, HEAD_C + 0.4), 0.006), 0.0)
     return fd
@@ -440,18 +440,29 @@ def steel_field():
     # the flared lame at the waist (the fauld)
     fd.add(Inter(Shell(cb, BP_OFF + 0.018, 0.014, pad=0.12, disp=hammer, disp_amp=0.001),
                  Func(lambda P: np.abs(P[:, 2] - F(BP_BOT - 0.012)) - F(0.03), lo, hi), 0.004), 0.006)
-    # the gorget: lames round his neck, flaring over his collarbones, low in front (his chin and beard over it)
+    # the gorget: a collar of lames round his neck over the breastplate's neck edge, low in front under his chin and beard,
+    # higher at the back, a rolled top edge
     gb = Field("GorgetBase")
     gb.add(neck_prim(), 0.0)
     gb.add(traps(), 0.05)
-    nk = v3((0, 0.06, 1.38))
+    def g_band(P):
+        y = P[:, 1]
+        back = smoothstep(-0.12, 0.12, y)
+        return F(1.305) + F(0.125) * back, F(1.375) + F(0.105) * back
     def g_keep(P):
-        y, z = P[:, 1], P[:, 2]
-        top = F(1.355) + F(0.12) * smoothstep(-0.12, 0.1, y)
-        rad = np.sqrt(P[:, 0] ** 2 + ((y - F(0.05)) / F(1.1)) ** 2)
-        return np.maximum(np.maximum(F(1.3) - z, z - top), rad - F(0.255))
-    lames = lambda P: -F(0.004) * (((F(1.5) - P[:, 2]) / F(0.032)) % F(1.0)) + F(0.0006) * NOISE(P * F(50))
-    fd.add(Inter(Shell(gb, 0.052, 0.012, pad=0.1, disp=lames, disp_amp=0.005), Func(g_keep, (-0.4, -0.4, 1.2), (0.4, 0.45, 1.6)), 0.004), 0.004)
+        z = P[:, 2]
+        bot, top = g_band(P)
+        rad = np.sqrt(P[:, 0] ** 2 + ((P[:, 1] - F(0.05)) / F(1.1)) ** 2)
+        return np.maximum(np.maximum(bot - z, z - top), rad - F(0.235))
+    def g_lames(P):
+        bot, top = g_band(P)
+        u = (P[:, 2] - bot) / F(0.03)
+        return -F(0.0045) * (F(1) - (u - np.floor(u))) + F(0.0006) * NOISE(P * F(50))
+    glo, ghi = (-0.4, -0.4, 1.2), (0.4, 0.45, 1.6)
+    fd.add(Inter(Shell(gb, 0.072, 0.012, pad=0.1, disp=g_lames, disp_amp=0.005), Func(g_keep, glo, ghi), 0.004), 0.004)
+    fd.add(Inter(Shell(gb, 0.08, 0.014, pad=0.1), Func(lambda P: np.maximum(np.abs(P[:, 2] - (g_band(P)[1] - F(0.006))) - F(0.008),
+                                                                        np.sqrt(P[:, 0] ** 2 + ((P[:, 1] - F(0.05)) / F(1.1)) ** 2) - F(0.235)),
+                                                    glo, ghi), 0.003), 0.004)
     # brass rivets: two at each shoulder where the plates meet the gorget, a row along the waist
     outer = Func(lambda P: cb.eval(P, margin=0.08) - F(BP_OFF + 0.01), lo, hi)
     for sx in (-1, 1):
@@ -967,10 +978,10 @@ def tassel_field():
 # ======================================================================================= painting
 def warm_points():
     """Ruddy: the nose, the apple cheeks, the ears, the knuckles."""
-    pts = [(hp((0, -0.258, 1.616)), 0.06, 0.85), (hp((0, -0.23, 1.68)), 0.04, 0.4)]
+    pts = [(hp((0, -0.258, 1.616)), 0.06, 0.75), (hp((0, -0.23, 1.68)), 0.04, 0.35)]
     for sx in (-1, 1):
         sd = "R" if sx < 0 else "L"
-        pts += [(hp((sx * 0.11, -0.15, 1.632)), 0.07, 0.8), (hp((sx * 0.18, 0.035, 1.664)), 0.05, 0.6),
+        pts += [(hp((sx * 0.11, -0.15, 1.632)), 0.07, 0.7), (hp((sx * 0.18, 0.035, 1.664)), 0.05, 0.55),
                 (hp((sx * 0.13, -0.1, 1.58)), 0.05, 0.35)]
     for side in ("R", "L"):
         wr, f, n, t = hand_frame(side)
@@ -995,7 +1006,7 @@ GOLD = (0.85, 0.62, 0.2)
 IRIS = ((0.1, 0.27, 0.52), (0.34, 0.6, 0.86))          # bright blue eyes (the iris's outer ring, its inner ring)
 STEEL = {"name": "HQ_LandsSteel", "base": (0.46, 0.47, 0.5)}
 MAT_OVERRIDES = {
-    "Skin": ("skin", {"name": "HQ_LandsSkin", "base": (0.84, 0.58, 0.44), "ruddy": (0.9, 0.42, 0.34), "lips": (0.7, 0.36, 0.32),
+    "Skin": ("skin", {"name": "HQ_LandsSkin", "base": (0.88, 0.64, 0.5), "ruddy": (0.92, 0.46, 0.38), "lips": (0.72, 0.38, 0.34),
                       "brow": ((0.16, 0.09, 0.05), (0.32, 0.19, 0.1)),
                       "extra": ((LASH, (0.12, 0.07, 0.04), 0.5),)}),
     "Beard": ("hair", {"name": "HQ_LandsBeard", "base": (0.27, 0.15, 0.08), "hi": (0.56, 0.36, 0.2), "low": (0.12, 0.065, 0.035),

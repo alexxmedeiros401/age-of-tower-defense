@@ -137,7 +137,7 @@ def wood_field():
         fd.add(RoundCone(rg + RACK_AX * -0.33 + v3((0, 0, z)), rg + RACK_AX * 0.33 + v3((0, 0, z)), r, r), 0.004, 10)
     # the weapons: ash hafts, iron heads
     for name, f0, d, L in rack_weapons():
-        fd.add(RoundCone(f0, f0 + d * (L - (0.3 if name == "halberd" else 0.22)), 0.017, 0.016), 0.004, 11)
+        fd.add(RoundCone(f0, f0 + d * (L - (0.3 if name == "halberd" else 0.22)), 0.02, 0.019), 0.004, 11)
         fd.add(RoundCone(f0, f0 + d * 0.05, 0.019, 0.018), 0.003, 6)
         hb = norm(np.cross(d, side)) if name == "halberd" else None
         if name == "halberd":
@@ -185,8 +185,8 @@ def _rack_halberd_head(fd, f0, d, L, side):
     b = norm(np.cross(d, side))                                   # the blade's side (along the rails)
     fd.add(RoundCone(s0, s0 + d * 0.12, 0.022, 0.019), 0.003, 6)
     hc = s0 + d * 0.12
-    fd.add(RoundBox(hc + b * 0.075, (0.07, 0.006, 0.075), 0.004, R=rot_from_axes(z_axis=d, x_axis=b)), 0.004, 6)
-    fd.add(Ellipsoid(hc + b * 0.14 - d * 0.005, (0.012, 0.0055, 0.09), R=rot_from_axes(z_axis=d, x_axis=b)), 0.008, 6)  # the edge
+    fd.add(RoundBox(hc + b * 0.085, (0.08, 0.007, 0.085), 0.004, R=rot_from_axes(z_axis=d, x_axis=b)), 0.004, 6)
+    fd.add(Ellipsoid(hc + b * 0.16 - d * 0.005, (0.013, 0.0065, 0.105), R=rot_from_axes(z_axis=d, x_axis=b)), 0.008, 6)  # the edge
     fd.add(RoundCone(hc - b * 0.02, hc - b * 0.11 - d * 0.03, 0.013, 0.003), 0.004, 6)
     fd.add(RoundCone(hc + d * 0.05, top, 0.012, 0.002), 0.004, 6)
 
@@ -281,39 +281,38 @@ def green_field():
         d = norm(v3((math.cos(a), math.sin(a), 0.9)))
         sd = norm(np.cross(v3((0, 0, 1)), d))
         _frond(fd, c + v3((math.cos(a) * 0.03, math.sin(a) * 0.03, 0.0)), d, rs.uniform(0.28, 0.38), sd, 300 + k)
-    # the palm's fronds
+    # the palm's fronds: arching out from its crown (away from the floor) and drooping, each a midrib (7) with long narrow
+    # leaflets in pairs
     crown = palm_crown()
-    for k in range(7):
-        a = 2 * math.pi * k / 7 + 0.35
+    outward = math.atan2(PALM_C[1], PALM_C[0])
+    for k in range(8):
+        a = outward + math.radians(-120 + 240 * k / 7) + (0.12 if k % 2 else -0.08)
         u = (k % 3) / 2.0
-        el = math.radians(52 - 30 * u)
+        el = math.radians(58 - 24 * u)
         dh = v3((math.cos(a), math.sin(a), 0.0))
-        # (the fronds over the floor rise more steeply: they must clear his halberd)
-        inward = max(0.0, float(dh @ norm(-PALM_C * v3((1, 1, 0)))))
-        el += math.radians(22) * inward
-        L = 0.62 - 0.1 * u
+        L = 0.72 - 0.1 * u
         pts = []
         for i in range(8):
             t = i / 7
-            pts.append(crown + dh * (L * t * math.cos(el)) + v3((0, 0, L * t * math.sin(el) - 0.42 * L * t * t)))
+            pts.append(crown + dh * (L * t * math.cos(el)) + v3((0, 0, L * t * math.sin(el) - 0.62 * L * t * t)))
         fd.add(Chain(pts, [0.009 - 0.006 * i / 7 for i in range(8)], k=0.004), 0.003, 7)
         sd = norm(np.cross(v3((0, 0, 1)), dh))
-        for i in range(1, 16):
-            t = i / 16
-            s = t * 7
-            j = min(int(s), 6)
-            p = lerp(pts[j], pts[j + 1], s - j)
+        for i in range(1, 17):
+            t = i / 17
+            s_ = t * 7
+            j = min(int(s_), 6)
+            p = lerp(pts[j], pts[j + 1], s_ - j)
             tg = norm(pts[j + 1] - pts[j])
-            ln = 0.15 * math.sin(math.pi * min(1.0, 0.15 + t * 0.95)) + 0.03
+            ln = 0.16 * math.sin(math.pi * min(1.0, 0.15 + t * 0.95)) + 0.03
             for sg in (-1, 1):
-                ld = norm(sd * sg * 0.8 + tg * 0.45 + v3((0, 0, -0.35)))
-                fd.add(Ellipsoid(p + ld * ln * 0.5, (0.011, 0.003, ln * 0.5), R=rot_from_axes(z_axis=ld, y_axis=norm(np.cross(ld, tg)))), 0.003, 0)
+                ld = norm(sd * sg * 0.8 + tg * 0.45 + v3((0, 0, -0.45)))
+                fd.add(Ellipsoid(p + ld * ln * 0.5, (0.012, 0.003, ln * 0.5), R=rot_from_axes(z_axis=ld, y_axis=norm(np.cross(ld, tg)))), 0.003, 0)
     return fd
 
 
 def palm_crown():
     g = _ground_at(PALM_C, 0.0)
-    return g + v3((0.03, 0.01, 0.5))
+    return g + v3((-0.07, 0.02, 0.86))
 
 
 def trunk_field():
@@ -323,8 +322,9 @@ def trunk_field():
     g = _ground_at(PALM_C, 0.04)
     top = palm_crown()
     rings = lambda P: F(0.006) * np.abs(np.sin((P[:, 2] - F(g[2])) * F(70))) + F(0.002) * NOISE(P * F(30))
-    fd.add(RoundCone(g, top, 0.105, 0.075, disp=rings, disp_amp=0.008), 0.0)
-    fd.add(Ellipsoid(g + v3((0, 0, 0.04)), (0.16, 0.16, 0.1)), 0.06)
+    mid = lerp(g, top, 0.5) + v3((-0.025, 0.0, 0.0))
+    fd.add(Chain([g, mid, top], [0.09, 0.07, 0.062], k=0.02, disp=rings, disp_amp=0.008), 0.0)
+    fd.add(Ellipsoid(g + v3((0, 0, 0.04)), (0.14, 0.14, 0.09)), 0.06)
     for k in range(6):
         a = 2 * math.pi * k / 6 + 0.2
         b0 = top + v3((0.05 * math.cos(a), 0.05 * math.sin(a), -0.03))
