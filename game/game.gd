@@ -3093,7 +3093,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4646,8 +4646,9 @@ func _handle_events() -> void:
 					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
-				elif u2 != null and u2.type == "axe_warrior" and _hq_clips(ev.id):
-					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them
+				elif u2 != null and u2.type in ["axe_warrior", "knight"] and _hq_clips(ev.id):
+					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them (v0.9.50: and
+					                                            # the Knight's great sword cleaves down across them)
 				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
 					_dust_fx(_v3(u2.pos + u2.facing * 0.8, 0.2), 5, 0.7)
@@ -5683,7 +5684,7 @@ func _axe_cleave(u: Dictionary, targets: Array) -> void:
 	var tn: Node3D = tower_nodes[uid]
 	var clip := str(tn.get_meta("clip_attack", "Attack"))
 	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
-	var at := float(ATTACK_FRAME.axe_warrior) / CLIP_FPS
+	var at := float(ATTACK_FRAME.get(str(u.type), ATTACK_FRAME.axe_warrior)) / CLIP_FPS
 	var ids := []
 	for tid in targets:
 		if _robot_point(int(tid), 0.0) == Vector3.INF:     # (gone already)
@@ -5701,11 +5702,14 @@ func _axe_sweep(uid: int, ids: Array) -> void:
 		return
 	var fwd := Vector3(u.facing.x, 0.0, u.facing.y)
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
-	var s := float(defs.towers.axe_warrior.get("model_scale", 0.68)) / 0.68
+	var ty := str(u.type)
+	var s := float(defs.towers[ty].get("model_scale", 0.68)) / 0.68 if defs.towers.has(ty) else 1.0
 	if _fx_room(1):                                    # (the sweep is one node; the cap only thins out the sparks)
-		var arc := _mi(_cleave_mesh(), _atk_mat("cleave"), self, _v3(u.pos, 0.95 * s))
+		var arc := _mi(_cleave_mesh(), _atk_mat("cleave"), self, _v3(u.pos, (1.05 if ty == "knight" else 0.95) * s))
 		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var b := Basis.looking_at(fwd, Vector3.UP)
+		if ty == "knight":                             # (his cleave runs down from his right shoulder to his left hip)
+			b = b * Basis(Vector3(0, 0, 1), deg_to_rad(32.0))
 		arc.basis = b.scaled(Vector3(1.3 * s, 1.0, 1.3 * s))
 		effects.append({"node": arc, "t": 0.0, "life": 0.22, "kind": "cleave", "b0": b, "s": 1.3 * s})
 	var i := 0
