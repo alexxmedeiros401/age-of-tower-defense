@@ -1,0 +1,7 @@
+[
+ {
+  "name": "gpkit_city5",
+  "cmd": "O=$GITHUB_WORKSPACE/out/gpkit_city5; mkdir -p $O\npython3 decor_build.py -- --theme fort_city --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/gpkit_city5"
+ }
+]
