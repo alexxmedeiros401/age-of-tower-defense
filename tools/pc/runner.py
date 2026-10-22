@@ -135,6 +135,7 @@ def main():
             stop = os.path.exists(os.path.join(ROOT, "STOP"))
             queued = sorted(glob.glob(os.path.join(D["queue"], "*.json")))
             if not stop and len(running) < c["max_jobs"] and time.time() - last_start > 45:
+                blocked = False                                         # (a job ahead waits for memory: only tiny ones jump it)
                 for qp in queued:
                     spec = load(qp)
                     if not spec or "name" not in spec:
@@ -152,9 +153,13 @@ def main():
                     if not all(os.path.exists(os.path.join(D["done"], d + ".json")) for d in deps):
                         continue
                     need = float(spec.get("mem_gb", 4))
+                    if blocked and need > 1.5:
+                        continue
                     if running and avail - c["reserve_gb"] < need:
+                        blocked = True
                         continue
                     if not running and total - c["reserve_gb"] < need * 0.6:
+                        blocked = True
                         continue
                     for d in spec.get("mkdirs", []):
                         os.makedirs(sub(d), exist_ok=True)
