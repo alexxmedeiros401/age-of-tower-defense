@@ -6874,7 +6874,7 @@ const TORSION_FLY := 0.75                           # the shot's size in flight 
 # v0.9.43: the Onager (anim_onager.py) throws the same way, from its sling: the stone leaves the pouch as the sling whips
 # over the arm's tip (its SLAM, frame 7, the same clip time). Path A's fire pots ride its stone and carry bones too.
 const ONAGER_STONE := Vector3(0.3, 1.394, 0.89)     # the stone as the sling lets it go (model units, Godot axes, Yaw node)
-const TREB_STONE := Vector3(0.43, 3.269, 1.013)     # v0.9.51: the Trebuchet's stone as the sling lets go (anim_trebuchet.THROW)
+const TREB_STONE := Vector3(0.43, 3.269, 1.013)     # v0.9.49: the Trebuchet's stone as the sling lets go (anim_trebuchet.THROW)
 const LOB_FROM := {"torsion_catapult": TORSION_BALL, "onager": ONAGER_STONE, "trebuchet": TREB_STONE}
 const LOB_THROW_T := {"trebuchet": 0.42}           # (Blender frame 10 lands on the importer's 30 Hz sample at 0.433 s)
 

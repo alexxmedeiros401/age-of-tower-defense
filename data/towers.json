@@ -2109,7 +2109,7 @@
   "name": "Trebuchet",
   "lineage": "Siege",
   "era": "Medieval Age",
-  "model_scale": 0.56,
+  "model_scale": 0.72,
   "swing": [
    -0.15,
    2.0
