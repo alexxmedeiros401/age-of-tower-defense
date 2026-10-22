@@ -1,0 +1,7 @@
+[
+ {
+  "name": "halberdier_p3",
+  "cmd": "O=$GITHUB_WORKSPACE/out/halberdier_p3; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character halberdier --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character halberdier --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,90 --step 30 --spp 8 --res 500 --tx 0.0 --ty -0.1 --tz 1.45 --dist 3.6 --az 28 --el 18 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Combat --range 0,0 --step 1 --spp 8 --res 500 --tx 0.0 --ty -0.1 --tz 1.45 --dist 3.6 --az 28 --el 18 > $O/poses_Combat.log 2>&1 || tail -20 $O/poses_Combat.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 3,12 --step 3 --spp 8 --res 500 --tx 0.0 --ty -0.1 --tz 1.45 --dist 3.6 --az 28 --el 18 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/halberdier_p3"
+ }
+]
