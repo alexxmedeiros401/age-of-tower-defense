@@ -1375,6 +1375,44 @@ def vials(name="HQ_Vials", glass=(0.8, 0.9, 0.88)):
     return g.finish(c, rough)
 
 
+# ======================================================================================= Gunpowder Age
+def drum(name="HQ_Drum", shell=(0.55, 0.08, 0.08), device=(0.88, 0.66, 0.22), hoop=(0.07, 0.065, 0.065),
+         hoop_gold=(0.9, 0.7, 0.26), rope=(0.94, 0.92, 0.86), buff=(0.42, 0.25, 0.13), head=(0.93, 0.87, 0.73)):
+    """A military side drum: the shell's paint (label 0) with brush grain, darker in the hollows, chipped back to the wood
+    on its worn edges; the painted device (5, gold); the hoops' black paint (6) and their gold paint (7); white rope (8),
+    twisted; leather buffs (9); calfskin heads (10), mottled, pale; brass (11); the head's patch worn grey where the
+    sticks strike (13)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    brush = g.remap(g.noise(g.scale_vec(p, (70.0, 70.0, 70.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    chip = g.math("MULTIPLY", g.smooth(pt, 0.53, 0.6), g.smooth(g.noise(p, 30.0, 2.0), 0.45, 0.55))
+    c = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(shell), g.rgb(tuple(x * 0.78 for x in shell)))
+    dv = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(device), g.rgb(tuple(x * 0.82 for x in device)))
+    c = g.mix(g.reg(5), c, dv)
+    hp_ = g.mix(g.math("MULTIPLY", brush, 0.4), g.rgb(hoop), g.rgb(tuple(min(1.0, x * 1.8) for x in hoop)))
+    c = g.mix(g.reg(6), c, hp_)
+    hg = g.mix(g.math("MULTIPLY", brush, 0.3), g.rgb(hoop_gold), g.rgb(tuple(x * 0.8 for x in hoop_gold)))
+    c = g.mix(g.reg(7), c, hg)
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.45), c, g.rgb((0.12, 0.05, 0.04)))           # grime in the hollows
+    c = g.mix(g.math("MULTIPLY", chip, 0.55), c, g.rgb((0.6, 0.44, 0.28)))                                  # chipped to the wood
+    tw = g.wave(p, 260.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(8), c, g.mix(g.math("MULTIPLY", tw, 0.45), g.rgb(rope), g.rgb(tuple(x * 0.78 for x in rope))))
+    lth = g.mix(g.noise(p, 9.0, 3.0), g.rgb(buff), g.rgb(tuple(min(1.0, x * 1.3) for x in buff)))
+    lth = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.58), 0.5), lth, g.rgb((0.66, 0.45, 0.27)))
+    c = g.mix(g.reg(9), c, lth)
+    skin_ = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(head), g.rgb((0.84, 0.76, 0.6)))
+    skin_ = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.58, 0.68), 0.35), skin_, g.rgb((0.74, 0.62, 0.46)))
+    c = g.mix(g.reg(10), c, skin_)
+    c = g.mix(g.math("MULTIPLY", g.reg(13), 0.6), c, g.mix(g.noise(p, 20.0, 2.0), g.rgb((0.62, 0.56, 0.46)), g.rgb((0.72, 0.66, 0.54))))
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.76, 0.54, 0.2)), g.rgb((1.0, 0.86, 0.52)))
+    c = g.mix(g.reg(11), c, br)
+    gloss = g.mixf(g.math("MAXIMUM", g.reg(8), g.reg(10)), 0.42, 0.8)
+    rough = g.mixf(g.reg(11), g.mixf(g.reg(9), gloss, 0.6), 0.28)
+    h = g.math("ADD", g.math("MULTIPLY", tw, g.math("MULTIPLY", g.reg(8), 1.5)), g.math("MULTIPLY", g.noise(p, 60.0, 2.0), 0.3))
+    return g.finish(c, rough, g.bump(h, 0.25, 0.002))
+
+
 def assign_all(objs, overrides=None):
     """overrides: part -> (recipe name in this module, kwargs), e.g. a darker beard for one character."""
     cache = {}
