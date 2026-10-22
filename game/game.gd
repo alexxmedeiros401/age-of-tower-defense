@@ -3041,7 +3041,7 @@ var _flash_mat: StandardMaterial3D
 ## Gunpowder Age: a gun's report at its muzzle (pos, firing along dir): a flash of fire and a cloud of white powder
 ## smoke that rolls out along the barrel, slows and drifts up (s: 1 for a musket, about 2 for a cannon).
 func _gun_blast(pos: Vector3, dir: Vector3, s := 1.0) -> void:
-	if Progress.gfx_level() >= 2 or not _fx_room(3):
+	if not _fx_room(2):
 		return
 	if _flash_mat == null:
 		_flash_mat = StandardMaterial3D.new()
@@ -3057,12 +3057,13 @@ func _gun_blast(pos: Vector3, dir: Vector3, s := 1.0) -> void:
 	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	effects.append({"node": f, "t": 0.0, "life": 0.1 + 0.03 * s, "kind": "flash", "s": 0.55 * s})
 	var n := 3 + int(round(s * 1.5))
+	n = [n, maxi(2, n - 2), 1][clampi(Progress.gfx_level(), 0, 2)]      # (fewer puffs on lower graphics)
 	for i in n:
 		if not _fx_room(1):
 			break
 		var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.94, 0.93, 0.9, 0.62)), self, pos + d * (0.05 + 0.12 * i) * s)
 		pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		pf.scale = Vector3.ONE * 0.5 * s
+		pf.scale = Vector3.ONE * 0.65 * s
 		var side := Vector3(randf_range(-0.25, 0.25), randf_range(0.15, 0.45), randf_range(-0.25, 0.25))
 		effects.append({"node": pf, "t": -0.015 * i, "life": randf_range(0.9, 1.4) * (0.8 + 0.2 * s), "kind": "dust",
 			"v": (d * randf_range(2.2, 3.4) * (1.0 - 0.12 * i) + side) * (0.7 + 0.3 * s)})
@@ -4843,6 +4844,8 @@ func _handle_events() -> void:
 					elif pnode.has_meta("bolt_hq"):
 						bolt = true
 						_bolt_hit(pnode, ev)                # it drives into the ground there
+					elif pnode.has_meta("ball"):
+						_ball_hit(pnode, ev)                # v0.9.59: the musket ball strikes sparks off the robot
 					pnode.queue_free()
 					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
@@ -5142,8 +5145,68 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 	var d0: float = pn.get_meta("d0")
 	var k := clampf(1.0 - (aim - pos).length() / d0, 0.0, 1.0)
 	var off: Vector3 = pn.get_meta("off")
-	var y := lerpf(float(pn.get_meta("h0")), float(pn.get_meta("hit_h")), k) + 0.5 * k * (1.0 - k) * minf(d0 / 6.0, 1.0)
+	var arc := 0.0 if pn.has_meta("ball") else 0.5 * k * (1.0 - k) * minf(d0 / 6.0, 1.0)     # (a musket ball flies flat)
+	var y := lerpf(float(pn.get_meta("h0")), float(pn.get_meta("hit_h")), k) + arc
 	return _v3(pos, y) + off * (1.0 - k)
+
+
+# v0.9.59: the HQ Musketeer's ball leaves his matchlock's muzzle on Attack frame 1 (anim_musketeer.SHOT: the serpentine
+# dips the match into the pan) in a flash of fire and a cloud of white powder smoke rolling out along the barrel
+# (_gun_blast); it flies flat, a short bright streak settling onto the sim's projectile like the archers' arrows, and
+# strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
+const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
+var _musket_t := {}                                  # unit id -> when his musket last went off
+func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
+	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
+	root.set_meta("arrow", true)                     # (it points along its flight)
+	root.set_meta("ball", true)
+	var e = sim._enemy_by_id(int(p.get("target", -1)))
+	var hit_h := _hit_height(e)
+	var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
+	var launch: Vector3 = yaw.global_transform * MUSKET_TIP
+	root.position = launch
+	var aim: Vector2 = p.aim
+	root.set_meta("h0", launch.y)
+	root.set_meta("hit_h", hit_h)
+	root.set_meta("off", Vector3(launch.x, 0.0, launch.z) - _v3(p.pos, 0.0))
+	root.set_meta("d0", maxf((aim - (p.pos as Vector2)).length(), 0.5))
+	var tp := _v3(aim, hit_h)
+	var dv := tp - launch
+	if dv.length() > 0.01 and absf(dv.normalized().y) < 0.98:
+		root.look_at(tp, Vector3.UP)
+	if time_s - float(_musket_t.get(int(u.id), -9.0)) > 0.15:
+		_musket_t[int(u.id)] = time_s
+		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), 1.0)   # (along the barrel)
+
+
+## The ball strikes: a small white flash on the robot's plating and a spray of sparks thrown back off it.
+func _ball_hit(pn: Node3D, ev: Dictionary) -> void:
+	var fwd := -pn.global_transform.basis.z
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var at := pn.position
+	var eid := int(ev.get("eid", -1))
+	if eid >= 0 and enemy_nodes.has(eid) and is_instance_valid(enemy_nodes[eid]):
+		var etype := _robot_type(eid)
+		var size := float(defs.enemies[etype].get("size", 0.5)) if defs.enemies.has(etype) else 0.5
+		var flat := Vector3(fwd.x, 0.0, fwd.z)
+		flat = flat.normalized() if flat.length() > 0.01 else Vector3.FORWARD
+		at = (enemy_nodes[eid] as Node3D).global_position + Vector3(0, _hit_height_of(etype), 0) - flat * size * 0.2
+	var gl := clampi(Progress.gfx_level(), 0, 2)
+	var n: int = [5, 3, 2][gl]
+	if not _fx_room(n + 1):
+		return
+	var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at - fwd * 0.08)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.1, "kind": "flash", "s": 0.4})
+	var side := fwd.cross(Vector3.UP)
+	side = side.normalized() if side.length() > 0.01 else Vector3.RIGHT
+	for k in n:
+		var sp := _mi(_fx_mesh("spark"), _atk_mat("arrow_spark"), self, at - fwd * 0.06)
+		sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var v := (-fwd * randf_range(0.3, 1.0) + side * randf_range(-0.9, 0.9) + Vector3(0, randf_range(0.2, 0.9), 0)).normalized() \
+			* randf_range(2.4, 4.4)
+		sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
+		effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v})
 
 
 ## A burning arrow trails embers (FULL graphics): about 25 a second while it flies (none once the match has stopped).
@@ -7839,6 +7902,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		return root
 	if utype == "crossbowman" and u != null and _hq_clips(int(u.id)):
 		_arrow_proj(root, p, u, dt)            # v0.9.51: a real bolt, loosed from the HQ Crossbowman's crossbow
+		return root
+	if utype == "musketeer" and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		_musket_proj(root, p, u)               # v0.9.59: a ball from the HQ Musketeer's muzzle, in fire and smoke
 		return root
 	if pj != "" and pj != "arrow" and pj != "rock":
 		_proj_model(root, pj, dt)
