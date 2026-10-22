@@ -3093,7 +3093,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4411,9 +4411,27 @@ func _tick_effect(fx: Dictionary, dt: float, landed: Array) -> bool:
 				n.position += (fx.v as Vector3) * dt
 				n.scale = (fx.s0 as Vector3) * minf(1.0, fx.t / 0.12)
 				_fade(n, clampf((k - 0.65) / 0.35, 0.0, 1.0))
-			"jav_up":                                  # Kael's javelin climbing out of sight
+			"jav_up":                                  # Kael's javelin climbing out of sight (Wren's arrows too)
 				n.position += (fx.v as Vector3) * dt
 				n.visible = fx.t < float(fx.life) - 0.1
+			"rain_arrow":                              # one of Wren's arrows coming down steeply onto its robot
+				if not fx.get("landed", false):
+					var ka := clampf(float(fx.t) / float(fx.dur), 0.0, 1.0)
+					var live := _robot_point(int(fx.tid), float(fx.h)) if int(fx.tid) >= 0 else Vector3.INF
+					if live != Vector3.INF:
+						fx.to = live
+					var rp: Vector3 = (fx.from as Vector3).lerp(fx.to, ka)
+					var rd: Vector3 = (fx.to as Vector3) - (fx.from as Vector3)
+					n.position = rp
+					if rd.length() > 0.01:
+						n.look_at(rp + rd, Vector3.UP if absf(rd.normalized().y) < 0.98 else Vector3.RIGHT)
+					if ka >= 1.0:
+						fx.landed = true
+						var rtid := int(fx.tid)
+						var rat: Vector3 = fx.to
+						_fx_queue.append(func() -> void: _rain_arrow_hit(rtid, rat))
+				else:
+					n.visible = fx.t < float(fx.life) - 0.05
 			"fury":
 				_tick_fury(fx, n)
 			"slash":
@@ -4554,7 +4572,8 @@ func _handle_events() -> void:
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
 		elif ev0.e == "ability" and (str(ev0.get("type", "")) in ["rain", "quake"] or (str(ev0.get("type", "")) == "flare"
-				and sim.hero != null and _hq_clips(sim.hero.id))):
+				and sim.hero != null and _hq_clips(sim.hero.id)) or (str(ev0.get("type", "")) == "strike" and sim.hero != null
+				and str(sim.hero.type) == "aldric" and _hq_clips(sim.hero.id))):
 			for t0 in ev0.get("ids", []):                # Stone Rain's boulders and the Earthquake's spikes
 				_atk_pending[int(t0)] = true
 		elif ev0.e == "impact" and _javs.has(int(ev0.pid)) and not bool(_javs[int(ev0.pid)].landed):
@@ -4688,7 +4707,7 @@ func _handle_events() -> void:
 					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
-				elif u2 != null and u2.type in ["axe_warrior", "knight"] and _hq_clips(ev.id):
+				elif u2 != null and u2.type in ["axe_warrior", "knight", "aldric"] and _hq_clips(ev.id):
 					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them (v0.9.50: and
 					                                            # the Knight's great sword cleaves down across them)
 				elif u2 != null:
@@ -4896,7 +4915,9 @@ const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at f
 # v0.9.41: the Cretan Archer (anim_cretan.py) shoots kneeling: the same draw 0.37 lower (anim_cretan.KNEEL_DROP)
 # v0.9.49: the Crossbowman's bolt leaves the groove at the crossbow's nose (anim_crossbowman.RELEASE, frame 1)
 const XBOW_TIP := Vector3(-0.16, 1.502, 0.911)
-const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12), "crossbowman": XBOW_TIP}
+# Wren's arrow tip at full draw (anim_wren.RELEASE, frame 1)
+const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12), "crossbowman": XBOW_TIP,
+	"wren": Vector3(-0.127, 1.475, 0.943)}
 const ARROW_LEN := 0.78
 const XBOW_BOLT_LEN := 0.5
 
@@ -5748,12 +5769,16 @@ func _axe_sweep(uid: int, ids: Array) -> void:
 	var fwd := Vector3(u.facing.x, 0.0, u.facing.y)
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
 	var ty := str(u.type)
-	var s := float(defs.towers[ty].get("model_scale", 0.68)) / 0.68 if defs.towers.has(ty) else 1.0
+	var s := 1.0
+	if defs.towers.has(ty):
+		s = float(defs.towers[ty].get("model_scale", 0.68)) / 0.68
+	elif defs.heroes.heroes.has(ty):
+		s = float(defs.heroes.heroes[ty].get("model_scale", 0.55)) / 0.68
 	if _fx_room(1):                                    # (the sweep is one node; the cap only thins out the sparks)
 		var arc := _mi(_cleave_mesh(), _atk_mat("cleave"), self, _v3(u.pos, (1.05 if ty == "knight" else 0.95) * s))
 		arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var b := Basis.looking_at(fwd, Vector3.UP)
-		if ty == "knight":                             # (his cleave runs down from his right shoulder to his left hip)
+		if ty in ["knight", "aldric"]:                 # (the cleave runs down from the right shoulder to the left hip)
 			b = b * Basis(Vector3(0, 0, 1), deg_to_rad(32.0))
 		arc.basis = b.scaled(Vector3(1.3 * s, 1.0, 1.3 * s))
 		effects.append({"node": arc, "t": 0.0, "life": 0.22, "kind": "cleave", "b0": b, "s": 1.3 * s})
@@ -6096,6 +6121,145 @@ const KAEL_STORM_T := 15.0 / CLIP_FPS                # anim_kael.py A_RELEASE
 const KAEL_STORM_GAP := 0.5                          # its release -> the first javelin of the storm striking (s at 1x)
 const KAEL_STORM_FALL := 0.28                        # each storm javelin's fall
 const KAEL_STORM_STEP := 0.07                        # one striking -> the next
+
+
+## Sir Aldric's Holy Lance (anim_aldric.py): he raises his sword to the sky and the light gathers on its point (GATHER:
+## a glint and a ring of gold round him), then he sweeps it down to point at the robots (STRIKE): a lance of light falls
+## on each of the strongest of them, one after another (the beam, a ring, sparks, a shake). Their hits wait for it.
+const ALDRIC_GATHER_TIP := Vector3(-0.265, 2.913, 0.184)    # the sword's point raised to the sky (model units, Yaw node)
+const ALDRIC_STRIKE_TIP := Vector3(-0.237, 1.437, 1.592)    # ... and pointing at the robots
+const ALDRIC_GATHER_T := 16.0 / 24.0
+const ALDRIC_STRIKE_T := 30.0 / 24.0
+func _aldric_lance(ev: Dictionary, aname: String) -> void:
+	var hid := int(sim.hero.id)
+	var ids: Array = ev.get("ids", [])
+	var pts: Array = ev.hits
+	for k in ids.size():
+		if int(ids[k]) >= 0:
+			_hold_hit(int(ids[k]), ALDRIC_STRIKE_T + 0.09 * k + 0.15)
+	_banner(aname, Color(1, 0.85, 0.5))
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", ALDRIC_GATHER_T, ALDRIC_GATHER_T, func() -> void: _aldric_glint(hid)))
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", ALDRIC_STRIKE_T, ALDRIC_STRIKE_T, func() -> void: _aldric_strike(hid, ids, pts)))
+
+
+func _aldric_point(hid: int, local: Vector3) -> Vector3:
+	var tn = tower_nodes.get(hid)
+	if tn != null and is_instance_valid(tn) and (tn as Node3D).has_meta("yaw"):
+		return ((tn as Node3D).get_meta("yaw") as Node3D).global_transform * local
+	return _v3(sim.hero.pos, 1.4) if sim.hero != null else Vector3.ZERO
+
+
+func _aldric_glint(hid: int) -> void:
+	var at := _aldric_point(hid, ALDRIC_GATHER_TIP)
+	if _fx_room(2):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.5, "kind": "flash", "s": 1.6})
+	if sim.hero != null:
+		_ring_fx(_v3(sim.hero.pos, 0.2), 1.6, Color(1, 0.85, 0.45), 0.6)
+	_sfx("ab_solar_flare", -4.0, 0.0, 0.3)
+
+
+func _aldric_strike(hid: int, ids: Array, pts: Array) -> void:
+	var tip := _aldric_point(hid, ALDRIC_STRIKE_TIP)
+	if _fx_room(1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, tip)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 1.0})
+	var beam_m := _mat("strike_beam", Color(1.0, 0.95, 0.7, 0.8), {"emit": Color(1.0, 0.85, 0.5), "emit_e": 4.0, "unshaded": true})
+	var spd := maxf(float(speed), 0.01)
+	for k in pts.size():
+		var tid := int(ids[k]) if k < ids.size() else -1
+		var p: Vector2 = pts[k]
+		_fx_after(0.09 * k / spd, func() -> void:
+			var to := _robot_point(tid, 0.0) if tid >= 0 else Vector3.INF
+			var at := Vector3(to.x, 0.0, to.z) if to != Vector3.INF else _v3(p, 0.0)
+			var beam := _mi(_cyl(0.3, 0.3, 14.0, 10), beam_m, self, at + Vector3(0, 7.0, 0))
+			beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": beam, "t": 0.0, "life": 0.35, "kind": "flash", "s": 1.0})
+			_ring_fx(at + Vector3(0, 0.2, 0), 1.6, Color(1, 0.85, 0.45), 0.5)
+			_debris_fx(at + Vector3(0, 0.5, 0), 6, true)
+			if tid >= 0:
+				_land_hit(tid, 0.1))
+	shake = 1.0
+	_sfx("airstrike", 0.0, 0.0, 0.5)
+
+
+## Wren's Arrow Rain (anim_wren.py): she lifts the bow high and looses three volleys into the sky (VOLLEYS); a moment
+## after each, its arrows come down steeply on a third of the robots (the ones nearest the base), and stick there.
+const WREN_VOLLEYS := [9, 25, 41]
+const WREN_BOW_UP := Vector3(-0.098, 1.863, 0.446)  # her bow hand, raised for the volleys (model units, Yaw node)
+const WREN_RAIN_FALL := 0.3                         # seconds an arrow takes to come down
+const WREN_RAIN_GAP := 0.55                         # from a volley to its arrows coming down
+func _wren_rain(ev: Dictionary) -> void:
+	var hid := int(sim.hero.id)
+	var ids: Array = ev.get("ids", [])
+	var pts: Array = ev.hits
+	for v in 3:
+		var vt := float(WREN_VOLLEYS[v]) / 24.0
+		var mine := []
+		for k in pts.size():
+			if k % 3 == v:
+				mine.append(k)
+				if k < ids.size() and int(ids[k]) >= 0:
+					_hold_hit(int(ids[k]), vt + WREN_RAIN_GAP + 0.05 * (k / 3) + WREN_RAIN_FALL + 0.1)
+		_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", vt, vt, func() -> void: _wren_volley(hid, mine, ids, pts)))
+
+
+func _wren_volley(hid: int, mine: Array, ids: Array, pts: Array) -> void:
+	var from := _v3(sim.hero.pos, 1.0) if sim.hero != null else Vector3(0, 1, 0)
+	var up := Vector3(0, 0.79, 0.62)
+	var tn = tower_nodes.get(hid)
+	if tn != null and is_instance_valid(tn) and (tn as Node3D).has_meta("yaw"):
+		var yt := ((tn as Node3D).get_meta("yaw") as Node3D).global_transform
+		from = yt * WREN_BOW_UP
+		up = (yt.basis * Vector3(0, 0.79, 0.62)).normalized()
+	var n: int = [5, 3, 2][clampi(Progress.gfx_level(), 0, 2)]
+	for i in n:
+		if not _fx_room(1):
+			break
+		var a := Node3D.new()
+		add_child(a)
+		var mi := _mi(_arrow_mesh(false), null, a)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var dir := (up + Vector3(randf_range(-0.12, 0.12), randf_range(-0.05, 0.08), randf_range(-0.12, 0.12))).normalized()
+		a.global_transform = Transform3D(Basis.looking_at(dir, Vector3.RIGHT if absf(dir.y) > 0.98 else Vector3.UP), from)
+		effects.append({"node": a, "t": -0.03 * i, "life": 0.4, "kind": "jav_up", "v": dir * 24.0})
+	_sfx("arrow", -2.0, 0.1, 0.05)
+	var spd := maxf(float(speed), 0.01)
+	var j := 0
+	for k in mine:
+		var tid := int(ids[k]) if k < ids.size() else -1
+		var p: Vector2 = pts[k]
+		_fx_after((WREN_RAIN_GAP + 0.05 * j) / spd, func() -> void: _rain_arrow(tid, p))
+		j += 1
+
+
+func _rain_arrow(tid: int, p: Vector2) -> void:
+	var h := _hit_height_of(_robot_type(tid)) if tid >= 0 else 0.0
+	var to := _robot_point(tid, h) if tid >= 0 else Vector3.INF
+	if to == Vector3.INF:
+		to = _v3(p, 0.05)
+		tid = -1
+	var from := to + Vector3(randf_range(-0.9, 0.9), 7.0, randf_range(-0.9, 0.9))
+	var root := Node3D.new()
+	add_child(root)
+	var mi := _mi(_arrow_mesh(false), null, root)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.position = from
+	effects.append({"node": root, "t": 0.0, "life": WREN_RAIN_FALL / maxf(float(speed), 0.01) + 0.6, "kind": "rain_arrow",
+		"tid": tid, "h": h, "from": from, "to": to, "dur": WREN_RAIN_FALL / maxf(float(speed), 0.01)})
+
+
+func _rain_arrow_hit(tid: int, at: Vector3) -> void:
+	if _fx_room(1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.12, "kind": "flash", "s": 0.45})
+	if tid >= 0:
+		_land_hit(tid, 0.06)
+	else:
+		_dust_fx(Vector3(at.x, 0.1, at.z), 2, 0.4)
 
 
 func _kael_storm(ev: Dictionary) -> void:
@@ -7829,6 +7993,10 @@ func _ability_fx(ev: Dictionary) -> void:
 				_kael_storm(ev)                             # v0.9.36: javelins rain from the sky after the one he hurls up
 				_banner(aname, Color(0.6, 0.9, 0.45))
 				return
+			if sim.hero != null and str(sim.hero.type) == "wren" and _hq_clips(int(sim.hero.id)):
+				_wren_rain(ev)                              # v0.9.5x: her three volleys loosed high come down on them
+				_banner(aname, Color(0.55, 0.85, 0.4))
+				return
 			var i := 0
 			var ids: Array = ev.get("ids", [])
 			for p in ev.hits:
@@ -7887,6 +8055,9 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
 			return
 		"strike":
+			if sim.hero != null and str(sim.hero.type) == "aldric" and _hq_clips(sim.hero.id):
+				_aldric_lance(ev, aname)                    # v0.9.5x: the light gathers on his raised blade, then falls
+				return
 			var beam_m := _mat("strike_beam", Color(1.0, 0.95, 0.7, 0.8), {"emit": Color(1.0, 0.85, 0.5), "emit_e": 4.0, "unshaded": true})
 			for p in ev.hits:
 				var at := _v3(p, 0.0)
