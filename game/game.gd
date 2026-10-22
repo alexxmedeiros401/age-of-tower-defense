@@ -3038,6 +3038,36 @@ func _debris_fx(pos: Vector3, count: int, big := false) -> void:
 var _flash_mat: StandardMaterial3D
 
 
+## Gunpowder Age: a gun's report at its muzzle (pos, firing along dir): a flash of fire and a cloud of white powder
+## smoke that rolls out along the barrel, slows and drifts up (s: 1 for a musket, about 2 for a cannon).
+func _gun_blast(pos: Vector3, dir: Vector3, s := 1.0) -> void:
+	if Progress.gfx_level() >= 2 or not _fx_room(3):
+		return
+	if _flash_mat == null:
+		_flash_mat = StandardMaterial3D.new()
+		_flash_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_flash_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_flash_mat.billboard_keep_scale = true
+		_flash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flash_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_flash_mat.albedo_color = Color(1.0, 0.62, 0.28, 1.0)
+		_flash_mat.albedo_texture = _mote_tex()
+	var d := dir.normalized() if dir.length() > 0.001 else Vector3.FORWARD
+	var f := _mi(_fx_mesh("flash"), _flash_mat, self, pos + d * 0.12 * s)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.1 + 0.03 * s, "kind": "flash", "s": 0.55 * s})
+	var n := 3 + int(round(s * 1.5))
+	for i in n:
+		if not _fx_room(1):
+			break
+		var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.94, 0.93, 0.9, 0.62)), self, pos + d * (0.05 + 0.12 * i) * s)
+		pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pf.scale = Vector3.ONE * 0.5 * s
+		var side := Vector3(randf_range(-0.25, 0.25), randf_range(0.15, 0.45), randf_range(-0.25, 0.25))
+		effects.append({"node": pf, "t": -0.015 * i, "life": randf_range(0.9, 1.4) * (0.8 + 0.2 * s), "kind": "dust",
+			"v": (d * randf_range(2.2, 3.4) * (1.0 - 0.12 * i) + side) * (0.7 + 0.3 * s)})
+
+
 ## Dust and smoke puffs: soft round billboards (the radial mote texture), one cached material per colour.
 var _dust_mats := {}
 func _puff_mat(col: Color) -> StandardMaterial3D:
@@ -8057,7 +8087,7 @@ func _ability_fx(ev: Dictionary) -> void:
 			return
 		"strike":
 			if sim.hero != null and str(sim.hero.type) == "aldric" and _hq_clips(sim.hero.id):
-				_aldric_lance(ev, aname)                    # v0.9.5x: the light gathers on his raised blade, then falls
+				_aldric_lance(ev, aname)                    # v0.9.56: the light gathers on his raised blade, then falls
 				return
 			var beam_m := _mat("strike_beam", Color(1.0, 0.95, 0.7, 0.8), {"emit": Color(1.0, 0.85, 0.5), "emit_e": 4.0, "unshaded": true})
 			for p in ev.hits:
