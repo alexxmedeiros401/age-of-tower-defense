@@ -1,0 +1,7 @@
+[
+ {
+  "name": "bomber_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/bomber_p1; mkdir -p $O\npython3 robot_build.py -- --robot bomber --out $O --stage sculpt --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot bomber --out $O --stage game --tex 512 --ao 4 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot bomber --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\npython3 render_asset.py -- --blend $O/bomber_hq.blend --out $O/poses --mode frames --action Fly --range 0,36 --step 12 --spp 12 --res 520 --tx 0 --ty 0 --tz 0.75 --dist 5.0 --az 35 --el 52 > $O/poses.log 2>&1 || tail -20 $O/poses.log\npython3 render_asset.py -- --blend $O/bomber_hq.blend --out $O/poses_side --mode frames --action Fly --range 0,0 --step 1 --spp 12 --res 520 --tx 0 --ty 0 --tz 0.75 --dist 5.0 --az 100 --el 8 > $O/poses2.log 2>&1 || tail -20 $O/poses2.log\nrm -f $O/*_hi.blend; ls -la $O",
+  "out": "out/bomber_p1"
+ }
+]
