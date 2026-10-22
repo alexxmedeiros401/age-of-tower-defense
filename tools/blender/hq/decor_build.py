@@ -210,14 +210,14 @@ def medieval_materials(dark):
     daub and dark oak beams, boards and dry-stone, hay and wattle, grey castle ashlar under slate, the besiegers' striped
     canvas, hides and iron, blue and gold banners."""
     return {
-        "dark": dark, "turf": DM.turf("DK_Turf", "meadow"), "rock": DM.rock("DK_Rock", "meadow"),
+        "dark": dark, "turf": DM.turf("DK_Turf", "meadow"), "rock": DM.rock("DK_Rock", "meadow", dark=(THEME == "darkwood")),
         "wood_end": DM.wood_end("DK_WoodEnd", "meadow"), "charred": DM.bark("DK_Charred", "volcano", charred=True),
         "oak_bark": mats.bark_wood("DK_OakBark", bark=(0.3, 0.27, 0.22), wood=(0.72, 0.58, 0.4)),
         "oak_leaves": DM.leaves("DK_OakLeaves", base=(0.16, 0.34, 0.1), hi=(0.44, 0.62, 0.2)),
         "dark_leaves": DM.leaves("DK_DarkLeaves", base=(0.08, 0.2, 0.07), hi=(0.24, 0.38, 0.13)),
         "hedge": DM.leaves("DK_Hedge", base=(0.12, 0.3, 0.09), hi=(0.36, 0.56, 0.18)),
         "blossom": DM.flat("DK_Blossom", (0.97, 0.95, 0.9), 0.6, hi=(1.0, 0.86, 0.9)),
-        "needles": DM.needles("DK_Needles", "meadow"), "spruce_bark": DM.bark("DK_SpruceBark", "meadow"),
+        "needles": DM.needles("DK_Needles", "meadow", dark=(THEME == "darkwood")), "spruce_bark": DM.bark("DK_SpruceBark", "meadow"),
         "deadwood": DM.driftwood("DK_DeadWood"),
         "fern": DM.frond("DK_Fern", base=(0.14, 0.32, 0.08), hi=(0.36, 0.56, 0.16), dry=(0.56, 0.4, 0.16)),
         "toadstool": mats.terracotta("DK_Toadstool", base=(0.78, 0.1, 0.06), paint=(0.97, 0.95, 0.9)),

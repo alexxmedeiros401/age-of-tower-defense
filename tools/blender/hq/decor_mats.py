@@ -31,16 +31,19 @@ def _cover(g, c, rough, theme, p, amount=1.0, lo=0.5, hi=0.8, cap=False):
     return g.mix(g.math("MULTIPLY", m, 0.7), c, ash), rough
 
 
-def needles(name="DK_Needles", theme="meadow"):
-    """Pine foliage: deep green clumps, bright tips catching the light, dark inside; snow / ash on top."""
+def needles(name="DK_Needles", theme="meadow", dark=False):
+    """Pine foliage: deep green clumps, bright tips catching the light, dark inside; snow / ash on top. dark: the
+    Darkwood's spruces, a deeper blue-green."""
     g = new(name)
     p = g.obj()
     strands = g.noise(g.scale_vec(p, (30.0, 30.0, 60.0)), 1.0, 3.0, 0.6)
-    base = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.1, 0.32, 0.12)), g.rgb((0.16, 0.42, 0.14)))
+    b0, b1, tip_c, up_c = (((0.1, 0.32, 0.12), (0.16, 0.42, 0.14), (0.42, 0.66, 0.2), (0.3, 0.56, 0.18)) if not dark else
+                           ((0.05, 0.18, 0.1), (0.08, 0.25, 0.12), (0.24, 0.42, 0.16), (0.16, 0.34, 0.14)))
+    base = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(b0), g.rgb(b1))
     tips = g.smooth(g.geo("Pointiness"), 0.51, 0.58)
-    c = g.mix(g.math("MULTIPLY", tips, 0.8), base, g.rgb((0.42, 0.66, 0.2)))
+    c = g.mix(g.math("MULTIPLY", tips, 0.8), base, g.rgb(tip_c))
     up = _up(g, 0.2, 0.9)
-    c = g.mix(g.math("MULTIPLY", up, 0.35), c, g.rgb((0.3, 0.56, 0.18)))
+    c = g.mix(g.math("MULTIPLY", up, 0.35), c, g.rgb(up_c))
     ao = g.node("ShaderNodeAmbientOcclusion", samples=8)
     ao.inputs["Distance"].default_value = 0.35
     c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, ao.outputs["AO"]), 0.8), c, g.rgb((0.03, 0.12, 0.06)))
@@ -112,8 +115,9 @@ def leaves(name="DK_Leaves", base=(0.18, 0.42, 0.13), hi=(0.46, 0.7, 0.22), berr
     return g.finish(c, 0.7, g.bump(leaf, 0.6, 0.01))
 
 
-def rock(name="DK_Rock", theme="meadow", scale=1.0):
-    """Boulders: speckled grey stone with crisp edges; moss on top (meadow), snow caps, or basalt with glowing seams."""
+def rock(name="DK_Rock", theme="meadow", scale=1.0, dark=False):
+    """Boulders: speckled grey stone with crisp edges; moss on top (meadow), snow caps, or basalt with glowing seams.
+    dark (meadow): the Darkwood's boulders, darker stone under deeper moss."""
     if theme == "volcano":
         g = new(name)
         p = g.obj()
@@ -129,7 +133,8 @@ def rock(name="DK_Rock", theme="meadow", scale=1.0):
     g = new(name)
     p = g.obj()
     macro = g.noise(p, 2.2 / scale, 3.0, 0.55)
-    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb((0.46, 0.47, 0.5)), g.rgb((0.64, 0.63, 0.6)))
+    k = 0.62 if dark else 1.0
+    c = g.mix(g.remap(macro, 0.35, 0.65, 0.0, 1.0), g.rgb((0.46 * k, 0.47 * k, 0.5 * k)), g.rgb((0.64 * k, 0.63 * k, 0.6 * k)))
     speck = g.noise(p, 70.0 / scale, 2.0, 0.6)
     c = g.mix(g.math("MULTIPLY", g.smooth(speck, 0.6, 0.66), 0.45), c, g.rgb((0.32, 0.33, 0.36)))
     c = g.mix(g.math("MULTIPLY", g.smooth(speck, 0.34, 0.28), 0.35), c, g.rgb((0.78, 0.77, 0.74)))
@@ -141,7 +146,8 @@ def rock(name="DK_Rock", theme="meadow", scale=1.0):
     if theme == "meadow":
         up = _up(g, 0.4, 0.8)
         patch = g.smooth(g.noise(p, 3.2 / scale, 4.0, 0.6), 0.46, 0.56)
-        mossc = g.mix(g.noise(p, 25.0, 3.0), g.rgb((0.27, 0.44, 0.13)), g.rgb((0.46, 0.6, 0.2)))
+        mossc = g.mix(g.noise(p, 25.0, 3.0), g.rgb((0.27, 0.44, 0.13) if not dark else (0.12, 0.24, 0.07)),
+                      g.rgb((0.46, 0.6, 0.2) if not dark else (0.22, 0.36, 0.1)))
         c = g.mix(g.math("MULTIPLY", up, patch), c, mossc)
         lich = g.math("MULTIPLY", g.smooth(g.noise(p, 9.0, 3.0), 0.62, 0.68), 0.6)
         c = g.mix(lich, c, g.rgb((0.72, 0.7, 0.42)))
