@@ -1,0 +1,87 @@
+# Art builds: runs the HQ art pipeline's heavy Blender jobs (sculpts, bakes, kits) in parallel on GitHub's runners
+# (free for this public repo: 4 cores and 16 GB each, many at once), on the CPU.
+#
+# Claude starts a batch by pushing a branch named art-jobs/<batch> (made from the art branch) with art_jobs.json at its
+# root: a list of {"name": ..., "cmd": ..., "out": ...}. Each entry runs as its own job: cmd (bash) runs in
+# tools/blender/hq with Blender as a Python module installed; then the folder `out` (relative to the repo root) is zipped
+# and attached as NAME.zip to the draft release art-builds (not a game release: just how the results come back).
+name: Art build
+
+on:
+  push:
+    branches: ["art-jobs/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.read.outputs.jobs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: art_jobs.json
+          sparse-checkout-cone-mode: false
+      - id: read
+        run: echo "jobs=$(jq -c . art_jobs.json)" >> "$GITHUB_OUTPUT"
+      - name: The draft release the results go to
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name=="art-builds") | .id' | head -1)
+          if [ -z "$rid" ]; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name=art-builds -f target_commitish="$GITHUB_SHA" \
+              -f name="Art builds (temporary, not a game release)" \
+              -f body="Outputs of the HQ art pipeline's builds on GitHub's runners (.github/workflows/art.yml), collected from here into the game." \
+              -F draft=true --jq .id
+          fi
+
+  build:
+    needs: plan
+    name: ${{ matrix.job.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tools
+            data
+          filter: blob:none
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Blender as a Python module
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libsm6 libxkbcommon0 libgl1 libegl1 zip > /dev/null
+          pip install -q bpy==5.2.2 numpy scipy scikit-image pillow
+          python3 -c "import bpy; print('Blender', bpy.app.version_string)"
+      - name: Build
+        working-directory: tools/blender/hq
+        run: ${{ matrix.job.cmd }}
+      - name: Attach the results to the draft release art-builds
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAME: ${{ matrix.job.name }}
+          OUT: ${{ matrix.job.out }}
+        run: |
+          [ -d "$OUT" ] || { echo "no $OUT"; exit 0; }
+          (cd "$OUT" && zip -qr "$RUNNER_TEMP/$NAME.zip" .)
+          ls -la "$RUNNER_TEMP/$NAME.zip"
+          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name=="art-builds") | .id' | head -1)
+          [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
+          for a in $(gh api "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
+          done
+          curl -sS --fail -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/zip" \
+            --data-binary "@$RUNNER_TEMP/$NAME.zip" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rid/assets?name=$NAME.zip" > /dev/null
+          echo "attached $NAME.zip"
