@@ -148,7 +148,10 @@ def coif_field():
         z = P[:, 2]
         a = np.arctan2(P[:, 0], -(P[:, 1] - F(0.05)))
         hem = F(1.3) + F(0.035) * np.cos(a * 2) + F(0.01) * np.sin(a * 13)
-        return np.maximum(hem - z, z - F(1.52))
+        # the opening round his neck only: away from it the line climbs clear of the mail (cut level, it opened a hole
+        # in the top of each shoulder, and his bare shoulders showed through)
+        top = F(1.52) + F(0.3) * smoothstep(0.14, 0.2, np.sqrt(P[:, 0] ** 2 + (F(0.6) * (P[:, 1] - F(0.05))) ** 2))
+        return np.maximum(hem - z, z - top)
     fd.add(Inter(Shell(base, 0.072, 0.014, pad=0.1, disp=rings, disp_amp=0.004), Func(keep, (-0.6, -0.5, 1.1), (0.6, 0.5, 1.7)), 0.006), 0.0)
     # the hood bunched behind his neck, in folds
     for k in range(5):
