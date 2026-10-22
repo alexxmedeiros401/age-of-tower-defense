@@ -556,18 +556,18 @@ def settle(pts, clear):
 
 
 # the feathers' spines (hat-local, rough: settled onto the felt; the last points hang free past the brim's edge)
-PLUME_BIG = [(0.215, -0.005, 0.07), (0.215, 0.015, 0.165), (0.165, 0.045, 0.24), (0.09, 0.09, 0.262), (0.04, 0.145, 0.25),
+PLUME_UNDER = [(0.215, -0.005, 0.07), (0.215, 0.015, 0.165), (0.165, 0.045, 0.24), (0.09, 0.09, 0.262), (0.04, 0.145, 0.25),
              (0.03, 0.2, 0.2), (0.035, 0.24, 0.12), (0.045, 0.3, 0.04)]
-PLUME_BIG_HANG = [(0.05, 0.37, 0.0), (0.06, 0.41, -0.05), (0.065, 0.4, -0.1), (0.07, 0.37, -0.118)]
-PLUME_WHITE = [(0.218, -0.03, 0.08), (0.212, -0.012, 0.18), (0.15, 0.0, 0.262), (0.06, 0.04, 0.29), (0.0, 0.1, 0.285),
+PLUME_UNDER_HANG = [(0.05, 0.37, 0.0), (0.06, 0.41, -0.05), (0.065, 0.4, -0.1), (0.07, 0.37, -0.118)]
+PLUME_OVER = [(0.218, -0.03, 0.08), (0.212, -0.012, 0.18), (0.15, 0.0, 0.262), (0.06, 0.04, 0.29), (0.0, 0.1, 0.285),
                (-0.02, 0.17, 0.235), (-0.015, 0.22, 0.15)]
-PLUME_WHITE_HANG = [(-0.01, 0.25, 0.09), (0.0, 0.26, 0.045)]
+PLUME_OVER_HANG = [(-0.01, 0.25, 0.09), (0.0, 0.26, 0.045)]
 
 
 def plume_paths():
     """The two ostrich feathers' spines (hat-local): their quills tucked behind the brooch, lying up over the crown
-    from his left and down over its back, the crimson one drooping off the brim behind him in a curl; the white one
-    lies on the crimson, toward the front."""
+    from his left and down over its back, the lower one (white) drooping off the brim behind him in a curl; the upper
+    one (crimson) lies on it, toward the front."""
     def path(pts, hang, th, lift=0.0):
         clear = [th + 0.004 + lift * smoothstep(0.0, 2.0, F(i)) for i in range(len(pts))]
         q, n = settle(pts, clear)
@@ -579,9 +579,9 @@ def plume_paths():
             out.append(v3(h))
             nn.append(norm(last * 0.6 + v3((0, 0.4, 0.5))))
         return out, nn
-    big = path(PLUME_BIG, PLUME_BIG_HANG, 0.03)
-    white = path(PLUME_WHITE, PLUME_WHITE_HANG, 0.022, lift=0.04)
-    return big, white
+    under = path(PLUME_UNDER, PLUME_UNDER_HANG, 0.03)
+    over = path(PLUME_OVER, PLUME_OVER_HANG, 0.022, lift=0.04)
+    return under, over
 
 
 def _resample(path, n_out):
@@ -631,12 +631,12 @@ def _feather(fd, path, w_max, th, label, seed, n_st=24, lobes=9):
 
 
 def plume_field():
-    """A big ostrich plume: a crimson feather (label 0) under a white one (5), fluffy, lying over the crown from the
-    brooch and falling off the brim behind him."""
+    """A big ostrich plume: a white feather (label 5) under a crimson one (0), fluffy, lying over the crown from the
+    brooch and falling off the brim behind him (the crimson one on top, toward the front)."""
     fd = Field("Plume")
-    big, white = plume_paths()
-    _feather(fd, big, 0.075, 0.03, 0, 0.3, n_st=26, lobes=11)
-    _feather(fd, white, 0.05, 0.022, 5, 1.7, n_st=18, lobes=8)
+    under, over = plume_paths()
+    _feather(fd, under, 0.066, 0.03, 5, 0.3, n_st=26, lobes=11)
+    _feather(fd, over, 0.062, 0.024, 0, 1.7, n_st=18, lobes=8)
     return fd
 
 
@@ -930,7 +930,11 @@ def sash_field():
         return np.maximum(strap_d(P, BALDRIC) - F(BALDRIC_W), np.maximum(np.abs(P[:, 0]) - F(0.32), F(0.84) - P[:, 2]))
     blo, bhi = (-0.36, -0.32, 0.8), (0.36, 0.34, 1.58)
     fd.add(Inter(layer(base, baldric_off, 0.01, blo, bhi), Func(bald, blo, bhi), 0.003), 0.003)
-    fd.paint(Func(lambda P: F(BALDRIC_W - 0.009) - strap_d(P, BALDRIC), blo, bhi), 5)
+    # its gold edges (only the baldric's: the sash round his waist stays crimson)
+    def edges(P):
+        d = strap_d(P, BALDRIC)
+        return np.maximum(np.maximum(F(BALDRIC_W - 0.009) - d, d - F(BALDRIC_W + 0.004)), F(0.045) - np.abs(P[:, 2] - F(WAIST_Z)))
+    fd.paint(Func(edges, blo, bhi), 5)
     return fd
 
 
