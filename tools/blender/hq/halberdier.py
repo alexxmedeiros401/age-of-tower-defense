@@ -236,7 +236,7 @@ def beard_field():
     for sx in (-1, 1):
         pts = [hp((sx * 0.014, -0.18, 1.468)), hp((sx * 0.03, -0.2, 1.44)), hp((sx * 0.048, -0.214, 1.414)), hp((sx * 0.066, -0.222, 1.392))]
         fd.add(Lock(pts, [hr(0.052), hr(0.046), hr(0.032), hr(0.009)], [hr(0.03), hr(0.028), hr(0.02), hr(0.007)],
-                    [norm(v3((sx * 0.25, -1.0, -0.3)))] * 4, k=hr(0.01), disp=beard_tex, disp_amp=0.005), hr(0.012))
+                    [norm(v3((sx * 0.25, -1.0, -0.3)))] * 4, k=hr(0.01), disp=strands, disp_amp=0.003), hr(0.012))
     # the moustache
     for sx in (-1, 1):
         pts = [hp(p) for p in moustache_path(sx)]
@@ -440,29 +440,29 @@ def steel_field():
     # the flared lame at the waist (the fauld)
     fd.add(Inter(Shell(cb, BP_OFF + 0.018, 0.014, pad=0.12, disp=hammer, disp_amp=0.001),
                  Func(lambda P: np.abs(P[:, 2] - F(BP_BOT - 0.012)) - F(0.03), lo, hi), 0.004), 0.006)
-    # the gorget: a collar of lames round his neck over the breastplate's neck edge, low in front under his chin and beard,
-    # higher at the back, a rolled top edge
+    # the gorget: lames lying round the foot of his neck over the shoulders' tops and the breastplate's neck edge, a low
+    # collar round the neck itself (low in front, under his chin and beard), a rolled edge
     gb = Field("GorgetBase")
     gb.add(neck_prim(), 0.0)
     gb.add(traps(), 0.05)
-    def g_band(P):
-        y = P[:, 1]
-        back = smoothstep(-0.12, 0.12, y)
-        return F(1.305) + F(0.125) * back, F(1.375) + F(0.105) * back
     def g_keep(P):
-        z = P[:, 2]
-        bot, top = g_band(P)
-        rad = np.sqrt(P[:, 0] ** 2 + ((P[:, 1] - F(0.05)) / F(1.1)) ** 2)
-        return np.maximum(np.maximum(bot - z, z - top), rad - F(0.235))
+        y, z = P[:, 1], P[:, 2]
+        back = smoothstep(-0.12, 0.12, y)
+        rad = np.sqrt(P[:, 0] ** 2 + ((y - F(0.05)) / F(1.1)) ** 2)
+        bot = F(1.3) + F(0.1) * back
+        top = F(1.365) + F(0.13) * back
+        collar = np.minimum(F(0.165) + F(0.11) * (F(1) - back) - rad, z - top)          # the top cut round the neck only
+        return np.maximum(np.maximum(bot - z, rad - F(0.252)), collar)
     def g_lames(P):
-        bot, top = g_band(P)
-        u = (P[:, 2] - bot) / F(0.03)
-        return -F(0.0045) * (F(1) - (u - np.floor(u))) + F(0.0006) * NOISE(P * F(50))
-    glo, ghi = (-0.4, -0.4, 1.2), (0.4, 0.45, 1.6)
-    fd.add(Inter(Shell(gb, 0.072, 0.012, pad=0.1, disp=g_lames, disp_amp=0.005), Func(g_keep, glo, ghi), 0.004), 0.004)
-    fd.add(Inter(Shell(gb, 0.08, 0.014, pad=0.1), Func(lambda P: np.maximum(np.abs(P[:, 2] - (g_band(P)[1] - F(0.006))) - F(0.008),
-                                                                        np.sqrt(P[:, 0] ** 2 + ((P[:, 1] - F(0.05)) / F(1.1)) ** 2) - F(0.235)),
-                                                    glo, ghi), 0.003), 0.004)
+        rad = np.sqrt(P[:, 0] ** 2 + ((P[:, 1] - F(0.05)) / F(1.1)) ** 2)
+        u = (rad + (F(1.5) - P[:, 2]) * F(0.6)) / F(0.034)
+        return -F(0.0045) * (u - np.floor(u)) + F(0.0006) * NOISE(P * F(50))
+    glo, ghi = (-0.45, -0.45, 1.2), (0.45, 0.5, 1.65)
+    fd.add(Inter(Shell(gb, 0.078, 0.012, pad=0.1, disp=g_lames, disp_amp=0.005), Func(g_keep, glo, ghi), 0.004), 0.004)
+    def g_edge(P):
+        k = g_keep(P)
+        return np.abs(k + F(0.006)) - F(0.007)
+    fd.add(Inter(Shell(gb, 0.085, 0.014, pad=0.1), Func(g_edge, glo, ghi), 0.003), 0.004)
     # brass rivets: two at each shoulder where the plates meet the gorget, a row along the waist
     outer = Func(lambda P: cb.eval(P, margin=0.08) - F(BP_OFF + 0.01), lo, hi)
     for sx in (-1, 1):
@@ -1025,8 +1025,8 @@ MAT_OVERRIDES = {
     "Haft": ("javelin_shaft", {"name": "HQ_HalberdHaft"}),
     "Tassel": ("wool", {"name": "HQ_HalberdTassel", "base": CRIMSON, "border": GOLD, "stripe": GOLD}),
 }
-LOW_TARGETS = {"Skin": 4800, "Teeth": 120, "Beard": 1500, "Helmet": 2000, "Plume": 1200, "Steel": 2400, "Doublet": 2900,
-               "Breeches": 2200, "Hose": 600, "Sash": 600, "Shoes": 800, "Leather": 700, "Katz": 380, "Halberd": 1100,
+LOW_TARGETS = {"Skin": 4500, "Teeth": 120, "Beard": 1400, "Helmet": 1900, "Plume": 1100, "Steel": 2500, "Doublet": 2800,
+               "Breeches": 2100, "Hose": 600, "Sash": 600, "Shoes": 800, "Leather": 700, "Katz": 380, "Halberd": 1100,
                "Haft": 280, "Tassel": 320}
 AO_EXCLUDE = ["Halberd", "Haft", "Tassel"]
 # the halberd stands beside him at rest: baked 3 m away so his body leaves no shadow on its shaft
