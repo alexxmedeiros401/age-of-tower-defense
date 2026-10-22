@@ -4848,8 +4848,69 @@ func _handle_events() -> void:
 # burst into flame where they land. The arrows leave the string at RELEASE in tools/blender/hq/anim_archer.py.
 const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at full draw (model units, Godot axes, Yaw node)
 # v0.9.41: the Cretan Archer (anim_cretan.py) shoots kneeling: the same draw 0.37 lower (anim_cretan.KNEEL_DROP)
-const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12)}
+# v0.9.49: the Crossbowman's bolt leaves the groove at the crossbow's nose (anim_crossbowman.RELEASE, frame 1)
+const XBOW_TIP := Vector3(-0.16, 1.502, 0.911)
+const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12), "crossbowman": XBOW_TIP}
 const ARROW_LEN := 0.78
+const XBOW_BOLT_LEN := 0.5
+
+
+## A crossbow bolt (one cached mesh): a short thick ash shaft, a square bodkin head of dark iron, two leather vanes
+## (yellow and blue, the Crossbowman's colours). Tip at the origin, along +Z, like the arrow.
+func _xbow_bolt_mesh(fire: bool) -> ArrayMesh:
+	var key := "xbow_bolt_fire" if fire else "xbow_bolt"
+	if _atk_cache.has(key):
+		return _atk_cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var w := 0.024
+	_arrow_prism(st, 0.075, XBOW_BOLT_LEN - 0.015, w, Color(0.7, 0.52, 0.3))              # ash shaft
+	_arrow_prism(st, XBOW_BOLT_LEN - 0.03, XBOW_BOLT_LEN, w * 1.15, Color(0.36, 0.22, 0.12))    # its butt
+	for i in 2:                                                                     # two stiff leather vanes
+		var r := Vector3(cos(PI * i + 0.6), sin(PI * i + 0.6), 0.0)
+		var col := Color(0.95, 0.76, 0.2) if i == 0 else Color(0.16, 0.3, 0.64)
+		var z0 := XBOW_BOLT_LEN - 0.17
+		var z1 := XBOW_BOLT_LEN - 0.025
+		var q := [r * w + Vector3(0, 0, z0), r * 0.05 + Vector3(0, 0, z0 + 0.06), r * 0.066 + Vector3(0, 0, z1), r * w + Vector3(0, 0, z1)]
+		for tri in [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]:
+			for v in tri:
+				st.set_color(col)
+				st.add_vertex(v)
+	st.generate_normals()
+	var m := st.commit()
+	var sm := StandardMaterial3D.new()
+	sm.vertex_color_use_as_albedo = true
+	sm.roughness = 0.75
+	sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(0, sm)
+	var st2 := SurfaceTool.new()                       # the bodkin: a square point
+	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st2.set_smooth_group(-1)
+	var hw := 0.026
+	var back := 0.085
+	var ring := [Vector3(hw, 0, back), Vector3(0, hw, back), Vector3(-hw, 0, back), Vector3(0, -hw, back)]
+	for i in 4:
+		var j := (i + 1) % 4
+		for tri in [[Vector3.ZERO, ring[i], ring[j]], [ring[j], ring[i], Vector3(0, 0, back + 0.01)]]:
+			for v in tri:
+				st2.add_vertex(v)
+	st2.generate_normals()
+	st2.commit(m)
+	var hm := StandardMaterial3D.new()
+	if fire:
+		hm.albedo_color = Color(1.0, 0.55, 0.15)
+		hm.emission_enabled = true
+		hm.emission = Color(1.0, 0.42, 0.06)
+		hm.emission_energy_multiplier = 2.5
+	else:
+		hm.albedo_color = Color(0.4, 0.42, 0.46)
+		hm.metallic = 0.75
+		hm.roughness = 0.35
+	hm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.surface_set_material(1, hm)
+	_atk_cache[key] = m
+	return m
 
 
 ## A real arrow (one cached mesh): a reed shaft, a leaf-shaped bronze head, red and white fletching. The tip is at the
@@ -4949,7 +5010,7 @@ func _robot_type(eid: int) -> String:
 ## the sim's projectile as it flies (see _arrow_flight); other archers' arrows start above their tower as before.
 func _arrow_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	var fire := dt == "fire"
-	_mi(_arrow_mesh(fire), null, root)
+	_mi(_xbow_bolt_mesh(fire) if u != null and str(u.type) == "crossbowman" else _arrow_mesh(fire), null, root)
 	root.set_meta("arrow", true)
 	root.set_meta("arrow_hq", true)
 	if fire:
@@ -7524,6 +7585,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	var pj: String = str(src.get("proj", ""))
 	if utype == "ballista" and _bal_hq(int(u.id)):
 		_ballista_proj(root, p, u, dt)         # a bolt from the groove, loosed when his clip drives it out
+		return root
+	if utype == "crossbowman" and u != null and _hq_clips(int(u.id)):
+		_arrow_proj(root, p, u, dt)            # v0.9.49: a real bolt, loosed from the HQ Crossbowman's crossbow
 		return root
 	if pj != "" and pj != "arrow" and pj != "rock":
 		_proj_model(root, pj, dt)
