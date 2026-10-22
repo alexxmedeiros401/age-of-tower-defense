@@ -1479,6 +1479,32 @@ func _classical_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## The sculpted Medieval city (medieval_city.glb): a castle's gatehouse, two round towers under conical slate roofs, the
+## portcullis raised over the open gates, the drawbridge down over the ditch, the curtain wall running off both ways,
+## blue banners; the keep behind with its turrets, and houses inside. Fires burn in the iron baskets before the gate,
+## smoke rises from a chimney.
+func _medieval_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/medieval_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:
+		_campfire(n, Vector3(-0.15, 1.12, sd * 1.5), 1.4, 0.34)
+	_smoke_column(n.position + Vector3(2.5, 1.72, 1.86))
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -1737,12 +1763,42 @@ const DECOR_V2 := {
 		"marks": [["Temple", Vector2(-3.0, -11.5), 0.75, 3.4, {"yaw": PI * 0.5}], ["Theatre", Vector2(8.0, 11.4), 0.8, 2.6, {"yaw": 0.0}],
 			["Altar", Vector2(-12.0, 10.8), 0.9, 1.2, {"yaw": 0.0}], ["Statue", Vector2(5.0, -10.6), 0.9, 1.0, {"yaw": 0.0}],
 			["Lion", Vector2(-9.5, -10.8), 0.85, 1.2, {"yaw": 0.0}], ["Statue", Vector2(-1.0, 10.9), 0.85, 1.0, {"yaw": 0.0}]]},
+	# The Medieval Age kits (decor_medieval.py). Hedgerow Fields: broad oaks, hawthorn hedgerows in blossom, haystacks and
+	# wattle fences; a post windmill, a cottage under its thatch with smoke from the chimney, a barn, a well, a hay cart
+	"farmland": {"kit": "medieval_decor_farmland", "count": 100, "ambient": true,
+		"scatter": [["Oak_A", 12], ["Oak_B", 12], ["Oak_C", 10], ["Hedge", 9], ["Hedge_B", 8], ["Bush", 9], ["Haystack", 5], ["Fence", 5],
+			["Rock_A", 4], ["Rock_B", 5], ["Rock_C", 2], ["Stump", 3], ["Log", 3], ["Scarecrow", 1]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 120, "cover_s": 1.0,
+		"marks": [["Windmill", Vector2(-3.5, -11.2), 0.9, 2.0, {"yaw": 0.3}], ["Cottage", Vector2(7.0, -10.9), 0.9, 1.9, {"yaw": 0.0}],
+			["Barn", Vector2(-9.0, 11.0), 0.85, 2.0, {"yaw": 0.0}], ["Well", Vector2(2.0, 10.9), 0.95, 1.0],
+			["Cottage", Vector2(-16.6, -10.4), 0.75, 1.7, {"yaw": 0.4}], ["Cart", Vector2(9.0, 10.9), 0.95, 1.2, {"yaw": 0.2}],
+			["Scarecrow", Vector2(-1.5, 11.3), 1.0, 0.7, {"yaw": 0.0}]]},
+	# Darkwood: tall spruces, gnarled oaks, dead trees, ferns and fly agarics; a woodcutter's hut with smoke from its roof,
+	# a ruined chapel, a wayside cross
+	"darkwood": {"kit": "medieval_decor_darkwood", "count": 112, "ambient": true,
+		"scatter": [["Spruce_A", 16], ["Spruce_B", 16], ["Spruce_C", 12], ["Oak_A", 6], ["Dead_A", 6], ["Dead_B", 5], ["Fern_A", 10], ["Fern_B", 9],
+			["Toadstools", 4], ["Toadstools_B", 4], ["Rock_A", 5], ["Rock_B", 5], ["Rock_C", 3], ["Stump", 5], ["Log", 4]],
+		"cover": [["Tuft", 3]], "cover_n": 90, "cover_s": 0.85,
+		"marks": [["Chapel", Vector2(-3.5, -11.1), 0.85, 2.4, {"yaw": 0.0}], ["Hut", Vector2(6.5, -10.9), 0.9, 1.8, {"yaw": 0.2}],
+			["Cross", Vector2(-9.0, 10.9), 1.0, 0.9, {"yaw": 0.0}], ["Hut", Vector2(5.0, 11.0), 0.8, 1.6, {"yaw": PI}],
+			["Toadstools", Vector2(-13.0, -10.6), 1.4, 0.8]]},
+	# Castle Siege: the besiegers' camp: pavilions and ridge tents, mantlets, a battering ram, a siege tower, supplies, a
+	# pile of catapult stones, a campfire, banners and spears; oaks and boulders
+	"castle": {"kit": "medieval_decor_castle", "count": 92, "ambient": true,
+		"scatter": [["Oak_A", 10], ["Oak_B", 9], ["Bush", 8], ["Rock_A", 7], ["Rock_B", 8], ["Rock_C", 4], ["Shot", 3], ["Supplies", 3],
+			["Mantlet", 4], ["Tent_B", 3], ["Banner", 2], ["Stump", 3], ["Log", 2], ["Rack", 2]],
+		"cover": [["Tuft", 3], ["Flowers", 1]], "cover_n": 90, "cover_s": 0.85,
+		"marks": [["Tower", Vector2(4.0, -11.0), 0.9, 1.8, {"yaw": PI * 0.5}], ["Tent_A", Vector2(-4.5, -10.8), 0.85, 1.9],
+			["Ram", Vector2(-0.5, 11.0), 0.85, 1.8, {"yaw": 0.0}], ["Tent_A", Vector2(-8.0, 11.1), 0.8, 1.8],
+			["Campfire", Vector2(-7.5, -10.4), 1.0, 0.9], ["Tent_B", Vector2(8.5, 10.9), 0.85, 1.4, {"yaw": 0.3}],
+			["Shot", Vector2(1.5, -10.4), 1.0, 0.6]]},
 }
 ## v0.9.40: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
 const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26],
-	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2]}
+	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2], "Campfire": [Vector3(0, 0.16, 0), 1.0, 0.3]}
 const MARK_SMOKE := {"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
-	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0)}
+	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0), "Cottage": Vector3(-0.73, 1.72, -0.12),
+	"Hut": Vector3(0.3, 1.2, 0.0), "Campfire": Vector3(0, 0.4, 0)}
 
 
 ## v0.9.28: a theme's HQ kit is used once its GLB is in the game.
@@ -2112,6 +2168,7 @@ func _export_decor(path: String) -> void:
 ## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
 ## glowing basalt. The ground texture still paints the zone itself.
 var _statue_n := 0                   # (the acropolis' statue zones take turns: a statue, then the lion)
+var _building_n := 0                 # (the farmland's building zones take turns: a cottage, then a barn)
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
 	var th := str(map.get("theme", "meadow"))
 	match kind:
@@ -2155,6 +2212,10 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				trio = ["Olive_A", "Cypress_A", "Olive_B"] if th == "olive" else ["Cypress_A", "Olive_A", "Cypress_B"]
 			elif th == "coast":
 				trio = ["Pine_A", "Cypress_A", "Pine_C"]
+			elif th == "farmland":            # (the Medieval Age: a stand of oaks; spruces round an old oak in the Darkwood)
+				trio = ["Oak_A", "Oak_C", "Oak_B"]
+			elif th == "darkwood":
+				trio = ["Spruce_A", "Oak_A", "Spruce_B"]
 			for k in 3:
 				var a10 := TAU * k / 3.0 + r.randf() * 0.5
 				_decor_single(trio[k], Vector3(cos(a10), 0, sin(a10)) * rad * 0.42, r.randf() * TAU, r.randf_range(0.8, 1.0), n)
@@ -2180,6 +2241,11 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			_decor_single("Agave_B" if r.randf() < 0.5 else "Barrel_A", Vector3(rad * 0.55, 0, -rad * 0.35), r.randf() * TAU, 0.85, n)
 			return true
 		"ruins":
+			if th == "darkwood":            # the Medieval Age: a ruined chapel in the trees, toadstools and ferns by it
+				_decor_single("Chapel", Vector3.ZERO, r.randf() * TAU, rad / 1.55, n)
+				_decor_single("Toadstools", Vector3(rad * 0.75, 0, rad * 0.45), r.randf() * TAU, 0.8, n)
+				_decor_single("Fern_A", Vector3(-rad * 0.7, 0, -rad * 0.5), r.randf() * TAU, 0.8, n)
+				return true
 			var spots := [["Column_B", Vector2(-0.45, -0.3), 0.85], ["Column_A", Vector2(0.42, -0.42), 0.9], ["Column_C", Vector2(0.15, 0.45), 1.0],
 				["Blocks", Vector2(-0.35, 0.42), 0.8]]
 			for sp in spots:
@@ -2188,6 +2254,24 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			return true
 		"pillar":
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
+			return true
+		"building":                       # the Medieval Age: a cottage and its haystack, or a barn and the hay cart
+			if th != "farmland":
+				return false
+			_building_n += 1
+			if _building_n % 2 == 1:
+				_decor_single("Cottage", Vector3.ZERO, r.randf_range(-0.4, 0.4), rad / 1.3, n)
+				_decor_single("Haystack", Vector3(rad * 0.75, 0, rad * 0.55), r.randf() * TAU, 0.6, n)
+			else:
+				_decor_single("Barn", Vector3.ZERO, r.randf_range(-0.4, 0.4), rad / 1.4, n)
+				_decor_single("Cart", Vector3(-rad * 0.7, 0, rad * 0.6), r.randf() * TAU, 0.7, n)
+			return true
+		"tents":                          # the besiegers' pavilion, a banner and supplies by it
+			if th != "castle":
+				return false
+			_decor_single("Tent_A", Vector3.ZERO, r.randf() * TAU, rad / 1.35, n)
+			_decor_single("Banner", Vector3(rad * 0.75, 0, -rad * 0.5), r.randf() * TAU, 0.8, n)
+			_decor_single("Supplies", Vector3(-rad * 0.7, 0, rad * 0.5), r.randf() * TAU, 0.75, n)
 			return true
 		"statue":                         # v0.9.4x: a marble statue (or the lion) on its plinth, a column drum and scrub by it
 			if th != "acropolis":
@@ -2225,6 +2309,7 @@ func _build_blockers() -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = 5
 	_statue_n = 0
+	_building_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
