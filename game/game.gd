@@ -423,7 +423,8 @@ func _build_world() -> void:
 	if base_id == "city":
 		_build_city(end_pt)
 	elif base_id != "cave":
-		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))):
+		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))
+				or (base_id == "castle" and _medieval_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
