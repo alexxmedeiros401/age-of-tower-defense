@@ -163,14 +163,17 @@ def serp_aim(T_m, dip):
 
 # ---------------------------------------------------------------------------------------------- the aim
 YAW = -32.0
+POCKET = (0.05, 0.08, 0.03)         # the butt's place: ahead of his right shoulder joint, in toward his chest, up
+                                    # (the stock lies against his right cheek: in further, it goes into his jaw)
+POCKET_SLIDE = 0.0                  # (and slid along the aim, out of his shoulder)
 AIM_DOWN = 0.05                     # (radians: the barrel dips a little toward the robots)
-FORK_U = 0.56                       # where the barrel lies in the fork
+FORK_U = 0.44                       # where the barrel lies in the fork
 L_GRIP_S = cm.REST_CROTCH - 0.14    # his left fist on the staff, under the fork
 L_POLE = V(0.7, 0.1, -1.0)
 R_POLE = V(-0.6, 0.6, -1.0)
 
 # the body on the aim (k = 0) and loading (k = 1): his feet stay planted, he turns square and straightens
-AIM_BODY = {"yaw": YAW, "lean": 0.2, "side": -0.04, "crouch": 0.0, "head_tilt": -0.26, "head_up": -0.42, "neck_side": -0.1,
+AIM_BODY = {"yaw": YAW, "lean": 0.2, "side": -0.04, "crouch": 0.0, "head_tilt": -0.33, "head_up": -0.42, "neck_side": -0.22,
             "neck_tw": -0.45 * YAW + 4, "head_tw": -0.55 * YAW + 2, "clav_r": 0.16}
 LOAD_BODY = {"yaw": -2.0, "lean": 0.12, "side": 0.02, "crouch": 0.25, "head_tilt": 0.0, "head_up": -0.3, "neck_side": 0.0,
              "neck_tw": -4.0, "head_tw": -8.0, "clav_r": 0.12}
@@ -193,18 +196,21 @@ def body(arm, k=0.0, br=0.0, sway=0.0, head_up=0.0, clav_r=0.0, extra_yaw=0.0):
 
 def aim_musket(P, kick=0.0, sway=0.0, br=0.0):
     """The musket on the aim: the butt plate in his right shoulder's pocket, the barrel level toward the robots
-    (-y), dipping a little; `kick` turns the muzzle up about the butt (radians) and shoves it back."""
+    (-y), dipping a little; `kick` turns the muzzle up about his cheek (radians) and shoves it back."""
     sh = P["upperarm.R"].translation
-    fwd = P["chest"].to_3x3() @ V(0, -1, 0)
+    C = P["chest"].to_3x3()
+    fwd = C @ V(0, 0, 1)                            # (a bone's local z is its front, its local x his left)
     fwd.z = 0.0
     fwd.normalize()
-    pocket = sh + fwd * 0.07 + V(0.035, 0.0, 0.035)
+    medial = C @ V(1, 0, 0)
+    pocket = sh + fwd * POCKET[0] + medial * POCKET[1] + V(0, 0, POCKET[2])
     A_t = V(0.012 * sway, -math.cos(AIM_DOWN), -math.sin(AIM_DOWN) + 0.004 * br).normalized()
     if kick:
         A_t = Quaternion(A_t.cross(V(0, 0, 1)).normalized(), kick) @ A_t
     U_t = V(0, 0, 1) - A_t * A_t.z
     butt = mloc(cm.BUTT_U + 0.02, 0.0, -0.055)
-    return musket_at(butt, pocket + V(0, 0.35 * kick, 0.0), A_t, U_t)
+    pocket = pocket + A_t * POCKET_SLIDE
+    return musket_at(butt, pocket + V(0, 0.35 * kick, -0.24 * kick), A_t, U_t)   # (turning about his cheek: the butt drops)
 
 
 def aim_rest(T_m):
@@ -271,6 +277,10 @@ def base_props(P_, T_m, T_r, dip=0.0):
 
 
 # ---------------------------------------------------------------------------------------------- Idle
+IDLE_SLOPE = V(-0.3, 0.6, 0.76)      # the musket on his shoulder slopes up behind him and out past his hat's brim
+IDLE_SEAT = V(-0.04, 0.02, 0.132)    # where its stock lies, from his right shoulder joint
+
+
 def idle_frame(arm, P_, t):
     w = 2 * math.pi * t
     br = math.sin(w * 2)
@@ -287,9 +297,9 @@ def idle_frame(arm, P_, t):
     ch, P = P_.solve(aims, ro, rr)
     # the musket on his right shoulder: the stock just ahead of the lock lies on the shoulder, sloping up behind him
     sh = P["upperarm.R"].translation
-    A_t = V(-0.16, 0.56, 0.81).normalized()
+    A_t = IDLE_SLOPE.normalized()
     up = V(0, 0, 1) - A_t * A_t.z
-    T_m = musket_at(mloc(0.27, 0.0, -0.024), sh + V(-0.005, 0.02, 0.135 + 0.003 * br), A_t, up)
+    T_m = musket_at(mloc(0.27, 0.0, -0.024), sh + IDLE_SEAT + V(0, 0, 0.003 * br), A_t, up)
     # the rest upright in his left hand, its spike by his left foot
     foot = q @ V(0.37, -0.16, 0.0) + V(0, 0, -0.012)
     T_r = rest_at(foot, V(0.02, -0.03, 1.0), V(1, 0, 0))
@@ -328,7 +338,7 @@ def make_combat(arm, frames=40):
 
 # ---------------------------------------------------------------------------------------------- Attack: shot and reload
 LOAD_BUTT = V(-0.38, -0.42, -0.004)       # the butt's heel on the ground before his right foot
-LOAD_MUZZLE = V(-0.06, -0.42, 1.52)       # (its line) leaning a little to his left, the muzzle before his chest
+LOAD_MUZZLE = V(-0.08, -0.42, 1.47)       # (its line) leaning a little to his left, the muzzle before his chest
 L_LOAD_U = 0.62                           # his left fist on the barrel while he loads
 RAM_CLEAR = cm.MUZZLE_U + 0.025 - cm.RAM_U[0]      # how far the rod slides to clear the muzzle
 RAM_DEEP = 0.34                           # how far it goes down the bore at a stroke
@@ -362,7 +372,16 @@ RAM_KEYS = {12: (0.0, 0.0), 13: (RAM_CLEAR * 0.35, 0.0), 14: (RAM_CLEAR * 0.8, 0
             22: (0.0, 0.0)}
 # the body between the aim (0) and the loading stance (1); a crouch as he takes the stock again
 LOAD_K = {0: 0.0, 2: 0.0, 3: 0.1, 4: 0.3, 5: 0.55, 6: 0.8, 7: 1.0, 23: 1.0, 24: 0.7, 25: 0.4, 26: 0.15, 27: 0.0, 28: 0.0}
-CROUCH = {22: 0.0, 23: 0.8, 24: 0.45, 25: 0.1, 26: 0.0}
+CROUCH = {22: 0.0, 23: 0.3, 24: 0.18, 25: 0.1, 26: 0.0}
+AIM_SETTLE = V(0.0, -0.03, -0.02)         # f26: the musket comes onto the aim from a little ahead and below
+K23_LIFT = 0.26                           # f23: his left hand lifts the musket and tips its muzzle away from his face
+K23_TIP = 0.3                             # (radians, about his left fist) while his right hand comes down to the stock
+
+
+def lifted_load(T_load):
+    p = V(0, 0, K23_LIFT) + T_load @ mloc(L_LOAD_U)
+    return (Matrix.Translation(p) @ Matrix.Rotation(K23_TIP, 4, "X") @ Matrix.Translation(-p)
+            @ Matrix.Translation(V(0, 0, K23_LIFT)) @ T_load)
 
 
 def _key(table, f):
@@ -386,12 +405,13 @@ def make_attack(arm, frames=28):
     T_r = aim_rest(T_aim)
     butt_aim = T_aim @ BUTT_END
     A_aim = rot_of(T_aim) @ A_M
-    K1 = Matrix.Translation(V(0.0, -0.1, -0.12)) @ musket_at(BUTT_END, butt_aim, Quaternion(A_aim.cross(V(0, 0, 1)).normalized(), 0.26) @ A_aim,
+    K1 = Matrix.Translation(V(0.0, -0.17, -0.17)) @ musket_at(BUTT_END, butt_aim, Quaternion(A_aim.cross(V(0, 0, 1)).normalized(), 0.26) @ A_aim,
                                                             V(0, 0, 1))
     K2 = swing_key(V(-0.4, -0.3, 0.68), V(0.15, -0.57, 0.81))
     T_load = load_musket()
     keys = {0: T_aim, 1: T_aim, 2: aim_musket(P0, kick=0.1), 3: aim_musket(P0, kick=0.04), 4: K1, 6: K2, 8: T_load,
-            22: T_load, 23: load_musket(0.28), 24: K2, 25: K1, 26: Matrix.Translation(V(0, 0, 0.04)) @ T_aim, 27: T_aim, 28: T_aim}
+            22: T_load, 23: lifted_load(T_load), 24: K2, 25: K1, 26: Matrix.Translation(AIM_SETTLE) @ T_aim,
+            27: T_aim, 28: T_aim}
     def musket_T(f):
         ks = sorted(keys)
         if f in keys:
@@ -410,22 +430,23 @@ def make_attack(arm, frames=28):
         crouch = _key(CROUCH, f) if 22 <= f <= 26 else 0.0
         aims, ro, rr = body(arm, kload, head_up=head_up, clav_r=clav)
         if crouch:
-            ro = ro + V(0.0, -0.06 * crouch, -0.12 * crouch)
-            for nm, amt in (("spine", 0.22), ("chest", 0.3)):
+            ro = ro + V(0.0, -0.03 * crouch, -0.16 * crouch)
+            for nm, amt in (("spine", 0.1), ("chest", 0.1)):
                 d, tw = aims[nm]
                 aims[nm] = ((d + V(0, -amt * crouch, 0)).normalized(), tw)
         T_m = musket_T(f)
         props = base_props(P_, T_m, T_r, dip)
         holds = {}
-        # his left hand: on the rest's staff; on the barrel while he loads; back to the staff
-        if f <= 6 or f >= 25:
+        # his left hand: on the rest's staff; across to the barrel (4-7); on it while he loads; back to the staff
+        if f <= 3 or f >= 26:
             holds["L"] = on_rest(T_r, L_GRIP_S, L_POLE)
-        elif f == 7 or f == 24:
-            def l_hold(P, f=f):
+        elif f <= 7 or f in (24, 25):
+            k = ease((f - 3) / 5.0) if f <= 7 else (0.6, 0.25)[f - 24]
+            def l_hold(P, k=k, f=f):
                 a = T_r @ rloc(L_GRIP_S)
-                b = T_load @ mloc(L_LOAD_U) if f == 7 else keys[23] @ mloc(L_LOAD_U)
-                al = (rot_of(T_r) @ A_R).lerp(A_load, 0.6)
-                return (a.lerp(b, 0.6 if f == 7 else 0.4), al, L_POLE)
+                b = (T_load if f <= 7 else keys[23]) @ mloc(L_LOAD_U)
+                al = (rot_of(T_r) @ A_R).lerp(A_load, k)
+                return (a.lerp(b, k) + V(0.06, 0.06, 0.0) * math.sin(k * math.pi), al, L_POLE)
             holds["L"] = l_hold
         else:
             holds["L"] = on_musket(T_m, L_LOAD_U, pole=L_POLE)

@@ -218,8 +218,8 @@ def head(fd):
     fd.paint(Chain(slot, [hr(0.003), hr(0.0042), hr(0.0046), hr(0.0042), hr(0.003)], k=hr(0.004)), MOUTH)
     lo_lip = [(-0.042, -0.172, 1.541), (-0.022, -0.188, 1.534), (0, -0.192, 1.532), (0.022, -0.188, 1.534), (0.042, -0.172, 1.541)]
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0065), hr(0.0072), hr(0.0065), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    for sx in (-1, 1):                                                                          # ears (under his hair)
-        fd.add(Ellipsoid(hp((sx * 0.17, 0.035, 1.66)), v3((0.024, 0.044, 0.056)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
+    for sx in (-1, 1):                                                                          # ears (under his hair: kept
+        fd.add(Ellipsoid(hp((sx * 0.157, 0.035, 1.66)), v3((0.02, 0.04, 0.05)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)  # in it)
 
 
 # ======================================================================================= body
@@ -293,6 +293,11 @@ def body_parts(fd):
 def skin_field():
     fd = Field("Skin")
     body_parts(fd)
+    # nothing of his brow passes into the brim's felt (it showed through it in specks)
+    def under_brim(P):
+        q = hat_local(P)
+        return np.maximum(brim_sd(q), F(-0.011) - crown_sd(q)) - F(0.004)
+    fd.inter(Func(lambda P: -under_brim(P), HAT_O - 0.5, HAT_O + 0.5), 0.003)
     return fd
 
 
@@ -386,9 +391,20 @@ def beard_field():
         return np.maximum(np.maximum(np.abs(x) - F(0.058), z - top), np.maximum(F(1.45) - z, y + F(0.09)))
     fd.add(Inter(Shell(chin_hull(), 0.004, 0.012, pad=0.06, disp=hairs, disp_amp=0.003), Func(mask, HEAD_C - 0.45, HEAD_C + 0.3), 0.004), 0.0)
     strands = lambda P: F(0.0022) * NOISE(P * np.array([70, 70, 20], F))
-    tuft = [hp((0, -0.2, 1.525)), hp((0, -0.207, 1.49)), hp((0, -0.204, 1.455)), hp((0, -0.192, 1.42)), hp((0, -0.176, 1.39))]
-    fd.add(Lock(tuft, [hr(0.03), hr(0.036), hr(0.026), hr(0.014), hr(0.003)], [hr(0.016), hr(0.022), hr(0.018), hr(0.01), hr(0.003)],
-                [v3((0, -1, 0.15))] * 5, k=hr(0.008), disp=strands, disp_amp=0.003), hr(0.01))
+    # the point: a smooth wedge from under his lip, narrowing to a tip that juts a little forward
+    key = [(0.0, (0, -0.2, 1.527), 0.03, 0.016), (0.25, (0, -0.21, 1.492), 0.035, 0.021), (0.5, (0, -0.216, 1.458), 0.028, 0.019),
+           (0.75, (0, -0.218, 1.426), 0.017, 0.013), (1.0, (0, -0.214, 1.396), 0.004, 0.004)]
+    tuft, ws, ts = [], [], []
+    for i in range(9):
+        u = i / 8.0
+        for (u0, p0, w0, t0), (u1, p1, w1, t1) in zip(key, key[1:]):
+            if u0 <= u <= u1:
+                a = (u - u0) / (u1 - u0)
+                tuft.append(hp(v3(p0) + (v3(p1) - v3(p0)) * a))
+                ws.append(hr(w0 + (w1 - w0) * a))
+                ts.append(hr(t0 + (t1 - t0) * a))
+                break
+    fd.add(Lock(tuft, ws, ts, [v3((0, -1, 0.1))] * 9, k=hr(0.016), disp=strands, disp_amp=0.003), hr(0.012))
     for sx in (-1, 1):
         pts = [hp((sx * 0.006, -0.23, 1.584)), hp((sx * 0.034, -0.222, 1.574)), hp((sx * 0.06, -0.206, 1.566)),
                hp((sx * 0.083, -0.196, 1.571)), hp((sx * 0.097, -0.196, 1.59)), hp((sx * 0.101, -0.2, 1.615))]
@@ -503,41 +519,124 @@ def brooch_field():
     return fd
 
 
+def hat_surface(q):
+    """Signed distance to the hat's outer surface (hat-local points): the crown, and the brim where it stands out of it."""
+    return np.minimum(crown_sd(q), np.maximum(brim_sd(q), F(-0.011) - crown_sd(q)))
+
+
+def _hat_grad(q, h=0.002):
+    g = np.zeros_like(q)
+    for k in range(3):
+        e = np.zeros(3, F)
+        e[k] = h
+        g[:, k] = (hat_surface(q + e) - hat_surface(q - e)) / F(2 * h)
+    return g / np.maximum(np.linalg.norm(g, axis=1, keepdims=True), F(1e-9))
+
+
+def settle(pts, clear):
+    """Hat-local points moved along the hat's surface normal until they sit `clear` off its surface (a feather lying on
+    the felt); returns them with the surface normals there (facing out from the crown: between the crown and the
+    turned-up brim the brim's would face in)."""
+    q = np.array(pts, F).reshape(-1, 3)
+    c = np.broadcast_to(np.array(clear, F), (len(q),))
+    for _ in range(6):
+        d = hat_surface(q)
+        q = q - _hat_grad(q) * (d - c)[:, None]
+    n = _hat_grad(q)
+    e = np.zeros_like(q)
+    nc = np.zeros_like(q)
+    for k in range(3):
+        e[:] = 0
+        e[:, k] = 0.002
+        nc[:, k] = (crown_sd(q + e) - crown_sd(q - e)) / F(0.004)
+    nc = nc / np.maximum(np.linalg.norm(nc, axis=1, keepdims=True), F(1e-9))
+    flip = np.sum(n * nc, axis=1) < 0
+    n[flip] = nc[flip]
+    return q, n
+
+
+# the feathers' spines (hat-local, rough: settled onto the felt; the last points hang free past the brim's edge)
+PLUME_BIG = [(0.215, -0.005, 0.07), (0.215, 0.015, 0.165), (0.165, 0.045, 0.24), (0.09, 0.09, 0.262), (0.04, 0.145, 0.25),
+             (0.03, 0.2, 0.2), (0.035, 0.24, 0.12), (0.045, 0.3, 0.04)]
+PLUME_BIG_HANG = [(0.05, 0.37, 0.0), (0.06, 0.41, -0.05), (0.065, 0.4, -0.1), (0.07, 0.37, -0.118)]
+PLUME_WHITE = [(0.218, -0.03, 0.08), (0.212, -0.012, 0.18), (0.15, 0.0, 0.262), (0.06, 0.04, 0.29), (0.0, 0.1, 0.285),
+               (-0.02, 0.17, 0.235), (-0.015, 0.22, 0.15)]
+PLUME_WHITE_HANG = [(-0.01, 0.25, 0.09), (0.0, 0.26, 0.045)]
+
+
 def plume_paths():
-    """The two ostrich feathers' spines (hat-local): tucked behind the brooch, rising over the crown's left edge,
-    arching over its top and curling down over the brim on his right; the white one behind the crimson."""
-    big = [(0.215, 0.0, 0.08), (0.225, 0.012, 0.18), (0.16, 0.03, 0.26), (0.04, 0.04, 0.29), (-0.09, 0.04, 0.275),
-           (-0.2, 0.03, 0.21), (-0.27, 0.0, 0.12), (-0.29, -0.04, 0.05), (-0.26, -0.075, 0.03)]
-    white = [(0.215, 0.03, 0.08), (0.22, 0.06, 0.17), (0.15, 0.09, 0.235), (0.03, 0.11, 0.255), (-0.1, 0.11, 0.235),
-             (-0.2, 0.1, 0.17), (-0.25, 0.08, 0.09), (-0.25, 0.04, 0.035)]
-    return [v3(p) for p in big], [v3(p) for p in white]
+    """The two ostrich feathers' spines (hat-local): their quills tucked behind the brooch, lying up over the crown
+    from his left and down over its back, the crimson one drooping off the brim behind him in a curl; the white one
+    lies on the crimson, toward the front."""
+    def path(pts, hang, th, lift=0.0):
+        clear = [th + 0.004 + lift * smoothstep(0.0, 2.0, F(i)) for i in range(len(pts))]
+        q, n = settle(pts, clear)
+        q[0] = pts[0]                                                   # (the quill's foot stays tucked behind the brooch)
+        out = [v3(x) for x in q]
+        nn = [v3(x) for x in n]
+        last = nn[-1]
+        for h in hang:
+            out.append(v3(h))
+            nn.append(norm(last * 0.6 + v3((0, 0.4, 0.5))))
+        return out, nn
+    big = path(PLUME_BIG, PLUME_BIG_HANG, 0.03)
+    white = path(PLUME_WHITE, PLUME_WHITE_HANG, 0.022, lift=0.04)
+    return big, white
 
 
-def _feather(fd, pts_l, w_max, th, label, seed):
+def _resample(path, n_out):
+    """A spine (points, normals) resampled to n_out points along a Catmull-Rom curve through it."""
+    pts, ns = [v3(p) for p in path[0]], [v3(x) for x in path[1]]
+    P = [pts[0] * 2 - pts[1]] + pts + [pts[-1] * 2 - pts[-2]]
+    seg = len(pts) - 1
+    out_p, out_n = [], []
+    for k in range(n_out):
+        u = k / (n_out - 1) * seg
+        i = min(int(u), seg - 1)
+        t = u - i
+        p0, p1, p2, p3 = P[i], P[i + 1], P[i + 2], P[i + 3]
+        out_p.append(0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3))
+        out_n.append(norm(ns[i] * (1 - t) + ns[i + 1] * t))
+    return out_p, out_n
+
+
+def _feather(fd, path, w_max, th, label, seed, n_st=24, lobes=9):
+    """A fluffy ostrich feather along a spine: a soft flat shaft lying on the felt, fringed on both edges with rounded
+    lobes of barbs that sweep back toward the tip and droop a little (a scalloped edge); the tip curls."""
+    pts_l, ns_l = _resample(path, n_st)
     pts = [hat_world(p) for p in pts_l]
-    n = len(pts)
-    ws, ts, ns = [], [], []
-    for i, p in enumerate(pts):
-        u = i / (n - 1)
-        ws.append(w_max * (0.35 + 0.65 * math.sin(min(1.0, u / 0.45) * math.pi / 2)) * (1.0 - 0.6 * max(0.0, u - 0.7) / 0.3))
-        ts.append(th * (1.0 - 0.4 * u))
-        o = HAT_O + HAT_R @ v3((0, 0.03, 0.05))
-        ns.append(norm(p - o))                                       # (flat across the crown: facing out from it)
-    def barbs(P, seed=seed):
-        q = hat_local(P)
-        a = np.arctan2(q[:, 0], q[:, 2] - F(0.05))
-        return (F(0.006) * np.abs(np.sin(a * F(34) + q[:, 1] * F(60) + F(seed))) + F(0.003) * NOISE(P * F(55) + F(seed))
-                + F(0.002) * NOISE(P * F(140)))
-    fd.add(Lock(pts, ws, ts, ns, k=0.02, disp=barbs, disp_amp=0.008), 0.012, label)
-    fd.add(Chain(pts[:3], [0.006, 0.005, 0.004], k=0.003), 0.004, label)            # the quill's foot
+    ns = [norm(HAT_R @ v3(n)) for n in ns_l]
+    ws, ts = [], []
+    for i in range(n_st):
+        u = i / (n_st - 1)
+        ws.append(w_max * (0.45 + 0.55 * math.sin(min(1.0, u / 0.3) * math.pi / 2)) * (1.0 - 0.8 * max(0.0, u - 0.7) / 0.3))
+        ts.append(th * (1.0 - 0.45 * u))
+    fluff = lambda P, seed=seed: F(0.0022) * NOISE(P * F(70) + F(seed)) + F(0.0012) * NOISE(P * F(160) + F(seed * 2))
+    fd.add(Lock(pts, [w * 0.62 for w in ws], ts, ns, k=0.02, disp=fluff, disp_amp=0.0035), 0.014, label)
+    fd.add(Chain([hat_world(p) for p in path[0][:3]], [0.006, 0.005, 0.004], k=0.003), 0.004, label)     # the quill's foot
+    for i in sorted({int(round(1 + (n_st - 3) * k / (lobes - 1))) for k in range(lobes)}):
+        t = norm(pts[i + 1] - pts[i - 1])
+        n = ns[i]
+        n = norm(n - t * float(n @ t))
+        b = np.cross(t, n)
+        for sgn in (-1, 1):
+            d = norm(b * sgn * 0.8 + t * 0.6 + n * 0.25)                # back toward the tip, curling up and out
+            w = ws[i]
+            c = pts[i] + b * (sgn * w * 0.52) + t * (w * 0.12) + n * (ts[i] * 0.15)
+            side = norm(np.cross(n, d))
+            nn = np.cross(d, side)
+            R = np.stack([side, nn, d], axis=1)
+            jit = 0.85 + 0.3 * (0.5 + 0.5 * math.sin(i * 2.3 + sgn * 1.1 + seed))
+            fd.add(Ellipsoid(c, (w * 0.42 * jit, ts[i] * 0.78 * jit, w * 0.52 * jit), R=R, disp=fluff, disp_amp=0.003), 0.018, label)
 
 
 def plume_field():
-    """A big ostrich plume: a crimson feather (label 0) over a white one (5), fluffy, curling over the crown."""
+    """A big ostrich plume: a crimson feather (label 0) under a white one (5), fluffy, lying over the crown from the
+    brooch and falling off the brim behind him."""
     fd = Field("Plume")
     big, white = plume_paths()
-    _feather(fd, white, 0.05, 0.016, 5, 1.7)
-    _feather(fd, big, 0.062, 0.02, 0, 0.3)
+    _feather(fd, big, 0.075, 0.03, 0, 0.3, n_st=26, lobes=11)
+    _feather(fd, white, 0.05, 0.022, 5, 1.7, n_st=18, lobes=8)
     return fd
 
 
@@ -1450,6 +1549,7 @@ REGION_PARTS = ("Skin", "Hat", "Plume", "Coat", "Crimson", "Sash", "Boots", "Ban
 CRIMSON = (0.55, 0.08, 0.08)               # the army's colours (the brief): deep crimson, gold-ochre, buff, linen, black felt
 GOLD = (0.85, 0.62, 0.2)
 BUFF = (0.72, 0.53, 0.3)
+BOOT_BUFF = (0.5, 0.34, 0.18)               # (his boots a darker, worn buff: they part from the coat)
 LINEN = (0.95, 0.93, 0.87)
 DARK_HAIR = {"name": "HQ_MuskHair", "base": (0.1, 0.075, 0.06), "hi": (0.3, 0.23, 0.18), "low": (0.04, 0.03, 0.025),
              "streak": (0.06, 0.045, 0.035), "tint": (0.18, 0.12, 0.08)}
@@ -1468,7 +1568,7 @@ MAT_OVERRIDES = {
     "Cuffs": ("linen", {"name": "HQ_MuskLinen", "base": LINEN}),
     "Crimson": ("wool", {"name": "HQ_MuskCrimson", "base": CRIMSON, "border": GOLD, "stripe": GOLD}),
     "Sash": ("wool", {"name": "HQ_MuskSash", "base": CRIMSON, "border": GOLD, "stripe": GOLD}),
-    "Boots": ("leather_dyed", {"name": "HQ_BuffBoots", "base": BUFF, "dyed": (0.3, 0.19, 0.11)}),
+    "Boots": ("leather_dyed", {"name": "HQ_BuffBoots", "base": BOOT_BUFF, "dyed": (0.3, 0.19, 0.11)}),
     "Bandolier": ("matchlock", ARMS),
     "Charge": ("matchlock", ARMS),
     "Rapier": ("matchlock", ARMS),
@@ -1480,7 +1580,7 @@ MAT_OVERRIDES = {
     "Rest": ("matchlock", ARMS),
 }
 GLOW = {"Ember": ((1.0, 0.34, 0.08), 1.25, 0.5)}
-LOW_TARGETS = {"Skin": 5200, "Teeth": 60, "Hair": 1500, "Beard": 520, "Hat": 1700, "Brooch": 160, "Plume": 1500, "Coat": 3200,
+LOW_TARGETS = {"Skin": 5200, "Teeth": 60, "Hair": 1500, "Beard": 520, "Hat": 1700, "Brooch": 160, "Plume": 2400, "Coat": 3200,
                "Linen": 760, "Cuffs": 220, "Crimson": 1500, "Sash": 1300, "Boots": 1300, "Bandolier": 1900, "Charge": 90, "Rapier": 700,
                "Musket": 1700, "Serpentine": 220, "Match": 160, "Ember": 40, "Ramrod": 110, "Rest": 520}
 AO_EXCLUDE = ["Musket", "Serpentine", "Match", "Ember", "Ramrod", "Rest", "Charge", "Brooch", "Rapier"]
