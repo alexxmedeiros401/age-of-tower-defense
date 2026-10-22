@@ -42,7 +42,7 @@ COPPER = (0.78, 0.42, 0.22)
 RED_GLOW = (1.0, 0.2, 0.08)
 CYAN = (0.3, 0.88, 1.0)
 VENT = (1.0, 0.55, 0.15)
-FLASH = (1.0, 0.8, 0.38)
+FLASH = (1.0, 0.66, 0.2)
 
 
 def mirror(p):
@@ -106,7 +106,7 @@ MATS = {
 GLOW = {"Visor": (RED_GLOW, 1.5, 0.5), "Core": (RED_GLOW, 1.5, 0.5), "Orb": (CYAN, 1.3, 0.55), "Vents": (VENT, 1.3, 0.5),
         "Lights": (VENT, 1.3, 0.5)}
 for b in FLASH_BONES:
-    GLOW["Flash" + b[6:]] = (FLASH, 1.5, 0.6)
+    GLOW["Flash" + b[6:]] = (FLASH, 1.6, 0.7)
 
 LOW_TARGETS = {"Hull": 2800, "Ports": 560, "Ram": 160, "Frame": 520, "Tower": 1100, "TowerRing": 160, "Visor": 80, "Mast": 600,
                "Orb": 120, "Stacks": 640, "Vents": 40, "CoreRing": 300, "Core": 100, "DoorL": 220, "DoorR": 220, "Lights": 60,
@@ -249,10 +249,10 @@ def parts(fine=False):
         for i, y in enumerate(PORT_Y):
             m = v3((sx * GUN_X1, y, PORT_Z))
             f = Field("Flash%s%d" % (s, i))
-            f.add(Ellipsoid(m + v3((sx * 0.11, 0, 0)), (0.11, 0.065, 0.065)))
-            for d in ((1, 0.6, 0), (1, -0.6, 0), (1, 0, 0.6), (1, 0, -0.6), (1, 0, 0)):
+            f.add(Ellipsoid(m + v3((sx * 0.15, 0, 0)), (0.15, 0.095, 0.095)))
+            for d in ((1, 0.65, 0), (1, -0.65, 0), (1, 0, 0.65), (1, 0, -0.65), (1, 0, 0), (1, 0.45, 0.45), (1, -0.45, -0.45)):
                 dd = norm(v3((sx * d[0], d[1], d[2])))
-                f.add(RoundCone(m + v3((sx * 0.06, 0, 0)), m + v3((sx * 0.06, 0, 0)) + dd * 0.17, 0.045, 0.01), k=0.02)
+                f.add(RoundCone(m + v3((sx * 0.08, 0, 0)), m + v3((sx * 0.08, 0, 0)) + dd * 0.24, 0.06, 0.012), k=0.025)
             out.append(("Flash%s%d" % (s, i), f, vs, "flash.%s%d" % (s, i), "glow"))
     # ---- the command tower: a slanted front, the wide red visor band wrapped round it, an overhanging roof
     tlo, thi = TC - v3((0.5, 0.45, 0.4)), TC + v3((0.5, 0.45, 0.45))
