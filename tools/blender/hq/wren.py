@@ -525,9 +525,12 @@ def dag_sd(P):
 
 
 def cape_top(P):
-    """The cowl's upper edge round her throat: low in front, rising behind into the bunched hood."""
+    """The cowl's upper edge round her throat: low in front, rising behind into the bunched hood. It only cuts round her
+    neck: away from it the line climbs clear of the cloth, so the cape caps her shoulders whole (cut level everywhere,
+    it opened a hole in the top of each shoulder)."""
     y = P[:, 1]
-    return P[:, 2] - (F(1.445) + F(0.07) * smoothstep(-0.05, 0.14, y))
+    lift = F(0.25) * smoothstep(0.13, 0.19, np.abs(P[:, 0]))
+    return P[:, 2] - (F(1.445) + F(0.07) * smoothstep(-0.05, 0.14, y) + lift)
 
 
 def hood_frame():
@@ -551,16 +554,24 @@ def hood_field():
     def edging(P):
         return np.abs(dag_sd(P) + F(0.011)) - F(0.008)
     fd.paint(Inter(Func(edging, (-0.85, -0.6, 0.95), (0.85, 0.6, 1.4)), Func(lambda P: P[:, 2] - F(1.3), (-0.85, -0.6, 0.95), (0.85, 0.6, 1.4))), 5)
-    # the cowl's rolled edge round her throat (low in front, rising behind)
+    # the cowl's rolled edge round her throat (low in front, rising behind), along the cut itself: in each direction,
+    # where a level going out from her neck leaves the cloth, the lowest level that is cut away (rays coming in from
+    # outside found the tops of her shoulders at the sides)
     pts = []
+    zs = np.arange(1.38, 1.62, 0.003)
+    rs = np.arange(0.0, 0.35, 0.002)
     for k in range(25):
         a = 2 * math.pi * k / 24
-        d = v3((math.sin(a), -math.cos(a), 0.0))
-        z0 = 1.445 + 0.07 * float(smoothstep(-0.05, 0.14, np.array([0.05 + 0.13 * -math.cos(a)], F))[0])
-        o = v3((0, 0.05, z0 - 0.012)) + d * 0.5
-        h, ok = ray_hit(Func(lambda P: base.eval(P, margin=0.12) - F(CAPE_OFF + CAPE_T * 0.5), (-1, -1, 1.2), (1, 1, 1.7)), [o], [-d], tmax=0.6)
-        if ok[0]:
-            pts.append(h[0])
+        cols = np.array([0.0, 0.05]) + rs[:, None] * np.array([math.sin(a), -math.cos(a)])[None, :]
+        P = np.concatenate([np.tile(cols, (len(zs), 1)), np.repeat(zs, len(rs))[:, None]], 1).astype(F)
+        out = ((base.eval(P, margin=0.12) - F(CAPE_OFF + CAPE_T * 0.5)) > 0).reshape(len(zs), len(rs))
+        ir = np.argmax(out, 1)
+        ok = out.any(1) & (ir > 0)
+        ex = np.concatenate([cols[ir], zs[:, None]], 1).astype(F)
+        g = cape_top(ex)
+        idx = np.flatnonzero(ok[:-1] & ok[1:] & (g[:-1] < 0) & (g[1:] >= 0))
+        if len(idx):
+            pts.append(v3(ex[idx[0]]) - v3((0, 0, 0.012)))
     if len(pts) > 6:
         fd.add(Chain(pts, [0.016] * len(pts), k=0.008, disp=lambda P: F(0.0015) * NOISE(P * F(40)), disp_amp=0.002), 0.008)
     # the hood itself, thrown back: a thick roll of cloth bunched behind her neck, its opening scooped out on top,
