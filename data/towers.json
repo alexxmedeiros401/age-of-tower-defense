@@ -1994,7 +1994,7 @@
   "name": "Knight",
   "lineage": "Brute",
   "era": "Medieval Age",
-  "model_scale": 0.56,
+  "model_scale": 0.7,
   "swing": [
    -0.5,
    1.2

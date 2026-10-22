@@ -4709,7 +4709,7 @@ func _handle_events() -> void:
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type in ["axe_warrior", "knight", "aldric"] and _hq_clips(ev.id):
-					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them (v0.9.50: and
+					_axe_cleave(u2, ev.get("targets", []))      # Iron Age: the great axe sweeps through them (v0.9.54: and
 					                                            # the Knight's great sword cleaves down across them)
 				elif u2 != null:
 					_ring_fx(_v3(u2.pos, 0.2), ev.radius, Color(1, 0.8, 0.45) if u2.type != "flamethrower" else Color(1, 0.5, 0.1), 0.35)
