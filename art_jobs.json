@@ -1,0 +1,17 @@
+[
+ {
+  "name": "gpground_jungle_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/gpground_jungle_p1; mkdir -p $O\npython3 ../map_ground_hq.py jungle_outpost --px 64 --samples 32 --out $O/ground_jungle_outpost.png --watersrc $O/water_src_jungle_outpost.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/gpground_jungle_p1"
+ },
+ {
+  "name": "gpground_harbor_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/gpground_harbor_p1; mkdir -p $O\npython3 ../map_ground_hq.py smugglers_harbor --px 64 --samples 32 --out $O/ground_smugglers_harbor.png --watersrc $O/water_src_smugglers_harbor.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/gpground_harbor_p1"
+ },
+ {
+  "name": "gpground_fortress_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/gpground_fortress_p1; mkdir -p $O\npython3 ../map_ground_hq.py star_fort --px 64 --samples 32 --out $O/ground_star_fort.png --watersrc $O/water_src_star_fort.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/gpground_fortress_p1"
+ }
+]
