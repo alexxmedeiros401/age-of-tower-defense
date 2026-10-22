@@ -7994,7 +7994,7 @@ func _ability_fx(ev: Dictionary) -> void:
 				_banner(aname, Color(0.6, 0.9, 0.45))
 				return
 			if sim.hero != null and str(sim.hero.type) == "wren" and _hq_clips(int(sim.hero.id)):
-				_wren_rain(ev)                              # v0.9.5x: her three volleys loosed high come down on them
+				_wren_rain(ev)                              # v0.9.53: her three volleys loosed high come down on them
 				_banner(aname, Color(0.55, 0.85, 0.4))
 				return
 			var i := 0
