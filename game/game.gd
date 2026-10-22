@@ -4662,6 +4662,8 @@ func _handle_events() -> void:
 					n.position = _v3(e.pos)
 					add_child(n)
 					enemy_nodes[ev.id] = n
+					if str(e.type) == "bomber":
+						_bay_launch(n, e)                   # v0.9.60: launched from a Dreadnought's hangar bay
 					if absf(float(e.dist) - Sim.SPAWN_DIST) < 0.05:
 						n.set_meta("emerge", true)
 						n.scale = Vector3.ONE * 0.05
@@ -4895,6 +4897,9 @@ func _handle_events() -> void:
 					if eap.has_animation("Emp"):
 						eap.play("Emp", 0.15)
 						slam = COLOSSUS_SLAM / maxf(float(speed), 0.01)
+						if _robot_type(eid0) == "dreadnought":
+							slam = DREAD_EMP / maxf(float(speed), 0.01)
+							_fx_after(slam, func() -> void: _dread_broadside(eid0))
 				var epos: Vector2 = ev.pos
 				var erad := float(ev.radius)
 				if slam > 0.0:
@@ -6899,6 +6904,57 @@ func _cry_roar(hid: int) -> void:
 const COLOSSUS_SLAM := 9.0 / CLIP_FPS                 # robot_iron_colossus.py EMP_HIT: its fists strike the ground
 
 
+# ---------------------------------------------------------------- Gunpowder Age robots (v0.9.60)
+# The Dreadnought Walker (robot_dreadnought.py): its Emp clip fires a broadside from its eight gun ports and the EMP from
+# its tesla orb on frame 12; its Summon opens the hangar hatch on its back deck and the Bombers lift off on frame 16.
+const DREAD_EMP := 12.0 / CLIP_FPS
+const DREAD_LAUNCH := 16.0 / CLIP_FPS
+const DREAD_BAY := Vector3(0.058, 2.284, -0.846)
+const BOMBER_LIFT := 0.9                                # (the Bomber's model flies this high over its node)
+
+
+## The broadside: a flash and a cloud of powder smoke at each of the eight gun ports, out to either side.
+func _dread_broadside(eid: int) -> void:
+	if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
+		return
+	var dn: Node3D = enemy_nodes[eid]
+	var xf := dn.global_transform
+	for sx in [-1.0, 1.0]:
+		var out := (xf.basis * Vector3(sx, 0.0, 0.0)).normalized()
+		for z in [0.136, -0.134, -0.404, -0.674]:
+			_gun_blast(xf * Vector3(0.98 * sx, 1.995, z), out, 1.3)
+	_sfx("cannon", -4.0, 0.1, 0.3)
+	shake = maxf(shake, 0.5)
+
+
+## A Bomber summoned by a Dreadnought: it waits in the hangar bay until the hatch opens, then lifts off to its place.
+func _bay_launch(n: Node3D, e: Dictionary) -> void:
+	for b in sim.enemies:
+		if b.alive and str(b.type) == "dreadnought" and int(b.pi) == int(e.pi) and enemy_nodes.has(b.id) \
+				and float(e.dist) - float(b.dist) > 0.3 and float(e.dist) - float(b.dist) < 1.3:
+			n.set_meta("lift", time_s)
+			n.set_meta("lift_from", int(b.id))
+			n.visible = false
+			return
+
+
+func _bay_lift(n: Node3D) -> void:
+	var t := (time_s - float(n.get_meta("lift"))) * float(speed) - DREAD_LAUNCH
+	var bid := int(n.get_meta("lift_from"))
+	if t >= 0.8 or not enemy_nodes.has(bid) or not is_instance_valid(enemy_nodes[bid]):
+		n.remove_meta("lift")
+		n.scale = Vector3.ONE
+		return
+	if t < 0.0:
+		n.visible = false
+		return
+	var k := t / 0.8
+	k = k * k * (3.0 - 2.0 * k)
+	var bay: Vector3 = (enemy_nodes[bid] as Node3D).global_transform * DREAD_BAY - Vector3(0, BOMBER_LIFT, 0)
+	n.position = bay.lerp(n.position, k)
+	n.scale = Vector3.ONE * lerpf(0.55, 1.0, k)
+
+
 ## An EMP: rings of blue light from where it went off (the Colossus' fists: arcs crackle off the ground there too).
 func _emp_burst(pos: Vector2, radius: float, slam: bool) -> void:
 	_ring_fx(_v3(pos, 0.3), radius, Color(0.45, 0.85, 1.0), 0.6)
@@ -8306,6 +8362,8 @@ func _sync_visuals(alpha: float) -> void:
 			if ek >= 1.0:
 				n.remove_meta("emerge")
 				n.scale = Vector3.ONE
+		if n.has_meta("lift"):
+			_bay_lift(n)
 		if n.has_meta("hop"):
 			var hk := (time_s - float(n.get_meta("hop"))) / 0.34
 			if hk >= 1.0 or hk < 0.0:
@@ -13283,7 +13341,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			if defs.enemies[type].get("cloak", false):
 				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
@@ -13304,6 +13362,25 @@ func _run_demo() -> void:
 				for k in 3:
 					await _wait_ticks(2)
 					await _shot("bots_shield_break_%d.png" % k)
+			if type == "dreadnought":             # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
+				be.emp_cd = 99.0
+				be.summon_cd = 0.0
+				for k in 8:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.0, 0)) * big
+					cam.look_at(bn.global_position + Vector3(0, 0.9 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.2 / TICK))
+					await _shot("bots_summon_%d.png" % k)
+				await _wait_ticks(int(0.8 / TICK))
+				sim._emp_blast(be.pos, 3.6, 2.0, int(be.id))
+				for k in 14:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.2, 0)) * big * 1.25
+					cam.look_at(bn.global_position + Vector3(0, 0.6 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(2)
+					await _shot("bots_emp_%02d.png" % k)
 			if type == "iron_colossus":           # v0.9.37: it rears up and summons Ironclads, then slams the EMP down
 				be.emp_cd = 99.0                      # (its own EMP waits for this one)
 				be.summon_cd = 0.0

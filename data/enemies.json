@@ -186,7 +186,7 @@
    "duration": 1.5,
    "on_death": true
   },
-  "bar_h": 1.61,
+  "bar_h": 1.35,
   "flying_look": true
  },
  "steam_tank": {
@@ -341,7 +341,7 @@
    "radius": 3.6,
    "duration": 2.0
   },
-  "bar_h": 3.8,
+  "walk_speed": 0.7, "bar_h": 3.8,
   "boss": true
  },
  "juggernaut": {
