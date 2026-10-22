@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import bpy
+import cycles_dev
 
 
 def new_image(name, size, non_color=False, alpha=False):
@@ -30,7 +31,7 @@ def bake_material(low_ob, img):
 def bake(low_ob, hi_objs, img, kind, samples=4, margin=16, extrusion=0.012, maxdist=0.035, pass_filter=None):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
-    sc.cycles.device = "CPU"
+    cycles_dev.use(sc)
     sc.cycles.samples = samples
     sc.cycles.use_denoising = False
     sc.render.bake.use_selected_to_active = True

@@ -110,6 +110,7 @@ def shots(D, game=False):
                 o.data.materials.append(glow_material("Glow" + nm, *spec))
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
+    __import__("cycles_dev").use(sc)
     sc.cycles.samples = 24
     sc.cycles.use_denoising = True
     sc.render.film_transparent = False

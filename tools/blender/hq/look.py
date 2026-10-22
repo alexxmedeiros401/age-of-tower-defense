@@ -1,6 +1,7 @@
 """Hero lighting + Cycles settings (sun, sky fill, rim light), AgX look."""
 import math
 import bpy
+import cycles_dev
 from mathutils import Vector
 from mats import lin
 
@@ -8,7 +9,7 @@ from mats import lin
 def setup(samples=128, res=(1200, 1200), transparent=True, denoise=True):
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
-    sc.cycles.device = "CPU"
+    cycles_dev.use(sc)
     sc.cycles.samples = samples
     sc.cycles.use_adaptive_sampling = True
     sc.cycles.adaptive_threshold = 0.02

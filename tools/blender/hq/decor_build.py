@@ -311,6 +311,7 @@ def shots(D):
             o.data.materials.append(m)
     sc = bpy.context.scene
     sc.render.engine = "CYCLES"
+    __import__("cycles_dev").use(sc)
     sc.cycles.samples = 16
     sc.cycles.use_denoising = True
     sc.view_settings.view_transform = "Standard"

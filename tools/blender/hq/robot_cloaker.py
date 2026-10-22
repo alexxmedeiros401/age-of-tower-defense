@@ -96,7 +96,7 @@ def cape_sd(P, lo_a, hi_a):
     r = np.sqrt(x * x + y * y)
     a = _cape_angle(P)
     t = np.clip((F(1.13) - z) / F(0.6), 0, 1)
-    R = F(0.19) + F(0.2) * t + F(0.006) * np.sin(a * F(11) + z * F(6))              # (a few folds)
+    R = F(0.2) + F(0.15) * t + F(0.02) * t * np.sin(a * F(9) + z * F(3))           # (folds, deeper towards the hem)
     shell = np.abs(r - R) - F(0.011)
     side = np.maximum(F(lo_a) - a, a - F(hi_a)) * R
     top = z - (F(1.15) + F(0.03) * np.cos(a))
@@ -120,48 +120,58 @@ def parts(fine=False):
     for sx in (-1, 1):
         f.add(Sphere((sx * 0.1, 0.03, 0.64), 0.05), k=0.015)
     out.append(("Pelvis", f, vx, "root", "frame"))
-    # ---- the hood: a deep cowl drawn forward over the face, its opening turned down and in shadow, its point down
-    # the back; the visor slit glows in the shadow
-    f = Field("Hood")
+    # ---- the hood: a cowl drawn forward to a point over its brow, its sides falling onto the mantle, its tail lying
+    # down its back; in its shadow only the visor slit glows
     hc = v3((0, 0.0, 1.28))
-    cowl = Ellipsoid(hc + v3((0, 0.02, 0.012)), (0.135, 0.16, 0.168))
-    open_n = norm(v3((0, -1, -0.55)))
-    open_p = hc + v3((0, -0.085, 0.0))
-    f.add(Inter(Shell(cowl, 0.0, 0.024), Plane(open_p, open_n), 0.008))
-    f.add(Inter(Ellipsoid(hc + v3((0, -0.02, 0.11)), (0.08, 0.13, 0.06)), Plane(open_p, open_n), 0.01), k=0.02)   # the peak over its brow
-    f.add(RoundCone(hc + v3((0, 0.12, 0.05)), hc + v3((0, 0.2, -0.16)), 0.06, 0.012), k=0.04)          # its point down the back
-    f.paint(Inter(Shell(cowl, 0.0, 0.04), Func(lambda P: np.abs((P - open_p.astype(F)) @ open_n.astype(F) + F(0.014)) - F(0.014),
-                                                hc - 0.3, hc + 0.3), 0.0), 1)                     # a violet hem round its opening
+    hv = Field("_hood_volume")
+    hv.add(Ellipsoid(hc + v3((0, 0.02, 0.005)), (0.125, 0.15, 0.16)))
+    hv.add(RoundCone(hc + v3((0, 0.03, -0.04)), v3((0, 0.04, 1.15)), 0.12, 0.16), k=0.06)          # (its sides, falling to the shoulders)
+    hv.add(RoundCone(hc + v3((0, 0.1, 0.09)), hc + v3((0, 0.2, -0.04)), 0.05, 0.012), k=0.05)      # (its tail, down the back)
+    open_n = norm(v3((0, -1, -0.3)))
+    open_p = hc + v3((0, -0.075, 0.0))
+    f = Field("Hood")
+    f.add(Inter(Inter(Shell(hv, 0.0, 0.022), Plane(open_p, open_n), 0.008), Plane(v3((0, 0, 1.1)), v3((0, 0, -1))), 0.0))
+    f.add(Inter(Ellipsoid(hc + v3((0, -0.055, 0.125)), (0.075, 0.1, 0.045)), Plane(hc + v3((0, -0.15, 0)), v3((0, -1, 0))), 0.01), k=0.02)
+    f.add(RoundCone(hc + v3((0, -0.075, 0.13)), hc + v3((0, -0.16, 0.08)), 0.032, 0.005), k=0.025)   # its point over the brow
+    for sx in (-1, 1):                                                                          # folds down its sides
+        f.sub(RoundCone(hc + v3((sx * 0.115, 0.05, 0.03)), v3((sx * 0.16, 0.07, 1.16)), 0.007, 0.012), k=0.01)
+    f.paint(Inter(Shell(hv, 0.0, 0.05), Func(lambda P: np.abs((P - open_p.astype(F)) @ open_n.astype(F) + F(0.014)) - F(0.014),
+                                              hc - 0.3, hc + 0.3), 0.0), 1)                     # a violet hem round its opening
     out.append(("Hood", f, vx, "head", "cloak"))
-    f = Field("Mantle")                                     # the short cape over its shoulders, its hem cut in points
-    mb = Ellipsoid((0, 0.04, 1.1), (0.27, 0.18, 0.15))
-    def mantle_keep(P):
+    # ---- the mantle: a short cape draped over its shoulders, closed at the throat by the clasp, open in a V below it,
+    # its hem cut in points and edged in violet
+    mv = Field("_mantle_volume")
+    mv.add(Ellipsoid((0, 0.04, 1.03), (0.17, 0.12, 0.16)))
+    mv.add(Ellipsoid((0, 0.04, 1.11), (0.3, 0.12, 0.08)), k=0.06)                         # (sloping over the shoulders)
+    mv.add(RoundCone((0, 0.03, 1.12), (0, 0.03, 1.26), 0.1, 0.09), k=0.06)
+    def mantle_hem(P):
         a = np.arctan2(P[:, 0], -(P[:, 1] - F(0.04)))
-        saw = np.abs(np.mod(a * F(9.0 / (2 * math.pi)) * F(1.0) + F(0.5), F(1.0)) - F(0.5)) * F(2.0)
-        hem = F(0.99) + F(0.07) * saw
-        return np.maximum(hem - P[:, 2], P[:, 2] - F(1.2))
-    f.add(Inter(Shell(mb, 0.0, 0.02), Func(mantle_keep, (-0.5, -0.4, 0.8), (0.5, 0.4, 1.4)), 0.006))
-    f.add(Ellipsoid((0, 0.03, 1.19), (0.13, 0.12, 0.06)), k=0.04)                                      # the hood's fold at its neck
-    f.paint(Func(lambda P: P[:, 2] - (F(0.99) + F(0.07) * np.abs(np.mod(np.arctan2(P[:, 0], -(P[:, 1] - F(0.04))) * F(9.0 / (2 * math.pi)) + F(0.5), F(1.0)) - F(0.5)) * F(2.0) + F(0.025)),
-                 (-0.5, -0.4, 0.8), (0.5, 0.4, 1.4)), 1)                                             # violet along its points
+        saw = np.abs(np.mod(a * F(9.0 / (2 * math.pi)) + F(0.5), F(1.0)) - F(0.5)) * F(2.0)
+        return F(0.97) + F(0.08) * saw
+    def mantle_keep(P):
+        z = P[:, 2]
+        keep = np.maximum(mantle_hem(P) - z, z - F(1.24))
+        vee = np.maximum(np.maximum(np.abs(P[:, 0]) - (F(0.012) + F(0.45) * (F(1.11) - z)), z - F(1.11)), P[:, 1])   # (the V open in front)
+        return np.maximum(keep, -vee)
+    f = Field("Mantle")
+    f.add(Inter(Shell(mv, 0.035, 0.02), Func(mantle_keep, (-0.55, -0.45, 0.8), (0.55, 0.45, 1.45)), 0.006))
+    f.paint(Func(lambda P: P[:, 2] - (mantle_hem(P) + F(0.025)), (-0.55, -0.45, 0.8), (0.55, 0.45, 1.45)), 1)     # violet along its points
     out.append(("Mantle", f, vx, "spine", "cloak"))
-    f = Field("Face")
+    f = Field("Face")                                                     # (all in shadow but the visor)
     f.add(Ellipsoid(hc + v3((0, 0.01, -0.01)), (0.085, 0.1, 0.11)))
     f.add(RoundBox(hc + v3((0, -0.07, -0.05)), (0.05, 0.03, 0.05), 0.025), k=0.02)
     f.sub(RoundBox(hc + v3((0, -0.1, 0.005)), (0.06, 0.03, 0.009), 0.006), k=0.004)
-    f.paint(RoundBox(hc + v3((0, -0.1, -0.06)), (0.2, 0.2, 0.004)), 2)
+    f.paint(Ellipsoid(hc, (0.3, 0.3, 0.3)), 2)
     out.append(("Face", f, vs, "head", "frame"))
     f = Field("Visor")
     f.add(RoundBox(hc + v3((0, -0.088, 0.005)), (0.055, 0.008, 0.008), 0.006))
     out.append(("Visor", f, vs, "head", "glow"))
     # ---- the clasp at its throat and the cloaking gem
     f = Field("Clasp")
-    cc = v3((0, -0.1, 1.12))
+    cc = v3((0, -0.13, 1.13))
     Rf = rot_from_axes(z_axis=(0, -1, 0.15))
     f.add(Cylinder(cc, 0.04, 0.012, rr=0.004, R=Rf))
     f.add(Torus(cc + v3((0, -0.006, 0)), 0.038, 0.007, R=Rf), k=0.003)
-    for sx in (-1, 1):
-        f.add(RoundCone(cc + v3((sx * 0.03, 0, 0.0)), v3((sx * 0.1, -0.12, 1.1)), 0.01, 0.008), k=0.006)   # its chains
     f.paint(Torus(cc + v3((0, -0.006, 0)), 0.038, 0.01, R=Rf), 1)
     out.append(("Clasp", f, vs, "spine", "frame"))
     f = Field("Gem")
@@ -239,9 +249,9 @@ def clips(arm):
     def extra(t, aims):
         w = 2 * math.pi * t
         # the cloak's panels stream back as it runs, flapping a little out of step
-        aims["cloak.B"] = Vector((0.03 * math.sin(w), 0.5 + 0.1 * math.sin(2 * w + 0.6), -1.0)).normalized()
+        aims["cloak.B"] = Vector((0.03 * math.sin(w), 0.34 + 0.08 * math.sin(2 * w + 0.6), -1.0)).normalized()
         for k, sx in (("L", 1), ("R", -1)):
-            aims["cloak." + k] = Vector((sx * (0.06 + 0.03 * math.sin(w * 2 + sx)), 0.44 + 0.08 * math.sin(2 * w + 1.0 + sx * 0.5), -1.0)).normalized()
+            aims["cloak." + k] = Vector((sx * (0.02 + 0.02 * math.sin(w * 2 + sx)), 0.28 + 0.06 * math.sin(2 * w + 1.0 + sx * 0.5), -1.0)).normalized()
         # the stiletto held low and forward, the claw hand drawn back
         aims["upperarm.R"] = Vector((-0.25, -0.55, -0.8)).normalized()
         aims["forearm.R"] = Vector((-0.05, -0.95, -0.25)).normalized()

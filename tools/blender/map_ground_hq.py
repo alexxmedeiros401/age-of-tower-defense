@@ -148,7 +148,9 @@ def to_image(name, arr, color=False):
 bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = bpy.context.scene
 sc.render.engine = "CYCLES"
-sc.cycles.device = "CPU"
+sys.path.append(os.path.join(HERE, "hq"))
+import cycles_dev                       # (the GPU when the PC runner asks for it)
+cycles_dev.use(sc)
 sc.cycles.samples = SAMPLES if not PREVIEW else 8
 sc.cycles.use_denoising = True
 sc.cycles.max_bounces = 4
@@ -229,7 +231,7 @@ if THEME == "farmland":
     verge = np.clip((HALF + 0.75 - dist) / 0.3, 0, 1)                   # the track's grass verges: no crops
     for a_ in ("fld_wheat", "fld_plough", "fld_barley"):
         globals()[a_] = globals()[a_] * (1 - verge)
-    log("fields", len(seeds))
+    log("fields", len(seeds), "by crop", np.bincount(ftype, minlength=5).tolist(), "plough px", int((fld_plough > 0.5).sum()))
 if THEME == "castle":
     # the siege: craters where the defenders' stones fell, off the road
     cr = np.random.default_rng(37)
@@ -903,6 +905,9 @@ me.materials.append(nb.m)
 # ------------------------------------------------------------------------------------------------ scattered detail
 def merged(name, template, xforms, mat):
     """One mesh of many transformed copies of a template (vertices Nx3, faces as index tuples)."""
+    if not xforms:
+        log("(no %s)" % name)
+        return None
     tv, tf = template
     tv = np.asarray(tv, np.float32)
     n = len(xforms)
@@ -1066,7 +1071,9 @@ def hgt(x, z):
 
 
 def place_list(pts, s_lo, s_hi, sink=0.0, tilt=0.0):
-    pts = np.array(pts)
+    pts = np.array(pts, np.float32).reshape(-1, 2)
+    if len(pts) == 0:
+        return []
     hs = hgt(pts[:, 0], pts[:, 1])
     out = []
     for (x, z), h in zip(pts, hs):
