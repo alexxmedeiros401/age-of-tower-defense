@@ -365,15 +365,17 @@ def chainmail_field():
     arms, chausses on his legs; it shows where the plates part as he moves (the armholes, a raised arm's pit)."""
     fd = Field("Chainmail")
     rings = lambda P: F(0.0012) * NOISE(P * F(30))
+    # (up over his traps to his neck, and the sleeves from above the shoulders: the pauldrons stand off the body, and
+    # from above and behind his bare shoulders showed inside them)
     fd.add(Inter(Shell(breast_hull(), 0.012, 0.008, pad=0.06, disp=rings, disp_amp=0.0015),
-                 Func(lambda P: np.maximum(F(0.62) - P[:, 2], P[:, 2] - F(1.46)), (-0.6, -0.5, 0.5), (0.6, 0.5, 1.6)), 0.004), 0.0)
+                 Func(lambda P: np.maximum(F(0.62) - P[:, 2], P[:, 2] - F(1.62)), (-0.6, -0.5, 0.5), (0.6, 0.5, 1.7)), 0.004), 0.0)
     for side in ("R", "L"):
         sh, wr = J["shoulder_" + side], J["wrist_" + side]
         hip, an = J["hip_" + side], J["ankle_" + side]
         mh = arm_hull(side)
         mh.add(deltoid(side), 0.055)
         fd.add(Inter(Shell(mh, 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
-                     Func(_band(sh, wr, -0.12, 0.96), sh - 0.6, sh + 0.6), 0.003), 0.003)
+                     Func(_band(sh, wr, -0.32, 0.96), sh - 0.6, sh + 0.6), 0.003), 0.003)
         fd.add(Inter(Shell(leg_hull(side), 0.009, 0.008, pad=0.05, disp=rings, disp_amp=0.0015),
                      Func(_band(hip, an, 0.12, 0.95), hip - 0.9, hip + 0.9), 0.003), 0.003)
     return fd
