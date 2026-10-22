@@ -1,0 +1,57 @@
+[
+ {
+  "name": "smoke",
+  "cmd": "O=$GITHUB_WORKSPACE/out/smoke; mkdir -p $O\npython3 decor_build.py -- --theme olive --out $O --tex 512 --ao 4 --only Rock_A > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nls -la $O",
+  "out": "out/smoke"
+ },
+ {
+  "name": "mkit_farmland",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mkit_farmland; mkdir -p $O\npython3 decor_build.py -- --theme farmland --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mkit_farmland"
+ },
+ {
+  "name": "mkit_darkwood",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mkit_darkwood; mkdir -p $O\npython3 decor_build.py -- --theme darkwood --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mkit_darkwood"
+ },
+ {
+  "name": "mkit_castle",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mkit_castle; mkdir -p $O\npython3 decor_build.py -- --theme castle --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mkit_castle"
+ },
+ {
+  "name": "mkit_medieval_city",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mkit_medieval_city; mkdir -p $O\npython3 decor_build.py -- --theme medieval_city --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mkit_medieval_city"
+ },
+ {
+  "name": "treb",
+  "cmd": "O=$GITHUB_WORKSPACE/out/treb; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character trebuchet --fine --out $O/hi/trebuchet_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module trebuchet_base --fine --out $O/hi/trebuchet_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character trebuchet --char $O/hi/trebuchet_hi.blend --base $O/hi/trebuchet_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/treb"
+ },
+ {
+  "name": "alch",
+  "cmd": "O=$GITHUB_WORKSPACE/out/alch; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character alchemist --fine --out $O/hi/alchemist_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module alchemist_base --fine --out $O/hi/alchemist_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character alchemist --char $O/hi/alchemist_hi.blend --base $O/hi/alchemist_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/alch"
+ },
+ {
+  "name": "aldric",
+  "cmd": "O=$GITHUB_WORKSPACE/out/aldric; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character aldric --fine --out $O/hi/aldric_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module aldric_base --fine --out $O/hi/aldric_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character aldric --char $O/hi/aldric_hi.blend --base $O/hi/aldric_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/aldric"
+ },
+ {
+  "name": "wren",
+  "cmd": "O=$GITHUB_WORKSPACE/out/wren; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character wren --fine --out $O/hi/wren_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module wren_base --fine --out $O/hi/wren_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character wren --char $O/hi/wren_hi.blend --base $O/hi/wren_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/wren"
+ },
+ {
+  "name": "bk",
+  "cmd": "O=$GITHUB_WORKSPACE/out/bk; mkdir -p $O\npython3 robot_build.py -- --robot black_knight --out $O --stage sculpt --fine --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot black_knight --out $O --stage game --tex 2048 --ao 24 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot black_knight --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nls -la $O",
+  "out": "out/bk"
+ },
+ {
+  "name": "cloak",
+  "cmd": "O=$GITHUB_WORKSPACE/out/cloak; mkdir -p $O\npython3 robot_build.py -- --robot cloaker --out $O --stage sculpt --fine --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot cloaker --out $O --stage game --tex 2048 --ao 24 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot cloaker --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nls -la $O",
+  "out": "out/cloak"
+ }
+]
