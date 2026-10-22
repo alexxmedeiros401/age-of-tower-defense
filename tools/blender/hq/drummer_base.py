@@ -388,8 +388,8 @@ def fields():
 
 
 REGION_PARTS = ("Plinth", "Floor", "Pole", "Flag", "Drums", "Keg")
-LOW_TARGETS = {"Ground": 1300, "Plinth": 2600, "Floor": 2600, "Pole": 260, "Flag": 1100, "Gold": 360, "Drums": 2200,
-               "Keg": 700, "Plants": 1100, "Pebbles": 300}
+LOW_TARGETS = {"Ground": 1200, "Plinth": 2000, "Floor": 2200, "Pole": 240, "Flag": 1000, "Gold": 340, "Drums": 1800,
+               "Keg": 600, "Plants": 900, "Pebbles": 260}
 _OAK = {"wood": (0.5, 0.35, 0.21), "wood2": (0.37, 0.25, 0.14), "red": (0.08, 0.07, 0.07), "blue": (0.2, 0.32, 0.5), "metal": "bronze"}
 MAT_OVERRIDES = {"Plinth": ("stone", {"name": "HQ_FortStone", "moss": True}),
                  "Floor": ("flagstone", {"name": "HQ_ParadeFloor", "base": (0.5, 0.46, 0.42), "alt": (0.6, 0.52, 0.42)}),
