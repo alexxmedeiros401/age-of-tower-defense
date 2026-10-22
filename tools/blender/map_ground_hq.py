@@ -401,7 +401,7 @@ if THEME == "fortress":
         ang = np.arctan2(Z - cz, X - cx)
         ph0 = fr2.uniform(0, 2 * math.pi)
         rays = 0.5 + 0.5 * np.sin(ang * int(fr2.integers(7, 12)) + ph0 + np.sin(ang * 3 + ph0) * 0.9)
-        reach = r_ * (1.35 + 0.75 * rays ** 2)
+        reach = r_ * (1.4 + 0.9 * rays ** 2)
         return np.clip((reach - d_) / (reach - r_ * 0.9), 0, 1) ** 0.8 * (0.5 + 0.5 * np.clip((d_ - r_ * 0.35) / (r_ * 0.5), 0, 1))
 
     # bomb craters: the crater blockers, deep with raised rims, and smaller ones scattered over the field, off the road
@@ -409,7 +409,7 @@ if THEME == "fortress":
         if kind != "crater":
             continue
         r_ = br * 0.86
-        d_ = np.hypot(X - bx, Z - bz) + (fbm(0.6, 2, int(abs(bx * 7 + bz * 13)) % 997 + 500) - 0.5) * 0.25
+        d_ = np.hypot(X - bx, Z - bz) + (fbm(0.6, 2, int(abs(bx * 7 + bz * 13)) % 997 + 500) - 0.5) * 0.4
         crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
         crater_rim = np.maximum(crater_rim, np.exp(-((d_ - r_ * 1.02) / (0.22 * r_)) ** 2))
         gp_d = np.maximum(gp_d, _blast(bx, bz, r_, d_))
@@ -421,7 +421,7 @@ if THEME == "fortress":
         r_ = fr2.uniform(0.32, 0.62)
         if _at(dist, cx, cz) < HALF + r_ + 0.35 or _at(BLK_ANY, cx, cz) < r_ + 0.5 or _at(crater, cx, cz) > 0.0:
             continue
-        d_ = np.hypot(X - cx, Z - cz)
+        d_ = np.hypot(X - cx, Z - cz) + (fbm(0.3, 2, 600 + n_cr) - 0.5) * 0.5 * r_        # (a lumpy outline, not a disc)
         crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
         crater_rim = np.maximum(crater_rim, np.exp(-((d_ - r_) / (0.25 * r_)) ** 2))
         gp_d = np.maximum(gp_d, _blast(cx, cz, r_, d_) * 0.85)
@@ -1295,7 +1295,7 @@ elif THEME == "fortress":
     soot = nb.math("MULTIPLY", gpd_m, nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", rim_m, 0.55)),
                                               nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", crater_m, 0.8))))
     c = nb.mix(nb.math("MULTIPLY", soot, 0.88), c, burnt)
-    crat = nb.mix(nb.ramp(crater_m, 0.0, 0.7), (0.34, 0.26, 0.16), (0.12, 0.09, 0.065))
+    crat = nb.mix(nb.ramp(crater_m, 0.0, 0.7), (0.34, 0.26, 0.16), (0.15, 0.11, 0.08))
     crat = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.55, 0.7), 0.35), crat, (0.1, 0.085, 0.07))   # soot in it
     c = nb.mix(nb.ramp(crater_m, 0.0, 0.12), c, crat)
     rimc = nb.mix(nb.ramp(nb.noise(8.0, 3, 0.6), 0.3, 0.7), (0.4, 0.3, 0.19), (0.5, 0.39, 0.25))       # the thrown-up rim
