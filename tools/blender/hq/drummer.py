@@ -58,12 +58,12 @@ def head(fd):
         fd.add(S(*cheek(sx)), 0.05, SKIN)
         fd.add(S(*jowl(sx)), 0.05, SKIN)
         pts = [hp((sx * 0.152, -0.055, 1.744)), hp((sx * 0.116, -0.13, 1.756)), hp((sx * 0.06, -0.174, 1.758)), hp((0.0, -0.182, 1.755))]
-        fd.add(Chain(pts, [hr(0.012), hr(0.021), hr(0.024), hr(0.023)], k=hr(0.022)), hr(0.034), SKIN)     # the brow ridge
+        fd.add(Chain(pts, [hr(0.01), hr(0.017), hr(0.019), hr(0.018)], k=hr(0.02)), hr(0.03), SKIN)     # the brow ridge
     # bushy brows, lifted in the middle (a jolly look), grey-streaked
     tuft = lambda P: F(0.0022) * NOISE(P * F(150)) + F(0.001) * np.sin(P[:, 0] * F(380))
     for sx in (-1, 1):
-        pts = [hp((sx * 0.026, -0.212, 1.764)), hp((sx * 0.066, -0.206, 1.781)), hp((sx * 0.11, -0.187, 1.783)),
-               hp((sx * 0.15, -0.147, 1.766))]
+        pts = [hp((sx * 0.026, -0.21, 1.782)), hp((sx * 0.066, -0.205, 1.795)), hp((sx * 0.11, -0.186, 1.794)),
+               hp((sx * 0.15, -0.147, 1.774))]
         fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.012), hr(0.015), hr(0.013), hr(0.006)], k=hr(0.008),
                      disp=tuft, disp_amp=0.003), hr(0.01), BROW)
         fd.paint(Chain(pts, [hr(0.02), hr(0.023), hr(0.02), hr(0.011)], k=hr(0.01)), BROW)
@@ -71,12 +71,12 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.015))), (sx * 0.16, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.023))), (sx * 0.12, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.009))), (sx * -0.4, 0.12, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.012))), (sx * -0.45, 0.12, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)),
-                       Plane(ec + v3((0, 0, hr(0.012))), (sx * 0.16, 0.06, -1.0)), hr(0.002)), LASH)
+                       Plane(ec + v3((0, 0, hr(0.02))), (sx * 0.12, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):                                                                # crow's feet
             a = hp((sx * (0.112 + 0.004 * k), -0.132 + 0.006 * k, 1.69 - 0.013 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.026, 0.012, 0.008 - 0.011 * k)), hr(0.0022), hr(0.0014)), hr(0.003))
@@ -91,20 +91,20 @@ def head(fd):
     fd.paint(Sphere(hp((0.0, -0.256, 1.616)), hr(0.05)), RED_NOSE)
     # a broad open grin under the moustache: the corners drawn up, the upper teeth showing, a full lower lip
     slot = mouth_slot()
-    fd.sub(Chain(slot, [hr(0.003), hr(0.0068), hr(0.0088), hr(0.0068), hr(0.003)], k=hr(0.004)), hr(0.003))
-    fd.paint(Chain(slot, [hr(0.0045), hr(0.0092), hr(0.0112), hr(0.0092), hr(0.0045)], k=hr(0.005)), MOUTH)
-    lo_lip = [(-0.058, -0.162, 1.557), (-0.031, -0.187, 1.535), (0, -0.195, 1.527), (0.031, -0.187, 1.535), (0.058, -0.162, 1.557)]
+    fd.sub(Chain(slot, [hr(0.003), hr(0.0085), hr(0.011), hr(0.0085), hr(0.003)], k=hr(0.004)), hr(0.003))
+    fd.paint(Chain(slot, [hr(0.0045), hr(0.011), hr(0.0135), hr(0.011), hr(0.0045)], k=hr(0.005)), MOUTH)
+    lo_lip = [(-0.062, -0.16, 1.562), (-0.033, -0.187, 1.533), (0, -0.196, 1.523), (0.033, -0.187, 1.533), (0.062, -0.16, 1.562)]
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0078), hr(0.0088), hr(0.0078), hr(0.004)], k=hr(0.007)), hr(0.008), LIP)
     for sx in (-1, 1):
-        fd.sub(S((sx * 0.074, -0.158, 1.574), 0.006), hr(0.006))                       # the smile's dimples
+        fd.sub(S((sx * 0.08, -0.152, 1.584), 0.006), hr(0.006))                        # the smile's dimples
     fd.paint(Func(chin_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     for sx in (-1, 1):
         fd.add(Ellipsoid(hp((sx * 0.178, 0.035, 1.66)), v3((0.026, 0.047, 0.06)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
 
 
 def mouth_slot():
-    return [hp((-0.07, -0.157, 1.568)), hp((-0.042, -0.186, 1.548)), hp((0.0, -0.198, 1.54)), hp((0.042, -0.186, 1.548)),
-            hp((0.07, -0.157, 1.568))]
+    return [hp((-0.074, -0.154, 1.578)), hp((-0.044, -0.186, 1.55)), hp((0.0, -0.199, 1.538)), hp((0.044, -0.186, 1.55)),
+            hp((0.074, -0.154, 1.578))]
 
 
 def chin_mask(P):
@@ -182,8 +182,8 @@ def face_hull():
     return fd
 
 
-CHOP_PTS = [(0.168, -0.03, 1.738), (0.172, -0.048, 1.664), (0.163, -0.074, 1.588), (0.135, -0.112, 1.532),
-            (0.096, -0.15, 1.53), (0.066, -0.176, 1.556)]
+CHOP_PTS = [(0.168, -0.03, 1.738), (0.172, -0.048, 1.664), (0.163, -0.074, 1.588), (0.138, -0.11, 1.54),
+            (0.11, -0.142, 1.552), (0.09, -0.162, 1.578)]
 CHOP_RAD = [0.022, 0.032, 0.047, 0.045, 0.034, 0.022]
 
 
@@ -217,8 +217,8 @@ def whiskers_field():
     fd.add(Func(chops, lo, hi, disp=hairs, disp_amp=0.003), 0.0)
     strands = lambda P: F(0.002) * NOISE(P * np.array([80, 80, 30], F))
     for sx in (-1, 1):                                                       # the moustache, joining the chops
-        pts = [hp((sx * 0.004, -0.236, 1.588)), hp((sx * 0.04, -0.226, 1.58)), hp((sx * 0.072, -0.2, 1.566)),
-               hp((sx * 0.088, -0.172, 1.548))]
+        pts = [hp((sx * 0.004, -0.238, 1.594)), hp((sx * 0.042, -0.228, 1.59)), hp((sx * 0.078, -0.2, 1.588)),
+               hp((sx * 0.1, -0.166, 1.594))]
         fd.add(Lock(pts, [hr(0.019), hr(0.025), hr(0.022), hr(0.017)], [hr(0.012), hr(0.014), hr(0.013), hr(0.011)],
                     [norm(v3((sx * 0.3, -1, 0.15)))] * 4, k=hr(0.007), disp=strands, disp_amp=0.003), hr(0.008))
     return fd
@@ -549,26 +549,31 @@ def collar_region(P):
 
 def coat_field():
     """Crimson wool (label 0): open down the front over the waistcoat, its skirts to above his knees turned back before
-    and behind; wide gold lapels on his chest, gold cuffs, a gold standing collar and gold turnbacks (5, raised a little
-    over the coat); bright gold lace (6): chevrons down the sleeves, the lapels' and cuffs' edging."""
+    and behind; wide gold lapels on his chest, gold cuffs, a gold standing collar and gold turnbacks (5, a layer raised a
+    little over the coat); bright gold lace (6): chevrons down the sleeves, the lapels' edging."""
     fd = Field("Coat")
     base = coat_base()
-    lo, hi = (-0.95, -0.6, 0.38), (0.95, 0.6, 1.62)
-    fd.add(Inter(Func(lambda P: coat_shell(P, base), lo, hi), Func(coat_cut, lo, hi), 0.004), 0.0)
+    lo, hi = (-0.86, -0.42, 0.42), (0.86, 0.44, 1.57)
+    def coat_all(P):
+        d = base.eval(P, margin=0.1)
+        x = np.abs(P[:, 0])
+        arm = smoothstep(0.33, 0.44, x)
+        z = P[:, 2]
+        a, r = _ang(P)
+        below = _below(z)
+        folds = (F(0.006) * np.sin(a * F(11) + F(0.7) * NOISE(P * F(2))) * below + F(0.0016) * NOISE(P * F(14))) * (F(1) - arm)
+        off = F(COAT_OFF) - F(COAT_OFF - SLEEVE_OFF) * arm + folds + F(0.012) * below
+        main = np.abs(d - off) - F(COAT_T * 0.5)
+        flap = np.abs(d - off - F(COAT_T * 0.5 + FLAP * 0.5 - 0.002)) - F(FLAP * 0.5)
+        reg = np.minimum(np.minimum(lapel_region(P), turnback_region(P)), _cuff(P))
+        return smax(smin(main, np.maximum(flap, reg), 0.003), coat_cut(P), 0.004)
+    fd.add(Func(coat_all, lo, hi), 0.0)
     fd.paint(Func(lambda P: np.minimum(np.minimum(lapel_region(P), turnback_region(P)), _cuff(P)), lo, hi), 5)
     fd.paint(Func(chevrons, lo, hi), 6)
-    # lapels, turnbacks, cuffs: a raised layer of gold over the coat
-    def flaps(P):
-        reg = np.minimum(np.minimum(lapel_region(P), turnback_region(P)), _cuff(P))
-        sh = coat_shell(P, base, extra=COAT_T * 0.5 + FLAP * 0.5 - 0.002, t=FLAP)
-        return np.maximum(np.maximum(sh, reg), coat_cut(P))
-    fd.add(Func(flaps, lo, hi), 0.003, 5)
-    # the lace edging round the lapels (6)
     def lapel_lace(P):
         reg = lapel_region(P)
         return np.maximum(np.abs(reg + F(0.007)) - F(0.0055), -reg - F(0.02))
     fd.paint(Func(lapel_lace, lo, hi), 6)
-    # the standing collar
     nk = Field("NeckHull")
     nk.add(neck_prim(), 0.0)
     nk.add(traps(), 0.06)

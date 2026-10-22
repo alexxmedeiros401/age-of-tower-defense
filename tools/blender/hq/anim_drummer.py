@@ -243,11 +243,11 @@ def swing_sticks(H, a, er, eb, rr):
 def flourish_sticks(ro, rr, click=0.0):
     """The flourish: the fists up before his face, elbows out, the sticks crossed above them; click (0..1) brings the
     tips together."""
-    gR = body_pt(ro, rr, V(-0.17, -0.52, 1.47))
-    gL = body_pt(ro, rr, V(0.17, -0.42, 1.47))
-    spread = 0.62 + 0.22 * click
-    dR = (rr @ V(spread, 0.1, 0.78)).normalized()             # (the right stick crosses in front of the left one)
-    dL = (rr @ V(-spread, -0.1, 0.78)).normalized()
+    gR = body_pt(ro, rr, V(-0.25, -0.44, 1.4))
+    gL = body_pt(ro, rr, V(0.25, -0.42, 1.42))
+    spread = 0.42 + 0.5 * click                                # (the fists either side of his face, the tips meeting over it)
+    dR = (rr @ V(spread, -0.12, 0.9)).normalized()
+    dL = (rr @ V(-spread, -0.12, 0.9)).normalized()
     return gR, dR, gL, dL
 
 
