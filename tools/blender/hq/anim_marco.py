@@ -284,7 +284,7 @@ WIND_C = V(-0.4, 0.33, 1.5)                 # wound back: low behind his shoulde
 WIND_FING, WIND_PALM = V(0.2, 0.5, 0.85), V(0.1, -0.6, 0.8)
 REL_C = V(-0.26, -0.3, 1.95)                # the release: high before him, out past his cap (the robots' frame)
 REL_FING, REL_PALM = V(0.05, -0.55, 0.85), V(0.0, -0.85, -0.5)
-FOL_C = V(-0.14, -0.33, 1.36)               # the follow-through, down before his body
+FOL_C = V(-0.3, -0.36, 1.2)                 # the follow-through, down before his right hip (clear of his face)
 FOL_FING, FOL_PALM = V(0.4, -0.5, -0.75), V(0.3, 0.6, -0.7)
 LOB_L = V(0.32, -0.42, 1.7)                 # his left hand up at the sky before the throw (aiming the arc)
 TUCK_L = V(0.36, -0.06, 1.06)               # ... and pulled down to his hip as he throws
@@ -369,7 +369,7 @@ def make_attack(arm, frames=FR):
             aims.update(ball_grip(arm, bez_p(c1, top, REL_C + ro, k), bez_d(rz(yaw) @ WIND_FING, V(-0.1, 0.2, 1.0), REL_FING, k),
                                   bez_d(rz(yaw) @ WIND_PALM, V(0.0, -0.5, 0.6), REL_PALM, k), V(-0.9, 0.3, -0.2)))
         elif phase == "follow":
-            aims.update(ball_grip(arm, (REL_C + ro).lerp(FOL_C + ro, k), mixd(REL_FING, FOL_FING, k), mixd(REL_PALM, FOL_PALM, k),
+            aims.update(ball_grip(arm, (REL_C + ro).lerp(FOL_C + ro, k) + V(-0.12, -0.08, 0.0) * math.sin(math.pi * k), mixd(REL_FING, FOL_FING, k), mixd(REL_PALM, FOL_PALM, k),
                                   V(-0.9, 0.3, -0.2).lerp(V(-0.6, 0.7, -0.4), k)))
         elif phase == "pouch":
             c, fg, pm, pole = pouch_pose(yaw, ro)
@@ -634,7 +634,7 @@ def make_ability(arm, frames=A_FR):
 
 # ---------------------------------------------------------------------------------------------- cheer
 CH_FR = 40
-PALM_UP = V(0.43, -0.07, 1.97)               # his left palm with the cap held high
+PALM_UP = V(0.47, -0.08, 1.96)                # his left palm with the cap held high, out past his head
 
 
 def make_cheer(arm, frames=CH_FR):

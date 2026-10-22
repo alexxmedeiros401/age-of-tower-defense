@@ -141,7 +141,7 @@ def head(fd):
     tuft = lambda P: F(0.0022) * NOISE(P * F(150)) + F(0.001) * np.sin(P[:, 0] * F(380))
     for sx in (-1, 1):
         dz = 0.012 if sx > 0 else 0.0
-        pts = [hp((sx * 0.026, -0.211, 1.782 + dz * 0.3)), hp((sx * 0.068, -0.206, 1.799 + dz)), hp((sx * 0.114, -0.184, 1.8 + dz)),
+        pts = [hp((sx * 0.026, -0.211, 1.792 + dz * 0.3)), hp((sx * 0.068, -0.206, 1.804 + dz)), hp((sx * 0.114, -0.184, 1.8 + dz)),
                hp((sx * 0.157, -0.145, 1.779 + dz * 0.5))]
         fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.012), hr(0.015), hr(0.013), hr(0.006)], k=hr(0.008),
                      disp=tuft, disp_amp=0.003), hr(0.01), BROW)
@@ -271,7 +271,7 @@ def hair_field():
 
 
 def queue_pts():
-    return [hp((0.0, 0.205, 1.6)), hp((0.0, 0.232, 1.55)), hp((0.0, 0.252, 1.5)), hp((0.0, 0.262, 1.46)), hp((0.0, 0.266, 1.43))]
+    return [hp((0.0, 0.212, 1.6)), hp((0.0, 0.262, 1.56)), hp((0.0, 0.294, 1.515)), hp((0.0, 0.308, 1.477)), hp((0.0, 0.313, 1.452))]
 
 
 def moustache_pts(sx):
@@ -522,15 +522,19 @@ def coat_hull(arms=True, skirt=True):
     if skirt:
         b.add(RoundCone((0, 0.05, 0.98), (0, 0.085, 0.4), 0.3, 0.385), 0.08)
     if arms:
+        af = Field("Arms")
         for side in ("R", "L"):
             sx = -1 if side == "R" else 1
             sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
-            b.add(deltoid(side), 0.055)
-            b.add(upper_arm(side), 0.05)
-            b.add(Ellipsoid(lerp(sh, el, 0.5) + v3((0, -0.028, 0)), (0.1, 0.104, 0.134), R=rot_from_axes(z_axis=el - sh)), 0.04)
-            b.add(_forearm(side), 0.035)
-            b.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.104, 0.094, 0.14), R=rot_from_axes(z_axis=wr - el)), 0.04)
-            b.add(Sphere(el + v3((0, 0.025, 0)), 0.06), 0.028)
+            af.add(deltoid(side), 0.055 if af.ops else 0.0)
+            af.add(upper_arm(side), 0.05)
+            af.add(Ellipsoid(lerp(sh, el, 0.5) + v3((0, -0.028, 0)), (0.1, 0.104, 0.134), R=rot_from_axes(z_axis=el - sh)), 0.04)
+            af.add(_forearm(side), 0.035)
+            af.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.104, 0.094, 0.14), R=rot_from_axes(z_axis=wr - el)), 0.04)
+            af.add(Sphere(el + v3((0, 0.025, 0)), 0.06), 0.028)
+        alo, ahi = af.bounds()
+        # (the sleeves sit closer on his big arms than the coat on his body: they ballooned)
+        b.add(Func(lambda P: af.eval(P, margin=0.06) + F(0.011), alo - 0.05, ahi + 0.05), 0.05)
     return b
 
 
@@ -583,8 +587,7 @@ def coat_field():
     for side in ("R", "L"):
         el, wr = J["elbow_" + side], J["wrist_" + side]
         ax = norm(wr - el)
-        fh = Field("Fore")
-        fh.add(_forearm(side), 0.0)
+        fh = fore_hull(side)
         c0 = wr - ax * 0.078
         fd.add(Inter(Shell(fh, 0.05, 0.016, pad=0.08), Func(lambda P, c0=c0, ax=ax: np.abs((P - c0.astype(F)) @ ax.astype(F)) - F(0.072),
                                                               c0 - 0.25, c0 + 0.25), 0.004), 0.004, 6)
@@ -616,12 +619,21 @@ def coat_field():
 LAPEL_Z = (1.36, 1.29, 1.22, 1.15, 1.08, 1.01)
 
 
+def fore_hull(side):
+    """The forearm as the sleeve lies on it (the same shapes as coat_hull's: the cuff stays outside the sleeve)."""
+    sx = -1 if side == "R" else 1
+    el, wr = J["elbow_" + side], J["wrist_" + side]
+    fh = Field("Fore")
+    fh.add(_forearm(side), 0.0)
+    fh.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.104, 0.094, 0.14), R=rot_from_axes(z_axis=wr - el)), 0.04)
+    return fh
+
+
 def cuff_buttons(side):
     sx = -1 if side == "R" else 1
     el, wr = J["elbow_" + side], J["wrist_" + side]
     ax = norm(wr - el)
-    fh = Field("Fore")
-    fh.add(_forearm(side), 0.0)
+    fh = fore_hull(side)
     outer = Func(lambda P: fh.eval(P, margin=0.1) - F(0.058), wr - 0.4, wr + 0.4)
     out = norm(v3((sx * 1.0, 0.0, 0.0)) - ax * (sx * ax[0]))
     pts = []

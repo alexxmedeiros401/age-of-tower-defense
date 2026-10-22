@@ -569,12 +569,15 @@ def grass_geometry(seed=91):
 
 
 def flower_geometry(seed=93):
+    """Low clumps of small orange blooms (the heather of the hill bases recoloured: lantana at a tropical fort) and a few
+    yellow ones."""
     old = kb._blocked
     kb._blocked = _blocked
     try:
-        return kb.flower_geometry(seed)
+        out = kb.flower_geometry(seed)
     finally:
         kb._blocked = old
+    return [(v, f, kind, 3 if ck == 2 else ck) for v, f, kind, ck in out]
 
 
 def fields():
