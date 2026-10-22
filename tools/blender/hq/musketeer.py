@@ -11,7 +11,7 @@ in gold over his right shoulder carrying a cup-hilted rapier at his left hip; ov
 with the "twelve apostles" (small wooden powder flasks, black with brass caps, on cords), a priming flask and a leather
 bullet bag. Crimson breeches; tall buff boots with wide turned-down bucket cuffs.
 
-The musket: a matchlock as long as he is tall (1.64 m): a walnut stock with a fishtail butt, a long round iron barrel
+The musket: a matchlock nearly as long as he is tall (1.58 m): a walnut stock with a fishtail butt, a long round iron barrel
 held by brass bands, a brass butt plate and trigger guard, the lock plate with its pan, the serpentine (an S-shaped
 arm) holding the smouldering match (its glowing tip ships as its own emissive mesh, "Ember"), the match cord looped
 round the stock's wrist, the ramrod under the barrel. The forked rest: an ash staff with an iron U-fork at its top and
@@ -655,9 +655,12 @@ def coat_field():
         fd.add(Inter(Func(lambda P, c=c, ax=ax, side=side: np.maximum(np.abs((P - c.astype(F)) @ ax.astype(F)) - F(0.022),
                                                                       _arm_seg_dist(P, side) - F(0.15)), c - 0.16, c + 0.16),
                      Shell(base, COAT_OFF + 0.012, 0.012, pad=0.12), 0.003), 0.004, 5)
-    # the seam down the front where it buttons
-    fd.sub(Func(lambda P: np.maximum(np.maximum(np.abs(P[:, 0]) - F(0.0025), P[:, 1] + F(0.05)),
-                                     np.maximum(F(0.95) - P[:, 2], P[:, 2] - F(1.44))), (-0.05, -0.4, 0.9), (0.05, 0.0, 1.5)), 0.002)
+    # the seam down the front where it buttons: a groove in the leather's face only (cut deeper, it opened a slit)
+    def seam(P):
+        depth = F(COAT_OFF + COAT_T / 2 - 0.0035) - base.eval(P, margin=0.06)
+        return np.maximum(np.maximum(np.maximum(np.abs(P[:, 0]) - F(0.0025), P[:, 1] + F(0.05)),
+                                     np.maximum(F(0.95) - P[:, 2], P[:, 2] - F(1.44))), depth)
+    fd.sub(Func(seam, (-0.05, -0.4, 0.9), (0.05, 0.0, 1.5)), 0.0015)
     # gold-ochre lace: the hem, the openings' edges
     fd.paint(Func(lambda P: P[:, 2] - (coat_hem(P) + F(0.024)), (-0.6, -0.6, 0.45), (0.6, 0.6, 0.75)), 5)
     fd.paint(Func(lambda P: -_coat_split(P) - F(0.018), (-0.2, -0.6, 0.45), (0.2, 0.6, 1.0)), 5)
@@ -1142,13 +1145,13 @@ def rapier_field():
 # ======================================================================================= the musket
 # Musket coordinates: u along the barrel (from the grip, forward), v to the gun's right (the lock side), h up; the
 # grip (u = 0) is where his right fist holds the wrist of the stock, behind the lock.
-BUTT_U, BUTT_NOTCH = -0.40, 0.03           # the butt's heel/toe, and how deep its fishtail notch is
-BREECH_U, MUZZLE_U = 0.14, 1.24
-STOCK_END = 1.12
+BUTT_U, BUTT_NOTCH = -0.38, 0.03           # the butt's heel/toe, and how deep its fishtail notch is
+BREECH_U, MUZZLE_U = 0.14, 1.2              # (1.58 m from butt to muzzle: stood on its butt it reaches his chin)
+STOCK_END = 1.08
 BAR_H = 0.045                              # the barrel's axis above the grip
 PIVOT = (0.075, 0.012)                     # the serpentine's pivot (u, h) on the lock plate
 PAN = (0.158, 0.04)                        # the priming pan
-RAM_U = (0.72, 1.17)                       # the ramrod, stowed under the barrel (short enough to draw at arm's length)
+RAM_U = (0.78, 1.13)                       # the ramrod, stowed under the barrel (short enough to draw at arm's length)
 RAM_H = -0.006
 SERP_V = 0.011                             # (the serpentine's plane, just out from the lock plate: v = w + SERP_V)
 SERP_DIP = 0.0                             # (set by the clips)
@@ -1249,7 +1252,7 @@ def musket_field():
     grain = lambda P: F(0.0006) * NOISE(P * F(90))
     fd.add(Func(_stock_sd, lo, hi, disp=grain, disp_amp=0.001), 0.0)
     fd.add(Func(_barrel_sd, lo, hi), 0.002, 6)
-    for u0 in (0.5, 0.85):
+    for u0 in (0.5, 0.82):
         fd.add(Func(_band_sd(u0, 0.009), *m_bounds(u0 - 0.03, u0 + 0.03)), 0.002, 5)
     fd.add(Func(_band_sd(STOCK_END - 0.008, 0.009), *m_bounds(STOCK_END - 0.04, STOCK_END + 0.02)), 0.002, 5)
     # the butt plate (brass, over the fishtail end)
@@ -1277,7 +1280,7 @@ def musket_field():
     fd.add(RoundBox(mp(MUZZLE_U - 0.03, BAR_H + 0.021), (0.008, 0.0015, 0.005), 0.0012, R=np.stack([A, S, U], axis=1)), 0.002, 6)
     fd.add(RoundBox(mp(BREECH_U + 0.03, BAR_H + 0.024), (0.004, 0.006, 0.005), 0.0015, R=np.stack([A, S, U], axis=1)), 0.002, 6)
     # the ramrod's pipes (brass) under the fore-stock
-    for u0 in (0.8, 1.04):
+    for u0 in (0.86, 1.02):
         fd.add(Torus(mp(u0, RAM_H), 0.0105, 0.0032, R=rot_from_axes(z_axis=A, y_axis=U)), 0.002, 5)
     # spare match coiled round the fore-stock ahead of the lock
     for k in range(3):
