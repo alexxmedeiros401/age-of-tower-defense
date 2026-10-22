@@ -140,21 +140,28 @@ def parts(fine=False):
     out.append(("Hood", f, vx, "head", "cloak"))
     # ---- the mantle: a short cape draped over its shoulders, closed at the throat by the clasp, open in a V below it,
     # its hem cut in points and edged in violet
-    mv = Field("_mantle_volume")
-    mv.add(Ellipsoid((0, 0.04, 1.03), (0.17, 0.12, 0.16)))
-    mv.add(Ellipsoid((0, 0.04, 1.11), (0.3, 0.12, 0.08)), k=0.06)                         # (sloping over the shoulders)
-    mv.add(RoundCone((0, 0.03, 1.12), (0, 0.03, 1.26), 0.1, 0.09), k=0.06)
+    MZ, MY = 1.25, 0.04                                   # (the mantle's top at its neck, and its axis)
+    def mantle_r(z):                                      # its radii: out over the shoulders, then falling straight
+        u = np.clip((F(MZ) - z) / F(1.0), 0, None)
+        return F(0.11) + F(0.25) * (F(1.0) - np.exp(-u / F(0.06))), F(0.1) + F(0.085) * (F(1.0) - np.exp(-u / F(0.08)))
+    def mantle_sd(P):
+        z = P[:, 2]
+        rx, ry = mantle_r(z)
+        x, y = P[:, 0], P[:, 1] - F(MY)
+        k0 = np.sqrt((x / rx) ** 2 + (y / ry) ** 2)
+        k1 = np.sqrt((x / rx ** 2) ** 2 + (y / ry ** 2) ** 2) + F(1e-6)
+        return (np.abs(k0 * (k0 - F(1.0)) / k1) - F(0.009)).astype(F)
     def mantle_hem(P):
-        a = np.arctan2(P[:, 0], -(P[:, 1] - F(0.04)))
+        a = np.arctan2(P[:, 0], -(P[:, 1] - F(MY)))
         saw = np.abs(np.mod(a * F(9.0 / (2 * math.pi)) + F(0.5), F(1.0)) - F(0.5)) * F(2.0)
-        return F(0.97) + F(0.08) * saw
+        return F(0.96) + F(0.08) * saw
     def mantle_keep(P):
         z = P[:, 2]
-        keep = np.maximum(mantle_hem(P) - z, z - F(1.24))
+        keep = np.maximum(mantle_hem(P) - z, z - F(MZ))
         vee = np.maximum(np.maximum(np.abs(P[:, 0]) - (F(0.012) + F(0.45) * (F(1.11) - z)), z - F(1.11)), P[:, 1])   # (the V open in front)
         return np.maximum(keep, -vee)
     f = Field("Mantle")
-    f.add(Inter(Shell(mv, 0.035, 0.02), Func(mantle_keep, (-0.55, -0.45, 0.8), (0.55, 0.45, 1.45)), 0.006))
+    f.add(Inter(Func(mantle_sd, (-0.45, -0.25, 0.85), (0.45, 0.3, 1.3)), Func(mantle_keep, (-0.55, -0.45, 0.8), (0.55, 0.45, 1.45)), 0.004))
     f.paint(Func(lambda P: P[:, 2] - (mantle_hem(P) + F(0.025)), (-0.55, -0.45, 0.8), (0.55, 0.45, 1.45)), 1)     # violet along its points
     out.append(("Mantle", f, vx, "spine", "cloak"))
     f = Field("Face")                                                     # (all in shadow but the visor)
