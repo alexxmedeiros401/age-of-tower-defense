@@ -209,6 +209,9 @@ if THEME == "farmland":
             seeds.append((gx + fr.uniform(-2.2, 2.2), gz + fr.uniform(-2.0, 2.0)))
     seeds = np.array(seeds, np.float32)
     ftype = fr.choice([0, 1, 2, 3, 4], size=len(seeds), p=[0.28, 0.24, 0.2, 0.16, 0.12])
+    for want in (2, 3, 4):                                             # (at least two fields of every crop)
+        while (ftype == want).sum() < 2:
+            ftype[fr.choice(np.flatnonzero(ftype == np.bincount(ftype, minlength=5).argmax()))] = want
     fang = fr.choice([0.0, math.pi / 2], size=len(seeds)) + fr.uniform(-0.28, 0.28, len(seeds))
     wx = (X + (fbm(1.6, 2, 141) - 0.5) * 1.0).astype(np.float32)
     wz = (Z + (fbm(1.6, 2, 142) - 0.5) * 1.0).astype(np.float32)
@@ -841,13 +844,13 @@ elif THEME == "darkwood":
     rough = 0.9
 elif THEME == "castle":
     # trampled siege ground: worn grass, churned mud, scorched earth and craters; a cobbled road; mud where it dips
-    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.36, 0.42, 0.18), (0.48, 0.52, 0.24))
-    churn = nb.ramp(nb.noise(1.1, 4, 0.6, distort=0.5), 0.56, 0.68)
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.33, 0.35, 0.2), (0.43, 0.44, 0.27))                    # worn, muddied grass
+    churn = nb.ramp(nb.noise(1.1, 4, 0.6, distort=0.5), 0.5, 0.64)
     c = nb.mix(nb.math("MULTIPLY", churn, 0.85), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.26, 0.2, 0.13), (0.36, 0.28, 0.18)))   # mud
-    scorch = nb.ramp(nb.noise(0.8, 3, 0.6), 0.68, 0.76)
+    scorch = nb.ramp(nb.noise(0.8, 3, 0.6), 0.64, 0.74)
     c = nb.mix(nb.math("MULTIPLY", scorch, 0.85), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.08, 0.07, 0.06), (0.2, 0.18, 0.16)))   # scorched
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.72), 0.45), c, (0.56, 0.54, 0.3))                # straw-coloured trampled grass
-    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.5, 0.56, 0.26))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.72), 0.4), c, (0.5, 0.46, 0.3))                 # straw-coloured trampled grass
+    c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.42, 0.42, 0.26))
     c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.2, 0.32, 0.11), (0.28, 0.4, 0.14)))       # unspoilt meadow round it
     crat = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.18, 0.14, 0.1), (0.28, 0.22, 0.15))
     c = nb.mix(crater_m, c, crat)
@@ -1368,7 +1371,7 @@ elif THEME == "darkwood":
     pts = scatter(1800 if not PREVIEW else 300, lambda x, z: rd(x, z) < HALF + 0.15)
     merged("Pebbles", blob_template(1), place_list(pts, 0.012, 0.035, sink=0.35), peb)
 elif THEME == "castle":
-    tram = blade_mat("Trampled", (0.3, 0.32, 0.14), (0.46, 0.48, 0.22), (0.66, 0.64, 0.36))
+    tram = blade_mat("Trampled", (0.27, 0.29, 0.15), (0.4, 0.42, 0.22), (0.56, 0.55, 0.34))
     pts = scatter(9000 if not PREVIEW else 1500, lambda x, z: (rd(x, z) > HALF + 0.15) & no_blk(x, z) & (sample(crater, x, z) < 0.2) &
                   (sample(PATCH, x, z) > 0.35))
     merged("Tufts", tuft_template(8, 0.1, 0.013), place_list(pts, 0.7, 1.35), tram)
