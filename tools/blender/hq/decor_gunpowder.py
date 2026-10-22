@@ -2907,7 +2907,7 @@ def KITS(theme):
             "Rock_A": (lambda: rock(1.6, 0.55, 412, n_extra=2), 650), "Rock_B": (lambda: rock(1.0, 0.38, 413, n_extra=1), 420),
             "Log": (lambda: jungle_log(414), 750), "Stump": (lambda: jungle_stump(415), 450),
             "Pyramid": (lambda: maya_pyramid(416), 6000), "Stela": (lambda: stela(417), 800), "Stela_B": (lambda: stela(418, broken=True), 700),
-            "Blocks": (lambda: ruin_blocks(419), 1000), "Watchtower": (lambda: watchtower(420), 3400), "Hut": (lambda: stilt_hut(421), 3000),
+            "Blocks": (lambda: ruin_blocks(419), 1000), "Watchtower": (lambda: watchtower(420), 3400), "StiltHut": (lambda: stilt_hut(421), 3000),
             "Canoe": (lambda: dugout(422), 700),
         }
     if theme == "harbor":
