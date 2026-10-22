@@ -281,8 +281,9 @@ def leather(name="HQ_Leather", base=(0.42, 0.25, 0.13)):
     return g.finish(c, 0.58, nrm)
 
 
-def leather_dyed(name="HQ_DyedLeather", base=(0.42, 0.25, 0.13), dyed=(0.6, 0.12, 0.08)):
-    """Leather (label 0) with red-dyed pieces (5) and bronze studs (6), worn pale on the edges."""
+def leather_dyed(name="HQ_DyedLeather", base=(0.42, 0.25, 0.13), dyed=(0.6, 0.12, 0.08), worn_c=(0.66, 0.45, 0.27)):
+    """Leather (label 0) with red-dyed pieces (5) and bronze studs (6), worn pale on the edges (`worn_c`: black leather
+    wears grey, not tan)."""
     g = new(name)
     p = g.obj()
     c = g.mix(g.noise(p, 9.0, 3.0), g.rgb(base), g.rgb(tuple(min(1, x * 1.25) for x in base)))
@@ -290,7 +291,7 @@ def leather_dyed(name="HQ_DyedLeather", base=(0.42, 0.25, 0.13), dyed=(0.6, 0.12
     c = g.mix(g.reg(5), c, red)
     pt = g.geo("Pointiness")
     worn = g.smooth(pt, 0.51, 0.58)
-    c = g.mix(g.math("MULTIPLY", worn, 0.5), c, g.rgb((0.66, 0.45, 0.27)))
+    c = g.mix(g.math("MULTIPLY", worn, 0.5), c, g.rgb(worn_c))
     scr = g.smooth(g.noise(g.scale_vec(p, (120.0, 120.0, 30.0)), 1.0, 2.0), 0.62, 0.68)
     c = g.mix(g.math("MULTIPLY", scr, 0.35), c, g.rgb((0.2, 0.11, 0.06)))
     br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.74, 0.48, 0.2)), g.rgb((1.0, 0.84, 0.54)))
@@ -1132,13 +1133,24 @@ def _iron_col(g, p, base=(0.32, 0.32, 0.34), hi=(0.74, 0.76, 0.8), dark=(0.1, 0.
     return c, rs
 
 
-def iron(name="HQ_Iron"):
-    """Forged iron (see _iron_col), fine hammer marks."""
+def iron(name="HQ_Iron", col=None, wood=None, cord=None):
+    """Forged iron (see _iron_col), fine hammer marks. `col`: _iron_col's colours (base, hi, dark, rust) for a darker
+    iron (cast-iron grenades are black); `wood`: a colour for label 5 (a fuse's wooden plug), `cord`: label 8 (tarred
+    fuse cord)."""
     g = new(name)
     p = g.obj()
-    c, rs = _iron_col(g, p)
+    c, rs = _iron_col(g, p, **(col or {}))
+    rough = g.mixf(rs, 0.35, 0.8)
+    if wood is not None:
+        w = g.mix(g.noise(g.scale_vec(p, (60.0, 60.0, 8.0)), 1.0, 3.0), g.rgb(wood), g.rgb(tuple(x * 0.7 for x in wood)))
+        c = g.mix(g.reg(5), c, w)
+        rough = g.mixf(g.reg(5), rough, 0.75)
+    if cord is not None:
+        tw = g.wave(p, 300.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+        c = g.mix(g.reg(8), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb(cord), g.rgb(tuple(x * 0.6 for x in cord))))
+        rough = g.mixf(g.reg(8), rough, 0.8)
     h = g.math("ADD", g.math("MULTIPLY", g.voronoi(p, 80.0, 1.0, "F1", "Distance"), 0.3), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
-    return g.finish(c, g.mixf(rs, 0.35, 0.8), g.bump(h, 0.14, 0.002))
+    return g.finish(c, rough, g.bump(h, 0.14, 0.002))
 
 
 def mail(name="HQ_Mail", base=(0.36, 0.37, 0.4)):
