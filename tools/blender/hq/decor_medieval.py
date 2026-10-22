@@ -357,12 +357,12 @@ def windmill(seed=0):
         ang = k * math.pi / 2 + 0.3
         d = v3((math.cos(ang), 0.0, math.sin(ang)))
         sd = v3((-math.sin(ang), 0.0, math.cos(ang)))
-        a0, a1 = hub + d * 0.08, hub + d * 1.05
+        a0, a1 = hub + d * 0.08, hub + d * 1.27
         sails.add(RoundCone(a0, a1, 0.025, 0.018), k=0.004, label=10)                              # the stock
-        for i in range(9):                                        # the lattice: bars across, and the outer rail
+        for i in range(11):                                       # the lattice: bars across, and the outer rail
             q = hub + d * (0.24 + 0.1 * i)
             sails.add(RoundCone(q, q + sd * 0.22, 0.008, 0.008), k=0.002, label=10)
-        sails.add(RoundCone(hub + d * 0.22 + sd * 0.22, hub + d * 1.04 + sd * 0.22, 0.01, 0.01), k=0.002, label=10)
+        sails.add(RoundCone(hub + d * 0.22 + sd * 0.22, hub + d * 1.25 + sd * 0.22, 0.01, 0.01), k=0.002, label=10)
         sails.add(sailcloth(hub, d, sd), k=0.0, label=5)
     for part in (body, rf, wd):
         ground_cut(part)
@@ -376,10 +376,10 @@ def windmill(seed=0):
 
 
 def sailcloth(hub, d, sd):
-    """The sailcloth over half a sail's lattice: a thin panel from 0.26 to 1.0 along the stock, 0.2 across."""
-    c = hub + d * 0.63 + sd * 0.11 + v3((0, 0.012, 0))
+    """The sailcloth over half a sail's lattice: a thin panel from 0.27 to 1.21 along the stock, 0.2 across."""
+    c = hub + d * 0.74 + sd * 0.11 + v3((0, 0.012, 0))
     R = np.stack([unit(sd), unit(np.cross(d, sd)), unit(d)], axis=1)
-    return RoundBox(c, (0.1, 0.005, 0.36), 0.004, R=R)
+    return RoundBox(c, (0.1, 0.005, 0.47), 0.004, R=R)
 
 
 def well(seed=0):
