@@ -115,9 +115,9 @@ def leaves(name="DK_Leaves", base=(0.18, 0.42, 0.13), hi=(0.46, 0.7, 0.22), berr
     return g.finish(c, 0.7, g.bump(leaf, 0.6, 0.01))
 
 
-def rock(name="DK_Rock", theme="meadow", scale=1.0, dark=False):
+def rock(name="DK_Rock", theme="meadow", scale=1.0, dark=False, moss=True):
     """Boulders: speckled grey stone with crisp edges; moss on top (meadow), snow caps, or basalt with glowing seams.
-    dark (meadow): the Darkwood's boulders, darker stone under deeper moss."""
+    dark (meadow): the Darkwood's boulders, darker stone under deeper moss; moss=False: bare (a catapult's shot)."""
     if theme == "volcano":
         g = new(name)
         p = g.obj()
@@ -143,7 +143,9 @@ def rock(name="DK_Rock", theme="meadow", scale=1.0, dark=False):
     crev = g.smooth(g.geo("Pointiness"), 0.48, 0.43)
     c = g.mix(g.math("MULTIPLY", crev, 0.6), c, g.rgb((0.22, 0.22, 0.24)))
     rough = 0.78
-    if theme == "meadow":
+    if theme == "meadow" and not moss:
+        pass
+    elif theme == "meadow":
         up = _up(g, 0.4, 0.8)
         patch = g.smooth(g.noise(p, 3.2 / scale, 4.0, 0.6), 0.46, 0.56)
         mossc = g.mix(g.noise(p, 25.0, 3.0), g.rgb((0.27, 0.44, 0.13) if not dark else (0.12, 0.24, 0.07)),

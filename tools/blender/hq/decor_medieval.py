@@ -863,7 +863,7 @@ def stone_pile(seed=0):
     for k, p in enumerate(pts):
         f.add(Sphere(p, rng.uniform(0.13, 0.16), **wob(9.0, 0.012, seed * 10 + k)), k=0.0)
     ground_cut(f)
-    return [("Stones", f, fine(0.006, 0.012), "rock")]
+    return [("Stones", f, fine(0.006, 0.012), "shot")]
 
 
 def campfire(seed=0):
@@ -879,16 +879,18 @@ def campfire(seed=0):
         a = 2 * math.pi * k / 4 + 0.4
         d = v3((math.cos(a), math.sin(a), 0.0))
         wd.add(RoundCone(d * 0.22 + v3((0, 0, 0.04)), -d * 0.02 + v3((0, 0, 0.1)), 0.035, 0.03), k=0.004, label=5)
+    sp = Field("Wood")                                          # the spit on its forked sticks, a log to sit on
     for sx in (-1, 1):
-        wd.add(RoundCone((sx * 0.38, 0, -0.03), (sx * 0.36, 0, 0.5), 0.018, 0.016), k=0.0, label=11)
-        wd.add(RoundCone((sx * 0.36, 0, 0.42), (sx * 0.42, 0, 0.55), 0.012, 0.01), k=0.004, label=11)
-    wd.add(RoundCone((-0.45, 0, 0.47), (0.45, 0, 0.47), 0.012, 0.012), k=0.004, label=11)
-    wd.add(RoundCone((-0.3, 0.62, 0.1), (0.35, 0.58, 0.1), 0.1, 0.09), k=0.0, label=11)            # a log to sit on
+        sp.add(RoundCone((sx * 0.38, 0, -0.03), (sx * 0.36, 0, 0.5), 0.018, 0.016), k=0.0, label=11)
+        sp.add(RoundCone((sx * 0.36, 0, 0.42), (sx * 0.42, 0, 0.55), 0.012, 0.01), k=0.004, label=11)
+    sp.add(RoundCone((-0.45, 0, 0.47), (0.45, 0, 0.47), 0.012, 0.012), k=0.004, label=10)
+    sp.add(RoundCone((-0.3, 0.62, 0.1), (0.35, 0.58, 0.1), 0.1, 0.09), k=0.0, label=10)
     ash = Field("Ash")
     ash.add(Cylinder((0, 0, 0.0), 0.24, 0.03, rr=0.01), k=0.0)
-    for part in (st, wd, ash):
+    for part in (st, wd, sp, ash):
         ground_cut(part)
-    return [("Stones", st, fine(0.006, 0.012), "rock"), ("Logs", wd, fine(0.005, 0.01), "charred"), ("Ash", ash, fine(0.008, 0.016), "dark")]
+    return [("Stones", st, fine(0.006, 0.012), "rock"), ("Logs", wd, fine(0.005, 0.01), "charred"), ("Wood", sp, fine(0.005, 0.01), "timber"),
+            ("Ash", ash, fine(0.008, 0.016), "dark")]
 
 
 def banner_pole(seed=0, h=2.0):

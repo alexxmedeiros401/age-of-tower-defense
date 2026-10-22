@@ -211,6 +211,7 @@ def medieval_materials(dark):
     canvas, hides and iron, blue and gold banners."""
     return {
         "dark": dark, "turf": DM.turf("DK_Turf", "meadow"), "rock": DM.rock("DK_Rock", "meadow", dark=(THEME == "darkwood")),
+        "shot": DM.rock("DK_Shot", "meadow", moss=False),
         "wood_end": DM.wood_end("DK_WoodEnd", "meadow"), "charred": DM.bark("DK_Charred", "volcano", charred=True),
         "oak_bark": mats.bark_wood("DK_OakBark", bark=(0.3, 0.27, 0.22), wood=(0.72, 0.58, 0.4)),
         "oak_leaves": DM.leaves("DK_OakLeaves", base=(0.16, 0.34, 0.1), hi=(0.44, 0.62, 0.2)),
