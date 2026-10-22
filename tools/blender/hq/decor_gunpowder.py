@@ -209,9 +209,11 @@ def flag(o, L, H, seed=0, th=0.007, wave=0.035, swallow=False, along=(1, 0, 0)):
     return leaf(o, d, v3((0, 0, 1)), [(a, b) for a, b in poly], th, wave=(wave, 2 * math.pi / (L * 0.9)))
 
 
-def flag_paint(f, o, L, H, d=(1, 0, 0), saltire=0.04, border=0.028, label=6):
+def flag_paint(f, o, L, H, d=(1, 0, 0), saltire=None, border=None, label=6):
     """Paint the army's flag (made by `flag` at o, L x H, flying along d): a gold saltire (label 6) and a gold border
-    on its crimson."""
+    on its crimson (their half-widths 0.04 and 0.035 of its height by default: the gold about 0.3 of the flag)."""
+    saltire = 0.04 * H if saltire is None else saltire
+    border = 0.035 * H if border is None else border
     d = unit(d)
     of, df = v3(o).astype(F32), d.astype(F32)
     nrm = math.hypot(L, H)
@@ -2835,7 +2837,7 @@ def gunpowder_city(seed=0):
     fg = Field("Flag")
     fo = pc + v3((0, 0.03, 3.04))
     fg.add(flag(fo, 0.95, 0.62, seed, along=(0, 1, 0), wave=0.05), k=0.0)
-    flag_paint(fg, fo, 0.95, 0.62, d=(0, 1, 0), saltire=0.05, border=0.032)
+    flag_paint(fg, fo, 0.95, 0.62, d=(0, 1, 0))
     out.append(("Flag", fg, fine(0.005, 0.01), "flag"))
     # ---- inside: the barracks (a chimney smoking) and the church
     for i, (c, hx, hy, yaw) in enumerate((((3.15, -2.45), 1.05, 0.48, math.pi / 2), ((3.15, 2.45), 1.05, 0.48, -math.pi / 2),

@@ -550,19 +550,70 @@ def mesh_from(name, V, F, UV, mat):
 
 
 # ------------------------------------------------------------------------------------------------ game
+def reproject_collapsed(ob, margin=0.003, angle=76.0):
+    """Faces whose UVs came out (nearly) collapsed get islands of their own, projected on the real shape, and the atlas
+    is packed again. (Thin leaves, split canes and small closed parts lose their shape on the smoothed copy that
+    lowpoly.unwrap picks its islands on: each of their faces would sample one stray texel, black or another part's.)"""
+    me = ob.data
+    uv = me.uv_layers.active.data
+    nf = len(me.polygons)
+    a3, au = np.zeros(nf), np.zeros(nf)
+    for p in me.polygons:
+        q = np.array([uv[li].uv[:] for li in p.loop_indices])
+        au[p.index] = 0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], 1)) - np.dot(q[:, 1], np.roll(q[:, 0], 1)))
+        a3[p.index] = p.area
+    ok = a3 > 1e-7
+    ref = np.median(au[ok] / a3[ok])
+    bad = ok & (au < a3 * ref * 0.05)
+    if bad.any():
+        bpy.ops.object.select_all(action="DESELECT")
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+        bm = bmesh.from_edit_mesh(me)
+        bm.faces.ensure_lookup_table()
+        for v in bm.verts:
+            v.select = False
+        for e in bm.edges:
+            e.select = False
+        for f in bm.faces:
+            f.select = bool(bad[f.index])
+        bmesh.update_edit_mesh(me)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=margin, scale_to_bounds=False)
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.select_all(action="SELECT")
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(rotate=True, margin=margin, shape_method="CONCAVE")
+        bpy.ops.object.mode_set(mode="OBJECT")
+    log("uv: %d collapsed faces re-projected (%.1f%% of the area)" % (int(bad.sum()), 100.0 * a3[bad].sum() / max(a3.sum(), 1e-9)))
+
+
 def fill_misses(maps, ob):
-    """Texels inside the atlas's islands that no bake ray reached come out black, glossy and flat: where the thinned
-    mesh lies inside its sculpt by more than the cage (thin leaves, guy ropes, the bumpy earth in a gabion). Give them
-    the values of the nearest texel that was baked."""
-    from scipy.ndimage import distance_transform_edt
+    """Texels inside the atlas's islands that no bake ray reached come out black, glossy and flat (where the thinned
+    mesh lies inside its sculpt by more than the cage). Grow the baked texels of the same island into them."""
+    from scipy.ndimage import label
     inside = bk.uv_mask(ob, TEX)
-    miss = inside & (maps["DIFFUSE"][..., :3].max(-1) <= 0.0)
-    good = inside & ~miss
-    if miss.any() and good.any():
-        _, (iy, ix) = distance_transform_edt(~good, return_indices=True)
-        for a in maps.values():
-            a[miss] = a[iy[miss], ix[miss]]
-    log("misses filled: %d texels (%.1f%% of the islands)" % (int(miss.sum()), 100.0 * miss.sum() / max(1, int(inside.sum()))))
+    todo = inside & (maps["DIFFUSE"][..., :3].max(-1) <= 0.0)
+    n0 = int(todo.sum())
+    isl, _ = label(inside)
+    for _ in range(512):
+        if not todo.any():
+            break
+        grew = False
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            done = inside & ~todo
+            take = todo & np.roll(done, (dy, dx), (0, 1)) & (np.roll(isl, (dy, dx), (0, 1)) == isl)
+            if take.any():
+                ys, xs = np.nonzero(take)
+                for a in maps.values():
+                    a[ys, xs] = a[(ys - dy) % TEX, (xs - dx) % TEX]
+                todo &= ~take
+                grew = True
+        if not grew:
+            break
+    log("misses filled: %d texels (%.1f%% of the islands), %d left (islands with nothing baked)" %
+        (n0 - int(todo.sum()), 100.0 * n0 / max(1, int(inside.sum())), int(todo.sum())))
 
 
 def game_stage():
@@ -593,6 +644,8 @@ def game_stage():
     kitob = lp.join(low, "Kit")
     kitob.data.validate(clean_customdata=False)
     lp.unwrap(kitob, margin=0.003)
+    if GUNPOWDER:
+        reproject_collapsed(kitob)
     uv = kitob.data.uv_layers.active.data
     co = np.zeros(len(uv) * 2, np.float32)
     uv.foreach_get("uv", co)
