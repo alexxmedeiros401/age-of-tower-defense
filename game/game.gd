@@ -4913,7 +4913,7 @@ func _handle_events() -> void:
 # burst into flame where they land. The arrows leave the string at RELEASE in tools/blender/hq/anim_archer.py.
 const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at full draw (model units, Godot axes, Yaw node)
 # v0.9.41: the Cretan Archer (anim_cretan.py) shoots kneeling: the same draw 0.37 lower (anim_cretan.KNEEL_DROP)
-# v0.9.49: the Crossbowman's bolt leaves the groove at the crossbow's nose (anim_crossbowman.RELEASE, frame 1)
+# v0.9.51: the Crossbowman's bolt leaves the groove at the crossbow's nose (anim_crossbowman.RELEASE, frame 1)
 const XBOW_TIP := Vector3(-0.16, 1.502, 0.911)
 # Wren's arrow tip at full draw (anim_wren.RELEASE, frame 1)
 const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12), "crossbowman": XBOW_TIP,
@@ -7803,7 +7803,7 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_ballista_proj(root, p, u, dt)         # a bolt from the groove, loosed when his clip drives it out
 		return root
 	if utype == "crossbowman" and u != null and _hq_clips(int(u.id)):
-		_arrow_proj(root, p, u, dt)            # v0.9.49: a real bolt, loosed from the HQ Crossbowman's crossbow
+		_arrow_proj(root, p, u, dt)            # v0.9.51: a real bolt, loosed from the HQ Crossbowman's crossbow
 		return root
 	if pj != "" and pj != "arrow" and pj != "rock":
 		_proj_model(root, pj, dt)
