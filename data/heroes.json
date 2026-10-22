@@ -542,7 +542,7 @@
     -1.0,
     0.8
    ],
-   "model_scale": 0.55
+   "model_scale": 0.7
   },
   "marco": {
    "legacy_unlock": 23,
@@ -592,7 +592,7 @@
     -1.0,
     0.8
    ],
-   "model_scale": 0.55
+   "model_scale": 0.7
   },
   "ada": {
    "legacy_unlock": 25,

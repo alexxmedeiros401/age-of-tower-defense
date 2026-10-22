@@ -1,7 +1,7 @@
 """HQ map kits: sculpt every prop of a Stone Age theme, bake them all into one texture atlas, export one GLB with one mesh
 per prop (named as game.gd DECOR_V2 expects: Pine_A, Rock_C, Mammoth, Cave, ...), each at the origin, ground at y = 0.
 
-    python3 decor_build.py -- --theme meadow|snow|volcano|...|olive|coast|acropolis|classical_city|farmland|darkwood|castle|medieval_city
+    python3 decor_build.py -- --theme meadow|snow|volcano|...|farmland|darkwood|castle|medieval_city|jungle|harbor|fortress|fort_city
                               --out DIR [--stage sculpt|game|export|all] [--fine]
                               [--tex 2048] [--ao 24] [--only Pine_A,Rock_A] [--shots DIR]
 
@@ -42,13 +42,21 @@ GLB = arg("--glb", {"meadow": "stone_decor", "snow": "stone_decor_snow", "volcan
                    "forge": "iron_decor_forge", "bog": "iron_decor_bog", "iron_city": "iron_city",
                    "olive": "classical_decor_olive", "coast": "classical_decor_coast", "acropolis": "classical_decor_acropolis",
                    "classical_city": "classical_city", "farmland": "medieval_decor_farmland",
-                   "darkwood": "medieval_decor_darkwood", "castle": "medieval_decor_castle", "medieval_city": "medieval_city"}[THEME])
+                   "darkwood": "medieval_decor_darkwood", "castle": "medieval_decor_castle", "medieval_city": "medieval_city",
+                   "jungle": "gunpowder_decor_jungle", "harbor": "gunpowder_decor_harbor", "fortress": "gunpowder_decor_fortress",
+                   "fort_city": "gunpowder_city"}[THEME])
 BRONZE = THEME in ("delta", "desert", "canyon", "city")
 IRON = THEME in ("highland", "forge", "bog", "iron_city")
 CLASSICAL = THEME in ("olive", "coast", "acropolis", "classical_city")
 MEDIEVAL = THEME in ("farmland", "darkwood", "castle", "medieval_city")
+GUNPOWDER = THEME in ("jungle", "harbor", "fortress", "fort_city")
 G0, G1, S0 = 0.05, 0.6, 0.7          # swatch strip: grass gradient rows, then flat colours (as in build_game.base_stage)
 SWATCHES = [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (0.96, 0.52, 0.76), (0.3, 0.5, 0.18)]
+# (the flowers' petals take swatches 0, 2 and 3, their hearts 1, their stems 4) the Gunpowder Age's: scarlet, orange
+# and magenta jungle flowers; white, purple and pink beach morning glories; poppies and cornflowers on the siege field
+SWATCHES = {"jungle": [(0.92, 0.14, 0.1), (1.0, 0.84, 0.24), (0.99, 0.52, 0.12), (0.88, 0.22, 0.56), (0.16, 0.38, 0.12)],
+            "harbor": [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.7, 0.46, 0.9), (0.94, 0.5, 0.74), (0.3, 0.5, 0.18)],
+            "fortress": [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.36, 0.5, 0.94), (0.9, 0.16, 0.1), (0.3, 0.46, 0.16)]}.get(THEME, SWATCHES)
 GRASS = {"meadow": ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)), "snow": ((0.3, 0.27, 0.16), (0.62, 0.56, 0.36)),
          "volcano": ((0.16, 0.13, 0.1), (0.5, 0.42, 0.3)), "delta": ((0.19, 0.4, 0.1), (0.56, 0.75, 0.27)),
          "desert": ((0.46, 0.38, 0.19), (0.86, 0.75, 0.46)), "canyon": ((0.38, 0.29, 0.15), (0.76, 0.62, 0.37)),
@@ -56,7 +64,8 @@ GRASS = {"meadow": ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)), "snow": ((0.3, 0.27, 
          "bog": ((0.24, 0.3, 0.11), (0.66, 0.6, 0.3)), "olive": ((0.36, 0.34, 0.14), (0.8, 0.7, 0.36)),
          "coast": ((0.3, 0.34, 0.16), (0.72, 0.7, 0.42)), "acropolis": ((0.34, 0.34, 0.16), (0.74, 0.68, 0.36)),
          "farmland": ((0.16, 0.34, 0.08), (0.52, 0.72, 0.26)), "darkwood": ((0.1, 0.2, 0.07), (0.34, 0.46, 0.18)),
-         "castle": ((0.2, 0.32, 0.1), (0.56, 0.66, 0.3))
+         "castle": ((0.2, 0.32, 0.1), (0.56, 0.66, 0.3)), "jungle": ((0.06, 0.24, 0.06), (0.3, 0.56, 0.16)),
+         "harbor": ((0.34, 0.4, 0.16), (0.74, 0.74, 0.4)), "fortress": ((0.24, 0.32, 0.12), (0.6, 0.64, 0.32))
          }.get(THEME, ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)))
 
 
@@ -81,9 +90,10 @@ def materials():
                                                            labels=[(2, (0.1, 0.1, 0.12), 0.6)], seams=[2], scale=2.0),
         "portal_armor": __import__("robot_mats").armor(name="DK_PortalArmor", labels=[(1, (1.0, 0.47, 0.08), 0.35),
                                                        (2, (0.2, 0.2, 0.22), 0.6), (3, (0.08, 0.08, 0.09), 0.4)], seams=[2], scale=2.0),
-    } if not (BRONZE or IRON or CLASSICAL or MEDIEVAL) else (bronze_materials(dark.mat) if BRONZE else
+    } if not (BRONZE or IRON or CLASSICAL or MEDIEVAL or GUNPOWDER) else (bronze_materials(dark.mat) if BRONZE else
                                                              (iron_materials(dark.mat) if IRON else
-                                                              (classical_materials(dark.mat) if CLASSICAL else medieval_materials(dark.mat))))
+                                                              (classical_materials(dark.mat) if CLASSICAL else
+                                                               (medieval_materials(dark.mat) if MEDIEVAL else gunpowder_materials(dark.mat)))))
 
 
 def bronze_materials(dark):
@@ -249,6 +259,111 @@ def medieval_materials(dark):
         "dark_water": DM.flat("DK_DarkWater", (0.05, 0.07, 0.06), 0.1, var=0.25),
         "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
     }
+
+
+def gunpowder_materials(dark):
+    """The Gunpowder Age kits' materials (decor_mats' Gunpowder Age section): the jungle's barks, leaves, mossy stone and
+    the temple's limestone; the harbour's palms, sea-grape, sand, tarred hull, sails and rigging, contraband and gold;
+    the siege's fresh earth, wicker, brushwood, canvas, bronze and iron guns; the fort's pale cut stone; the army's flag
+    in crimson and gold, the smugglers' in black and red, the besiegers' in blue."""
+    th = THEME
+    crimson, gold = (0.55, 0.08, 0.08), (0.85, 0.62, 0.2)
+    turf = {"jungle": lambda: DM.jungle_floor("DK_Turf"), "harbor": lambda: DM.sand("DK_Turf", base=(0.86, 0.76, 0.56), hi=(0.95, 0.88, 0.7),
+                                                                                 shade=(0.72, 0.62, 0.44))}.get(th, lambda: DM.earthwork("DK_Turf"))()
+    rock_m = {"jungle": lambda: DM.mossy_rock("DK_Rock")}.get(th, lambda: DM.rock("DK_Rock", "meadow"))()
+    m = {
+        "dark": dark, "turf": turf, "rock": rock_m, "glow_fire": DM.glow("DK_GlowFire", (1.0, 0.55, 0.15), 2.2),
+        "timber": mats.siege("DK_Timber", wood=(0.42, 0.29, 0.18), wood2=(0.3, 0.2, 0.12), red=crimson, blue=(0.2, 0.3, 0.48), metal="iron"),
+        "brass": mats.bronze("DK_Brass", base=(0.78, 0.58, 0.24), hi=(1.0, 0.9, 0.56), dark=(0.36, 0.24, 0.08), patina=(0.36, 0.5, 0.36)),
+        "flag": mats.wool("DK_Flag", base=crimson, border=gold, stripe=gold),
+        "gold": mats.gold("DK_Gold"), "gun_iron": mats.iron("DK_GunIron"), "plaster": mats.plaster("DK_Plaster"),
+        "tiles": mats.terracotta("DK_Tiles", base=(0.74, 0.34, 0.18)), "bronze": mats.bronze("DK_Bronze"),
+    }
+    if th == "jungle":
+        m.update({
+            "jrock": DM.mossy_rock("DK_JRock"), "jungle_bark": DM.jungle_bark("DK_JungleBark"),
+            "jungle_leaves": DM.leaves("DK_JungleLeaves", base=(0.05, 0.24, 0.07), hi=(0.2, 0.46, 0.13)),
+            "vine_leaves": DM.leaves("DK_VineLeaves", base=(0.12, 0.34, 0.09), hi=(0.32, 0.56, 0.16)),
+            "liana": mats.bark_wood("DK_Liana", bark=(0.3, 0.25, 0.16), wood=(0.5, 0.4, 0.26)),
+            "coco_bark": DM.coco_bark("DK_CocoBark"), "coconut": DM.flat("DK_Coconut", (0.38, 0.42, 0.14), 0.5, hi=(0.6, 0.58, 0.26)),
+            "frond": DM.frond("DK_Frond", base=(0.18, 0.42, 0.11), hi=(0.48, 0.68, 0.22), dry=(0.68, 0.58, 0.28)),
+            "frond_dry": DM.frond("DK_FrondDry", base=(0.5, 0.4, 0.22), hi=(0.68, 0.58, 0.34), dry=(0.4, 0.3, 0.16)),
+            "frond_rib": DM.frond_rib("DK_FrondRib"),
+            "banana_leaf": DM.broadleaf("DK_BananaLeaf", base=(0.26, 0.5, 0.12), hi=(0.48, 0.7, 0.22), edge=(0.6, 0.5, 0.24), rough=0.5),
+            "banana_rib": DM.flat("DK_BananaRib", (0.6, 0.7, 0.36), 0.5), "banana_stem": DM.banana_stem("DK_BananaStem"),
+            "bananas": DM.flat("DK_Bananas", (0.46, 0.6, 0.14), 0.5, hi=(0.64, 0.74, 0.3)),
+            "banana_bud": DM.flat("DK_BananaBud", (0.4, 0.07, 0.16), 0.4, hi=(0.6, 0.2, 0.3)),
+            "fern": DM.frond("DK_Fern", base=(0.12, 0.34, 0.08), hi=(0.32, 0.56, 0.16), dry=(0.52, 0.44, 0.16)),
+            "fern_trunk": DM.peat("DK_FernTrunk"),
+            "aroid": DM.broadleaf("DK_Aroid", base=(0.04, 0.22, 0.07), hi=(0.18, 0.44, 0.13)),
+            "aroid_rib": DM.flat("DK_AroidRib", (0.4, 0.58, 0.22), 0.5), "aroid_stalk": DM.flat("DK_AroidStalk", (0.26, 0.44, 0.15), 0.5, hi=(0.42, 0.58, 0.24)),
+            "heli_leaf": DM.broadleaf("DK_HeliLeaf", base=(0.08, 0.3, 0.08), hi=(0.24, 0.52, 0.14)),
+            "heli_flower": DM.two_tone("DK_HeliFlower", (0.86, 0.1, 0.06), (0.98, 0.78, 0.18), 0.4, col6=(0.3, 0.55, 0.15), hi=(1.0, 0.45, 0.3)),
+            "brom": DM.broadleaf("DK_Brom", base=(0.1, 0.34, 0.1), hi=(0.32, 0.58, 0.18), heart=(0.78, 0.1, 0.12)),
+            "logs_moss": DM.wood_end("DK_LogsMoss", "meadow"), "fungus": DM.fungus("DK_Fungus"),
+            "ruin_stone": DM.ruin_stone("DK_RuinStone"),
+            "palm_thatch": DM.thatch("DK_PalmThatch", base=(0.62, 0.53, 0.32), old=(0.46, 0.42, 0.32)),
+            "cane": DM.cane("DK_Cane"), "pottery": mats.terracotta("DK_Pottery", base=(0.62, 0.36, 0.22)),
+            "dugout": mats.siege("DK_Dugout", wood=(0.42, 0.29, 0.17), wood2=(0.28, 0.19, 0.11), metal="iron"),
+        })
+    elif th == "harbor":
+        m.update({
+            "coco_bark": DM.coco_bark("DK_CocoBark"), "coconut": DM.flat("DK_Coconut", (0.38, 0.42, 0.14), 0.5, hi=(0.6, 0.58, 0.26)),
+            "frond": DM.frond("DK_Frond", base=(0.2, 0.44, 0.12), hi=(0.52, 0.7, 0.24), dry=(0.7, 0.6, 0.3)),
+            "frond_dry": DM.frond("DK_FrondDry", base=(0.5, 0.4, 0.22), hi=(0.68, 0.58, 0.34), dry=(0.4, 0.3, 0.16)),
+            "frond_rib": DM.frond_rib("DK_FrondRib"),
+            "seagrape": DM.round_leaves("DK_SeaGrape"), "grapes": DM.two_tone("DK_Grapes", (0.42, 0.52, 0.2), (0.32, 0.12, 0.3), 0.35),
+            "scrub": DM.leaves("DK_Scrub", base=(0.2, 0.32, 0.14), hi=(0.44, 0.52, 0.26)),
+            "flower_yellow": DM.flat("DK_FlowerYellow", (0.98, 0.84, 0.26), 0.6, hi=(1.0, 0.95, 0.6)),
+            "limestone": DM.limestone_rock("DK_Limestone", base=(0.8, 0.77, 0.7), hi=(0.9, 0.88, 0.82)),
+            "driftwood": DM.driftwood("DK_DriftWood"),
+            "crate": mats.siege("DK_Crate", wood=(0.64, 0.5, 0.32), wood2=(0.5, 0.38, 0.23), red=(0.14, 0.11, 0.08), metal="iron"),
+            "straw": DM.thatch("DK_Straw", base=(0.82, 0.7, 0.4), old=(0.7, 0.6, 0.36)),
+            "bottle": DM.flat("DK_Bottle", (0.07, 0.2, 0.11), 0.15, hi=(0.32, 0.52, 0.38)),
+            "cask": mats.siege("DK_Cask", wood=(0.52, 0.34, 0.19), wood2=(0.38, 0.24, 0.13), red=(0.12, 0.1, 0.08), metal="iron"),
+            "bales": mats.linen("DK_Bales", base=(0.68, 0.57, 0.4), border=(0.5, 0.38, 0.22), stripe=(0.16, 0.2, 0.46)),
+            "rope": mats.siege("DK_Rope", metal="iron"), "rust_iron": DM.rusty_iron("DK_RustIron"),
+            "boat": mats.siege("DK_Boat", wood=(0.5, 0.38, 0.26), wood2=(0.38, 0.27, 0.17), red=(0.72, 0.16, 0.1), blue=(0.18, 0.12, 0.08), metal="iron"),
+            "net": DM.net("DK_Net"), "cork": DM.flat("DK_Cork", (0.72, 0.56, 0.36), 0.8),
+            "chest": mats.siege("DK_Chest", wood=(0.42, 0.27, 0.15), wood2=(0.3, 0.19, 0.1), metal="iron"),
+            "gems": DM.two_tone("DK_Gems", (0.82, 0.06, 0.14), (0.08, 0.66, 0.3), 0.12, hi=(1.0, 0.7, 0.75)),
+            "pearl": DM.flat("DK_Pearl", (0.94, 0.92, 0.86), 0.2, hi=(1.0, 1.0, 1.0)),
+            "hull": mats.siege("DK_Hull", wood=(0.22, 0.15, 0.1), wood2=(0.14, 0.09, 0.06), red=gold, blue=crimson, metal="iron"),
+            "deck": mats.siege("DK_Deck", wood=(0.62, 0.5, 0.34), wood2=(0.48, 0.37, 0.24), metal="iron"),
+            "sail": mats.linen("DK_Sail", base=(0.88, 0.84, 0.72), border=(0.5, 0.4, 0.26)),
+            "tarred_rope": DM.flat("DK_TarredRope", (0.16, 0.12, 0.09), 0.7),
+            "flag_pirate": mats.wool("DK_FlagPirate", base=(0.07, 0.06, 0.06), border=(0.78, 0.1, 0.08), stripe=(0.04, 0.035, 0.035)),
+            "pier": mats.siege("DK_Pier", wood=(0.5, 0.44, 0.36), wood2=(0.36, 0.31, 0.25), metal="iron"),
+            "rubble": DM.whitewash("DK_Rubble"),
+        })
+    elif th == "fortress":
+        m.update({
+            "oak_bark": mats.bark_wood("DK_OakBark", bark=(0.3, 0.27, 0.22), wood=(0.72, 0.58, 0.4)),
+            "oak_leaves": DM.leaves("DK_OakLeaves", base=(0.16, 0.32, 0.1), hi=(0.44, 0.58, 0.2)),
+            "olive_bark": mats.bark_wood("DK_CypressBark", bark=(0.4, 0.36, 0.3), wood=(0.7, 0.58, 0.42)),
+            "cypress": DM.leaves("DK_Cypress", base=(0.05, 0.14, 0.06), hi=(0.2, 0.34, 0.14)),
+            "bush": DM.leaves("DK_Bush", base=(0.16, 0.3, 0.1), hi=(0.4, 0.54, 0.2)),
+            "earthwork": DM.earthwork("DK_Earthwork"), "wicker": mats.basket(), "brushwood": DM.brushwood("DK_Brushwood"),
+            "sandbag": mats.linen("DK_Sandbag", base=(0.76, 0.68, 0.5), border=(0.56, 0.46, 0.3)),
+            "carriage": mats.siege("DK_Carriage", wood=(0.5, 0.37, 0.23), wood2=(0.37, 0.26, 0.16), blue=(0.24, 0.32, 0.46), metal="iron"),
+            "gun_bronze": mats.bronze("DK_GunBronze"), "shot": DM.rusty_iron("DK_Shot", dark=True),
+            "keg": mats.siege("DK_Keg", wood=(0.44, 0.29, 0.16), wood2=(0.32, 0.2, 0.11), red=(0.08, 0.07, 0.06), metal="bronze"),
+            "canvas": mats.linen("DK_Canvas", base=(0.93, 0.91, 0.84), border=(0.16, 0.26, 0.55), stripe=(0.7, 0.12, 0.08)),
+            "map": DM.flat("DK_Map", (0.88, 0.82, 0.66), 0.8),
+            "flag_blue": mats.wool("DK_FlagBlue", base=(0.14, 0.24, 0.56), border=(0.95, 0.93, 0.88), stripe=(0.95, 0.93, 0.88)),
+            "wagon": mats.siege("DK_Wagon", wood=(0.5, 0.38, 0.24), wood2=(0.36, 0.26, 0.16), blue=(0.28, 0.36, 0.48), metal="iron"),
+            "boards": mats.siege("DK_Boards", wood=(0.5, 0.36, 0.24), wood2=(0.36, 0.25, 0.16), red=(0.12, 0.08, 0.05), metal="iron"),
+            "sails": mats.siege("DK_Sails", wood=(0.46, 0.32, 0.2), wood2=(0.34, 0.23, 0.14), red=(0.88, 0.84, 0.74), metal="iron"),
+            "mill_render": DM.whitewash("DK_MillRender"),
+        })
+    else:
+        m.update({
+            "fort_stone": DM.ashlar("DK_FortStone", base=(0.88, 0.82, 0.7), joint=(0.56, 0.5, 0.4), course=0.22, block=0.44,
+                                    grime7=(0.56, 0.52, 0.44)),
+            "fort_turf": DM.turf("DK_FortTurf", "meadow"), "fort_plaster": DM.whitewash("DK_FortPlaster", course=(0.84, 0.78, 0.66)),
+            "brazier": DM.brazier("DK_Brazier"),
+        })
+    return m
 
 
 GLOW_KEYS = {"glow_lava": ((1.0, 0.45, 0.08), 1.6, 0.6), "glow_cyan": ((0.25, 0.85, 1.0), 1.3, 0.5),
@@ -435,6 +550,72 @@ def mesh_from(name, V, F, UV, mat):
 
 
 # ------------------------------------------------------------------------------------------------ game
+def reproject_collapsed(ob, margin=0.003, angle=76.0):
+    """Faces whose UVs came out (nearly) collapsed get islands of their own, projected on the real shape, and the atlas
+    is packed again. (Thin leaves, split canes and small closed parts lose their shape on the smoothed copy that
+    lowpoly.unwrap picks its islands on: each of their faces would sample one stray texel, black or another part's.)"""
+    me = ob.data
+    uv = me.uv_layers.active.data
+    nf = len(me.polygons)
+    a3, au = np.zeros(nf), np.zeros(nf)
+    for p in me.polygons:
+        q = np.array([uv[li].uv[:] for li in p.loop_indices])
+        au[p.index] = 0.5 * abs(np.dot(q[:, 0], np.roll(q[:, 1], 1)) - np.dot(q[:, 1], np.roll(q[:, 0], 1)))
+        a3[p.index] = p.area
+    ok = a3 > 1e-7
+    ref = np.median(au[ok] / a3[ok])
+    bad = ok & (au < a3 * ref * 0.05)
+    if bad.any():
+        bpy.ops.object.select_all(action="DESELECT")
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.context.tool_settings.mesh_select_mode = (False, False, True)
+        bm = bmesh.from_edit_mesh(me)
+        bm.faces.ensure_lookup_table()
+        for v in bm.verts:
+            v.select = False
+        for e in bm.edges:
+            e.select = False
+        for f in bm.faces:
+            f.select = bool(bad[f.index])
+        bmesh.update_edit_mesh(me)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(angle), island_margin=margin, scale_to_bounds=False)
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.select_all(action="SELECT")
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(rotate=True, margin=margin, shape_method="CONCAVE")
+        bpy.ops.object.mode_set(mode="OBJECT")
+    log("uv: %d collapsed faces re-projected (%.1f%% of the area)" % (int(bad.sum()), 100.0 * a3[bad].sum() / max(a3.sum(), 1e-9)))
+
+
+def fill_misses(maps, ob):
+    """Texels inside the atlas's islands that no bake ray reached come out black, glossy and flat (where the thinned
+    mesh lies inside its sculpt by more than the cage). Grow the baked texels of the same island into them."""
+    from scipy.ndimage import label
+    inside = bk.uv_mask(ob, TEX)
+    todo = inside & (maps["DIFFUSE"][..., :3].max(-1) <= 0.0)
+    n0 = int(todo.sum())
+    isl, _ = label(inside)
+    for _ in range(512):
+        if not todo.any():
+            break
+        grew = False
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            done = inside & ~todo
+            take = todo & np.roll(done, (dy, dx), (0, 1)) & (np.roll(isl, (dy, dx), (0, 1)) == isl)
+            if take.any():
+                ys, xs = np.nonzero(take)
+                for a in maps.values():
+                    a[ys, xs] = a[(ys - dy) % TEX, (xs - dx) % TEX]
+                todo &= ~take
+                grew = True
+        if not grew:
+            break
+    log("misses filled: %d texels (%.1f%% of the islands), %d left (islands with nothing baked)" %
+        (n0 - int(todo.sum()), 100.0 * n0 / max(1, int(inside.sum())), int(todo.sum())))
+
+
 def game_stage():
     T = time.time()
     bpy.ops.wm.open_mainfile(filepath=HI)
@@ -463,6 +644,8 @@ def game_stage():
     kitob = lp.join(low, "Kit")
     kitob.data.validate(clean_customdata=False)
     lp.unwrap(kitob, margin=0.003)
+    if GUNPOWDER:
+        reproject_collapsed(kitob)
     uv = kitob.data.uv_layers.active.data
     co = np.zeros(len(uv) * 2, np.float32)
     uv.foreach_get("uv", co)
@@ -470,8 +653,11 @@ def game_stage():
     uv.foreach_set("uv", co)
     log("uv %.0fs" % (time.time() - T))
     groups = [([pid[o.name]], [o]) for o in bake_hi]
+    # (the Gunpowder Age's kits: a deeper cage, and the texels no ray reached filled; see fill_misses)
     maps = bk.bake_groups(kitob, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.35,
-                          extrusion=0.02, maxdist=0.06)
+                          extrusion=0.035 if GUNPOWDER else 0.02, maxdist=0.08 if GUNPOWDER else 0.06)
+    if GUNPOWDER:
+        fill_misses(maps, kitob)
     log("bakes %.0fs" % (time.time() - T))
     from mats import lin
     def paint(a):
@@ -538,7 +724,7 @@ def game_stage():
             objs[p] = g
     rng = np.random.default_rng(3)
     if THEME in ("meadow", "volcano", "delta", "desert", "canyon", "highland", "forge", "bog", "olive", "coast", "acropolis",
-                 "farmland", "darkwood", "castle"):
+                 "farmland", "darkwood", "castle", "jungle", "harbor", "fortress"):
         V, F, UV = [], [], []
         for k in range(3):                          # a clump of three tufts
             v, f, u = tuft_geometry(rng)
@@ -548,7 +734,7 @@ def game_stage():
             F += [tuple(base + i for i in q) for q in f]
             UV += u
         objs["Tuft"] = mesh_from("Tuft", V, F, UV, kmat)
-    if THEME in ("meadow", "delta", "highland", "olive", "coast", "farmland", "castle"):
+    if THEME in ("meadow", "delta", "highland", "olive", "coast", "farmland", "castle", "jungle", "harbor", "fortress"):
         V, F, UV = flowers_geometry(rng)
         objs["Flowers"] = mesh_from("Flowers", V, F, UV, kmat)
     bpy.data.objects.remove(bm_all)

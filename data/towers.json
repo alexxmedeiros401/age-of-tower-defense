@@ -2584,7 +2584,7 @@
   "name": "Cannon",
   "lineage": "Siege",
   "era": "Gunpowder Age",
-  "model_scale": 0.56,
+  "model_scale": 0.68,
   "swing": [
    -0.15,
    2.0
@@ -2700,7 +2700,7 @@
   "name": "War Drummer",
   "lineage": "Control",
   "era": "Gunpowder Age",
-  "model_scale": 0.56,
+  "model_scale": 0.63,
   "swing": [
    -0.5,
    0.35

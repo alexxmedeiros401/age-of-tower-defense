@@ -30,7 +30,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name=="art-builds") | .id' | head -1)
+          for i in 1 2 3 4 5 6; do
+            rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[0].id // empty'); [ -n "$rid" ] && break
+            sleep 10
+          done
           if [ -z "$rid" ]; then
             gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name=art-builds -f target_commitish="$GITHUB_SHA" \
               -f name="Art builds (temporary, not a game release)" \
@@ -76,12 +79,24 @@ jobs:
           [ -d "$OUT" ] || { echo "no $OUT"; exit 0; }
           (cd "$OUT" && zip -qr "$RUNNER_TEMP/$NAME.zip" .)
           ls -la "$RUNNER_TEMP/$NAME.zip"
-          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name=="art-builds") | .id' | head -1)
+          for i in 1 2 3 4 5 6; do
+            rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[0].id // empty'); [ -n "$rid" ] && break
+            sleep 10
+          done
           [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
+          echo "release $rid"
           for a in $(gh api "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
           done
-          curl -sS --fail -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/zip" \
-            --data-binary "@$RUNNER_TEMP/$NAME.zip" \
-            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rid/assets?name=$NAME.zip" > /dev/null
-          echo "attached $NAME.zip"
+          for i in 1 2 3 4; do
+            if curl -sS --fail -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/zip" \
+                --data-binary "@$RUNNER_TEMP/$NAME.zip" \
+                "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rid/assets?name=$NAME.zip" > /dev/null; then
+              echo "attached $NAME.zip"; exit 0
+            fi
+            sleep 20
+            for a in $(gh api "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
+            done
+          done
+          exit 1

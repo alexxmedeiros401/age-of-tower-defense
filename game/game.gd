@@ -424,7 +424,7 @@ func _build_world() -> void:
 		_build_city(end_pt)
 	elif base_id != "cave":
 		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))
-				or (base_id == "castle" and _medieval_city_kit(end_pt))):
+				or (base_id == "castle" and _medieval_city_kit(end_pt)) or (base_id == "fort" and _gunpowder_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
@@ -1506,6 +1506,29 @@ func _medieval_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## v0.9.61: the Gunpowder city: a star fort's gate (bastions, the drawbridge, braziers either side, barracks and a church).
+func _gunpowder_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/gunpowder_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:
+		_campfire(n, Vector3(0.18, 1.1, sd * 1.18), 1.4, 0.34)
+	_smoke_column(n.position + Vector3(3.45, 2.1, -3.05))
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -1783,6 +1806,35 @@ const DECOR_V2 := {
 		"marks": [["Chapel", Vector2(-3.5, -11.1), 0.85, 2.4, {"yaw": 0.0}], ["Hut", Vector2(6.5, -10.9), 0.9, 1.8, {"yaw": 0.2}],
 			["Cross", Vector2(-9.0, 10.9), 1.0, 0.9, {"yaw": 0.0}], ["Hut", Vector2(5.0, 11.0), 0.8, 1.6, {"yaw": PI}],
 			["Toadstools", Vector2(-13.0, -10.6), 1.4, 0.8]]},
+	# v0.9.61: the Gunpowder Age kits (decor_gunpowder.py): Jungle Outpost's rainforest and Maya ruins, Smuggler's Harbor's
+	# cove (a brigantine at her jetty, the tavern, contraband), and the besiegers' works before the Star Fort
+	"jungle": {"kit": "gunpowder_decor_jungle", "count": 118, "ambient": true,
+		"scatter": [["Tree_A", 14], ["Tree_B", 13], ["Tree_C", 11], ["Palm_A", 7], ["Palm_B", 6], ["Banana", 8], ["Fern", 7], ["Fern_B", 8],
+			["Monstera", 8], ["Heliconia", 6], ["Bromeliad", 5], ["Rock_A", 3], ["Rock_B", 4], ["Log", 3], ["Stump", 2]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 110, "cover_s": 0.9,
+		"marks": [["Watchtower", Vector2(11.0, -10.7), 0.95, 1.4, {"yaw": 0.0}], ["Stela", Vector2(2.5, -10.6), 1.0, 1.0, {"yaw": 0.0}],
+			["Blocks", Vector2(-1.0, -10.8), 1.0, 1.3], ["Stela_B", Vector2(-13.5, -10.8), 1.0, 1.0, {"yaw": 0.0}],
+			["StiltHut", Vector2(-3.5, 10.9), 0.9, 1.5, {"yaw": 0.0}], ["Canoe", Vector2(-6.0, 11.4), 1.0, 1.0, {"yaw": 0.35}],
+			["StiltHut", Vector2(13.0, 10.8), 0.8, 1.4, {"yaw": 0.3}], ["Watchtower", Vector2(-17.4, 2.5), 0.85, 1.3, {"yaw": 0.4}]]},
+	"harbor": {"kit": "gunpowder_decor_harbor", "count": 96, "ambient": true,
+		"scatter": [["Palm_A", 13], ["Palm_B", 11], ["SeaGrape", 10], ["Scrub", 10], ["Rock_A", 6], ["Rock_B", 7], ["Rock_C", 4], ["Driftwood", 4],
+			["Crates", 3], ["Barrels", 3], ["Bales", 2], ["Rope", 2], ["Anchor", 1]],
+		"shore": [["Rock_B", 2], ["Driftwood", 1], ["SeaGrape", 1]],
+		"cover": [["Tuft", 4], ["Flowers", 1]], "cover_n": 100, "cover_s": 0.85,
+		"marks": [["Ship", Vector2(6.0, -11.6), 0.85, 2.6, {"force": true, "yaw": PI * 0.5 - 0.07}],
+			["Jetty", Vector2(4.3, -9.3), 0.75, 1.2, {"force": true, "yaw": 0.0}], ["Tavern", Vector2(1.2, -11.2), 0.9, 2.0, {"yaw": 0.0}],
+			["Nets", Vector2(10.5, -10.7), 0.95, 1.3, {"yaw": 0.0}], ["Anchor", Vector2(-13.0, -10.8), 1.0, 0.9],
+			["Treasure", Vector2(-4.0, 11.0), 1.0, 0.9, {"yaw": 0.2}], ["Rowboat", Vector2(3.2, 11.2), 0.95, 1.0, {"yaw": 1.2}],
+			["Lookout", Vector2(11.2, 10.9), 0.95, 1.1, {"yaw": 0.4}], ["Tavern", Vector2(-16.8, -10.4), 0.75, 1.8, {"yaw": 0.4}]]},
+	"fortress": {"kit": "gunpowder_decor_fortress", "count": 90, "ambient": true,
+		"scatter": [["Oak_A", 9], ["Oak_B", 8], ["Cypress", 7], ["Bush", 8], ["Rock_A", 6], ["Rock_B", 7], ["Gabions", 5], ["Fascines", 3],
+			["Rampart", 2], ["Trench", 3], ["Gun", 2], ["Shot", 3], ["Powder", 3], ["Tent", 5], ["Wagon", 1], ["Wheels", 3]],
+		"cover": [["Tuft", 3], ["Flowers", 1]], "cover_n": 85, "cover_s": 0.85,
+		"marks": [["Redoubt", Vector2(-3.0, -11.4), 0.85, 2.8, {"yaw": PI * 0.5}], ["Battery", Vector2(4.5, -10.9), 0.9, 2.0, {"yaw": PI * 0.5}],
+			["Gun", Vector2(-9.5, -10.6), 0.95, 1.2, {"yaw": PI * 0.5}], ["Tent", Vector2(10.0, -11.0), 0.9, 1.1],
+			["Wagon", Vector2(14.0, -11.0), 0.9, 1.4, {"yaw": 0.2}], ["Marquee", Vector2(-10.0, 10.9), 0.9, 1.6, {"yaw": 0.0}],
+			["Tent", Vector2(-6.5, 11.2), 0.9, 1.1], ["Windmill", Vector2(8.0, 11.0), 0.9, 1.6, {"yaw": 0.0}],
+			["Tent", Vector2(-13.8, 10.8), 0.85, 1.1], ["Gun", Vector2(3.5, 10.8), 0.95, 1.2, {"yaw": PI * 0.5}]]},
 	# Castle Siege: the besiegers' camp: pavilions and ridge tents, mantlets, a battering ram, a siege tower, supplies, a
 	# pile of catapult stones, a campfire, banners and spears; oaks and boulders
 	"castle": {"kit": "medieval_decor_castle", "count": 92, "ambient": true,
@@ -1797,7 +1849,7 @@ const DECOR_V2 := {
 ## v0.9.40: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
 const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26],
 	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2], "Campfire": [Vector3(0, 0.16, 0), 1.0, 0.3]}
-const MARK_SMOKE := {"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
+const MARK_SMOKE := {"Tavern": Vector3(-0.83, 2.55, -0.25), "Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
 	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0), "Cottage": Vector3(-0.73, 1.72, -0.12),
 	"Hut": Vector3(0.3, 1.2, 0.0), "Campfire": Vector3(0, 0.4, 0)}
 
@@ -1969,7 +2021,7 @@ func _build_decor_v2() -> void:
 			var yaw: float = float(opt.yaw) if opt.has("yaw") else jit + (PI if p.y > 0 else 0.0)
 			var n := _decor_single(mk[0], _v3(p), yaw, mk[2])
 			taken.append([p, float(mk[3])])
-			if mk[0] == "Boat":                   # (rocking gently on the current)
+			if mk[0] in ["Boat", "Ship"]:         # (rocking gently on the current)
 				effects.append({"node": n, "t": r.randf() * 6.0, "life": INF, "kind": "bob", "y0": n.position.y})
 			elif mk[0] == "Smelter":              # (its furnace burns)
 				_campfire(n, Vector3(0, 1.22, 0), 1.6, 0.36)
@@ -2169,6 +2221,7 @@ func _export_decor(path: String) -> void:
 ## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
 ## glowing basalt. The ground texture still paints the zone itself.
 var _statue_n := 0                   # (the acropolis' statue zones take turns: a statue, then the lion)
+var _ruins_n := 0                    # (Jungle Outpost's ruins zones: the second gets the pyramid)
 var _building_n := 0                 # (the farmland's building zones take turns: a cottage, then a barn)
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
 	var th := str(map.get("theme", "meadow"))
@@ -2215,6 +2268,8 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				trio = ["Pine_A", "Cypress_A", "Pine_C"]
 			elif th == "farmland":            # (the Medieval Age: a stand of oaks; spruces round an old oak in the Darkwood)
 				trio = ["Oak_A", "Oak_C", "Oak_B"]
+			elif th == "jungle":
+				trio = ["Tree_B", "Palm_B", "Tree_C"]
 			elif th == "darkwood":
 				trio = ["Spruce_A", "Oak_A", "Spruce_B"]
 			for k in 3:
@@ -2242,6 +2297,15 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			_decor_single("Agave_B" if r.randf() < 0.5 else "Barrel_A", Vector3(rad * 0.55, 0, -rad * 0.35), r.randf() * TAU, 0.85, n)
 			return true
 		"ruins":
+			if th == "jungle":              # v0.9.61: the overgrown pyramid, or carved stelae and tumbled temple blocks
+				_ruins_n += 1
+				if _ruins_n == 2:
+					_decor_single("Pyramid", Vector3.ZERO, 0.0, rad / 2.4, n)
+				else:
+					_decor_single("Stela", Vector3(rad * 0.2, 0, -rad * 0.25), r.randf_range(-0.3, 0.3), 0.8, n)
+					_decor_single("Blocks", Vector3(-rad * 0.6, 0, rad * 0.1), r.randf() * TAU, 0.6, n)
+					_decor_single("Stela_B", Vector3(rad * 0.55, 0, rad * 0.6), r.randf() * TAU, 0.7, n)
+				return true
 			if th == "darkwood":            # the Medieval Age: a ruined chapel in the trees, toadstools and ferns by it
 				_decor_single("Chapel", Vector3.ZERO, r.randf() * TAU, rad / 1.55, n)
 				_decor_single("Toadstools", Vector3(rad * 0.75, 0, rad * 0.45), r.randf() * TAU, 0.8, n)
@@ -2252,6 +2316,28 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			for sp in spots:
 				var o2: Vector2 = sp[1] * rad
 				_decor_single(sp[0], Vector3(o2.x, 0, o2.y), r.randf() * TAU, sp[2], n)
+			return true
+		"crates":
+			if th == "harbor":                  # v0.9.61: contraband on the painted plank floors
+				_decor_single("Crates", Vector3(-rad * 0.25, 0, -rad * 0.2), r.randf_range(-0.15, 0.15), rad / 1.45, n)
+				_decor_single("Barrels", Vector3(rad * 0.6, 0, rad * 0.45), r.randf_range(-0.3, 0.3), 0.8, n)
+				_decor_single("Bales", Vector3(-rad * 0.35, 0, rad * 0.6), PI + r.randf_range(-0.2, 0.2), 0.75, n)
+				return true
+			if th == "fortress":                # a gun behind gabions turned on the fort, its powder and shot
+				_decor_single("Gun", Vector3(-rad * 0.2, 0, -rad * 0.3), PI * 0.5, 0.9, n)
+				_decor_single("Gabions", Vector3(rad * 0.62, 0, rad * 0.1), PI * 0.5, 0.75, n)
+				_decor_single("Powder", Vector3(-rad * 0.45, 0, rad * 0.5), r.randf() * TAU, 0.9, n)
+				_decor_single("Shot", Vector3(rad * 0.2, 0, rad * 0.6), r.randf() * TAU, 0.95, n)
+				return true
+			return false
+		"crater":                             # v0.9.61: debris round the pit's rim (kept off the +x side: the fort)
+			if th != "fortress":
+				return false
+			var rim := ["Wheels", "Rock_B", "Fascines", "Rock_A", "Shot"]
+			var rs := [0.5, 0.55, 0.5, 0.45, 0.8]
+			for k in 5:
+				var a12 := PI * (0.45 + 0.28 * k) + r.randf_range(-0.1, 0.1)
+				_decor_single(rim[k], Vector3(cos(a12), 0, sin(a12)) * rad * 1.15, PI * 0.5 - a12, rs[k], n)
 			return true
 		"pillar":
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
@@ -2311,6 +2397,7 @@ func _build_blockers() -> void:
 	r.seed = 5
 	_statue_n = 0
 	_building_n = 0
+	_ruins_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
@@ -3125,7 +3212,8 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
+	"war_drummer": 8, "isla": 1, "marco": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4787,6 +4875,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
+				elif u3 != null and u3.type == "war_drummer" and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_drum_beat(u3, tg3)                         # v0.9.61: the shockwave leaves the drumhead on his great beat
 				elif u3 != null and u3.type == "theron" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_theron_pulse(u3, tg3)                      # v0.9.46: the sun on his staff flares, a ring of gold runs out
@@ -4846,6 +4937,8 @@ func _handle_events() -> void:
 					elif pnode.has_meta("bolt_hq"):
 						bolt = true
 						_bolt_hit(pnode, ev)                # it drives into the ground there
+					elif pnode.has_meta("shell"):
+						_shell_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))   # v0.9.61: it bursts
 					elif pnode.has_meta("ball"):
 						_ball_hit(pnode, ev)                # v0.9.59: the musket ball strikes sparks off the robot
 					pnode.queue_free()
@@ -5160,6 +5253,7 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # (_gun_blast); it flies flat, a short bright streak settling onto the sim's projectile like the archers' arrows, and
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
+const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
@@ -5168,7 +5262,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	var e = sim._enemy_by_id(int(p.get("target", -1)))
 	var hit_h := _hit_height(e)
 	var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
-	var launch: Vector3 = yaw.global_transform * MUSKET_TIP
+	var launch: Vector3 = yaw.global_transform * (MUSKET_TIPS[str(u.type)] as Vector3)
 	root.position = launch
 	var aim: Vector2 = p.aim
 	root.set_meta("h0", launch.y)
@@ -5181,7 +5275,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 		root.look_at(tp, Vector3.UP)
 	if time_s - float(_musket_t.get(int(u.id), -9.0)) > 0.15:
 		_musket_t[int(u.id)] = time_s
-		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), 1.0)   # (along the barrel)
+		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), 1.0 if str(u.type) == "musketeer" else 0.7)
 
 
 ## The ball strikes: a small white flash on the robot's plating and a spray of sparks thrown back off it.
@@ -5782,6 +5876,69 @@ func _kira_cut(uid: int, tid: int) -> void:
 			sp.look_at_from_position(sp.position, sp.position + v, Vector3.UP if absf(v.normalized().y) < 0.95 else Vector3.RIGHT)
 			effects.append({"node": sp, "t": 0.0, "life": 0.2, "kind": "spark", "v": v})
 	_land_hit(tid, 0.04)
+
+
+# v0.9.61: Captain Isla's Broadside (anim_isla.py): she draws her cutlass and sweeps it down at frame 31 (the signal);
+# her ship's guns boom offshore and their balls come screaming down on the robots one after another, bursting where they hit.
+const ISLA_SIGNAL := 31
+func _isla_broadside(ev: Dictionary) -> void:
+	var hid := int(sim.hero.id)
+	var at0 := float(ISLA_SIGNAL) / CLIP_FPS
+	var ids: Array = ev.get("ids", [])
+	var hits: Array = ev.get("hits", [])
+	for i in hits.size():
+		var rid := int(ids[i]) if i < ids.size() else -1
+		if rid >= 0:
+			_hold_hit(rid, at0 + 0.3 + i * 0.12 + 0.45)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at0, at0, func() -> void:
+		_sfx("cannon", -2.0, 0.0, 0.4)
+		shake = maxf(shake, 0.3)
+		for i in hits.size():
+			var rid := int(ids[i]) if i < ids.size() else -1
+			var tp := _v3(hits[i])
+			var d := 0.3 + i * 0.12
+			_boulder_drop_fx(tp, d, rid)
+			_fx_after(d + 0.45, func() -> void: _shell_burst(Vector3(tp.x, 0.0, tp.z), 1.0))))
+
+
+# v0.9.61: Marco's Powder Keg (anim_marco.py): he lights the keg's fuse at his match, heaves it high and lets it go at
+# frame 45; it tumbles out in front of him and goes up in a huge blast that rolls out over the whole radius.
+const MARCO_KEG := Vector3(0.0, 1.8, 0.58)
+const MARCO_KEG_RELEASE := 45
+func _marco_keg(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var R := float(ev.get("radius", 5.5))
+	var at_r := float(MARCO_KEG_RELEASE) / CLIP_FPS
+	var fly := 0.45
+	for tid in ev.get("ids", []):
+		_hold_hit(int(tid), at_r + fly + 0.1)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_r, at_r, func() -> void:
+		var from := hp + Vector3(0, 1.2, 0)
+		var fwd := Vector3(0, 0, 1)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			var yt := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform
+			from = yt * MARCO_KEG
+			fwd = yt.basis * Vector3(0, 0, 1)
+			fwd.y = 0.0
+			fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3(0, 0, 1)
+		var land := Vector3(hp.x, 0.0, hp.z) + fwd * 1.6
+		var keg := _mi(_cyl(0.16, 0.16, 0.34, 10), _mat("keg_wood", Color(0.45, 0.28, 0.14), {"rough": 0.8}), self, from)
+		keg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_fire_halo(keg, 0.3)
+		var tw := create_tween()
+		tw.tween_method(func(k: float) -> void:
+			if is_instance_valid(keg):
+				keg.position = from.lerp(land + Vector3(0, 0.2, 0), k) + Vector3(0, 1.2 * 4.0 * k * (1.0 - k), 0)
+				keg.rotation = Vector3(k * 7.0, k * 3.0, 0), 0.0, 1.0, fly / maxf(float(speed), 0.01))
+		tw.tween_callback(func() -> void:
+			if is_instance_valid(keg):
+				keg.queue_free()
+			_shell_burst(land, 1.6)
+			_fire_splash(land, 1.4)
+			_ring_fx(land + Vector3(0, 0.3, 0), R, Color(1, 0.55, 0.2), 0.7)
+			_ring_fx(land + Vector3(0, 0.3, 0), R * 0.6, Color(1, 0.85, 0.45), 0.5)
+			_sfx("explosion", 0.0, 0.0, 0.5)
+			shake = maxf(shake, 0.9))))
 
 
 func _kira_flare(ev: Dictionary, hp: Vector3) -> void:
@@ -7019,6 +7176,55 @@ func _drone_heal(did: int, radius: float) -> void:
 					"v": Vector3(0, randf_range(0.8, 1.4), 0)})
 
 
+# v0.9.61: the Gunpowder Age's lobbed shells. The Cannon (anim_cannon.py) fires on Attack frame 2: its ball leaves the
+# muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
+# grenade from his hand on frame 10. Both burst where they land (_shell_burst).
+const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85]}
+func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
+	var g: Array = GUN_LOBS[str(u.type)]
+	_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
+	if str(u.type) == "marco":
+		_fire_halo(root, 0.3)                                # (its fuse fizzing)
+		root.set_meta("fire", true)
+	else:
+		root.set_meta("blast", true)
+	root.set_meta("shell", true)
+	root.set_meta("spin", true)
+	root.set_meta("lob_from", root.position)
+	root.set_meta("lob_cap", float(p.flight) * 0.6)
+	root.set_meta("lob_size", 0.45)
+	root.set_meta("lob_at", g[0])
+	root.set_meta("lob_throw_t", float(g[1]))
+	root.set_meta("lob_h", float(g[2]))
+	root.set_meta("lob_tid", int(u.id))
+	root.visible = false
+
+
+## A shell bursts: a ball of fire, dark smoke rolling up, earth and sparks thrown out, a scorch on the ground.
+func _shell_burst(ground: Vector3, r: float) -> void:
+	if _flash_mat == null:
+		_gun_blast(ground + Vector3(0, -50, 0), Vector3.UP, 0.1)   # (builds the flash material)
+	if _fx_room(2):
+		for s2 in [1.5 * r, 0.8 * r]:
+			var f := _mi(_fx_mesh("flash"), _flash_mat, self, ground + Vector3(0, 0.45, 0))
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.22, "kind": "flash", "s": s2})
+	var n: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	for i in n:
+		if not _fx_room(1):
+			break
+		var a := TAU * i / n + randf() * 0.5
+		var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.25, 0.23, 0.22, 0.7) if i % 2 else Color(0.55, 0.5, 0.45, 0.65)), self,
+			ground + Vector3(cos(a) * 0.2, 0.4, sin(a) * 0.2))
+		pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pf.scale = Vector3.ONE * 0.8 * r
+		effects.append({"node": pf, "t": 0.0, "life": randf_range(0.8, 1.2), "kind": "dust",
+			"v": Vector3(cos(a) * 1.4, randf_range(1.2, 2.2), sin(a) * 1.4) * r})
+	_pebble_fx(ground + Vector3(0, 0.3, 0))
+	_ground_decal(ground, "crack", 0.9 * r, 1.4)
+	shake = maxf(shake, 0.22)
+
+
 ## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
 ## cup at the top of the swing (ATTACK_FRAME): it flies from there in a high arc and lands when the sim's shot does.
 ## Path A throws burning pitch pots (riding on the balls in the cup and the heap too) that shatter where they land.
@@ -7082,6 +7288,9 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 			if go:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
 				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
+				if pn.has_meta("blast"):                     # (the Cannon fires: flash and smoke at the muzzle, a boom)
+					_gun_blast(pn.get_meta("lob_from"), (yt.basis * Vector3(0, 0.07, 1)).normalized(), 2.0)
+					shake = maxf(shake, 0.12)
 				pn.set_meta("s0", float(pn.get_meta("lob_size")) * yt.basis.get_scale().x)
 				# the pot lay along the throw in the cup (the stone bone's +Y = the Yaw node's +Z): it leaves that way
 				if pn.has_meta("pot"):
@@ -7099,7 +7308,7 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 	var k := clampf((t - d0) / maxf(float(p.flight) - d0, 0.05), 0.0, 1.0)
 	pn.scale = Vector3.ONE * lerpf(float(pn.get_meta("s0", TORSION_FLY)), TORSION_FLY, smoothstep(0.0, 0.3, k))
 	var to := _v3(p.aim, 0.2)
-	var h := 2.4 * minf(from.distance_to(to) / 6.0, 1.0) + 0.7
+	var h := (2.4 * minf(from.distance_to(to) / 6.0, 1.0) + 0.7) * float(pn.get_meta("lob_h", 1.0))
 	return from.lerp(to, k) + Vector3(0, h * 4.0 * k * (1.0 - k), 0)
 
 
@@ -7545,6 +7754,40 @@ func _theron_sun(uid: int, p: Vector3) -> Vector3:
 	return Vector3.INF
 
 
+# v0.9.61: the War Drummer (anim_drummer.py) brings both sticks down on the drumhead on Attack frame 8 (BEAT): a flash
+# on the head, rings of sound rolling out from the drum over his whole reach, and every robot in it jolted.
+const DRUM_HEAD := Vector3(0.219, 0.833, 0.442)
+func _drum_beat(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var ids := targets.duplicate()
+	var R := float(u.stats.get("range", 3.6))
+	var col: Color = PULSE_COLORS.get("war_drummer", Color(1.0, 0.85, 0.6))
+	if str(u.get("branch", "")) == "B":
+		col = Color(1, 0.5, 0.1)
+	_at_attack_frame(uid, float(ATTACK_FRAME.war_drummer), 0.1, func() -> void:
+		var head := _v3(u.pos, 0.5)
+		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+			head = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * DRUM_HEAD
+		if _fx_room(1):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, head + Vector3(0, 0.08, 0))
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.16, "kind": "flash", "s": 0.7})
+		var ring_at := Vector3(head.x, 0.3, head.z)
+		_ring_fx(ring_at, R, col, 0.55)
+		_ring_fx(ring_at, R * 0.62, col.lerp(Color.WHITE, 0.4), 0.42)
+		var cap: int = [8, 5, 2][clampi(Progress.gfx_level(), 0, 2)]
+		var i := 0
+		for tid in ids:
+			if i >= cap or not _fx_room(2):
+				break
+			var at := _robot_point(int(tid), 0.15)
+			if at == Vector3.INF:
+				continue
+			_dust_fx(at, 2, 0.5)
+			i += 1
+		shake = maxf(shake, 0.08))
+
+
 func _theron_pulse(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var ids := targets.duplicate()
@@ -7959,8 +8202,11 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if utype == "crossbowman" and u != null and _hq_clips(int(u.id)):
 		_arrow_proj(root, p, u, dt)            # v0.9.51: a real bolt, loosed from the HQ Crossbowman's crossbow
 		return root
-	if utype == "musketeer" and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+	if MUSKET_TIPS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		_musket_proj(root, p, u)               # v0.9.59: a ball from the HQ Musketeer's muzzle, in fire and smoke
+		return root
+	if GUN_LOBS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		_gun_lob(root, p, u)                    # v0.9.61: the Cannon's ball from its muzzle, Marco's grenade from his hand
 		return root
 	if pj != "" and pj != "arrow" and pj != "rock":
 		_proj_model(root, pj, dt)
@@ -8150,6 +8396,10 @@ func _ability_fx(ev: Dictionary) -> void:
 				_kael_storm(ev)                             # v0.9.36: javelins rain from the sky after the one he hurls up
 				_banner(aname, Color(0.6, 0.9, 0.45))
 				return
+			if sim.hero != null and str(sim.hero.type) == "isla" and _hq_clips(int(sim.hero.id)):
+				_isla_broadside(ev)                         # v0.9.61: her cutlass falls and her ship's guns pound them
+				_banner(aname, Color(0.95, 0.75, 0.35))
+				return
 			if sim.hero != null and str(sim.hero.type) == "wren" and _hq_clips(int(sim.hero.id)):
 				_wren_rain(ev)                              # v0.9.53: her three volleys loosed high come down on them
 				_banner(aname, Color(0.55, 0.85, 0.4))
@@ -8179,6 +8429,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			if sim.hero != null and str(sim.hero.type) == "theron" and _hq_clips(sim.hero.id):
 				_theron_prophecy(ev, hp)                    # v0.9.46: the great eye opens over him, the sun burns them
 				_banner(aname, Color(1.0, 0.86, 0.45))
+				return
+			if sim.hero != null and str(sim.hero.type) == "marco" and _hq_clips(sim.hero.id):
+				_marco_keg(ev, hp)                          # v0.9.61: he heaves the lit keg and it goes up in a huge blast
+				_banner(aname, Color(1.0, 0.55, 0.2))
 				return
 			if sim.hero != null and _hq_clips(sim.hero.id):
 				_kira_flare(ev, hp)                         # v0.9.25: the raised sword blazes, a wave of sunlight rolls out
