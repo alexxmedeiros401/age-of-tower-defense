@@ -3093,7 +3093,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 # either side of it agree.
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
-	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1}
+	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -3176,9 +3176,15 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 			m.emission_enabled = true
 			m.emission = Color(1.0, 0.33, 0.05)
 			m.emission_energy_multiplier = 0.9
-		"puddle", "puddle_hot":
+		"acid":                                      # v0.9.52: the Alchemist's brew: glowing green
+			m.albedo_color = Color(0.3, 0.85, 0.15)
+			m.roughness = 0.15
+			m.emission_enabled = true
+			m.emission = Color(0.35, 1.0, 0.2)
+			m.emission_energy_multiplier = 0.8
+		"puddle", "puddle_hot", "puddle_acid":
 			# painted, not lit: a lit glossy plane mirrors the sky at the game's low angles and reads as a pale patch
-			m.albedo_texture = _puddle_tex(key == "puddle_hot")
+			m.albedo_texture = _puddle_tex(key == "puddle_hot", key == "puddle_acid")
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		"crack", "crater":
@@ -3333,8 +3339,8 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 
 ## A tar puddle, painted: a black pool with a few satellite drops, a brown rim and a glossy highlight. The burning
 ## kind (Path B) is darker red-black with glowing embers and a hot rim.
-func _puddle_tex(hot: bool) -> Texture2D:
-	var key := "tex_puddle_hot" if hot else "tex_puddle"
+func _puddle_tex(hot: bool, acid := false) -> Texture2D:
+	var key := "tex_puddle_acid" if acid else ("tex_puddle_hot" if hot else "tex_puddle")
 	if _atk_cache.has(key):
 		return _atk_cache[key]
 	var w := 64
@@ -3347,6 +3353,9 @@ func _puddle_tex(hot: bool) -> Texture2D:
 		embers.append(Vector3(r.randf_range(-0.48, 0.48), r.randf_range(-0.48, 0.48), r.randf_range(0.025, 0.06)))
 	var body := Color(0.075, 0.03, 0.015) if hot else Color(0.04, 0.032, 0.027)
 	var rimc := Color(1.0, 0.45, 0.1) if hot else Color(0.16, 0.115, 0.075)
+	if acid:
+		body = Color(0.08, 0.26, 0.04)
+		rimc = Color(0.55, 1.0, 0.3)
 	for y in w:
 		for x in w:
 			var px := (x + 0.5) / w * 2.0 - 1.0
@@ -3615,18 +3624,44 @@ func _tar_volley(u: Dictionary, targets: Array) -> void:
 		i += 1
 
 
-func _tar_spit(uid: int, targets: Array) -> void:
+## v0.9.52: the Alchemist tips her flask into the crucible and the brew erupts (anim_alchemist.ERUPT): globs of it arc
+## out onto every robot the pulse hit (capped) and splash there, green (the Firebrewer's burn: burning tar). The robots'
+## hits are held now; the brew leaves the crucible as her clip reaches the eruption.
+const ALCH_BREW := Vector3(0.0, 0.76, 0.0)        # the brew's surface in the crucible (model units, Godot axes, Yaw node)
+func _brew_volley(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var lead := _at_attack_frame(uid, ATTACK_FRAME.alchemist, 0.0, func() -> void: _tar_spit(uid, targets, true))
+	var i := 0
+	for tid in targets:
+		var to := _robot_point(int(tid), 0.55)
+		if to == Vector3.INF:
+			continue
+		var dist := _v3(u.pos, 0.0).distance_to(Vector3(to.x, 0.0, to.z))
+		_hold_hit(int(tid), lead + 0.04 * i + 0.26 + dist * 0.045)
+		i += 1
+
+
+func _brew_point(uid: int) -> Vector3:
+	var tn: Node3D = tower_nodes.get(uid)
+	if tn != null and is_instance_valid(tn) and tn.has_meta("yaw"):
+		return (tn.get_meta("yaw") as Node3D).global_transform * (ALCH_BREW + Vector3(0, 0.08, 0))
+	var u = sim.get_unit(uid)
+	return _v3(u.pos, 0.9) if u != null else Vector3.ZERO
+
+
+func _tar_spit(uid: int, targets: Array, acid := false) -> void:
 	var u = sim.get_unit(uid)
 	if u == null:                                     # (sold mid-thrust)
 		for tid in targets:
 			_land_hit(int(tid))
 		return
 	var hot := str(u.get("branch", "")) == "B"
+	acid = acid and not hot                           # (the Firebrewer's brew burns: it flies as burning tar)
 	var cap: int = [8, 5, 3][clampi(Progress.gfx_level(), 0, 2)]
 	var face: Vector2 = u.facing
 	if tower_nodes.has(uid) and (tower_nodes[uid] as Node3D).has_meta("face_to"):
 		face = (tower_nodes[uid] as Node3D).get_meta("face_to")      # (he turned to face it as he wound up)
-	var from := _orb_point(u, face)
+	var from := _orb_point(u, face) if not (str(u.type) == "alchemist") else _brew_point(uid)
 	var i := 0
 	var rest := []
 	var last := 0.0
@@ -3643,7 +3678,7 @@ func _tar_spit(uid: int, targets: Array) -> void:
 		g.visible = false
 		var gs := randf_range(0.75, 1.0) if i > 0 else 1.05
 		g.scale = Vector3.ONE * gs
-		var tm := _atk_mat("tar_hot" if hot else "tar")
+		var tm := _atk_mat("tar_hot" if hot else ("acid" if acid else "tar"))
 		var core := _mi(_sph_c(0.1, 12), tm, g)
 		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		g.set_meta("core", core)
@@ -3657,11 +3692,11 @@ func _tar_spit(uid: int, targets: Array) -> void:
 		var dist := _v3(u.pos, 0.0).distance_to(Vector3(to.x, 0.0, to.z))
 		var dur := 0.26 + dist * 0.045
 		effects.append({"node": g, "t": -0.04 * i, "life": dur, "kind": "glob", "src": uid, "tid": int(tid),
-			"from": from, "to": to, "dur": dur, "arc": (0.4 + dist * 0.12) * randf_range(0.8, 1.2), "hot": hot})
+			"from": from, "to": to, "dur": dur, "arc": (0.4 + dist * 0.12) * randf_range(0.8, 1.2), "hot": hot, "acid": acid})
 		last = maxf(last, 0.04 * i + dur)
 		i += 1
 	if i > 0:
-		_orb_spit(uid, from, hot)
+		_orb_spit(uid, from, hot, acid)
 	if not rest.is_empty():
 		_fx_after(last, func() -> void:
 			for rt in rest:
@@ -3690,10 +3725,11 @@ func _tick_glob(fx: Dictionary, n: Node3D) -> void:
 		fx.landed = true
 		var at: Vector3 = fx.to
 		var hot: bool = fx.hot
+		var acid: bool = fx.get("acid", false)
 		var tid := int(fx.tid)
 		_fx_queue.append(func() -> void:
-			_tar_splat(Vector3(at.x, 0.0, at.z), at.y, hot)
-			_tar_mark(tid, hot)
+			_tar_splat(Vector3(at.x, 0.0, at.z), at.y, hot, acid)
+			_tar_mark(tid, hot, acid)
 			_land_hit(tid))
 
 
@@ -3768,15 +3804,17 @@ func _orb_point(u: Dictionary, face: Vector2) -> Vector3:
 
 
 ## The spirit stone spits: a few drops of tar spray off it as the volley leaves (not if he was sold meanwhile).
-func _orb_spit(uid: int, at: Vector3, hot: bool) -> void:
+func _orb_spit(uid: int, at: Vector3, hot: bool, acid := false) -> void:
 	if sim.get_unit(uid) == null:
 		return
+	if acid or str(sim.get_unit(uid).type) == "alchemist":     # (the crucible boils over: a puff of vapour)
+		_dust_fx(at + Vector3(0, 0.15, 0), 3, 0.55, Color(0.45, 0.95, 0.35, 0.45) if not hot else Color(0.4, 0.3, 0.25, 0.5))
 	var drops: int = [4, 2, 0][clampi(Progress.gfx_level(), 0, 2)]
 	if drops == 0 or not _fx_room(drops):
 		return
 	for i in drops:
 		var sz := randf_range(0.035, 0.06)
-		var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else "tar"), self, at, Vector3.ZERO, Vector3.ONE * sz)
+		var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else ("acid" if acid else "tar")), self, at, Vector3.ZERO, Vector3.ONE * sz)
 		dp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var a := randf() * TAU
 		effects.append({"node": dp, "t": 0.0, "life": randf_range(0.3, 0.45), "kind": "debris", "s": sz,
@@ -3784,13 +3822,14 @@ func _orb_spit(uid: int, at: Vector3, hot: bool) -> void:
 
 
 ## A robot a glob hit wears the tar (glossy black splotches and drips oozing down it) until its slow wears off.
-func _tar_mark(tid: int, hot: bool) -> void:
+func _tar_mark(tid: int, hot: bool, acid := false) -> void:
 	var e = sim._enemy_by_id(tid)
 	if e == null or not enemy_nodes.has(tid) or not is_instance_valid(enemy_nodes[tid]):
 		return
 	var n: Node3D = enemy_nodes[tid]
 	n.set_meta("tar_until", maxi(int(e.slow_until), sim.tick + int(0.6 / TICK)))
 	n.set_meta("tar_hot", hot)
+	n.set_meta("tar_acid", acid)
 
 
 const TAR_COAT_SHADER := """
@@ -3834,8 +3873,8 @@ void fragment() {
 
 
 ## Shared tar-coat overlays: full, wearing off, almost gone (and the burning set for Path B).
-func _tar_mats(hot: bool) -> Array:
-	var key := "coat_hot" if hot else "coat"
+func _tar_mats(hot: bool, acid := false) -> Array:
+	var key := "coat_hot" if hot else ("coat_acid" if acid else "coat")
 	if _atk_cache.has(key):
 		return _atk_cache[key]
 	if not _atk_cache.has("coat_shader"):
@@ -3850,6 +3889,9 @@ func _tar_mats(hot: bool) -> Array:
 		if hot:
 			m.set_shader_parameter("tint", Color(0.16, 0.05, 0.02))
 			m.set_shader_parameter("glow", Color(1.0, 0.35, 0.06))
+		elif acid:
+			m.set_shader_parameter("tint", Color(0.2, 0.6, 0.08))
+			m.set_shader_parameter("glow", Color(0.3, 0.9, 0.15))
 		arr.append(m)
 	_atk_cache[key] = arr
 	return arr
@@ -3863,7 +3905,7 @@ func _tar_coat(n: Node3D, gl: int) -> void:
 		if left <= 0.0:
 			n.remove_meta("tar_until")
 		elif gl < 2:
-			want = _tar_mats(bool(n.get_meta("tar_hot", false)))[0 if left > 0.5 else (1 if left > 0.25 else 2)]
+			want = _tar_mats(bool(n.get_meta("tar_hot", false)), bool(n.get_meta("tar_acid", false)))[0 if left > 0.5 else (1 if left > 0.25 else 2)]
 	var had: Material = n.get_meta("tar_mat") if n.has_meta("tar_mat") else null
 	if had == want:
 		return
@@ -3877,19 +3919,19 @@ func _tar_coat(n: Node3D, gl: int) -> void:
 
 
 ## A glob hits: black drops fly, a dark splash, and a puddle of tar spreads on the ground and fades.
-func _tar_splat(ground: Vector3, h: float, hot: bool) -> void:
-	_ground_decal(ground, "puddle_hot" if hot else "puddle", randf_range(0.8, 1.05), 1.7)
+func _tar_splat(ground: Vector3, h: float, hot: bool, acid := false) -> void:
+	_ground_decal(ground, "puddle_hot" if hot else ("puddle_acid" if acid else "puddle"), randf_range(0.8, 1.05), 1.7)
 	var drops: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
 	if _fx_room(drops):
 		for i in drops:
 			var sz := randf_range(0.05, 0.09)
-			var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else "tar"), self, ground + Vector3(0, minf(h, 0.6), 0), Vector3.ZERO,
+			var dp := _mi(_sph_c(0.5, 6), _atk_mat("tar_hot" if hot else ("acid" if acid else "tar")), self, ground + Vector3(0, minf(h, 0.6), 0), Vector3.ZERO,
 				Vector3.ONE * sz)
 			dp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			var a := randf() * TAU
 			effects.append({"node": dp, "t": 0.0, "life": randf_range(0.35, 0.55), "kind": "debris", "s": sz,
 				"v": Vector3(cos(a) * randf_range(1.2, 2.4), randf_range(1.5, 3.0), sin(a) * randf_range(1.2, 2.4))})
-	_dust_fx(ground + Vector3(0, 0.3, 0), 2, 0.5, Color(0.12, 0.1, 0.08, 0.55))
+	_dust_fx(ground + Vector3(0, 0.3, 0), 2, 0.5, Color(0.12, 0.1, 0.08, 0.55) if not acid else Color(0.45, 0.95, 0.35, 0.45))
 	if hot and _fx_room(1):
 		var fl := _mi(_flame_quad(0.4, 0.58), _campfire_mat("outer"), self, ground + Vector3(0, 0.02, 0))
 		fl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -4507,7 +4549,7 @@ func _handle_events() -> void:
 	for ev0 in sim.events:
 		if ev0.e in ["pulse", "slam"] and not (ev0.get("targets", []) as Array).is_empty():
 			var u0 = sim.get_unit(ev0.id)
-			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle", "theron", "cassia"]
+			if u0 != null and (u0.type in ["tar_shaman", "mara", "club_warrior"] or (u0.type in ["spear_guard", "brenna", "sun_priest", "kira", "legionary", "oracle", "theron", "cassia", "alchemist"]
 					and _hq_clips(ev0.id))):
 				for t0 in ev0.targets:
 					_atk_pending[int(t0)] = true
@@ -4695,6 +4737,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "theron" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_theron_pulse(u3, tg3)                      # v0.9.46: the sun on his staff flares, a ring of gold runs out
+				elif u3 != null and u3.type == "alchemist" and not tg3.is_empty() and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_brew_volley(u3, tg3)                       # v0.9.52: the brew erupts from her crucible onto them
 				elif u3 != null:
 					var pcol := Color(0.4, 1.0, 0.5)
 					if u3.type == "sun_priest":
@@ -6665,7 +6710,7 @@ const TORSION_FLY := 0.75                           # the shot's size in flight 
 # v0.9.43: the Onager (anim_onager.py) throws the same way, from its sling: the stone leaves the pouch as the sling whips
 # over the arm's tip (its SLAM, frame 7, the same clip time). Path A's fire pots ride its stone and carry bones too.
 const ONAGER_STONE := Vector3(0.3, 1.394, 0.89)     # the stone as the sling lets it go (model units, Godot axes, Yaw node)
-const TREB_STONE := Vector3(1.05, 3.269, 0.873)     # v0.9.51: the Trebuchet's stone as the sling lets go (anim_trebuchet.THROW)
+const TREB_STONE := Vector3(0.43, 3.269, 1.013)     # v0.9.51: the Trebuchet's stone as the sling lets go (anim_trebuchet.THROW)
 const LOB_FROM := {"torsion_catapult": TORSION_BALL, "onager": ONAGER_STONE, "trebuchet": TREB_STONE}
 const LOB_THROW_T := {"trebuchet": 0.42}           # (Blender frame 10 lands on the importer's 30 Hz sample at 0.433 s)
 
