@@ -209,7 +209,7 @@ def flag(o, L, H, seed=0, th=0.007, wave=0.035, swallow=False, along=(1, 0, 0)):
     return leaf(o, d, v3((0, 0, 1)), [(a, b) for a, b in poly], th, wave=(wave, 2 * math.pi / (L * 0.9)))
 
 
-def flag_paint(f, o, L, H, d=(1, 0, 0), saltire=0.06, border=0.04, label=6):
+def flag_paint(f, o, L, H, d=(1, 0, 0), saltire=0.04, border=0.028, label=6):
     """Paint the army's flag (made by `flag` at o, L x H, flying along d): a gold saltire (label 6) and a gold border
     on its crimson."""
     d = unit(d)
@@ -2729,28 +2729,28 @@ def gunpowder_city(seed=0):
     sc.sub(convex([((gx0 - 0.04, 0, 2.56), (0, 1.0, 1.45)), ((gx0 - 0.04, 0, 2.56), (0, -1.0, 1.45)), ((gx0 - 0.075, 0, 0), (-1, 0, 0)),
                    ((gx0 - 0.02, 0, 0), (1, 0, 0)), ((gx0, 0, 2.1), (0, 0, -1))], (gx0 - 0.15, -gw, 2.0), (gx0 + 0.1, gw, 2.7)), k=0.004)
     sh_c = v3((gx0 - 0.05, 0, 2.27))                                # the arms in the tympanum: the shield
-    sc.add(RoundBox(sh_c, (0.03, 0.11, 0.08), 0.02), k=0.004)
-    sc.add(RoundCone(sh_c + v3((0, 0, -0.06)), sh_c + v3((0, 0, -0.15)), 0.08, 0.012), k=0.02)
-    cr = sh_c + v3((-0.01, 0, 0.13))                                # the crown over it
-    sc.add(RoundBox(cr, (0.025, 0.09, 0.02), 0.008), k=0.004)
+    shield = [RoundBox(sh_c, (0.03, 0.11, 0.08), 0.02), RoundCone(sh_c + v3((0, 0, -0.06)), sh_c + v3((0, 0, -0.15)), 0.08, 0.012)]
+    sc.add(shield[0], k=0.004)
+    sc.add(shield[1], k=0.02)
+    cr = sh_c + v3((0.01, 0, 0.13))                                 # the crown over it (set on the tympanum)
+    gilt = [RoundBox(cr, (0.025, 0.09, 0.02), 0.008)]
     for k in range(5):
         y = -0.08 + k * 0.04
-        sc.add(RoundCone(cr + v3((0, y, 0.01)), cr + v3((-0.005, y, 0.06 if k % 2 == 0 else 0.045)), 0.012, 0.006), k=0.004)
-        sc.add(Sphere(cr + v3((-0.005, y, 0.065 if k % 2 == 0 else 0.05)), 0.012), k=0.003)
+        gilt.append(RoundCone(cr + v3((0, y, 0.01)), cr + v3((-0.005, y, 0.06 if k % 2 == 0 else 0.045)), 0.012, 0.006))
+        gilt.append(Sphere(cr + v3((-0.005, y, 0.065 if k % 2 == 0 else 0.05)), 0.012))
     for sg in (-1, 1):                                              # gilded palms either side
         for k in range(4):
-            sc.add(Ellipsoid(sh_c + v3((-0.01, sg * (0.16 + 0.05 * k), -0.08 + 0.06 * k)), (0.012, 0.05, 0.018), R=euler(sg * (0.5 + 0.3 * k), 0, 0)),
-                   k=0.004)
+            gilt.append(Ellipsoid(sh_c + v3((0.02, sg * (0.15 + 0.045 * k), -0.1 + 0.05 * k)), (0.012, 0.045, 0.017),
+                                  R=euler(sg * (0.5 + 0.3 * k), 0, 0)))
+    for gp in gilt:
+        sc.add(gp, k=0.004)
     sc.paint(Func(lambda P: (P[:, 2] - F32(0.32)).astype(F32), (lo_xy[0], lo_xy[1], -0.2), (hi_xy[0], hi_xy[1], 3)), 7)     # grime at the foot
-    sc.paint(Func(lambda P: (np.maximum(np.abs(P[:, 1]) - F32(0.12), np.abs(P[:, 2] - F32(2.2)) - F32(0.16))).astype(F32),
-                  sh_c - 0.4, sh_c + 0.4), 5)                       # the shield crimson...
+    sc.paint(Func(lambda P: (np.minimum(shield[0](P), shield[1](P)) - F32(0.006)).astype(F32), sh_c - 0.3, sh_c + 0.3), 5)   # the shield crimson...
     for sg in (-1, 1):                                              # ...with the gold saltire
         R = rot_from_axes(x_axis=(0, math.cos(sg * 0.85), math.sin(sg * 0.85)), y_axis=(1, 0, 0))
         sc.paint(RoundBox(sh_c + v3((-0.04, 0, -0.03)), (0.16, 0.06, 0.022), 0.0, R=R), 6)
-    sc.paint(Func(lambda P: (np.maximum(np.abs(P[:, 1]) - F32(0.11), np.abs(P[:, 2] - F32(cr[2] + 0.03)) - F32(0.06))).astype(F32), cr - 0.3, cr + 0.3), 6)
-    for sg in (-1, 1):
-        sc.paint(Func(lambda P, sg=sg: (np.maximum(np.abs(P[:, 1] - F32(sg * 0.24)) - F32(0.11), np.abs(P[:, 2] - F32(2.3)) - F32(0.15))).astype(F32),
-                      sh_c - 0.5, sh_c + 0.5), 6)
+    for gp in gilt:                                                 # the crown and the palms gilded (painted by their own shapes)
+        sc.paint(Func(lambda P, gp=gp: (gp(P) - F32(0.008)).astype(F32), gp.lo - 0.02, gp.hi + 0.02), 6)
     # the arch and the passage behind it, the voussoirs, the keystone
     sc.sub(Func(lambda P: np.maximum(_arch2(P[:, 1], P[:, 2], 0.42, 0.98), np.maximum(F32(gx0 - 0.2) - P[:, 0], P[:, 0] - F32(XI + 0.2))).astype(F32),
                 (gx0 - 0.25, -0.6, -0.2), (XI + 0.25, 0.6, 1.5)), k=0.01)
@@ -2831,7 +2831,7 @@ def gunpowder_city(seed=0):
     fg = Field("Flag")
     fo = pc + v3((0, 0.03, 3.04))
     fg.add(flag(fo, 0.95, 0.62, seed, along=(0, 1, 0), wave=0.05), k=0.0)
-    flag_paint(fg, fo, 0.95, 0.62, d=(0, 1, 0), saltire=0.085, border=0.05)
+    flag_paint(fg, fo, 0.95, 0.62, d=(0, 1, 0), saltire=0.05, border=0.032)
     out.append(("Flag", fg, fine(0.005, 0.01), "flag"))
     # ---- inside: the barracks (a chimney smoking) and the church
     for i, (c, hx, hy, yaw) in enumerate((((3.15, -2.45), 1.05, 0.48, math.pi / 2), ((3.15, 2.45), 1.05, 0.48, -math.pi / 2),
