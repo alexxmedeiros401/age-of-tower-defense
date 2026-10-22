@@ -477,12 +477,12 @@ if THEME == "fortress":
     if par:
         td, _tal, tsd = g.poly_dist(par, margin=1.2, signed=True)
         # (a parallel runs toward +z, so its +x side has a negative signed distance)
-        gp_b = np.exp(-((td - 0.4) / 0.16) ** 2) * np.clip(-tsd / 0.1, 0, 1) + 0.3 * np.exp(-((td - 0.3) / 0.1) ** 2) * np.clip(tsd / 0.1, 0, 1)
+        gp_b = np.exp(-((td - 0.46) / 0.18) ** 2) * np.clip(-tsd / 0.1, 0, 1) + 0.3 * np.exp(-((td - 0.34) / 0.1) ** 2) * np.clip(tsd / 0.1, 0, 1)
     if saps:
         sd2, _sal = g.poly_dist(saps, margin=1.2)
-        gp_b = np.maximum(gp_b, 0.55 * np.exp(-((sd2 - 0.34) / 0.12) ** 2) * np.clip((sd2 - 0.1) / 0.1, 0, 1))
+        gp_b = np.maximum(gp_b, 0.55 * np.exp(-((sd2 - 0.38) / 0.12) ** 2) * np.clip((sd2 - 0.14) / 0.1, 0, 1))
         td = np.minimum(td, sd2)
-    gp_a = np.clip((0.16 - td) / 0.05, 0, 1)
+    gp_a = np.clip((0.2 - td) / 0.05, 0, 1)
     gp_b = gp_b * (1 - gp_a)
     # wheel ruts across the field, where the besiegers dragged their guns: pairs of grooves along wandering curves
     tracks = []
@@ -625,8 +625,8 @@ if THEME == "harbor":
     hf += gp_b * (0.05 + rut * 0.02)                                                                # the decks and floors on joists
 if THEME == "fortress":
     hf += (fbm(1.0, 4, 221) - 0.5) * 0.05 * (1 - road) + (fbm(0.25, 2, 222) - 0.5) * 0.02 * (1 - road)   # churned
-    hf -= crater * 0.2
-    hf += crater_rim * 0.06
+    hf -= crater * 0.28
+    hf += crater_rim * 0.07
     hf -= gp_a * 0.1                                                                                # the trenches
     hf += gp_b * 0.07                                                                               # their spoil heaps
     hf -= gp_c * 0.014                                                                              # wheel ruts across the field
@@ -1196,9 +1196,9 @@ elif THEME == "jungle":
     clay = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(30.0, "Distance"), 0.22, 0.1), 0.25), clay, (0.32, 0.16, 0.09))
     clay = nb.mix(nb.math("MULTIPLY", rut_m, nb.mixf(nb.ramp(nb.noise(2.5, 2, 0.6), 0.3, 0.7), 0.25, 0.55)), clay, (0.33, 0.15, 0.08))
     clay = nb.mix(nb.math("MULTIPLY", nb.ramp(gpb_m, 0.0, 0.45), 0.85), clay, (0.27, 0.11, 0.05))       # wet clay round the puddles
-    pud = nb.mix(nb.ramp(nb.noise(0.9, 3, 0.6), 0.3, 0.7), (0.36, 0.18, 0.1), (0.44, 0.23, 0.13))
-    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.45, 2, 0.5), 0.35, 0.8), 0.45), pud, (0.56, 0.47, 0.44))   # the sky's sheen
-    pud = nb.mix(nb.math("MULTIPLY", nb.math("MULTIPLY", nb.ramp(gpb_m, 0.45, 0.55), nb.ramp(gpb_m, 0.72, 0.58)), 0.6), pud, (0.68, 0.56, 0.5))
+    pud = nb.mix(nb.ramp(nb.noise(0.9, 3, 0.6), 0.3, 0.7), (0.32, 0.14, 0.075), (0.4, 0.19, 0.1))
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.45, 2, 0.5), 0.45, 0.85), 0.25), pud, (0.5, 0.34, 0.28))   # the sky's sheen
+    pud = nb.mix(nb.math("MULTIPLY", nb.math("MULTIPLY", nb.ramp(gpb_m, 0.45, 0.52), nb.ramp(gpb_m, 0.66, 0.56)), 0.45), pud, (0.58, 0.4, 0.32))
     clay = nb.mix(nb.ramp(gpb_m, 0.45, 0.6), clay, pud)
     # the causeway: old stones, warm and grey, moss in the joints and over them, worn smooth in the wheel tracks
     sj = nb.ramp(nb.voronoi(4.5, "Distance", "DISTANCE_TO_EDGE"), 0.015, 0.06)
@@ -1289,11 +1289,17 @@ elif THEME == "fortress":
     c = nb.mix(nb.ramp(gpa_m, 0.0, 0.35), c, wall)
     ditch = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.17, 0.13, 0.09), (0.23, 0.17, 0.11))   # its floor, trodden and wet
     c = nb.mix(nb.ramp(gpa_m, 0.6, 0.95), c, ditch)
-    crat = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.22, 0.17, 0.11), (0.3, 0.23, 0.15))                      # raw earth in the bowl
-    c = nb.mix(crater_m, c, crat)
-    c = nb.mix(nb.math("MULTIPLY", rim_m, 0.7), c, (0.4, 0.31, 0.2))                                    # the thrown-up rim
-    burnt = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.08, 0.07, 0.06), (0.2, 0.17, 0.13))    # scorched, sooty
-    c = nb.mix(nb.math("MULTIPLY", gpd_m, 0.85), c, burnt)
+    # a crater: raw earth darkening down into the bowl, a ring of earth thrown up round it, the blast's soot in rays beyond
+    # (and in patches over the rim)
+    burnt = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.09, 0.08, 0.07), (0.21, 0.18, 0.14))   # scorched, sooty
+    soot = nb.math("MULTIPLY", gpd_m, nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", rim_m, 0.55)),
+                                              nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", crater_m, 0.8))))
+    c = nb.mix(nb.math("MULTIPLY", soot, 0.88), c, burnt)
+    crat = nb.mix(nb.ramp(crater_m, 0.0, 0.7), (0.34, 0.26, 0.16), (0.12, 0.09, 0.065))
+    crat = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.55, 0.7), 0.35), crat, (0.1, 0.085, 0.07))   # soot in it
+    c = nb.mix(nb.ramp(crater_m, 0.0, 0.12), c, crat)
+    rimc = nb.mix(nb.ramp(nb.noise(8.0, 3, 0.6), 0.3, 0.7), (0.4, 0.3, 0.19), (0.5, 0.39, 0.25))       # the thrown-up rim
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(rim_m, 0.25, 0.75), nb.math("SUBTRACT", 0.9, nb.math("MULTIPLY", gpd_m, 0.4))), c, rimc)
     camp = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.4, 0.33, 0.22), (0.5, 0.42, 0.29))      # trodden by the dumps
     c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.8), c, camp)
     grav = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.47, 0.42, 0.34), (0.57, 0.51, 0.41))    # the gravel road
@@ -2003,7 +2009,7 @@ elif THEME == "jungle":
             for _ in range(int(RNG.integers(3, 8))):
                 pts.append((cx + RNG.normal(0, 0.11), cz + RNG.normal(0, 0.11)))
         merged("Flowers%d" % k, flower_template(5, 0.032), place_list(pts, 0.8, 1.25), simple_mat("Petal%d" % k, col, 0.45))
-    root_mesh("Roots", ROOTS, simple_mat("Root", (0.34, 0.26, 0.17), 0.75, var=(0.46, 0.37, 0.25)))
+    root_mesh("Roots", ROOTS, simple_mat("Root", (0.28, 0.21, 0.14), 0.75, var=(0.38, 0.3, 0.2)))
     stone = simple_mat("Stone", (0.32, 0.36, 0.28), 0.8, var=(0.44, 0.48, 0.36))
     pts = scatter(100, lambda x, z: (np.abs(rd(x, z) - HALF - 0.35) < 0.35) & no_blk(x, z))
     merged("Stones", blob_template(2), place_list(pts, 0.05, 0.12, sink=0.45, tilt=0.2), stone)
