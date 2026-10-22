@@ -1,0 +1,12 @@
+[
+ {
+  "name": "wren",
+  "cmd": "O=$GITHUB_WORKSPACE/out/wren; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character wren --fine --out $O/hi/wren_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module wren_base --fine --out $O/hi/wren_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character wren --char $O/hi/wren_hi.blend --base $O/hi/wren_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/wren"
+ },
+ {
+  "name": "alch",
+  "cmd": "O=$GITHUB_WORKSPACE/out/alch; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character alchemist --fine --out $O/hi/alchemist_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module alchemist_base --fine --out $O/hi/alchemist_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character alchemist --char $O/hi/alchemist_hi.blend --base $O/hi/alchemist_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/alch"
+ }
+]
