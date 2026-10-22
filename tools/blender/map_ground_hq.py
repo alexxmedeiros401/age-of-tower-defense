@@ -294,6 +294,8 @@ def _in_tex(x, z, pad=1.0):
 
 
 if THEME == "jungle":
+    if zf["fast"]:      # the causeway spans the whole road (no strip of clay down its sides); its end is ragged
+        lane = np.maximum(lane, road * np.clip((HALF + 0.25 + (fbm(0.3, 2, 184) - 0.5) * 0.4 - fd) / 0.05, 0, 1))
     # worn paving round the ruins (the pyramid's foot): flagstones out past the blocker, broken off ragged at their edge
     gp_a = np.clip((0.62 + (fbm(0.45, 3, 181) - 0.5) * 0.8 - blk["ruins"]) / 0.08, 0, 1) * np.clip((dist - HALF - 0.12) / 0.12, 0, 1)
     # puddles where the tracks dip: hollows right across the road, and the ruts hold water a little more often
@@ -323,10 +325,10 @@ if THEME == "jungle":
         for k in range(n_r):
             a = 2 * math.pi * k / n_r + jr.uniform(-0.25, 0.25)
             pts = _root(bx + math.cos(a) * br * 0.35, bz + math.sin(a) * br * 0.35, a + jr.uniform(-0.3, 0.3),
-                        jr.uniform(1.6, 3.4), jr.uniform(0.045, 0.065), False)
+                        jr.uniform(1.6, 3.4), jr.uniform(0.065, 0.09), False)
             if len(pts) > 14 and jr.random() < 0.7:
                 i0 = int(len(pts) * jr.uniform(0.3, 0.6))
-                _root(pts[i0][0], pts[i0][1], a + jr.choice([-1.0, 1.0]) * jr.uniform(0.5, 0.9), jr.uniform(0.7, 1.8), 0.03, False)
+                _root(pts[i0][0], pts[i0][1], a + jr.choice([-1.0, 1.0]) * jr.uniform(0.5, 0.9), jr.uniform(0.7, 1.8), 0.042, False)
     n_free = 0
     for _ in range(3000):
         if n_free >= 64:
@@ -335,21 +337,42 @@ if THEME == "jungle":
         if _at(dist, x, z) < HALF + 0.7 or _at(BLK_ANY, x, z) < 0.2:
             continue
         a = jr.uniform(0, 2 * math.pi)
-        pts = _root(x, z, a, jr.uniform(1.2, 3.2), jr.uniform(0.03, 0.046), True)
+        pts = _root(x, z, a, jr.uniform(1.2, 3.2), jr.uniform(0.042, 0.06), True)
         if len(pts) > 16 and jr.random() < 0.5:
             i0 = int(len(pts) * jr.uniform(0.3, 0.7))
-            _root(pts[i0][0], pts[i0][1], a + jr.choice([-1.0, 1.0]) * jr.uniform(0.5, 1.0), jr.uniform(0.6, 1.5), 0.024, True)
+            _root(pts[i0][0], pts[i0][1], a + jr.choice([-1.0, 1.0]) * jr.uniform(0.5, 1.0), jr.uniform(0.6, 1.5), 0.032, True)
         n_free += 1
     log("jungle: roots", len(ROOTS), "paving px", int((gp_a > 0.5).sum()), "puddle px", int((gp_b > 0.5).sum()))
 if THEME == "harbor":
     # the cove: wet sand along the waterline, the inlet's depth (sandy shallows to deep teal), surf at its edges, plank
     # decks where the roads run down to the water and over it, and plank floors under the smugglers' stacks of crates
-    gp_a = np.clip(1 - riv / 0.4, 0, 1) * np.clip(riv / 0.03 + 1, 0, 1)                            # wet sand
-    surf = np.exp(-((riv + 0.08 + (fbm(0.35, 2, 191) - 0.5) * 0.07) / 0.035) ** 2) * np.clip((fbm(0.22, 3, 192) - 0.32) / 0.22, 0, 1)
+    gp_a = np.clip(1 - riv / (0.22 + 0.42 * fbm(0.7, 3, 199)), 0, 1) * np.clip(riv / 0.03 + 1, 0, 1)   # wet sand, a ragged band
+    surf = np.exp(-((riv + 0.08 + (fbm(0.35, 2, 191) - 0.5) * 0.07) / 0.042) ** 2) * np.clip((fbm(0.22, 3, 192) - 0.24) / 0.18, 0, 1)
     surf2 = np.exp(-((riv + 0.32 + (fbm(0.5, 2, 194) - 0.5) * 0.16) / 0.03) ** 2) * np.clip((fbm(0.3, 3, 195) - 0.5) / 0.2, 0, 1)
-    gp_d = np.maximum(surf, surf2 * 0.55)                                                          # surf, a fainter line beyond
+    gp_d = np.maximum(surf, surf2 * 0.35)                                                          # surf, a fainter line beyond
     gp_c = np.clip(-riv / 0.95, 0, 1)                                                              # depth
-    deck = np.clip((HALF - 0.06 - dist) / 0.03, 0, 1) * np.clip((1.3 - riv) / 0.04, 0, 1)            # boardwalks: straight-edged
+    # boardwalks: where a road crosses the inlet it is planked from bank to bank and a way up each beach, the deck ending
+    # square across the road on a whole plank, a sill at each end and a beam down each side, straight-edged inside the
+    # road's sand (a road that only runs near the water, down to a tunnel's mouth, stays sand)
+    deck = np.zeros(X.shape)
+    gp_h = np.zeros(X.shape)
+    for lg in legs:
+        P = np.asarray(lg, np.float64)
+        cum = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+        s_ = np.arange(0.0, cum[-1], 0.04)
+        cx_, cz_ = np.interp(s_, cum, P[:, 0]), np.interp(s_, cum, P[:, 1])
+        rv_ = riv[np.clip(((cz_ - G.Z0) * MPX).astype(int), 0, g.h - 1), np.clip(((cx_ - G.X0) * MPX).astype(int), 0, g.w - 1)]
+        wet_ = np.concatenate([[False], rv_ < 1.0, [False]]).astype(int)          # (its ends on the straight, clear of a bend)
+        for i0, i1 in zip(np.flatnonzero(np.diff(wet_) == 1), np.flatnonzero(np.diff(wet_) == -1) - 1):
+            if rv_[i0:i1 + 1].min() > 0.0:
+                continue
+            a0, a1 = math.floor(s_[i0] / 0.24) * 0.24, math.ceil(s_[i1] / 0.24) * 0.24
+            dl, al = g.poly_dist([lg], margin=2.0)
+            this = np.clip((HALF - 0.06 - dl) / 0.03, 0, 1) * ((al >= a0) & (al <= a1) & (dl <= dist + 1e-6))
+            deck = np.maximum(deck, this)
+            gp_h = np.maximum(gp_h, (np.exp(-((dl - (HALF - 0.12)) / 0.035) ** 2) + np.exp(-((al - a0 - 0.06) / 0.03) ** 2) +
+                                     np.exp(-((al - a1 + 0.06) / 0.03) ** 2)) * this)
+    gp_h = np.clip(gp_h, 0, 1)
     # (a floor of planks 0.2 wide running along x, each its own length and a little offset, now and then one missing; the
     # joints fall on multiples of 0.2 in z, where the material draws them)
     pads = np.zeros(X.shape)
@@ -367,19 +390,19 @@ if THEME == "harbor":
     gp_f = np.clip((riv - 1.4) / 3.5, 0, 1) * np.clip((fbm(1.1, 4, 198) - 0.45) / 0.18, 0, 1)        # plant cover over the dunes
     gp_f = np.maximum(gp_f, outside * 0.75) * (1 - gp_e)
     gp_g = along                                                                                   # (the planks' joints)
-    gp_h = np.exp(-((dist - (HALF - 0.12)) / 0.035) ** 2) * deck                                   # the decks' edge beams
     log("harbor: deck px", int((deck > 0.5).sum()), "pads px", int((pads > 0.5).sum()), "water px", int((riv < 0).sum()))
 if THEME == "fortress":
     fr2 = np.random.default_rng(47)
     bnd = m["bounds"]
 
     def _blast(cx, cz, r_, d_):
-        """Scorch round a crater: black inside, burnt out past its rim in a ragged star of blast rays."""
+        """Scorch round a crater: sooty over its rim and burnt out past it in a ragged star of blast rays, less so down in
+        the bowl (raw earth thrown up and fallen back)."""
         ang = np.arctan2(Z - cz, X - cx)
         ph0 = fr2.uniform(0, 2 * math.pi)
         rays = 0.5 + 0.5 * np.sin(ang * int(fr2.integers(7, 12)) + ph0 + np.sin(ang * 3 + ph0) * 0.9)
         reach = r_ * (1.35 + 0.75 * rays ** 2)
-        return np.clip((reach - d_) / (reach - r_ * 0.75), 0, 1) ** 0.8
+        return np.clip((reach - d_) / (reach - r_ * 0.9), 0, 1) ** 0.8 * (0.5 + 0.5 * np.clip((d_ - r_ * 0.35) / (r_ * 0.5), 0, 1))
 
     # bomb craters: the crater blockers, deep with raised rims, and smaller ones scattered over the field, off the road
     for (bx, bz, br, kind) in BLOCKERS:
@@ -484,9 +507,9 @@ if THEME == "fortress":
         T /= np.linalg.norm(T, axis=1, keepdims=True)
         Nn = np.stack([-T[:, 1], T[:, 0]], 1)
         tracks += [(P + Nn * 0.21).tolist(), (P - Nn * 0.21).tolist()]
-    if tracks:
+    if tracks:          # (each groove fades out here and there, where the turf took the wheels)
         wd_, _wa = g.poly_dist(tracks, margin=0.4)
-        gp_c = np.exp(-(wd_ / 0.045) ** 2) * np.clip((dist - HALF - 0.1) / 0.2, 0, 1)
+        gp_c = np.exp(-(wd_ / 0.06) ** 2) * np.clip((dist - HALF - 0.1) / 0.2, 0, 1) * np.clip((fbm(0.7, 3, 223) - 0.3) / 0.15, 0, 1)
     log("fortress: craters", n_cr, "+ blockers; parallels", len(par), [(round(c_[1], 2), round(c_[2], 1), round(c_[3], 1)) for c_ in chosen],
         "saps", len(saps), "rut lines", len(tracks))
 if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor"):
@@ -596,13 +619,14 @@ if THEME == "jungle":
 if THEME == "harbor":
     hf += (fbm(2.2, 4, 211) - 0.5) * 0.12 * (1 - road) * np.clip((riv - 0.6) / 2.5, 0, 1)          # dunes, flattening to the beach
     hf += (fbm(0.5, 2, 212) - 0.5) * 0.015 * (1 - road)
-    hf = np.where((riv < 0) & (gp_b < 0.5), -0.1, hf)                                             # the inlet (not under the decks)
-    hf -= np.exp(-((riv - 0.2) / 0.45) ** 2) * 0.035 * (1 - road)                                   # the beach shelving down to it
+    shelf = np.clip((0.25 - riv) / 0.65, 0, 1)
+    shelf = shelf * shelf * (3 - 2 * shelf)                         # 0 a little way up the beach, 1 well out in the water
+    hf = np.where(gp_b < 0.5, hf * (1 - shelf) - 0.1 * shelf, hf)   # the beach shelving smoothly under the inlet (no step)
     hf += gp_b * (0.05 + rut * 0.02)                                                                # the decks and floors on joists
 if THEME == "fortress":
     hf += (fbm(1.0, 4, 221) - 0.5) * 0.05 * (1 - road) + (fbm(0.25, 2, 222) - 0.5) * 0.02 * (1 - road)   # churned
-    hf -= crater * 0.14
-    hf += crater_rim * 0.045
+    hf -= crater * 0.2
+    hf += crater_rim * 0.06
     hf -= gp_a * 0.1                                                                                # the trenches
     hf += gp_b * 0.07                                                                               # their spoil heaps
     hf -= gp_c * 0.014                                                                              # wheel ruts across the field
@@ -1159,20 +1183,23 @@ elif THEME == "jungle":
     c = nb.mix(nb.math("MULTIPLY", trees_m, 0.8), c, under)
     # the old paving round the ruins: big worn flags a shade apart, moss in their joints and creeping over them
     flag = nb.ramp(nb.voronoi(2.4, "Distance", "DISTANCE_TO_EDGE"), 0.015, 0.06)
-    pv = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.42, 0.41, 0.34), (0.55, 0.53, 0.44))
-    pv = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(2.4, "Color"), 0.6, 0.9), 0.35), pv, (0.36, 0.38, 0.3))
-    pv = nb.mix(nb.math("SUBTRACT", 1.0, flag), pv, (0.12, 0.2, 0.05))
-    pv = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.4, 3, 0.6), 0.56, 0.68), 0.75), pv, (0.18, 0.32, 0.08))
+    pv = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.36, 0.36, 0.3), (0.47, 0.46, 0.38))
+    pv = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(2.4, "Color"), 0.6, 0.9), 0.35), pv, (0.3, 0.32, 0.25))
+    pv = nb.mix(nb.math("SUBTRACT", 1.0, flag), pv, (0.1, 0.17, 0.045))
+    pv = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.4, 3, 0.6), 0.52, 0.66), 0.8), pv, (0.16, 0.29, 0.07))
     c = nb.mix(nb.math("MULTIPLY", gpa_m, 0.95), c, pv)
-    # the tracks: red clay, rutted, dry and crusted on top, wet in the ruts; red-brown puddles where they dip
-    clay = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.46, 0.2, 0.1), (0.58, 0.28, 0.15))
-    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(fine, 0.55, 0.75), 0.35), clay, (0.66, 0.38, 0.22))
-    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(30.0, "Distance"), 0.22, 0.1), 0.25), clay, (0.36, 0.17, 0.09))
-    clay = nb.mix(nb.math("MULTIPLY", rut_m, 0.75), clay, (0.32, 0.13, 0.07))
-    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(gpb_m, 0.0, 0.45), 0.8), clay, (0.3, 0.12, 0.06))         # wet clay round the puddles
-    pud = nb.mix(nb.ramp(nb.noise(0.9, 3, 0.6), 0.3, 0.7), (0.3, 0.13, 0.07), (0.38, 0.18, 0.1))
-    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.5, 2, 0.5), 0.45, 0.75), 0.3), pud, (0.42, 0.3, 0.26))   # the sky in it
-    clay = nb.mix(nb.ramp(gpb_m, 0.45, 0.65), clay, pud)
+    # the tracks: red clay, rutted, dry and crusted on top, darker and wet in the ruts and the low spots; puddles of
+    # red-brown water where they dip, the sky's sheen on them, a bright rim at the water's edge and wet clay round it
+    clay = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.4, 0.19, 0.1), (0.5, 0.26, 0.15))
+    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(fine, 0.55, 0.75), 0.3), clay, (0.56, 0.34, 0.21))
+    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.2, 3, 0.6), 0.6, 0.72), 0.45), clay, (0.33, 0.15, 0.08))
+    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(30.0, "Distance"), 0.22, 0.1), 0.25), clay, (0.32, 0.16, 0.09))
+    clay = nb.mix(nb.math("MULTIPLY", rut_m, nb.mixf(nb.ramp(nb.noise(2.5, 2, 0.6), 0.3, 0.7), 0.25, 0.55)), clay, (0.33, 0.15, 0.08))
+    clay = nb.mix(nb.math("MULTIPLY", nb.ramp(gpb_m, 0.0, 0.45), 0.85), clay, (0.27, 0.11, 0.05))       # wet clay round the puddles
+    pud = nb.mix(nb.ramp(nb.noise(0.9, 3, 0.6), 0.3, 0.7), (0.36, 0.18, 0.1), (0.44, 0.23, 0.13))
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.45, 2, 0.5), 0.35, 0.8), 0.45), pud, (0.56, 0.47, 0.44))   # the sky's sheen
+    pud = nb.mix(nb.math("MULTIPLY", nb.math("MULTIPLY", nb.ramp(gpb_m, 0.45, 0.55), nb.ramp(gpb_m, 0.72, 0.58)), 0.6), pud, (0.68, 0.56, 0.5))
+    clay = nb.mix(nb.ramp(gpb_m, 0.45, 0.6), clay, pud)
     # the causeway: old stones, warm and grey, moss in the joints and over them, worn smooth in the wheel tracks
     sj = nb.ramp(nb.voronoi(4.5, "Distance", "DISTANCE_TO_EDGE"), 0.015, 0.06)
     cs = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.38, 0.38, 0.32), (0.5, 0.49, 0.41))
@@ -1194,7 +1221,8 @@ elif THEME == "harbor":
     rip.inputs["Detail"].default_value = 3.0
     nb.link(nb.uvn.outputs["Object"], rip.inputs["Vector"])
     c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.82, 0.73, 0.54), (0.9, 0.82, 0.63))                         # dune sand
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(rip.outputs["Fac"], 0.55, 0.85), 0.25), c, (0.76, 0.66, 0.47))   # wind ripples
+    ripz = nb.math("MULTIPLY", nb.ramp(nb.noise(0.8, 3, 0.6), 0.45, 0.65), 0.16)                       # (in patches)
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(rip.outputs["Fac"], 0.55, 0.85), ripz), c, (0.76, 0.66, 0.47))   # wind ripples
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(fine, 0.6, 0.75), 0.3), c, (0.95, 0.9, 0.74))
     grass = nb.mix(nb.ramp(nb.noise(2.0, 3, 0.6), 0.3, 0.7), (0.5, 0.52, 0.27), (0.62, 0.62, 0.34))    # thin sea grass, the dunes
     grass = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.6), grass, (0.32, 0.42, 0.18))      # greener in the hollows
@@ -1202,10 +1230,9 @@ elif THEME == "harbor":
     c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.38, 0.46, 0.22), (0.48, 0.54, 0.28)))       # greener inland, beyond
     beach = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.92, 0.86, 0.7), (0.98, 0.94, 0.8))      # the beach: pale, bare
     c = nb.mix(gpe_m, c, beach)
-    wetc = nb.mix(nb.ramp(nb.noise(2.2, 3, 0.6), 0.3, 0.7), (0.66, 0.57, 0.41), (0.74, 0.65, 0.48))     # wet sand
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(gpa_m, 0.0, 0.5), 0.92), c, wetc)
-    tide = nb.math("MULTIPLY", nb.ramp(gpa_m, 0.02, 0.1), nb.ramp(gpa_m, 0.22, 0.12))                  # the swash line
-    c = nb.mix(nb.math("MULTIPLY", tide, 0.5), c, (0.6, 0.52, 0.38))
+    wetc = nb.mix(nb.ramp(nb.noise(2.2, 3, 0.6), 0.3, 0.7), (0.72, 0.64, 0.48), (0.8, 0.72, 0.56))      # wet sand, darker
+    wetc = nb.mix(nb.ramp(gpa_m, 0.6, 1.0), wetc, (0.66, 0.58, 0.43))                                  # toward the water
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(gpa_m, 0.0, 0.7), 0.88), c, wetc)
     camp = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.72, 0.62, 0.45), (0.8, 0.7, 0.52))      # trodden by the stashes
     c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.7), c, camp)
     track = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.74, 0.64, 0.47), (0.81, 0.71, 0.53))                     # the roads: packed sand
@@ -1236,9 +1263,9 @@ elif THEME == "harbor":
     on_p, id_p = _boards(ox.outputs["Y"], 0.2)
     on_d, id_d = _boards(gpg_m, 0.24)
     onb = nb.mixf(road_m, on_p, on_d)
-    wood = nb.mix(nb.mixf(road_m, id_p, id_d), (0.46, 0.37, 0.26), (0.62, 0.52, 0.38))
-    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(18.0, 3, 0.6), 0.3, 0.7), 0.35), wood, (0.4, 0.32, 0.22))
-    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 3, 0.6), 0.6, 0.7), 0.4), wood, (0.62, 0.6, 0.54))   # bleached grey
+    wood = nb.mix(nb.mixf(road_m, id_p, id_d), (0.54, 0.44, 0.32), (0.68, 0.58, 0.43))
+    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(18.0, 3, 0.6), 0.3, 0.7), 0.3), wood, (0.46, 0.37, 0.26))
+    wood = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 3, 0.6), 0.55, 0.68), 0.45), wood, (0.7, 0.68, 0.62))   # bleached grey
     gapc = nb.mix(nb.ramp(gpc_m, 0.0, 0.15), (0.2, 0.15, 0.1), (0.03, 0.2, 0.22))
     wood = nb.mix(nb.math("SUBTRACT", 1.0, onb), wood, gapc)
     wood = nb.mix(gph_m, wood, (0.3, 0.22, 0.14))
@@ -1254,24 +1281,27 @@ elif THEME == "fortress":
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.72), 0.4), c, (0.52, 0.47, 0.3))                 # beaten flat, straw-coloured
     c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.44, 0.44, 0.27))
     c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.21, 0.35, 0.12), (0.29, 0.43, 0.15)))       # meadow round it
-    c = nb.mix(nb.math("MULTIPLY", gpc_m, 0.8), c, (0.25, 0.19, 0.12))                                  # wheel ruts
-    spoil = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.42, 0.31, 0.19), (0.52, 0.4, 0.25))    # fresh spoil
-    spoil = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(30.0, 2, 0.5), 0.62, 0.72), 0.5), spoil, (0.3, 0.22, 0.14))   # clods
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(gpb_m, 0.05, 0.5), 0.92), c, spoil)
-    ditch = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.17, 0.13, 0.09), (0.24, 0.18, 0.12))   # the trench floor
-    c = nb.mix(gpa_m, c, ditch)
-    crat = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.15, 0.12, 0.09), (0.24, 0.18, 0.12))
+    c = nb.mix(nb.math("MULTIPLY", gpc_m, 0.55), c, (0.28, 0.21, 0.13))                                 # wheel ruts
+    spoil = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.4, 0.3, 0.19), (0.49, 0.37, 0.24))     # fresh spoil
+    spoil = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(22.0, 2, 0.5), 0.64, 0.74), 0.35), spoil, (0.31, 0.23, 0.15))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(gpb_m, 0.05, 0.45), 0.9), c, spoil)
+    wall = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.36, 0.27, 0.17), (0.44, 0.33, 0.21))     # the trench: cut earth walls
+    c = nb.mix(nb.ramp(gpa_m, 0.0, 0.35), c, wall)
+    ditch = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.17, 0.13, 0.09), (0.23, 0.17, 0.11))   # its floor, trodden and wet
+    c = nb.mix(nb.ramp(gpa_m, 0.6, 0.95), c, ditch)
+    crat = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.22, 0.17, 0.11), (0.3, 0.23, 0.15))                      # raw earth in the bowl
     c = nb.mix(crater_m, c, crat)
-    c = nb.mix(nb.math("MULTIPLY", rim_m, 0.6), c, (0.36, 0.28, 0.18))                                 # the thrown-up rim
-    burnt = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.06, 0.055, 0.05), (0.17, 0.14, 0.11))  # scorched, sooty
-    c = nb.mix(nb.math("MULTIPLY", gpd_m, 0.88), c, burnt)
+    c = nb.mix(nb.math("MULTIPLY", rim_m, 0.7), c, (0.4, 0.31, 0.2))                                    # the thrown-up rim
+    burnt = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.08, 0.07, 0.06), (0.2, 0.17, 0.13))    # scorched, sooty
+    c = nb.mix(nb.math("MULTIPLY", gpd_m, 0.85), c, burnt)
     camp = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.4, 0.33, 0.22), (0.5, 0.42, 0.29))      # trodden by the dumps
     c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.8), c, camp)
-    grav = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.5, 0.47, 0.41), (0.6, 0.57, 0.49))      # the gravel road
+    grav = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.47, 0.42, 0.34), (0.57, 0.51, 0.41))    # the gravel road
     peb = nb.voronoi(42.0, "Distance")
-    grav = nb.mix(nb.math("MULTIPLY", nb.ramp(peb, 0.24, 0.1), 0.45), grav, (0.7, 0.67, 0.6))
-    grav = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(17.0, "Distance"), 0.3, 0.12), 0.3), grav, (0.38, 0.35, 0.3))
-    grav = nb.mix(nb.math("MULTIPLY", rut_m, 0.75), grav, (0.33, 0.27, 0.19))                           # muddy wheel ruts
+    grav = nb.mix(nb.math("MULTIPLY", nb.ramp(peb, 0.24, 0.1), 0.42), grav, (0.66, 0.61, 0.52))
+    grav = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(17.0, "Distance"), 0.3, 0.12), 0.3), grav, (0.36, 0.32, 0.26))
+    grav = nb.mix(nb.math("MULTIPLY", rut_m, nb.mixf(nb.ramp(nb.noise(2.2, 2, 0.6), 0.3, 0.7), 0.3, 0.55)), grav, (0.36, 0.3, 0.21))   # ruts
+    grav = nb.mix(nb.math("MULTIPLY", nb.math("MULTIPLY", rut_m, nb.ramp(nb.noise(1.5, 3, 0.6), 0.62, 0.7)), 0.6), grav, (0.27, 0.23, 0.17))   # wet
     c = nb.mix(nb.math("MULTIPLY", edge_m, 0.55), c, (0.31, 0.28, 0.18))
     c = nb.mix(road_m, c, grav)
     rough = 0.9
@@ -1941,17 +1971,17 @@ elif THEME == "castle":
 elif THEME == "jungle":
     off = lambda x, z, m_: (rd(x, z) > HALF + m_) & no_blk(x, z)
     nopave = lambda x, z: sample(gp_a, x, z) < 0.4
-    dense = lambda x, z: (sample(outside, x, z) > 0.25) | (sample(PATCH, x, z) > 0.45)
-    fern = blade_mat("Fern", (0.05, 0.14, 0.035), (0.14, 0.34, 0.07), (0.32, 0.56, 0.13), 0.65)
-    pts = scatter(6500 if not PREVIEW else 900, lambda x, z: off(x, z, 0.3) & dense(x, z) & nopave(x, z))
+    dense = lambda x, z: (sample(outside, x, z) > 0.35) | (sample(PATCH, x, z) > 0.58)
+    fern = blade_mat("Fern", (0.04, 0.11, 0.03), (0.1, 0.25, 0.05), (0.21, 0.42, 0.09), 0.65)
+    pts = scatter(2600 if not PREVIEW else 500, lambda x, z: off(x, z, 0.3) & dense(x, z) & nopave(x, z))
     merged("Ferns", frond_template(7, 0.22, 0.05, 0.07), place_list(pts, 0.75, 1.4), fern)
-    pts = scatter(2600 if not PREVIEW else 400, lambda x, z: off(x, z, 0.2) & nopave(x, z))
+    pts = scatter(1300 if not PREVIEW else 250, lambda x, z: off(x, z, 0.2) & nopave(x, z))
     merged("SmallFerns", frond_template(6, 0.13, 0.034, 0.045, 4), place_list(pts, 0.7, 1.3), fern)
-    seed = simple_mat("Seedling", (0.17, 0.36, 0.07), 0.6, var=(0.3, 0.5, 0.12))
-    pts = scatter(3600 if not PREVIEW else 500, lambda x, z: off(x, z, 0.2) & (sample(gp_a, x, z) < 0.7))
+    seed = simple_mat("Seedling", (0.15, 0.32, 0.06), 0.6, var=(0.26, 0.45, 0.1))
+    pts = scatter(2200 if not PREVIEW else 400, lambda x, z: off(x, z, 0.2) & (sample(gp_a, x, z) < 0.7))
     merged("Seedlings", seedling_template(4, 0.07, 0.03, 0.045), place_list(pts, 0.7, 1.4), seed)
-    broad = simple_mat("BroadLeaf", (0.1, 0.26, 0.06), 0.55, var=(0.2, 0.38, 0.09))
-    pts = scatter(1300 if not PREVIEW else 200, lambda x, z: off(x, z, 0.35) & nopave(x, z))
+    broad = simple_mat("BroadLeaf", (0.08, 0.22, 0.05), 0.55, var=(0.16, 0.32, 0.07))
+    pts = scatter(900 if not PREVIEW else 150, lambda x, z: off(x, z, 0.35) & nopave(x, z))
     merged("BroadLeaves", seedling_template(5, 0.13, 0.055, 0.08), place_list(pts, 0.8, 1.3), broad)
     gr = blade_mat("Grass", (0.1, 0.2, 0.05), (0.2, 0.34, 0.09), (0.38, 0.52, 0.16))
     pts = scatter(3500 if not PREVIEW else 500, lambda x, z: off(x, z, 0.12) & (sample(PATCH, x, z) > 0.55))
@@ -1961,8 +1991,9 @@ elif THEME == "jungle":
     merged("MossLumps", blob_template(2), [(p, y, s_, None) for (p, y, s_, t) in place_list(pts, 0.05, 0.12, sink=0.7)], moss)
     pts = scatter(900 if not PREVIEW else 150, lambda x, z: (sample(gp_a, x, z) > 0.5) | ((sample(lane, x, z) > 0.5) & (rd(x, z) > 0.45)))
     merged("JointMoss", blob_template(1), [(p, y, s_, None) for (p, y, s_, t) in place_list(pts, 0.02, 0.045, sink=0.6)], moss)   # in the stones' joints
-    for k, (col, var, n_, L_) in enumerate([((0.2, 0.3, 0.08), (0.3, 0.42, 0.1), 2600, 0.04), ((0.46, 0.34, 0.1), (0.56, 0.42, 0.14), 2000, 0.04),
-                                           ((0.32, 0.17, 0.07), (0.42, 0.24, 0.09), 2400, 0.036), ((0.14, 0.22, 0.06), (0.2, 0.3, 0.08), 600, 0.075)]):
+    for k, (col, var, n_, L_) in enumerate([((0.2, 0.3, 0.08), (0.3, 0.42, 0.1), 4500, 0.046), ((0.5, 0.38, 0.12), (0.6, 0.46, 0.16), 4500, 0.046),
+                                           ((0.34, 0.18, 0.07), (0.44, 0.25, 0.09), 4500, 0.042), ((0.14, 0.24, 0.06), (0.22, 0.32, 0.08), 1000, 0.08),
+                                           ((0.5, 0.2, 0.07), (0.6, 0.3, 0.09), 1400, 0.042)]):          # green, yellow-brown, brown, broad, rust
         pts = scatter(n_ if not PREVIEW else 300, lambda x, z: (rd(x, z) > HALF - 0.3) & no_blk(x, z) & (sample(gp_b, x, z) < 0.3) & (sample(lane, x, z) < 0.5))
         merged("Leaves%d" % k, leaf_template(L_, L_ * 0.48), place_list(pts, 0.7, 1.3, tilt=0.25), simple_mat("Leaf%d" % k, col, 0.7, var=var))
     for k, col in enumerate([(0.86, 0.1, 0.06), (1.0, 0.46, 0.06), (0.94, 0.2, 0.08)]):              # red and orange
@@ -1972,7 +2003,7 @@ elif THEME == "jungle":
             for _ in range(int(RNG.integers(3, 8))):
                 pts.append((cx + RNG.normal(0, 0.11), cz + RNG.normal(0, 0.11)))
         merged("Flowers%d" % k, flower_template(5, 0.032), place_list(pts, 0.8, 1.25), simple_mat("Petal%d" % k, col, 0.45))
-    root_mesh("Roots", ROOTS, simple_mat("Root", (0.27, 0.19, 0.12), 0.8, var=(0.38, 0.29, 0.19)))
+    root_mesh("Roots", ROOTS, simple_mat("Root", (0.34, 0.26, 0.17), 0.75, var=(0.46, 0.37, 0.25)))
     stone = simple_mat("Stone", (0.32, 0.36, 0.28), 0.8, var=(0.44, 0.48, 0.36))
     pts = scatter(100, lambda x, z: (np.abs(rd(x, z) - HALF - 0.35) < 0.35) & no_blk(x, z))
     merged("Stones", blob_template(2), place_list(pts, 0.05, 0.12, sink=0.45, tilt=0.2), stone)
@@ -2013,7 +2044,11 @@ elif THEME == "harbor":
     pts = scatter(170 if not PREVIEW else 40, wrack)
     merged("Driftwood", stick_template(), place_list(pts, 0.6, 1.5, sink=0.2, tilt=0.06), drift)
     weed = simple_mat("Wrack", (0.15, 0.17, 0.07), 0.6, var=(0.27, 0.2, 0.09))
-    pts = scatter(800 if not PREVIEW else 150, lambda x, z: wrack(x, z) & (np.abs(sample(riv, x, z) - 0.6) < 0.22))
+    centres = scatter(50 if not PREVIEW else 12, lambda x, z: wrack(x, z) & (np.abs(sample(riv, x, z) - 0.6) < 0.2))
+    pts = []
+    for cx, cz in centres:                                                                         # (in clumps where it washed up)
+        for _ in range(int(RNG.integers(3, 9))):
+            pts.append((cx + RNG.normal(0, 0.09), cz + RNG.normal(0, 0.09)))
     merged("Wrack", leaf_template(0.04, 0.018), place_list(pts, 0.7, 1.4, tilt=0.15), weed)
     rope = simple_mat("Rope", (0.6, 0.48, 0.3), 0.85, var=(0.7, 0.6, 0.4))
     stash = lambda x, z: (np.abs(sample(blk["crates"], x, z) + 0.05) < 0.45) | ((sample(gp_b, x, z) > 0.5) & (rd(x, z) > 0.45))
@@ -2045,12 +2080,13 @@ elif THEME == "fortress":
         (sample(blk["crates"], x, z) < 1.3) | ((sample(outside, x, z) > 0.12) & (sample(outside, x, z) < 0.6) & (sample(PATCH, x, z) > 0.62))))
     merged("Straw", tuft_template(5, 0.07, 0.006), place_list(pts, 0.8, 1.4, tilt=1.2), straw)
     ball = simple_mat("Shot", (0.1, 0.1, 0.11), 0.42, var=(0.17, 0.16, 0.16), metal=0.55)            # spent cannonballs
-    pts = scatter(26, lambda x, z: sample(crater, x, z) > 0.25) + \
-        scatter(54, lambda x, z: open_f(x, z) & (rd(x, z) > HALF + 0.4))
-    merged("Shot", ball_template(2), [(p, y, s_, None) for (p, y, s_, t) in place_list(pts, 0.05, 0.07, sink=0.45)], ball)
-    clod = simple_mat("Clod", (0.34, 0.25, 0.16), 0.9, var=(0.46, 0.35, 0.22))
-    pts = scatter(1100 if not PREVIEW else 200, lambda x, z: ((sample(crater_rim, x, z) > 0.3) | (sample(gp_b, x, z) > 0.45)) & (rd(x, z) > HALF + 0.1))
-    merged("Clods", blob_template(1), place_list(pts, 0.025, 0.065, sink=0.3, tilt=0.5), clod)
+    pts = scatter(22, lambda x, z: sample(crater, x, z) > 0.25) + \
+        scatter(90, lambda x, z: open_f(x, z) & (rd(x, z) > HALF + 0.4) & (sample(gp_d, x, z) < 0.5))
+    merged("Shot", ball_template(2), [(p, y, s_, None) for (p, y, s_, t) in place_list(pts, 0.065, 0.085, sink=0.4)], ball)
+    clod = simple_mat("Clod", (0.27, 0.2, 0.13), 0.9, var=(0.36, 0.27, 0.17))
+    pts = scatter(650 if not PREVIEW else 150, lambda x, z: (sample(crater_rim, x, z) > 0.35) & (rd(x, z) > HALF + 0.1)) + \
+        scatter(250 if not PREVIEW else 50, lambda x, z: (sample(gp_b, x, z) > 0.5) & (rd(x, z) > HALF + 0.1))
+    merged("Clods", blob_template(1), place_list(pts, 0.025, 0.06, sink=0.35, tilt=0.5), clod)
     soot = simple_mat("Charred", (0.07, 0.06, 0.05), 0.85, var=(0.16, 0.14, 0.12))
     pts = scatter(500 if not PREVIEW else 100, lambda x, z: (sample(gp_d, x, z) > 0.4) & (rd(x, z) > HALF + 0.1))
     merged("Charred", blob_template(1), place_list(pts, 0.02, 0.05, sink=0.4, tilt=0.6), soot)
