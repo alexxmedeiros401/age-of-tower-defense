@@ -819,15 +819,15 @@ elif THEME == "farmland":
 elif THEME == "darkwood":
     # a dark forest floor: leaf litter, moss, dark soil; needle beds under the trees; a rooty, muddy track
     litter = nb.voronoi(26.0, "Color")
-    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.2, 0.15, 0.09), (0.3, 0.22, 0.12))
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(litter, 0.55, 0.75), 0.6), c, (0.44, 0.27, 0.1))          # russet leaves
-    c = nb.mix(nb.math("MULTIPLY", nb.ramp(litter, 0.25, 0.1), 0.5), c, (0.46, 0.38, 0.16))          # yellowed leaves
-    moss = nb.ramp(nb.noise(1.2, 4, 0.6, distort=0.4), 0.56, 0.66)
-    c = nb.mix(nb.math("MULTIPLY", moss, 0.85), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.14, 0.26, 0.08), (0.24, 0.38, 0.12)))
+    c = nb.mix(nb.ramp(big, 0.35, 0.65), (0.13, 0.1, 0.06), (0.2, 0.15, 0.09))                      # dark loam
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(litter, 0.6, 0.78), 0.4), c, (0.32, 0.19, 0.08))          # russet leaves
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(litter, 0.2, 0.08), 0.3), c, (0.34, 0.28, 0.13))          # yellowed leaves
+    moss = nb.ramp(nb.noise(1.2, 4, 0.6, distort=0.4), 0.46, 0.6)
+    c = nb.mix(nb.math("MULTIPLY", moss, 0.9), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.08, 0.17, 0.05), (0.16, 0.28, 0.08)))   # moss
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.34, 0.22), 0.6), c, (0.1, 0.08, 0.05))             # dark damp soil
     c = nb.mix(nb.math("MULTIPLY", fine, 0.15), c, (0.36, 0.3, 0.18))
     c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.06, 0.08, 0.04), (0.1, 0.12, 0.06)))
-    needles = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.3, 0.17, 0.08), (0.42, 0.25, 0.12))                 # needle beds under the trees
+    needles = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.22, 0.13, 0.07), (0.32, 0.19, 0.1))                 # needle beds under the trees
     c = nb.mix(nb.math("MULTIPLY", trees_m, 0.9), c, needles)
     flag = nb.ramp(nb.voronoi(3.2, "Distance", "DISTANCE_TO_EDGE"), 0.02, 0.06)
     c = nb.mix(nb.math("MULTIPLY", zonea_m, 0.75), c, nb.mix(nb.math("SUBTRACT", 1.0, flag), (0.44, 0.44, 0.38), (0.24, 0.26, 0.2)))   # the chapel's old paving
@@ -1348,8 +1348,8 @@ elif THEME == "darkwood":
     moss = simple_mat("Moss", (0.16, 0.3, 0.08), 0.9, var=(0.28, 0.42, 0.12))
     pts = scatter(1600 if not PREVIEW else 300, lambda x, z: (rd(x, z) > HALF + 0.2) & no_blk(x, z))
     merged("MossLumps", blob_template(2), [(p, y, s_, None) for (p, y, s_, t) in place_list(pts, 0.05, 0.12, sink=0.7)], moss)
-    for k, (col, var) in enumerate([((0.5, 0.24, 0.07), (0.66, 0.36, 0.1)), ((0.62, 0.48, 0.14), (0.76, 0.6, 0.2)), ((0.3, 0.2, 0.1), (0.42, 0.28, 0.12))]):
-        pts = scatter(2600 if not PREVIEW else 400, lambda x, z: (rd(x, z) > HALF - 0.2) & no_blk(x, z))
+    for k, (col, var) in enumerate([((0.4, 0.2, 0.07), (0.52, 0.28, 0.09)), ((0.46, 0.36, 0.12), (0.56, 0.44, 0.16)), ((0.24, 0.16, 0.08), (0.34, 0.22, 0.1))]):
+        pts = scatter((1100, 700, 1600)[k] if not PREVIEW else 300, lambda x, z: (rd(x, z) > HALF - 0.2) & no_blk(x, z))
         merged("Leaves%d" % k, leaf_template(), place_list(pts, 0.7, 1.3, tilt=0.25), simple_mat("Leaf%d" % k, col, 0.75, var=var))
     cap = simple_mat("Toadstool", (0.78, 0.1, 0.06), 0.5, var=(0.9, 0.24, 0.1))
     centres = scatter(70 if not PREVIEW else 20, lambda x, z: (rd(x, z) > HALF + 0.4) & no_blk(x, z))
