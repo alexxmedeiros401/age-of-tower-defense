@@ -4752,10 +4752,10 @@ func _handle_events() -> void:
 					proj_nodes.erase(ev.pid)
 				else:                                   # (it flew and landed within one frame: no node was made)
 					var su = sim.get_unit(int(ev.get("tower", -1)))
-					if su != null and (su.type in ["boulder_catapult", "torsion_catapult", "onager"] or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
+					if su != null and (su.type in ["boulder_catapult", "torsion_catapult", "onager", "trebuchet"] or (su.type == "rock_slinger" and float(ev.splash) > 0.0)):
 						boulder = true
-						hot_b = su.type in ["boulder_catapult", "torsion_catapult", "onager"] and str(ev.get("dtype", "")) == "fire"
-						pot = hot_b and su.type in ["torsion_catapult", "onager"]
+						hot_b = su.type in ["boulder_catapult", "torsion_catapult", "onager", "trebuchet"] and str(ev.get("dtype", "")) == "fire"
+						pot = hot_b and su.type in ["torsion_catapult", "onager", "trebuchet"]
 					elif su != null and (su.type == "bronze_archer" or str(su.stats.get("proj", "")) == "arrow"):
 						arrow = true
 						_arrow_hit_unseen(su, ev)
@@ -6665,7 +6665,9 @@ const TORSION_FLY := 0.75                           # the shot's size in flight 
 # v0.9.43: the Onager (anim_onager.py) throws the same way, from its sling: the stone leaves the pouch as the sling whips
 # over the arm's tip (its SLAM, frame 7, the same clip time). Path A's fire pots ride its stone and carry bones too.
 const ONAGER_STONE := Vector3(0.3, 1.394, 0.89)     # the stone as the sling lets it go (model units, Godot axes, Yaw node)
-const LOB_FROM := {"torsion_catapult": TORSION_BALL, "onager": ONAGER_STONE}
+const TREB_STONE := Vector3(1.05, 3.269, 0.873)     # v0.9.51: the Trebuchet's stone as the sling lets go (anim_trebuchet.THROW)
+const LOB_FROM := {"torsion_catapult": TORSION_BALL, "onager": ONAGER_STONE, "trebuchet": TREB_STONE}
+const LOB_THROW_T := {"trebuchet": 0.42}           # (Blender frame 10 lands on the importer's 30 Hz sample at 0.433 s)
 
 
 func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
@@ -6686,6 +6688,7 @@ func _torsion_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	root.set_meta("lob_size", 0.56 if dt == "fire" else TORSION_BALL_R / 0.17)
 	if u != null:
 		root.set_meta("lob_at", LOB_FROM.get(str(u.type), TORSION_BALL))
+		root.set_meta("lob_throw_t", float(LOB_THROW_T.get(str(u.type), TORSION_THROW_T)))
 	if u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		root.set_meta("lob_tid", int(u.id))                  # in the cup until its clip reaches the release (_torsion_flight)
 		root.visible = false
@@ -6712,7 +6715,7 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 			# (the clip moves on after this, in this frame: by the step _hq_anim_tick gives it)
 			var step := get_process_delta_time() * float(speed) * float(tn.get_meta("throw_rate", 1.0))
 			go = go or ap.current_animation != str(tn.get_meta("clip_attack")) \
-				or ap.current_animation_position + step >= TORSION_THROW_T
+				or ap.current_animation_position + step >= float(pn.get_meta("lob_throw_t", TORSION_THROW_T))
 			if go:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
 				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
@@ -7599,7 +7602,7 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if utype == "bronze_archer" or pj == "arrow":
 		_arrow_proj(root, p, u, dt)            # v0.9.21: a real arrow, loosed from the HQ archer's bow
 		return root
-	if utype == "torsion_catapult" or (utype == "onager" and u != null and _hq_clips(int(u.id))):
+	if utype == "torsion_catapult" or (utype in ["onager", "trebuchet"] and u != null and _hq_clips(int(u.id))):
 		_torsion_proj(root, p, u, dt)          # v0.9.23: a dressed stone ball (or a burning pitch pot) from the cup
 		                                       # (v0.9.43: the Onager's from its sling)
 		return root
