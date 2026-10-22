@@ -263,16 +263,18 @@ def _gown_neck(P):
 
 
 def _sleeve_end(P):
-    """> 0 past the rolled sleeves (a little above the elbow)."""
+    """> 0 past the rolled sleeves (a little above the elbow), only round each arm: without that it cut the skirt's
+    sides away below the elbows, leaving her legs bare between the front and back of the gown."""
     out = F(-1.0) * np.ones(len(P), F)
     for side in ("R", "L"):
         sh, el = J["shoulder_" + side], J["elbow_" + side]
         ax = norm(el - sh)
         c = lerp(sh, el, 0.8)
         along = (P - c.astype(F)) @ ax.astype(F)
+        rad = np.linalg.norm((P - c.astype(F)) - along[:, None] * ax.astype(F)[None, :], axis=1)
         sx = -1 if side == "R" else 1
         lateral = P[:, 0] * F(sx) - F(0.24)
-        out = np.maximum(out, np.where(lateral > 0, along, F(-1.0)))
+        out = np.maximum(out, np.where((lateral > 0) & (rad < F(0.14)), along, F(-1.0)))
     return out
 
 
@@ -686,7 +688,7 @@ MAT_OVERRIDES = {
 }
 GLOW = {"Potion": ((0.42, 1.0, 0.3), 1.1, 0.5), "Stream": ((0.42, 1.0, 0.3), 1.1, 0.5), "Brew": ((0.42, 1.0, 0.3), 1.1, 0.5),
         "Coals": ((1.0, 0.45, 0.12), 1.3, 0.5)}
-LOW_TARGETS = {"Skin": 6400, "Teeth": 60, "Hair": 1800, "Grey": 300, "Kerchief": 1700, "Gown": 3400, "Apron": 1500,
+LOW_TARGETS = {"Skin": 6400, "Teeth": 60, "Hair": 1800, "Grey": 300, "Kerchief": 1700, "Gown": 4600, "Apron": 1500,
                "Leather": 2000, "Vials": 700, "Spectacles": 360, "Brass": 360, "Flask": 260, "Potion": 200, "Stream": 60,
                "Furnace": 2400, "Iron": 1600, "Plinth": 400, "Brew": 160, "Coals": 300}
 AO_EXCLUDE = ["Flask", "Potion", "Stream", "Brew", "Coals", "Spectacles"]
