@@ -29,7 +29,8 @@ WALL_OUT = GROUND_R + 0.015
 WALL_TOP = GROUND_TOP + 0.012
 WALL_BOT = -0.14
 PROP_R = 1.43                  # the props' ring, between the kerb and the coping
-GABIONS = (math.radians(83.8), math.radians(90.0), math.radians(96.2))     # behind (+Y), shoulder to shoulder
+GABIONS = (math.radians(82.6), math.radians(90.0), math.radians(97.4))     # behind (+Y), shoulder to shoulder
+GAB_R, GAB_RING = 0.09, 1.46
 FLAG_A, FLAG_R = math.radians(111.0), 1.47                                   # beyond the crew's reach
 SHOT_A = math.radians(205.0)                                                 # the round shot: on the left
 BUCKET_A = math.radians(232.0)
@@ -178,9 +179,9 @@ def kerb_field():
 
 
 def _gabion_c(i, a):
-    c = v3((math.cos(a) * PROP_R, math.sin(a) * PROP_R, 0.0))
+    c = v3((math.cos(a) * GAB_RING, math.sin(a) * GAB_RING, 0.0))
     z0 = ground_height(c[0], c[1]) - 0.03
-    h = (0.29, 0.33, 0.27)[i]
+    h = (0.34, 0.39, 0.32)[i]
     return c, z0, h
 
 
@@ -189,7 +190,7 @@ def gabion_field():
     fd = Field("Gabions")
     for i, a in enumerate(GABIONS):
         c, z0, h = _gabion_c(i, a)
-        r = 0.075
+        r = GAB_R
         def weave(P, c=c):
             q = P - c.astype(F)
             ang = np.arctan2(q[:, 1], q[:, 0])
@@ -207,7 +208,7 @@ def gabion_fill():
     fd = Field("Fill")
     for i, a in enumerate(GABIONS):
         c, z0, h = _gabion_c(i, a)
-        fd.add(Ellipsoid(c + v3((0, 0, z0 + h - 0.015)), (0.07, 0.07, 0.035), disp=lambda P: F(0.004) * NOISE(P * F(20)), disp_amp=0.005), 0.0)
+        fd.add(Ellipsoid(c + v3((0, 0, z0 + h - 0.015)), (GAB_R - 0.005, GAB_R - 0.005, 0.04), disp=lambda P: F(0.004) * NOISE(P * F(20)), disp_amp=0.005), 0.0)
     return fd
 
 
@@ -223,12 +224,12 @@ def shot_centres():
     R = SHOT_R + 0.0015
     out = []
     for j in (-0.5, 0.5):
-        for i in (-1, 0, 1):
+        for i in (-1.5, -0.5, 0.5, 1.5):
             p = c + t * (i * 2 * R) + o * (j * 2 * R)
             p[2] = ground_height(p[0], p[1]) + SHOT_R - 0.004
             out.append(p)
     z = sum(p[2] for p in out) / len(out) + R * math.sqrt(2)
-    for i in (-0.5, 0.5):
+    for i in (-1, 0, 1):
         p = c + t * (i * 2 * R)
         p[2] = z
         out.append(p)
@@ -289,13 +290,13 @@ def _cask(fd, c, ax, h, r_end, r_belly, n=14, grain=11, head=10, band=True):
 
 
 def keg_place():
-    c, o, t = _ring_frame(KEG_A, PROP_R)
+    c, o, t = _ring_frame(KEG_A, PROP_R + 0.02)
     return c + v3((0, 0, ground_height(c[0], c[1]) - 0.004))
 
 
 def keg2_place():
-    c, o, t = _ring_frame(KEG2_A, PROP_R + 0.01)
-    return c + v3((0, 0, ground_height(c[0], c[1]) + 0.058))
+    c, o, t = _ring_frame(KEG2_A, PROP_R + 0.03)
+    return c + v3((0, 0, ground_height(c[0], c[1]) + 0.07))
 
 
 def bucket_place():
@@ -317,13 +318,13 @@ def props_field():
     """The powder kegs (oak, iron hoops, a crimson band), the water bucket and the flagpole (oak, iron)."""
     fd = Field("Props")
     k = keg_place()
-    _cask(fd, k + v3((0, 0, 0.1)), (0, 0, 1), 0.2, 0.062, 0.075)
+    _cask(fd, k + v3((0, 0, 0.125)), (0, 0, 1), 0.25, 0.075, 0.09)
     k2 = keg2_place()
-    _cask(fd, k2, (0, 1, 0), 0.155, 0.048, 0.058, n=12, grain=0, head=10, band=False)
-    fd.add(Stone(k2 + v3((0.055, -0.05, -0.045)), 0.022, seed=71, squash=(1, 1, 0.6)), 0.003, 10)   # a chock
+    _cask(fd, k2, (0, 1, 0), 0.19, 0.06, 0.072, n=12, grain=0, head=10, band=False)
+    fd.add(Stone(k2 + v3((0.068, -0.06, -0.056)), 0.024, seed=71, squash=(1, 1, 0.6)), 0.003, 10)   # a chock
     # the bucket: a tapered tub of staves, two hoops, an iron bail resting on the rim
     b = bucket_place()
-    h, r0, r1 = 0.105, 0.052, 0.066
+    h, r0, r1 = 0.125, 0.06, 0.076
     bf = b.astype(F)
     def tub(P):
         q = P - bf
@@ -342,7 +343,7 @@ def props_field():
         groove = np.maximum(gd - F(0.0011), rad - F(0.0022) - rho)
         return np.maximum(np.maximum(d, -inner), -groove)
     fd.add(Func(tub, b - 0.1, b + 0.15, disp=lambda P: F(0.0006) * NOISE(P * F(80)), disp_amp=0.001), 0.0, 11)
-    for z0 in (0.022, 0.085):
+    for z0 in (0.025, 0.1):
         rz0 = r0 + (r1 - r0) * z0 / h + 0.0022
         def hoop(P, z0=z0, rz0=rz0):
             q = P - bf
@@ -372,7 +373,7 @@ def props_field():
 def water_field():
     fd = Field("Water")
     b = bucket_place()
-    h, r0, r1 = 0.105, 0.052, 0.066
+    h, r0, r1 = 0.125, 0.06, 0.076
     zw = h - 0.024                                       # a disc just under the rim (it never reaches the tapered foot)
     fd.add(Cylinder(b + v3((0, 0, zw - 0.006)), r0 + (r1 - r0) * zw / h - 0.006, 0.012, rr=0.002), 0.0)
     return fd
@@ -427,7 +428,7 @@ def flag_field():
 
 def _avoid():
     """(angle, half-width in radians) of everything standing round the rim."""
-    out = [(a, 0.07) for a in GABIONS] + [(FLAG_A, 0.05), (SHOT_A, 0.15), (BUCKET_A, 0.07), (KEG_A, 0.08), (KEG2_A, 0.09)]
+    out = [(a, 0.08) for a in GABIONS] + [(FLAG_A, 0.05), (SHOT_A, 0.19), (BUCKET_A, 0.08), (KEG_A, 0.09), (KEG2_A, 0.1)]
     return out
 
 
@@ -579,8 +580,8 @@ def fields():
 
 
 REGION_PARTS = ("Deck", "Kerb", "Props", "Flag")
-LOW_TARGETS = {"Ground": 900, "Wall": 2000, "Deck": 4000, "Kerb": 800, "Gabions": 1400, "Fill": 200, "Shot": 560,
-               "Props": 1800, "Water": 40, "Flag": 400, "Pebbles": 260}
+LOW_TARGETS = {"Ground": 900, "Wall": 2000, "Deck": 4000, "Kerb": 800, "Gabions": 1500, "Fill": 200, "Shot": 760,
+               "Props": 2000, "Water": 40, "Flag": 400, "Pebbles": 260}
 MAT_OVERRIDES = {"Deck": ("siege", {"name": "HQ_GunDeck", "wood": (0.5, 0.36, 0.22), "wood2": (0.36, 0.25, 0.15), "metal": "iron"}),
                  "Kerb": ("siege", {"name": "HQ_GunKerb", "wood": (0.44, 0.31, 0.19), "wood2": (0.32, 0.22, 0.13), "metal": "iron"}),
                  "Wall": ("limestone", {"name": "HQ_BastionStone"}),

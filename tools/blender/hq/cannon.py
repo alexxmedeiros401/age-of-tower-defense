@@ -275,12 +275,12 @@ def beard_field():
         Q = hinv(P)
         x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
         ax = np.abs(x)
-        top = F(1.545) + F(0.095) * smoothstep(0.065, 0.145, ax)                 # chin and jaw, up the cheeks
-        top = np.where(ax > F(0.15), F(1.7), top)                                 # sideburns to the ears
+        top = F(1.545) + F(0.045) * smoothstep(0.06, 0.15, ax)                  # chin and jaw, low on the cheeks
+        top = top + F(0.09) * smoothstep(0.135, 0.185, ax)                        # rising into sideburns before the ears
         lips = (x / F(0.084)) ** 2 + ((y + F(0.185)) / F(0.07)) ** 2 + ((z - F(1.546)) / F(0.034)) ** 2 - F(1.0)
         back = np.where(ax > F(0.14), y - F(0.03), y - F(0.0))
         return np.maximum(np.maximum(np.maximum(z - top, back), -lips * F(0.03)), F(1.38) - z)
-    fd.add(Inter(Shell(hull, 0.012, 0.03, pad=0.06, disp=beard_tex, disp_amp=0.008), Func(mask, HEAD_C - 0.45, HEAD_C + 0.3), 0.008), 0.0)
+    fd.add(Inter(Shell(hull, 0.01, 0.024, pad=0.06, disp=beard_tex, disp_amp=0.008), Func(mask, HEAD_C - 0.45, HEAD_C + 0.3), 0.016), 0.0)
     lo = SPADE_TOP - v3((0.2, 0.25, 0.4))
     hi = SPADE_TOP + v3((0.2, 0.15, 0.12))
     fd.add(Func(_spade, lo, hi, disp=beard_tex, disp_amp=0.008), 0.045)
