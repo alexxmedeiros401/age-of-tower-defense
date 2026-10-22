@@ -13182,8 +13182,12 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
+			if defs.enemies[type].get("cloak", false):
+				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
+				for k0 in 3:
+					await get_tree().process_frame
 			cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 			cam.fov = 30
 			for k in (6 if frames_dir else 1):

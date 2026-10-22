@@ -13,6 +13,8 @@ FRAME = int(ARGS[3]) if len(ARGS) > 3 and not ARGS[3].startswith("--") else 4
 ZOOM = float(ARGS[ARGS.index("--zoom") + 1]) if "--zoom" in ARGS else 4.5
 TZ = float(ARGS[ARGS.index("--tz") + 1]) if "--tz" in ARGS else 1.35
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+import look as _look
+_look.relink(BLEND)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 arm.animation_data.action = bpy.data.actions[ACTION]

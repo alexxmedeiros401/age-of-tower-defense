@@ -122,3 +122,24 @@ def backdrop(png_in, png_out, top=(0.93, 0.9, 0.84), bottom=(0.74, 0.69, 0.6)):
     bg.alpha_composite(im)
     bg.convert("RGB").save(png_out)
     return png_out
+
+
+def relink(blend_path):
+    """Images whose files moved (a blend built on another machine, e.g. GitHub's runners or the linked PC): look for each
+    missing image by its file name next to the blend and point it there."""
+    import os
+    d = os.path.dirname(os.path.abspath(blend_path))
+    n = 0
+    for im in bpy.data.images:
+        if im.source != "FILE" or not im.filepath:
+            continue
+        p = bpy.path.abspath(im.filepath)
+        if os.path.exists(p):
+            continue
+        q = os.path.join(d, os.path.basename(p.replace("\\", "/")))
+        if os.path.exists(q):
+            im.filepath = q
+            im.reload()
+            n += 1
+    if n:
+        print("[look] relinked %d images to %s" % (n, d))

@@ -19,6 +19,10 @@ FRAME = int(arg("--frame", "6"))
 SIZE = int(arg("--size", "256"))
 
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+
+import look as _look
+
+_look.relink(BLEND)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 if ACTION is None:

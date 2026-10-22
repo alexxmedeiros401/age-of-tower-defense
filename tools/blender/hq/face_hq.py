@@ -18,6 +18,8 @@ TGT = Vector([float(x) for x in opt("--target", "0,0.0,2.2").split(",")])
 SCALE = float(opt("--scale", "0.8"))
 AZ, EL = float(opt("--az", "22")), float(opt("--el", "6"))
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+import look as _look
+_look.relink(BLEND)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 arm.animation_data.action = bpy.data.actions[ACTION]

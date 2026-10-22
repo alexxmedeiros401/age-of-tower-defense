@@ -19,6 +19,10 @@ FRAME = int(arg("--frame", "5"))
 os.makedirs(OUTDIR, exist_ok=True)
 
 bpy.ops.wm.open_mainfile(filepath=BLEND)
+
+import look as _look
+
+_look.relink(BLEND)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 outline = mats.outline_mat()
