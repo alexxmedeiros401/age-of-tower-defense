@@ -220,8 +220,8 @@ def ready_hand(P, yc, br=0.0, raise_=0.0):
     """The left pistol held up by her left shoulder, its muzzle to the sky, ready."""
     q = rz(yc)
     sh = P["upperarm.L"].translation
-    G = sh + q @ V(0.07, -0.16, -0.05 + 0.12 * raise_) + V(0, 0, 0.004 * br)
-    B = (q @ V(0.12, 0.18, 1.0)).normalized()
+    G = sh + q @ V(0.14, -0.2, -0.06 + 0.12 * raise_) + V(0, 0, 0.004 * br)
+    B = (q @ V(0.3, 0.1, 1.0)).normalized()
     U = (q @ V(0.0, -1.0, 0.0))
     U = (U - B * U.dot(B)).normalized()
     return pistol_H("L", G, B, U)
@@ -288,13 +288,11 @@ def idle_pose(arm, P_, t):
         # the right pistol resting on her shoulder: the barrel back over it, the grip forward in her fist
         sh = P["upperarm.R"].translation
         qq = rz(yaw)
-        B = (qq @ V(-0.12, 0.62, 0.78)).normalized()
-        U = (qq @ V(0.0, 0.8, -0.6))
+        B = (qq @ V(-0.13, 0.42 - 0.12 * tap, 1.0)).normalized()
+        U = (qq @ V(0.0, 1.0, -0.42))
         U = (U - B * U.dot(B)).normalized()
-        contact = sh + qq @ V(0.045, 0.0, 0.155 + 0.02 * tap)
-        breech = contact - B * 0.11 - U * 0.016
-        G = breech - U * cm.PB_UP + B * cm.PB_BACK
-        a = hand_to(arm, "R", pistol_H("R", G, B, U), V(-0.6, 0.2, -1.0))
+        G = sh + qq @ V(0.035, -0.297 - 0.02 * tap, -0.14)
+        a = hand_to(arm, "R", pistol_H("R", G, B, U), V(-0.7, 0.3, -1.0))
         # the left hand on the cutlass's hilt (sheathed: it rides her hips)
         Dr = delta(P_, P, "root")
         hilt = Dr @ (CG0 - CA0 * 0.012)
@@ -321,6 +319,29 @@ def make_idle(arm, frames=120):
 HIGH = (V(-0.2, -0.02, 2.02), V(0.1, 0.32, 1.0), V(-0.3, -1.0, 0.1))        # raised high (grip, blade dir, edge dir)
 POINT = (V(-0.2, -0.7, 1.3), V(0.0, -1.0, -0.12), V(0.0, -0.12, -1.0))     # swept down to point at the robots
 OVER = (V(-0.14, -0.05, 2.06), V(-0.05, 0.12, 1.0), V(0.0, -1.0, 0.0))     # the cheer: straight up overhead
+LOWER = (V(0.06, -0.42, 1.02), V(0.45, -0.35, -0.82), V(0.2, -0.9, 0.3))   # on the way back: low before her, point down
+SALUTE = (V(0.0, -0.48, 1.3), V(0.05, -0.35, 1.0), V(0.0, -1.0, -0.3))   # on the way up: before her face, point up
+FRONT_UP = (V(-0.06, -0.52, 1.48), V(0.0, -0.75, 0.66), V(0.0, -0.66, -0.75))  # the cheer's way down: before her, point up-out
+
+
+def path(f, keys):
+    """Piecewise eased blend through [(frame, H), ...]."""
+    if f <= keys[0][0]:
+        return keys[0][1]
+    for (fa, Ha), (fb, Hb) in zip(keys, keys[1:]):
+        if f <= fb:
+            return mix_m(Ha, Hb, seg(f, fa, fb))
+    return keys[-1][1]
+
+
+def above(H, dz=0.22, dy=-0.07):
+    """H lifted up (and a little out): the pistol held over its place in the sash, barrel down."""
+    return Matrix.Translation(V(0.0, dy, dz)) @ H
+
+
+def out_front(H):
+    """The pistol held out before her, barrel still down: where it turns between pointing down and pointing ahead."""
+    return Matrix.Translation(V(0.0, -0.3, 0.26)) @ H
 
 
 def cut_frame(spec, Dr):
@@ -373,9 +394,11 @@ def make_ability(arm, frames=AB_FR):
         def arms_fn(P, f=f, yaw=yaw):
             a = hand_to(arm, "L", ready_hand(P, yaw, 0.0, raise_=0.6 * up), READY_POLE)
             Dr = delta(P_, P, "root")
-            if f <= k["tuck"]:                                   # the pistol from the aim to the sash
+            if f <= k["tuck"]:                                   # the pistol from the aim up over the sash, then in
                 u = seg(f, 0, k["tuck"])
-                a.update(hand_to(arm, "R", mix_m(aim_hand(P), tuck_H(P_, P, "R"), u), AIM_POLE.lerp(V(-0.8, 0.2, -1.0), u)))
+                Ht = tuck_H(P_, P, "R")
+                a.update(hand_to(arm, "R", path(f, [(0, aim_hand(P)), (k["tuck"] * 0.4, out_front(Ht)), (k["tuck"] * 0.7, above(Ht)), (k["tuck"], Ht)]),
+                                 AIM_POLE.lerp(V(-0.8, 0.2, -1.0), u)))
                 state["c"] = "sheath"
             elif f < k["out"]:
                 aa, c = draw_sequence(arm, P_, P, f, k)
@@ -383,8 +406,8 @@ def make_ability(arm, frames=AB_FR):
                 state["c"] = c
             elif f <= k["back"]:                                  # high, then down to point
                 if f <= k["high"]:
-                    u = seg(f, k["out"], k["high"])
-                    H = mix_m(cut_H_draw(Dr, 0.62), cut_H(*cut_frame(HIGH, Dr)), u)
+                    mid = k["out"] + 0.45 * (k["high"] - k["out"])
+                    H = path(f, [(k["out"], cut_H_draw(Dr, 0.62)), (mid, cut_H(*cut_frame(SALUTE, Dr))), (k["high"], cut_H(*cut_frame(HIGH, Dr)))])
                 elif f <= k["hold"]:
                     sh = 0.012 * math.sin((f - k["high"]) * 2.4)
                     G, A, E = cut_frame(HIGH, Dr)
@@ -401,8 +424,11 @@ def make_ability(arm, frames=AB_FR):
                 state["c"] = "hand"
             elif f <= k["in"]:                                    # back to the hip and in
                 if f <= k["home"]:
-                    u = seg(f, k["back"], k["home"])
-                    H = mix_m(cut_H(*cut_frame(POINT, Dr)), cut_H_draw(Dr, 0.62), u)
+                    u = (f - k["back"]) / float(k["home"] - k["back"])
+                    if u < 0.5:
+                        H = mix_m(cut_H(*cut_frame(POINT, Dr)), cut_H(*cut_frame(LOWER, Dr)), smooth01(u * 2))
+                    else:
+                        H = mix_m(cut_H(*cut_frame(LOWER, Dr)), cut_H_draw(Dr, 0.62), smooth01(u * 2 - 1))
                     state["c"] = "hand"
                 else:
                     u = seg(f, k["home"], k["in"])
@@ -413,9 +439,13 @@ def make_ability(arm, frames=AB_FR):
                 u = seg(f, k["in"], k["pgrab"])
                 a.update(hand_to(arm, "R", mix_m(cut_H_draw(Dr, 0.0), tuck_H(P_, P, "R"), u), V(-0.8, 0.2, -1.0)))
                 state["c"] = "sheath"
-            else:                                                 # drawn and back on aim
+            else:                                                 # drawn up out of the sash and back on aim
                 u = seg(f, k["pgrab"], k["aim"])
-                a.update(hand_to(arm, "R", mix_m(tuck_H(P_, P, "R"), aim_hand(P), u), V(-0.8, 0.2, -1.0).lerp(AIM_POLE, u)))
+                Ht = tuck_H(P_, P, "R")
+                n = k["aim"] - k["pgrab"]
+                a.update(hand_to(arm, "R", path(f, [(k["pgrab"], Ht), (k["pgrab"] + 0.3 * n, above(Ht)), (k["pgrab"] + 0.6 * n, out_front(Ht)),
+                                                    (k["aim"], aim_hand(P))]),
+                                 V(-0.8, 0.2, -1.0).lerp(AIM_POLE, u)))
                 state["c"] = "sheath"
             return a
         # the cutlass state is decided by arms_fn (a first call to learn it)
@@ -439,10 +469,11 @@ def make_cheer(arm, frames=CH_FR):
         yaw = YAW + (0.0 - YAW) * front
         up = seg(f, k["out"], k["high"]) * (1.0 - seg(f, k["down"], k["home"]))
         pump = max(0.0, math.sin(math.pi * (f - 18) / 8.0)) if 18 <= f <= 34 else 0.0
-        hop = max(0.0, math.sin(math.pi * (f - 19) / 6.0)) * 0.035 if 19 <= f <= 25 else 0.0
+        hop = max(0.0, math.sin(math.pi * (f - 19) / 6.0)) * 0.045 if 19 <= f <= 25 else 0.0
+        whoop = math.sin(math.pi * min(1.0, max(0.0, (f - 14) / 12.0)))
         reach = seg(f, k["free"] - 2, k["grab"]) * (1.0 - seg(f, k["grab"] + 2, k["out"] + 2)) + \
             seg(f, k["down"] + 2, k["home"]) * (1.0 - seg(f, k["in"], k["pgrab"]))
-        body, ro, rr = stance(arm, 0.0, 0.0, lean=-0.14 * up + 0.22 * reach, head_up=0.45 * up - 0.08 * reach,
+        body, ro, rr = stance(arm, 0.0, 0.0, lean=-0.14 * up - 0.1 * whoop + 0.22 * reach, head_up=0.45 * up + 0.45 * whoop - 0.08 * reach,
                               crouch=-0.3 * up + 0.45 * reach, chest=32.0 * reach, yaw=yaw)
         ro = ro + V(0.0, 0.0, hop)
         props = {}
@@ -454,31 +485,34 @@ def make_cheer(arm, frames=CH_FR):
             sh = P["upperarm.L"].translation
             # the left fist (with its pistol): from the ready pose up into two pumps
             Hr = ready_hand(P, yaw, 0.0)
-            Gp = sh + q @ V(0.12, -0.1, 0.12 + 0.2 * pump)
-            Bp = (q @ V(0.25, -0.2, 1.0)).normalized()
+            Gp = sh + q @ V(0.1, -0.08, 0.08 + 0.42 * pump)
+            Bp = (q @ V(0.2, -0.1, 1.0)).normalized()
             Up = (q @ V(0.0, -1.0, 0.0))
             Up = (Up - Bp * Up.dot(Bp)).normalized()
             a = hand_to(arm, "L", mix_m(Hr, pistol_H("L", Gp, Bp, Up), up), READY_POLE.lerp(V(1.0, 0.2, -0.6), up))
             Dr = delta(P_, P, "root")
             if f <= k["tuck"]:
                 u = seg(f, 0, k["tuck"])
-                a.update(hand_to(arm, "R", mix_m(aim_hand(P), tuck_H(P_, P, "R"), u), AIM_POLE.lerp(V(-0.8, 0.2, -1.0), u)))
+                Ht = tuck_H(P_, P, "R")
+                a.update(hand_to(arm, "R", path(f, [(0, aim_hand(P)), (k["tuck"] * 0.4, out_front(Ht)), (k["tuck"] * 0.7, above(Ht)), (k["tuck"], Ht)]),
+                                 AIM_POLE.lerp(V(-0.8, 0.2, -1.0), u)))
                 state["c"] = "sheath"
             elif f < k["out"]:
                 aa, c = draw_sequence(arm, P_, P, f, k)
                 a.update(aa)
                 state["c"] = c
             elif f <= k["down"]:
-                u = seg(f, k["out"], k["high"])
                 G, A, E = cut_frame(OVER, Dr)
                 shake = V(0.015 * math.sin(f * 1.3), 0.0, 0.025 * pump)
-                H = mix_m(cut_H_draw(Dr, 0.62), cut_H(G + shake, A, E), u)
+                mid = k["out"] + 0.45 * (k["high"] - k["out"])
+                H = path(f, [(k["out"], cut_H_draw(Dr, 0.62)), (mid, cut_H(*cut_frame(SALUTE, Dr))), (k["high"], cut_H(G + shake, A, E))])
                 a.update(hand_to(arm, "R", H, V(-1.0, 0.3, -0.5)))
                 state["c"] = "hand"
             elif f <= k["in"]:
                 if f <= k["home"]:
-                    u = seg(f, k["down"], k["home"])
-                    H = mix_m(cut_H(*cut_frame(OVER, Dr)), cut_H_draw(Dr, 0.62), u)
+                    n = k["home"] - k["down"]
+                    H = path(f, [(k["down"], cut_H(*cut_frame(OVER, Dr))), (k["down"] + 0.35 * n, cut_H(*cut_frame(FRONT_UP, Dr))),
+                                 (k["down"] + 0.7 * n, cut_H(*cut_frame(LOWER, Dr))), (k["home"], cut_H_draw(Dr, 0.62))])
                     state["c"] = "hand"
                 else:
                     u = seg(f, k["home"], k["in"])
@@ -491,7 +525,11 @@ def make_cheer(arm, frames=CH_FR):
                 state["c"] = "sheath"
             else:
                 u = seg(f, k["pgrab"], k["aim"])
-                a.update(hand_to(arm, "R", mix_m(tuck_H(P_, P, "R"), aim_hand(P), u), V(-0.8, 0.2, -1.0).lerp(AIM_POLE, u)))
+                Ht = tuck_H(P_, P, "R")
+                n = k["aim"] - k["pgrab"]
+                a.update(hand_to(arm, "R", path(f, [(k["pgrab"], Ht), (k["pgrab"] + 0.3 * n, above(Ht)), (k["pgrab"] + 0.6 * n, out_front(Ht)),
+                                                    (k["aim"], aim_hand(P))]),
+                                 V(-0.8, 0.2, -1.0).lerp(AIM_POLE, u)))
                 state["c"] = "sheath"
             return a
         _c, P0 = P_.solve(body, ro, rr)
