@@ -118,6 +118,13 @@ def path_v(f, keys):
     return Vector(keys[-1][1])
 
 
+def via(a, m, b, u):
+    """From a through m to b (u 0..1): two eased legs, so a hand goes round (not through) her face."""
+    if u <= 0.5:
+        return Vector(a).lerp(Vector(m), smooth01(u * 2.0))
+    return Vector(m).lerp(Vector(b), smooth01(u * 2.0 - 1.0))
+
+
 def up_perp(A, ref=V(0, 0, 1)):
     A = Vector(A).normalized()
     u = Vector(ref) - A * Vector(ref).dot(A)
@@ -486,7 +493,7 @@ def make_ability(arm, frames=AB_FR):
             Hd = P0["head"] @ P_.rest["head"].inverted()
             ear = Hd @ CUP_L
             ear_al = (Hd.to_3x3() @ V(0.0, -0.3, 1.0)).normalized()
-            sky = body_point(Dr, V(0.36, -0.42, 2.12))
+            sky = body_point(Dr, V(0.62, -0.5, 2.0))
             sky_al = R @ V(0.0, -0.9, -0.3)
             fol = body_point(Dr, THROW_KEYS[-1][1])
             if f <= 31:
@@ -502,7 +509,7 @@ def make_ability(arm, frames=AB_FR):
             else:
                 g = on_gun(T_g, "L", L_POLE)(P0)
                 u = seg(f, 56, 66)
-                pos, al, pole = sky.lerp(g[0], u), sky_al.slerp(g[1], u), V(1.0, 0.3, 0.2).lerp(L_POLE, u)
+                pos, al, pole = via(sky, body_point(Dr, V(0.42, -0.42, 1.3)), g[0], u), sky_al.slerp(g[1], u), V(1.0, 0.3, 0.2).lerp(L_POLE, u)
                 if f >= 66:
                     pos, al, pole = g
             hold_l = fist_at(pos, al, pole)
@@ -566,18 +573,19 @@ def make_cheer(arm, frames=CH_FR):
         T_mid = upright_T(Dr)
         T_g = path_T(f, [(0, T_aim), (5, T_mid), (10, T_hi)], G0) if f <= 20 else path_T(f, [(33, T_hi), (39, T_mid), (45, T_aim)], G0)
         g = on_gun(T_g, "L", L_POLE)(P0)
-        fist_lo = body_point(Dr, V(0.34, -0.22, 1.86))
-        fist_hi = body_point(Dr, V(0.38, -0.3, 2.2))
+        fist_lo = body_point(Dr, V(0.5, -0.2, 1.84))
+        mid = body_point(Dr, V(0.42, -0.42, 1.3))
+        fist_hi = body_point(Dr, V(0.6, -0.26, 2.16))
         al = R @ V(0.0, -0.4, 1.0)
         top = fist_lo.lerp(fist_hi, pump)
         if f <= 10:
             u = seg(f, 0, 10)
-            pos, a_, pole = g[0].lerp(top, u) + (R @ V(0.18, -0.06, 0.0)) * math.sin(math.pi * u), g[1].slerp(al, u), L_POLE.lerp(V(1.0, 0.2, -0.3), u)
+            pos, a_, pole = via(g[0], mid, top, u), g[1].slerp(al, u), L_POLE.lerp(V(1.0, 0.2, -0.3), u)
         elif f < 34:
             pos, a_, pole = top, al, V(1.0, 0.2, -0.3)
         else:
             u = seg(f, 34, 45)
-            pos, a_, pole = top.lerp(g[0], u) + (R @ V(0.18, -0.06, 0.0)) * math.sin(math.pi * u), al.slerp(g[1], u), V(1.0, 0.2, -0.3).lerp(L_POLE, u)
+            pos, a_, pole = via(top, mid, g[0], u), al.slerp(g[1], u), V(1.0, 0.2, -0.3).lerp(L_POLE, u)
         holds = {"R": on_gun(T_g, "R", V(-1.0, 0.3, -0.4).lerp(R_POLE, 1.0 - up)), "L": fist_at(pos, a_, pole)}
         ch, P = solve(P_, arm, aims, ro, rr, holds, props(P_, T_g))
         P_.key(ch, f)
