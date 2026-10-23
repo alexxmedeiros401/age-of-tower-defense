@@ -882,8 +882,8 @@ ANIM_MODULE = "anim_rifleman"
 PARTS = ["Skin", "Eyes", "Teeth", "Hair", "Beard", "Cap", "Peak", "Badge", "Coat", "Buttons", "Trousers", "Puttees", "Boots",
          "Webbing", "Rifle", "Bolt", "Sling"]
 REGION_PARTS = ("Skin", "Cap", "Coat", "Puttees", "Boots", "Webbing", "Rifle", "Bolt", "Sling")
-NAVY = (0.25, 0.29, 0.45)                   # the corps' deep navy (linear albedo about (0.05, 0.07, 0.17))
-NAVY_DARK = (0.2, 0.23, 0.37)               # (his trousers: a shade darker)
+NAVY = (0.18, 0.22, 0.42)                   # the corps' navy (the lead's ruling for every Industrial unit)
+NAVY_DARK = (0.14, 0.17, 0.33)              # (his trousers: a shade darker)
 BRASS = (0.8, 0.55, 0.22)
 BLACK = (0.07, 0.065, 0.07)
 KHAKI = (0.62, 0.53, 0.35)                  # buff webbing and khaki puttees
