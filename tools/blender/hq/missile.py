@@ -1128,7 +1128,7 @@ def crate_field():
     fd.add(Func(foam, lo, hi, disp=lambda P: F(0.001) * NOISE(P * F(80)), disp_amp=0.001), 0.003, BLACK_L)
     missile_into(fd, crate_tail(1), MSL_BOX_A, k=0.002)
     # the lid, open on its hinges along the far side, standing up and leaning out a little
-    Rl = euler(0, -1.75, 0)
+    Rl = euler(0, -2.25, 0)
     hinge = c + v3((-hx, 0.0, h))
     lc = hinge + Rl @ v3((hx, 0.0, -0.02))
     fd.add(RoundBox(lc, (hx, hy, 0.022), 0.01, R=Rl), 0.004, OLIVE_L)

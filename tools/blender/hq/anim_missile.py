@@ -166,7 +166,7 @@ def blend_hand(a, b, k, lift=0.0):
 
 
 # ---------------------------------------------------------------------------------------------- stations
-S_XY, S_YAW = (0.13, 0.02), 12.0             # Combat: behind and left of the pod, the tablet held out
+S_XY, S_YAW = (0.06, 0.12), 10.0             # Combat: behind and left of the pod, the tablet held out
 I_XY, I_YAW = (0.19, -0.08), 34.0            # Idle: at ease by the control box
 C_XY, C_YAW = (0.02, 0.1), -90.0             # at the crate (facing it: -X)
 L0_XY, L1_XY, L_YAW = (0.64, 0.45), (0.63, 0.2), 4.0     # loading: behind the pod's near upper tube, facing forward
@@ -294,7 +294,7 @@ def _r(xy, z=0.0):
     return wroot(xy[0], xy[1], ROOT.z + z)
 
 
-K_RO = [(0, _r(S_XY, -0.03)), (SHOT, _r((0.13, 0.035), -0.035)), (STOW1, _r((0.08, 0.07), -0.08)),
+K_RO = [(0, _r(S_XY, -0.03)), (SHOT, _r((0.06, 0.135), -0.035)), (STOW1, _r((0.08, 0.07), -0.08)),
         (GRAB, _r(C_XY, -0.3)), (LIFT, _r((0.08, 0.12), -0.08)), (WALK, _r((0.42, 0.44), -0.06)), (AT_TUBE, _r(L0_XY, -0.14)),
         (HOME, _r(L1_XY, -0.06)), (OFF, _r((0.45, 0.28), -0.04)), (TAKE0, _r((0.2, 0.08), -0.03)), (FR, _r(S_XY, -0.03))]
 K_YAW = [(0, S_YAW), (SHOT, S_YAW - 1.0), (STOW1, -40.0), (GRAB, C_YAW), (LIFT, C_YAW + 8.0), (WALK, -30.0),
