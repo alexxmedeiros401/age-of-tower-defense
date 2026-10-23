@@ -42,7 +42,7 @@ SKIN, NAIL, LIP, MOUTH, BROW, PAINT, LASH, STUBBLE, SOOT = 0, 1, 2, 3, 4, 5, 8, 
 # steamworks labels (mats.steamworks)
 IRON, BRASS, COPPER, STEEL, RUBBER, LEATHER, ENAMEL, RED, BLACK_L, GLASS = 0, 5, 6, 7, 8, 9, 10, 11, 12, 13
 
-NAVY = (0.05, 0.07, 0.17)
+NAVY = (0.18, 0.22, 0.42)             # (the brief's navy, as the recipes take it: they read colours as sRGB)
 GINGER = {"base": (0.5, 0.2, 0.07), "hi": (0.86, 0.5, 0.22), "low": (0.24, 0.08, 0.03), "streak": (0.66, 0.3, 0.11),
           "tint": (0.62, 0.28, 0.1)}
 IRIS = ((0.2, 0.34, 0.5), (0.52, 0.68, 0.82))          # pale blue eyes
@@ -979,7 +979,7 @@ MAT_OVERRIDES = {
     "Cap": ("wool", {"name": "HQ_BrawlerCap", "base": (0.33, 0.29, 0.24), "border": (0.2, 0.17, 0.14), "stripe": (0.2, 0.17, 0.14)}),
     "Goggles": ("steamworks", WORKS),
     "Shirt": ("linen", {"name": "HQ_BrawlerShirt", "base": (0.86, 0.82, 0.72), "border": (0.55, 0.5, 0.42), "stripe": (0.8, 0.76, 0.66)}),
-    "Vest": ("wool", {"name": "HQ_BrawlerVest", "base": NAVY, "border": (0.025, 0.03, 0.07), "stripe": (0.03, 0.04, 0.1)}),
+    "Vest": ("wool", {"name": "HQ_BrawlerVest", "base": NAVY, "border": (0.1, 0.12, 0.25), "stripe": (0.12, 0.15, 0.3)}),
     "Trousers": ("wool", {"name": "HQ_BrawlerTrousers", "base": (0.36, 0.27, 0.19), "border": (0.27, 0.2, 0.14), "stripe": (0.27, 0.2, 0.14)}),
     "Leather": ("leather_dyed", {"name": "HQ_BrawlerLeather", "base": (0.4, 0.23, 0.12), "dyed": (0.4, 0.23, 0.12)}),
     "Brass": ("bronze", {"name": "HQ_BrawlerBrass", "base": (0.8, 0.58, 0.24), "hi": (1.0, 0.92, 0.6), "dark": (0.38, 0.25, 0.08),
