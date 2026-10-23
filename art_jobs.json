@@ -1,0 +1,7 @@
+[
+ {
+  "name": "maya_p4",
+  "cmd": "O=$GITHUB_WORKSPACE/out/maya_p4; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character maya --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character maya --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Ability --range 20,70 --step 5 --spp 8 --res 500 --tx 0.0 --ty -0.2 --tz 1.1 --dist 4.6 --az 20 --el 24 > $O/poses_Ability.log 2>&1 || tail -20 $O/poses_Ability.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Cheer --range 0,48 --step 6 --spp 8 --res 500 --tx 0.0 --ty -0.2 --tz 1.1 --dist 4.6 --az 20 --el 24 > $O/poses_Cheer.log 2>&1 || tail -20 $O/poses_Cheer.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 50,90 --step 10 --spp 8 --res 500 --tx 0.0 --ty -0.2 --tz 1.1 --dist 4.6 --az 20 --el 24 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/maya_p4"
+ }
+]
