@@ -1510,9 +1510,10 @@ def plume(name="HQ_Plume", col=(0.55, 0.08, 0.08), col2=(0.95, 0.93, 0.87)):
 
 
 # ======================================================================================= Gunpowder Age: Isla (v0.9.5x)
-def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), grip=(0.08, 0.065, 0.06)):
+def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), grip=(0.08, 0.065, 0.06), copper=None):
     """Arms of the Gunpowder Age: walnut stocks with a fine grain and a darker figure, pale where handled, dark in the
-    joints (label 0); black leather or cord (5); polished brass (6); bright steel (7); dark forged iron (8); gun bronze (9)."""
+    joints (label 0); black leather or cord (5); polished brass (6); bright steel (7); dark forged iron (8); gun bronze (9).
+    `copper` = (colour, highlight): label 9 is polished copper instead of gun bronze (no green patina; Industrial Age)."""
     g = new(name)
     p = g.obj()
     grain = g.noise(g.scale_vec(p, (90.0, 90.0, 90.0)), 1.0, 3.0, 0.6)
@@ -1531,10 +1532,12 @@ def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), 
     c = g.mix(g.reg(7), c, st)
     ir, rs = _iron_col(g, p, base=(0.2, 0.2, 0.22), hi=(0.56, 0.57, 0.6), dark=(0.06, 0.06, 0.07), rust=(0.42, 0.2, 0.09))
     c = g.mix(g.reg(8), c, ir)
-    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), g.rgb((0.66, 0.42, 0.18)), g.rgb((0.96, 0.76, 0.44)))
-    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), bz, g.rgb((0.28, 0.16, 0.07)))
-    pat = g.math("MULTIPLY", g.smooth(pt, 0.47, 0.42), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
-    bz = g.mix(g.math("MULTIPLY", pat, 0.6), bz, g.rgb((0.3, 0.52, 0.44)))
+    bz0, bz1 = copper if copper is not None else ((0.66, 0.42, 0.18), (0.96, 0.76, 0.44))
+    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), g.rgb(bz0), g.rgb(bz1))
+    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), bz, g.rgb((0.28, 0.16, 0.07) if copper is None else (0.3, 0.11, 0.05)))
+    if copper is None:
+        pat = g.math("MULTIPLY", g.smooth(pt, 0.47, 0.42), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+        bz = g.mix(g.math("MULTIPLY", pat, 0.6), bz, g.rgb((0.3, 0.52, 0.44)))
     c = g.mix(g.reg(9), c, bz)
     metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(6), g.reg(7)), g.math("MAXIMUM", g.reg(8), g.reg(9)))
     rough = g.mixf(metal, g.mixf(g.reg(5), 0.55, 0.7), g.mixf(g.reg(8), 0.25, g.mixf(rs, 0.4, 0.8)))
@@ -1604,3 +1607,206 @@ def beach_sand(name="HQ_BeachSand", base=(0.86, 0.75, 0.55), hi=(0.95, 0.88, 0.7
     rough = g.mixf(g.reg(5), 0.95, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", g.math("MULTIPLY", rip, top), 0.6), g.math("MULTIPLY", grains, 0.5))
     return g.finish(c, rough, g.bump(h, 0.3, 0.004))
+
+
+# ======================================================================================= Industrial Age (the Tesla Coil)
+def electric(name="HQ_Electric", copper=(0.75, 0.35, 0.18), brass=(0.8, 0.55, 0.22), iron=(0.17, 0.17, 0.19),
+             wood=(0.5, 0.27, 0.11), porcelain=(0.93, 0.91, 0.86), rubber=(0.07, 0.07, 0.075), slate=(0.22, 0.24, 0.27),
+             glass=(0.12, 0.36, 0.26), enamel=(0.95, 0.92, 0.82), paint=(0.62, 0.1, 0.07), leather=(0.4, 0.23, 0.11)):
+    """Electrical apparatus of the Industrial Age, hand-painted: polished copper (label 0: bright on edges and ridges and on
+    faces turned to the sky, dark in the recesses, a trace of verdigris in the deepest crevices); brass (5); soot-black
+    riveted iron (6, _iron_col); varnished wood with the grain along Z (7); glazed porcelain (8, glossy); black rubber and
+    ebonite (9, a soft sheen); slate (10, matte, fine speckle); copper winding (11: fine wire turns round Z); bottle-green
+    glass (12); cream enamel dials (13); red paint (14); brown leather (4)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    up = g.smooth(nz.outputs["Z"], 0.3, 0.95)
+    ridge, hollow = g.smooth(pt, 0.51, 0.56), g.smooth(pt, 0.48, 0.43)
+    def metal(base, hi, dark):
+        c = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(min(1.0, x * 1.15) for x in base)))
+        c = g.mix(g.math("MULTIPLY", ridge, 0.75), c, g.rgb(hi))
+        c = g.mix(g.math("MULTIPLY", hollow, 0.6), c, g.rgb(dark))
+        return g.mix(g.math("MULTIPLY", up, 0.28), c, g.rgb(hi))
+    cu = metal(copper, (1.0, 0.74, 0.52), (0.3, 0.12, 0.06))
+    verd = g.math("MULTIPLY", g.smooth(pt, 0.46, 0.41), g.smooth(g.noise(p, 12.0, 3.0), 0.52, 0.66))
+    c = g.mix(g.math("MULTIPLY", verd, 0.6), cu, g.rgb((0.3, 0.55, 0.45)))
+    c = g.mix(g.reg(5), c, metal(brass, (1.0, 0.88, 0.56), (0.34, 0.2, 0.06)))
+    ir, rs = _iron_col(g, p, base=iron, hi=(0.5, 0.52, 0.56), dark=(0.04, 0.04, 0.045), rust=(0.42, 0.2, 0.09))
+    c = g.mix(g.reg(6), c, ir)
+    gz = g.noise(g.scale_vec(p, (60.0, 60.0, 3.0)), 1.0, 4.0, 0.62)
+    wd = g.mix(g.remap(gz, 0.3, 0.7, 0.0, 1.0), g.rgb(wood), g.rgb(tuple(x * 0.66 for x in wood)))
+    wd = g.mix(g.math("MULTIPLY", ridge, 0.4), wd, g.rgb(tuple(min(1.0, x * 1.5) for x in wood)))
+    c = g.mix(g.reg(7), c, wd)
+    pc = g.mix(g.math("MULTIPLY", hollow, 0.5), g.rgb(porcelain), g.rgb(tuple(x * 0.72 for x in porcelain)))
+    pc = g.mix(g.math("MULTIPLY", ridge, 0.6), pc, g.rgb((1.0, 1.0, 0.98)))
+    c = g.mix(g.reg(8), c, pc)
+    rb = g.mix(g.math("MULTIPLY", ridge, 0.5), g.rgb(rubber), g.rgb(tuple(min(1.0, x * 2.6 + 0.06) for x in rubber)))
+    c = g.mix(g.reg(9), c, rb)
+    sl = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(slate), g.rgb(tuple(x * 0.8 for x in slate)))
+    sl = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 160.0, 2.0), 0.64, 0.7), 0.4), sl, g.rgb(tuple(min(1.0, x * 1.5) for x in slate)))
+    sl = g.mix(g.math("MULTIPLY", ridge, 0.45), sl, g.rgb(tuple(min(1.0, x * 1.7) for x in slate)))
+    c = g.mix(g.reg(10), c, sl)
+    turns = g.wave(p, 520.0, 0.0, 0.0, "BANDS", "Z")
+    wcol = g.mix(g.math("MULTIPLY", g.smooth(turns, 0.25, 0.75), 0.55), g.rgb(tuple(x * 0.62 for x in copper)), cu)
+    c = g.mix(g.reg(11), c, wcol)
+    c = g.mix(g.reg(12), c, g.mix(g.math("MULTIPLY", ridge, 0.6), g.rgb(glass), g.rgb((0.55, 0.85, 0.7))))
+    c = g.mix(g.reg(13), c, g.mix(g.math("MULTIPLY", hollow, 0.4), g.rgb(enamel), g.rgb(tuple(x * 0.8 for x in enamel))))
+    c = g.mix(g.reg(14), c, g.mix(g.math("MULTIPLY", ridge, 0.4), g.rgb(paint), g.rgb(tuple(min(1.0, x * 1.4) for x in paint))))
+    lt = g.mix(g.noise(p, 9.0, 3.0), g.rgb(leather), g.rgb(tuple(min(1.0, x * 1.25) for x in leather)))
+    c = g.mix(g.reg(4), c, g.mix(g.math("MULTIPLY", ridge, 0.5), lt, g.rgb((0.62, 0.42, 0.25))))
+    rough = g.mixf(g.reg(5), g.mixf(verd, 0.26, 0.7), 0.3)
+    rough = g.mixf(g.reg(6), rough, g.mixf(rs, 0.5, 0.85))
+    rough = g.mixf(g.reg(7), rough, 0.42)
+    rough = g.mixf(g.reg(8), rough, 0.16)
+    rough = g.mixf(g.reg(9), rough, 0.5)
+    rough = g.mixf(g.reg(10), rough, 0.85)
+    rough = g.mixf(g.reg(12), rough, 0.1)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(13), g.reg(14)), rough, 0.4)
+    rough = g.mixf(g.reg(4), rough, 0.62)
+    h = g.math("ADD", g.math("MULTIPLY", g.voronoi(p, 80.0, 1.0, "F1", "Distance"), g.math("MULTIPLY", g.reg(6), 0.3)),
+               g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.15))
+    h = g.math("ADD", h, g.math("MULTIPLY", turns, g.math("MULTIPLY", g.reg(11), 0.6)))
+    h = g.math("ADD", h, g.math("MULTIPLY", gz, g.math("MULTIPLY", g.reg(7), 0.5)))
+    return g.finish(c, rough, g.bump(h, 0.22, 0.002))
+
+
+# ======================================================================================= Industrial Age: the Steam Brawler
+def steamworks(name="HQ_Steamworks", iron=(0.13, 0.13, 0.14), brass=(0.8, 0.55, 0.22), copper=(0.75, 0.35, 0.18),
+               leather=(0.36, 0.21, 0.11), enamel=(0.93, 0.89, 0.76), paint=(0.7, 0.1, 0.06), glass=(0.16, 0.36, 0.26)):
+    """Steam-age engineering, hand-painted: soot-black riveted iron (label 0, _iron_col: bright on its edges and ridges,
+    rust in the deepest crevices); polished brass (5); copper (6, a little verdigris in the crevices); bright steel (7: rams,
+    piston rods); black rubber (8, dull, fine ribs); brown leather (9); cream enamel (10: a gauge's dial); red paint (11: its
+    needle, a valve wheel); black leather (12: boots, worn grey on the edges); green glass (13: goggle lenses, glossy)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    hi_ = g.smooth(pt, 0.5, 0.56)
+    lo_ = g.smooth(pt, 0.48, 0.43)
+    c, rs = _iron_col(g, p, base=iron, hi=tuple(min(1.0, x * 3.6) for x in iron), dark=tuple(x * 0.35 for x in iron),
+                      rust=(0.36, 0.17, 0.07))
+    br = g.mix(g.math("MULTIPLY", hi_, 0.8), g.rgb(brass), g.rgb(tuple(min(1.0, x * 1.3 + 0.12) for x in brass)))
+    br = g.mix(g.math("MULTIPLY", lo_, 0.6), br, g.rgb(tuple(x * 0.45 for x in brass)))
+    c = g.mix(g.reg(5), c, br)
+    cu = g.mix(g.remap(g.noise(p, 8.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(copper), g.rgb(tuple(x * 0.82 for x in copper)))
+    cu = g.mix(g.math("MULTIPLY", hi_, 0.75), cu, g.rgb(tuple(min(1.0, x * 1.35 + 0.1) for x in copper)))
+    cu = g.mix(g.math("MULTIPLY", lo_, 0.55), cu, g.rgb(tuple(x * 0.4 for x in copper)))
+    vg = g.math("MULTIPLY", g.smooth(pt, 0.46, 0.41), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+    cu = g.mix(g.math("MULTIPLY", vg, 0.6), cu, g.rgb((0.3, 0.52, 0.42)))
+    c = g.mix(g.reg(6), c, cu)
+    st, _r = _iron_col(g, p, base=(0.58, 0.6, 0.64), hi=(0.96, 0.97, 0.99), dark=(0.22, 0.22, 0.25), rust=(0.42, 0.3, 0.2))
+    c = g.mix(g.reg(7), c, st)
+    rib = g.wave(p, 220.0, 0.5, 0.0, "BANDS", "DIAGONAL")
+    rb = g.mix(g.math("MULTIPLY", rib, 0.4), g.rgb((0.045, 0.043, 0.045)), g.rgb((0.1, 0.095, 0.095)))
+    rb = g.mix(g.math("MULTIPLY", hi_, 0.5), rb, g.rgb((0.22, 0.21, 0.2)))
+    c = g.mix(g.reg(8), c, rb)
+    lea = g.mix(g.noise(p, 9.0, 3.0), g.rgb(leather), g.rgb(tuple(min(1.0, x * 1.3) for x in leather)))
+    lea = g.mix(g.math("MULTIPLY", hi_, 0.5), lea, g.rgb(tuple(min(1.0, x * 1.7) for x in leather)))
+    c = g.mix(g.reg(9), c, lea)
+    en = g.mix(g.noise(p, 30.0, 2.0), g.rgb(enamel), g.rgb(tuple(x * 0.9 for x in enamel)))
+    c = g.mix(g.reg(10), c, en)
+    c = g.mix(g.reg(11), c, g.rgb(paint))
+    bl = g.mix(g.noise(p, 20.0, 2.0), g.rgb((0.05, 0.046, 0.045)), g.rgb((0.1, 0.092, 0.088)))
+    bl = g.mix(g.math("MULTIPLY", hi_, 0.6), bl, g.rgb((0.34, 0.32, 0.3)))
+    c = g.mix(g.reg(12), c, bl)
+    gl = g.mix(g.math("MULTIPLY", hi_, 0.7), g.rgb(glass), g.rgb(tuple(min(1.0, x * 2.4 + 0.2) for x in glass)))
+    c = g.mix(g.reg(13), c, gl)
+    rough = g.mixf(rs, 0.42, 0.8)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(5), g.reg(6)), rough, 0.3)
+    rough = g.mixf(g.reg(7), rough, 0.22)
+    rough = g.mixf(g.reg(8), rough, 0.85)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(9), g.reg(12)), rough, 0.6)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(10), g.reg(11)), rough, 0.35)
+    rough = g.mixf(g.reg(13), rough, 0.08)
+    ham = g.voronoi(p, 80.0, 1.0, "F1", "Distance")
+    h = g.math("ADD", g.math("MULTIPLY", ham, 0.25), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
+    h = g.math("ADD", h, g.math("MULTIPLY", rib, g.math("MULTIPLY", g.reg(8), 0.8)))
+    return g.finish(c, rough, g.bump(h, 0.14, 0.002))
+
+
+# ======================================================================================= Industrial Age (the Field Gun)
+def _brass_col(g, pt, base=(0.8, 0.55, 0.22)):
+    """Polished brass: bright on edges and ridges, dark in the recesses."""
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb(base), g.rgb((1.0, 0.9, 0.58)))
+    return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.36, 0.22, 0.07)))
+
+
+def uniform(name="HQ_Uniform", base=(0.18, 0.22, 0.42), facing=(0.62, 0.09, 0.07), brass=(0.8, 0.55, 0.22),
+            buff=(0.74, 0.6, 0.38), black=(0.06, 0.055, 0.06)):
+    """The Industrial Age corps' uniform cloth: navy wool (label 0) with a fine weave, darker in the folds and a lighter
+    nap on the ridges; facings (5: a collar, piping, a trouser stripe), polished brass (6: buttons, badges), buff braid or
+    a cap band (7), black patent leather (8: a cap's peak and chin strap, glossy)."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 300.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 300.0, 0.0, 0.0, "BANDS", "Z"))
+    pt = g.geo("Pointiness")
+    def cloth(col):
+        c = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.8 for x in col)))
+        c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.6), c, g.rgb(tuple(x * 0.5 for x in col)))
+        return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.45), c, g.rgb(tuple(min(1.0, x * 1.5 + 0.06) for x in col)))
+    c = cloth(base)
+    c = g.mix(g.reg(5), c, cloth(facing))
+    c = g.mix(g.reg(7), c, cloth(buff))
+    blk = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.7), g.rgb(black), g.rgb((0.36, 0.36, 0.4)))
+    c = g.mix(g.reg(8), c, blk)
+    c = g.mix(g.reg(6), c, _brass_col(g, pt, brass))
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(8), 0.9, 0.22), 0.28)
+    h = g.math("MULTIPLY", weave, g.math("SUBTRACT", 1.0, g.math("MAXIMUM", g.reg(6), g.reg(8))))
+    return g.finish(c, rough, g.bump(h, 0.16, 0.0014))
+
+
+def fieldgun(name="HQ_FieldGun", olive=(0.33, 0.34, 0.2), grey=(0.3, 0.32, 0.34), brass=(0.8, 0.55, 0.22),
+             wood=(0.55, 0.38, 0.22), copper=(0.75, 0.35, 0.18), red=(0.72, 0.1, 0.07), white=(0.9, 0.88, 0.82)):
+    """A steel field gun of about 1900: olive-drab paint (label 0) and gunmetal-grey paint (5), both chipped back to the
+    steel on the edges and grimy in the recesses, rivet heads catching the light; polished brass (6); bright machined
+    steel (7: a breech face, worn tyres); black enamel and dark iron (8); oiled wood (9); cord (10); copper (11); red (12)
+    and white (13) paint (a range marker's bands)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    brush = g.remap(g.noise(g.scale_vec(p, (60.0, 60.0, 60.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    def paint(col):
+        c = g.mix(g.math("MULTIPLY", brush, 0.25), g.rgb(col), g.rgb(tuple(x * 0.8 for x in col)))
+        c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.45, 0.7), 0.25), c, g.rgb(tuple(x * 0.72 for x in col)))
+        return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.4), c, g.rgb(tuple(min(1.0, x * 1.35 + 0.04) for x in col)))
+    steel, rs = _iron_col(g, p, base=(0.42, 0.43, 0.46), hi=(0.82, 0.84, 0.88), dark=(0.14, 0.14, 0.16), rust=(0.45, 0.24, 0.12))
+    chip = g.math("MULTIPLY", g.smooth(pt, 0.535, 0.6), g.smooth(g.noise(p, 26.0, 2.0), 0.45, 0.56))
+    c = g.mix(chip, paint(olive), steel)
+    c = g.mix(g.reg(5), c, g.mix(chip, paint(grey), steel))
+    c = g.mix(g.reg(12), c, g.mix(chip, paint(red), steel))
+    c = g.mix(g.reg(13), c, g.mix(chip, paint(white), steel))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.55), c, g.rgb((0.1, 0.09, 0.07)))            # grime in the recesses
+    c = g.mix(g.reg(7), c, steel)
+    blk, _r = _iron_col(g, p, base=(0.07, 0.07, 0.075), hi=(0.4, 0.41, 0.44), dark=(0.02, 0.02, 0.02), rust=(0.2, 0.12, 0.07))
+    c = g.mix(g.reg(8), c, blk)
+    wd = g.mix(g.noise(g.scale_vec(p, (60.0, 60.0, 6.0)), 1.0, 3.0), g.rgb(wood), g.rgb(tuple(x * 0.7 for x in wood)))
+    c = g.mix(g.reg(9), c, wd)
+    tw = g.wave(p, 260.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(10), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb((0.8, 0.7, 0.5)), g.rgb((0.52, 0.42, 0.28))))
+    c = g.mix(g.reg(6), c, _brass_col(g, pt, brass))
+    c = g.mix(g.reg(11), c, _brass_col(g, pt, copper))
+    metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(6), g.reg(11)), g.reg(7))
+    rough = g.mixf(metal, g.mixf(chip, g.mixf(g.math("MAXIMUM", g.reg(9), g.reg(10)), 0.62, 0.8), 0.35), 0.26)
+    rough = g.mixf(g.reg(8), rough, 0.35)
+    h = g.math("ADD", g.math("MULTIPLY", brush, 0.3), g.math("MULTIPLY", g.noise(p, 90.0, 2.0), 0.25))
+    h = g.math("ADD", h, g.math("MULTIPLY", tw, g.math("MULTIPLY", g.reg(10), 1.5)))
+    return g.finish(c, rough, g.bump(h, 0.12, 0.002))
+
+
+def sacking(name="HQ_Sacking", base=(0.62, 0.5, 0.33), dark=(0.42, 0.33, 0.2), stencil=(0.12, 0.1, 0.08)):
+    """Sandbags: coarse jute sacking, a loose open weave, dusty and pale on the bulges, dark and damp in the creases and
+    between the bags; label 5 = a stencilled mark (dark), 6 = twine (pale)."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 170.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 170.0, 0.0, 0.0, "BANDS", "Z"))
+    weave = g.math("ADD", weave, g.wave(p, 170.0, 0.0, 0.0, "BANDS", "Y"))
+    c = g.mix(g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.86 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.75), c, g.rgb(dark))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.4), c, g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.55, 0.7), 0.3), c, g.rgb((0.38, 0.3, 0.2)))   # earth stains
+    c = g.mix(g.math("MULTIPLY", g.reg(5), 0.85), c, g.rgb(stencil))
+    c = g.mix(g.reg(6), c, g.rgb((0.82, 0.74, 0.56)))
+    return g.finish(c, 0.95, g.bump(weave, 0.3, 0.0016))

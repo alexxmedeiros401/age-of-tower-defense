@@ -424,7 +424,8 @@ func _build_world() -> void:
 		_build_city(end_pt)
 	elif base_id != "cave":
 		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))
-				or (base_id == "castle" and _medieval_city_kit(end_pt)) or (base_id == "fort" and _gunpowder_city_kit(end_pt))):
+				or (base_id == "castle" and _medieval_city_kit(end_pt)) or (base_id == "fort" and _gunpowder_city_kit(end_pt))
+				or (base_id == "factory" and _industrial_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
@@ -1529,6 +1530,31 @@ func _gunpowder_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## v0.9.65: the Industrial city: a great works' entrance (a brick gatehouse under its clock tower, iron gates, fire
+## baskets, gas lamps, sawtooth sheds, an engine house and three tall smokestacks).
+func _industrial_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/industrial_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:
+		_campfire(n, Vector3(-0.18, 1.0, sd * 1.25), 1.4, 0.34)
+	for sm in [Vector3(5.9, 6.25, 2.6), Vector3(6.3, 6.85, -1.4), Vector3(5.1, 5.65, 4.2)]:
+		_smoke_column(n.position + sm)
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -1835,6 +1861,34 @@ const DECOR_V2 := {
 			["Wagon", Vector2(14.0, -11.0), 0.9, 1.4, {"yaw": 0.2}], ["Marquee", Vector2(-10.0, 10.9), 0.9, 1.6, {"yaw": 0.0}],
 			["Tent", Vector2(-6.5, 11.2), 0.9, 1.1], ["Windmill", Vector2(8.0, 11.0), 0.9, 1.6, {"yaw": 0.0}],
 			["Tent", Vector2(-13.8, 10.8), 0.85, 1.1], ["Gun", Vector2(3.5, 10.8), 0.95, 1.2, {"yaw": PI * 0.5}]]},
+	# v0.9.65: the Industrial Age kits (decor_industrial.py): Foundry Row's foundry, gasholder and steam hammer, the
+	# Railyard's train on its siding and signal box, Smog City's terraces, pub, clock tower and canal lock
+	"factory": {"kit": "industrial_decor_factory", "count": 92, "ambient": true,
+		"scatter": [["Stub_A", 4], ["Stub_B", 3], ["Scrap", 8], ["Castings", 5], ["Ingots", 5], ["SlagCart", 3], ["Barrels", 6], ["Crates", 6],
+			["Drum", 4], ["Weeds", 12], ["Rock_A", 6], ["Rock_B", 8], ["Tree_A", 8], ["Tree_B", 7]],
+		"cover": [["Tuft", 3], ["Flowers", 1]], "cover_n": 70, "cover_s": 0.8,
+		"marks": [["Foundry", Vector2(-4.0, -11.0), 0.85, 2.2, {"yaw": 0.0}], ["Gasholder", Vector2(6.5, -11.0), 0.85, 1.8],
+			["Crane", Vector2(12.0, -10.9), 0.85, 1.4, {"yaw": 0.3}], ["Stub_A", Vector2(-13.0, -10.6), 1.1, 0.8],
+			["HammerShed", Vector2(-9.0, 10.9), 0.85, 1.8, {"yaw": 0.0}], ["WaterTower", Vector2(2.5, 10.9), 0.9, 1.2, {"yaw": 0.0}],
+			["Workshop", Vector2(9.5, 10.9), 0.85, 1.4, {"yaw": 0.0}], ["Gasholder", Vector2(-17.0, -10.4), 0.7, 1.5],
+			["Scrap", Vector2(-2.5, 11.3), 1.0, 0.8]]},
+	"railyard": {"kit": "industrial_decor_railyard", "count": 90, "ambient": true,
+		"scatter": [["Sleepers", 6], ["Crates", 5], ["Barrels", 5], ["Lamp", 5], ["Churns", 3], ["Weeds", 14], ["Tree_A", 10], ["Tree_B", 9]],
+		"cover": [["Tuft", 3], ["Flowers", 1]], "cover_n": 80, "cover_s": 0.85,
+		"marks": [["Loco", Vector2(2.0, -11.0), 0.9, 1.8, {"yaw": 0.0}], ["Wagon_A", Vector2(-0.75, -11.0), 0.9, 1.0, {"yaw": 0.0}],
+			["Wagon_B", Vector2(-2.45, -11.0), 0.9, 1.0, {"yaw": 0.0}], ["Buffer", Vector2(-4.15, -11.0), 0.9, 0.6, {"yaw": PI}],
+			["WaterTower", Vector2(7.0, -10.9), 0.9, 1.4, {"yaw": 0.0}], ["Signal", Vector2(5.0, -10.4), 1.0, 0.5, {"yaw": 0.0}],
+			["EngineShed", Vector2(-8.5, 11.2), 0.85, 2.0, {"yaw": 0.0}], ["SignalBox", Vector2(2.0, 10.9), 0.9, 1.4, {"yaw": 0.0}],
+			["Staithe", Vector2(10.5, 10.9), 0.85, 1.6, {"yaw": 0.0}], ["Signal", Vector2(-2.5, 10.4), 1.0, 0.5, {"yaw": PI}],
+			["Coal", Vector2(-16.8, -10.4), 0.85, 1.2, {"yaw": 0.3}], ["CoalTub", Vector2(13.5, -10.6), 1.0, 0.7, {"yaw": 0.0}]]},
+	"smog": {"kit": "industrial_decor_smog", "count": 84, "ambient": true,
+		"scatter": [["Lamp", 10], ["PillarBox", 4], ["Bench", 5], ["Barrels", 5], ["Crates", 5], ["Railings", 7], ["Plane_A", 12], ["Plane_B", 12],
+			["Pots", 4]],
+		"cover": [["Tuft", 1]], "cover_n": 30, "cover_s": 0.6,
+		"marks": [["Terrace", Vector2(-4.0, -11.0), 0.9, 2.0, {"yaw": 0.0}], ["ClockTower", Vector2(2.5, -10.9), 0.9, 1.0, {"yaw": 0.0}],
+			["Chimney", Vector2(14.0, -11.0), 0.9, 0.8], ["Chimney", Vector2(-13.0, -11.2), 0.8, 0.8],
+			["Pub", Vector2(-4.0, 10.9), 0.9, 1.4, {"yaw": 0.0}], ["Lock", Vector2(3.5, 11.1), 0.9, 2.0, {"yaw": 0.0}],
+			["Terrace", Vector2(11.0, 11.0), 0.85, 2.0, {"yaw": 0.0}], ["Terrace", Vector2(-16.8, -10.4), 0.75, 1.6, {"yaw": 0.3}]]},
 	# Castle Siege: the besiegers' camp: pavilions and ridge tents, mantlets, a battering ram, a siege tower, supplies, a
 	# pile of catapult stones, a campfire, banners and spears; oaks and boulders
 	"castle": {"kit": "medieval_decor_castle", "count": 92, "ambient": true,
@@ -1848,8 +1902,11 @@ const DECOR_V2 := {
 }
 ## v0.9.40: where a landmark's fire burns or its smoke rises (prop-local, Godot axes): [fire, light, scale] / smoke
 const MARK_FIRES := {"Bloomery": [Vector3(-0.45, 1.28, 0.05), 1.1, 0.28], "Smithy": [Vector3(-0.25, 0.6, -0.48), 1.0, 0.26],
-	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2], "Campfire": [Vector3(0, 0.16, 0), 1.0, 0.3]}
-const MARK_SMOKE := {"Tavern": Vector3(-0.83, 2.55, -0.25), "Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
+	"Lighthouse": [Vector3(0, 2.86, 0), 1.4, 0.32], "Foundry": [Vector3(1.67, 2.4, 0.05), 1.2, 0.3], "Altar": [Vector3(0, 0.84, 0), 0.9, 0.2], "Campfire": [Vector3(0, 0.16, 0), 1.0, 0.3]}
+const MARK_SMOKE := {"Tavern": Vector3(-0.83, 2.55, -0.25), "Foundry": Vector3(-1.55, 3.8, -0.1), "HammerShed": Vector3(1.5, 1.75, -0.3),
+	"Crane": Vector3(-0.3, 1.58, 0.0), "Workshop": Vector3(0.6, 1.72, -0.35), "Loco": Vector3(0.86, 1.24, 0.0), "EngineShed": Vector3(0.0, 2.5, 0.0),
+	"SignalBox": Vector3(0.35, 1.95, -0.25), "Terrace": Vector3(-0.475, 2.3, 0.0), "Pub": Vector3(-0.35, 2.3, -0.3), "Chimney": Vector3(0.0, 4.65, 0.0),
+	"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
 	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0), "Cottage": Vector3(-0.73, 1.72, -0.12),
 	"Hut": Vector3(0.3, 1.2, 0.0), "Campfire": Vector3(0, 0.4, 0)}
 
@@ -2221,6 +2278,8 @@ func _export_decor(path: String) -> void:
 ## v2 no-build zones: ice lakes ringed with snow and crystals, rock outcrops, lava pools ringed with
 ## glowing basalt. The ground texture still paints the zone itself.
 var _statue_n := 0                   # (the acropolis' statue zones take turns: a statue, then the lion)
+var _machine_n := 0                  # (v0.9.65: Foundry Row's machines take turns; the Railyard's coal zones too)
+var _coal_n := 0
 var _ruins_n := 0                    # (Jungle Outpost's ruins zones: the second gets the pyramid)
 var _building_n := 0                 # (the farmland's building zones take turns: a cottage, then a barn)
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
@@ -2234,6 +2293,9 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 					_decor_single(["Papyrus", "Reeds", "Papyrus"][k % 3], Vector3(cos(a0) * rr, 0, sin(a0) * rr), r.randf() * TAU, r.randf_range(0.5, 0.72), n)
 				return true
 			if th == "smog":                  # v0.9.63: Smog City's dock pools: water in the ground, the quay round it
+				var bt := _decor_single("Narrowboat", Vector3(0, 0, rad * 0.2), r.randf_range(-0.15, 0.15), rad / 1.6, n)
+				if bt != null:                # (v0.9.65: a narrowboat moored in each, rocking on the water)
+					effects.append({"node": bt, "t": r.randf() * 6.0, "life": INF, "kind": "bob", "y0": bt.position.y})
 				return true
 			if th in ["highland", "bog"]:     # v0.9.40: lochans and bog pools move in the ground too; reeds and rushes round them
 				var ring := ["Reeds", "Rushes", "Reeds"] if th == "highland" else ["Reeds", "Rushes", "Cotton"]
@@ -2325,6 +2387,12 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single("Barrels", Vector3(rad * 0.6, 0, rad * 0.45), r.randf_range(-0.3, 0.3), 0.8, n)
 				_decor_single("Bales", Vector3(-rad * 0.35, 0, rad * 0.6), PI + r.randf_range(-0.2, 0.2), 0.75, n)
 				return true
+			if th == "railyard":                # v0.9.65: goods on the flagged platforms: crates, sleepers, churns, casks
+				_decor_single("Crates", Vector3(-rad * 0.3, 0, -rad * 0.25), r.randf_range(-0.2, 0.2), rad / 1.5, n)
+				_decor_single("Sleepers", Vector3(rad * 0.45, 0, rad * 0.35), r.randf() * TAU, 0.75, n)
+				_decor_single("Churns", Vector3(-rad * 0.45, 0, rad * 0.55), r.randf() * TAU, 0.9, n)
+				_decor_single("Barrels", Vector3(rad * 0.55, 0, -rad * 0.5), r.randf() * TAU, 0.7, n)
+				return true
 			if th == "fortress":                # a gun behind gabions turned on the fort, its powder and shot
 				_decor_single("Gun", Vector3(-rad * 0.2, 0, -rad * 0.3), PI * 0.5, 0.9, n)
 				_decor_single("Gabions", Vector3(rad * 0.62, 0, rad * 0.1), PI * 0.5, 0.75, n)
@@ -2332,6 +2400,23 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single("Shot", Vector3(rad * 0.2, 0, rad * 0.6), r.randf() * TAU, 0.95, n)
 				return true
 			return false
+		"machine":                            # v0.9.65: Foundry Row's machines: a steam hammer, a beam engine, a steam crane
+			if th != "factory":
+				return false
+			_machine_n += 1
+			var mk2: Array = [["Hammer", 1.05], ["BeamEngine", 1.4], ["Crane", 1.5]][(_machine_n - 1) % 3]
+			_decor_single(mk2[0], Vector3.ZERO, r.randf_range(-0.4, 0.4), rad / float(mk2[1]), n)
+			return true
+		"coal":                               # v0.9.65: the Railyard's coal: a staithe, or a heap in its sleeper bin and a tub
+			if th != "railyard":
+				return false
+			_coal_n += 1
+			if _coal_n % 2 == 1:
+				_decor_single("Staithe", Vector3.ZERO, r.randf_range(-0.3, 0.3), rad / 1.6, n)
+			else:
+				_decor_single("Coal", Vector3(0, 0, -rad * 0.1), r.randf_range(-0.3, 0.3), rad / 1.2, n)
+				_decor_single("CoalTub", Vector3(rad * 0.6, 0, rad * 0.55), PI * 0.5 + r.randf_range(-0.2, 0.2), 0.7, n)
+			return true
 		"crater":                             # v0.9.61: debris round the pit's rim (kept off the +x side: the fort)
 			if th != "fortress":
 				return false
@@ -2345,6 +2430,19 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
 			return true
 		"building":                       # the Medieval Age: a cottage and its haystack, or a barn and the hay cart
+			if th == "factory":             # v0.9.65: a workshop under its sawtooth roof, casks or crates by it
+				_building_n += 1
+				_decor_single("Workshop", Vector3.ZERO, r.randf_range(-0.3, 0.3), rad / 1.25, n)
+				_decor_single("Barrels" if _building_n % 2 else "Crates", Vector3(rad * 0.7, 0, rad * 0.6), r.randf() * TAU, 0.6, n)
+				return true
+			if th == "smog":                # a terrace with a lamp, or the corner pub
+				_building_n += 1
+				if _building_n % 2 == 1:
+					_decor_single("Terrace", Vector3.ZERO, r.randf_range(-0.2, 0.2), rad / 1.7, n)
+					_decor_single("Lamp", Vector3(rad * 0.85, 0, rad * 0.6), 0.0, 0.8, n)
+				else:
+					_decor_single("Pub", Vector3.ZERO, r.randf_range(-0.3, 0.3), rad / 1.2, n)
+				return true
 			if th != "farmland":
 				return false
 			_building_n += 1
@@ -2400,6 +2498,8 @@ func _build_blockers() -> void:
 	_statue_n = 0
 	_building_n = 0
 	_ruins_n = 0
+	_machine_n = 0
+	_coal_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
@@ -3218,7 +3318,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4832,6 +4932,8 @@ func _handle_events() -> void:
 						_legion_bash(u2)                        # v0.9.42: the shield's boss slams forward first...
 					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's,
 					                                            # and the Legionary's gladius thrust round his shield, too)
+				elif u2 != null and u2.type == "steam_brawler" and _hq_clips(ev.id):
+					_brawler_punch(u2, ev.get("targets", []))   # v0.9.64: the piston-driven fist rams out in a burst of steam
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type in ["axe_warrior", "knight", "aldric", "halberdier"] and _hq_clips(ev.id):
@@ -4880,6 +4982,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
+				elif u3 != null and u3.type == "tesla_coil" and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_tesla_zap(u3, tg3)                         # v0.9.64: lightning leaps from the toroid as he throws the switch
 				elif u3 != null and u3.type == "war_drummer" and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_drum_beat(u3, tg3)                         # v0.9.61: the shockwave leaves the drumhead on his great beat
@@ -5055,7 +5160,7 @@ const ARCHER_BOW := Vector3(-0.03, 1.41, 1.12)    # the nocked arrows' tips at f
 const XBOW_TIP := Vector3(-0.16, 1.502, 0.911)
 # Wren's arrow tip at full draw (anim_wren.RELEASE, frame 1)
 const BOW_TIPS := {"bronze_archer": ARCHER_BOW, "cretan_archer": Vector3(-0.03, 1.04, 1.12), "crossbowman": XBOW_TIP,
-	"wren": Vector3(-0.127, 1.475, 0.943)}
+	"wren": Vector3(-0.127, 1.475, 0.943), "ada": Vector3(-0.290, 1.081, 0.897)}
 const ARROW_LEN := 0.78
 const XBOW_BOLT_LEN := 0.5
 
@@ -5215,7 +5320,7 @@ func _robot_type(eid: int) -> String:
 ## the sim's projectile as it flies (see _arrow_flight); other archers' arrows start above their tower as before.
 func _arrow_proj(root: Node3D, p: Dictionary, u, dt: String) -> void:
 	var fire := dt == "fire"
-	_mi(_xbow_bolt_mesh(fire) if u != null and str(u.type) == "crossbowman" else _arrow_mesh(fire), null, root)
+	_mi(_xbow_bolt_mesh(fire) if u != null and str(u.type) in ["crossbowman", "ada"] else _arrow_mesh(fire), null, root)
 	root.set_meta("arrow", true)
 	root.set_meta("arrow_hq", true)
 	if fire:
@@ -6001,6 +6106,45 @@ func _flare_burn(tid: int) -> void:
 				effects.append({"node": em, "t": 0.0, "life": randf_range(0.4, 0.6), "kind": "glint", "s": randf_range(0.7, 1.0),
 					"v": Vector3(randf_range(-0.6, 0.6), randf_range(1.0, 1.8), randf_range(-0.6, 0.6))})
 	_land_hit(tid, 0.08)
+
+
+# ---------------------------------------------------------------- Steam Brawler (v0.9.64)
+# His punch (anim_steam_brawler.py): he steps in with a straight right and at the blow (frame 10-11) the pistons fire and
+# the iron fist rams out: a burst of steam off the ram and a white flash at the knuckles, and every robot it hits throws
+# sparks with a clang and is knocked back (the sim's hits wait for the blow).
+const BRAWLER_FIST := Vector3(0.020, 1.220, 1.460)
+func _brawler_punch(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var tn: Node3D = tower_nodes[uid]
+	var clip := str(tn.get_meta("clip_attack", "Attack"))
+	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
+	var at := float(ATTACK_FRAME.steam_brawler) / CLIP_FPS
+	var ids := []
+	for tid in targets:
+		if _robot_point(int(tid), 0.0) == Vector3.INF:
+			continue
+		_hold_hit(int(tid), at / rate + 0.03 * ids.size() + 0.04)
+		ids.append(int(tid))
+	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at, at / rate, func() -> void:
+		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+			var yt := ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform
+			var fist: Vector3 = yt * BRAWLER_FIST
+			var fwd := (yt.basis * Vector3(0, 0, 1)).normalized()
+			if _fx_room(1):
+				var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, fist + fwd * 0.1)
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.8})
+			_steam_puff(fist - fwd * 0.25, Vector3(fwd.z, 0.4, -fwd.x))
+			_steam_puff(fist - fwd * 0.25, Vector3(-fwd.z, 0.4, fwd.x))
+		_sfx("steam", -10.0, 0.1, 0.2)
+		var k := 0
+		for t in ids:
+			if k == 0:
+				_axe_bite(uid, int(t))
+			else:
+				var tt := int(t)
+				_fx_after(0.03 * k, func() -> void: _axe_bite(uid, tt))
+			k += 1))
 
 
 # ---------------------------------------------------------------- Axe Warrior (Iron Age)
@@ -7185,17 +7329,22 @@ func _drone_heal(did: int, radius: float) -> void:
 # v0.9.61: the Gunpowder Age's lobbed shells. The Cannon (anim_cannon.py) fires on Attack frame 2: its ball leaves the
 # muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
-const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85]}
+const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85],
+	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45]}     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
-	_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
+	if str(u.type) == "field_gun":
+		_proj_model(root, "shell", "")                       # (a pointed shell, flying nose first)
+	else:
+		_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
 	if str(u.type) == "marco":
 		_fire_halo(root, 0.3)                                # (its fuse fizzing)
 		root.set_meta("fire", true)
 	else:
 		root.set_meta("blast", true)
 	root.set_meta("shell", true)
-	root.set_meta("spin", true)
+	if not root.has_meta("arrow"):
+		root.set_meta("spin", true)
 	root.set_meta("lob_from", root.position)
 	root.set_meta("lob_cap", float(p.flight) * 0.6)
 	root.set_meta("lob_size", 0.45)
@@ -7229,6 +7378,46 @@ func _shell_burst(ground: Vector3, r: float) -> void:
 	_pebble_fx(ground + Vector3(0, 0.3, 0))
 	_ground_decal(ground, "crack", 0.9 * r, 1.4)
 	shake = maxf(shake, 0.22)
+
+
+## v0.9.64: a puff of white steam (Ada's launcher venting as it fires), drifting along dir and up.
+func _steam_puff(pos: Vector3, dir: Vector3) -> void:
+	var n: int = [3, 2, 1][clampi(Progress.gfx_level(), 0, 2)]
+	var d := dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
+	for i in n:
+		if not _fx_room(1):
+			return
+		var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.96, 0.96, 0.96, 0.55)), self, pos - d * 0.25)
+		pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pf.scale = Vector3.ONE * 0.32
+		effects.append({"node": pf, "t": -0.03 * i, "life": randf_range(0.5, 0.8), "kind": "dust",
+			"v": d * randf_range(0.6, 1.2) + Vector3(randf_range(-0.3, 0.3), randf_range(0.5, 1.0), randf_range(-0.3, 0.3))})
+
+
+# v0.9.64: Ada's Overdrive (anim_ada.py): she twirls her spanner as her gauntlet's gear spins up and thrusts it high at
+# frame 36 (SIGNAL): an amber flash at the spanner's jaw and a surge that runs out to every tower in turn.
+const ADA_SIGNAL := 36
+const ADA_WRENCH := Vector3(-0.229, 2.253, 0.172)
+func _ada_overdrive() -> void:
+	var hid := int(sim.hero.id)
+	var at0 := float(ADA_SIGNAL) / CLIP_FPS
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at0, at0, func() -> void:
+		var hp := _v3(sim.hero.pos, 0.3) if sim.hero != null else Vector3.ZERO
+		var top := hp + Vector3(0, 1.6, 0)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			top = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * ADA_WRENCH
+		for s2 in [1.3, 0.7]:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("sun_flash"), self, top)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.45, "kind": "flash", "s": s2})
+		_ring_fx(Vector3(hp.x, 0.3, hp.z), 2.4, Color(1.0, 0.7, 0.25), 0.6)
+		_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
+		for t in sim.towers:
+			var tp := _v3(t.pos, 0.3)
+			var d := Vector2(tp.x - hp.x, tp.z - hp.z).length() / 12.0
+			_fx_after(d, func() -> void:
+				_ring_fx(tp, 1.2, Color(1.0, 0.7, 0.25), 0.5)
+				_steam_puff(tp + Vector3(0, 1.0, 0), Vector3.UP))))
 
 
 ## The Torsion Catapult (v0.9.23): its HQ engineer knocks out the trigger pin, the arm whips up and the shot leaves the
@@ -7760,6 +7949,63 @@ func _theron_sun(uid: int, p: Vector3) -> Vector3:
 	return Vector3.INF
 
 
+# v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
+# toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
+const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
+func _tesla_zap(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var ids := targets.duplicate()
+	var R := float(u.stats.get("range", 3.6))
+	_at_attack_frame(uid, float(ATTACK_FRAME.tesla_coil), 0.1, func() -> void:
+		var top := _v3(u.pos, 1.4)
+		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+			top = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * TESLA_TOROID
+		if _fx_room(2):
+			for s2 in [1.0, 0.5]:
+				var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, top)
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.22, "kind": "flash", "s": s2})
+		_ring_fx(_v3(u.pos, 0.3), R, Color(0.55, 0.85, 1.0), 0.45)
+		var cap: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+		var i := 0
+		for tid in ids:
+			if i >= cap:
+				break
+			var at := _robot_point(int(tid), _hit_height_of(_robot_type(int(tid))))
+			if at == Vector3.INF:
+				continue
+			_tesla_arc(top, at)
+			i += 1
+		shake = maxf(shake, 0.06))
+
+
+## A fork of lightning from a to b: a jagged line of glowing segments that flickers out, a flash where it strikes.
+func _tesla_arc(a: Vector3, b: Vector3) -> void:
+	var n := 5
+	if not _fx_room(n + 1):
+		return
+	var m := _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
+	var pts := [a]
+	var side := (b - a).cross(Vector3.UP).normalized()
+	for k in range(1, n):
+		var t := float(k) / n
+		pts.append(a.lerp(b, t) + side * randf_range(-0.35, 0.35) + Vector3(0, randf_range(-0.2, 0.3) + 0.5 * sin(PI * t), 0))
+	pts.append(b)
+	for k in range(1, pts.size()):
+		var p0: Vector3 = pts[k - 1]
+		var p1: Vector3 = pts[k]
+		var L := p0.distance_to(p1)
+		if L < 0.01:
+			continue
+		var bolt := _mi(_box(0.05, 0.05, L), m, self, (p0 + p1) * 0.5)
+		bolt.look_at((p0 + p1) * 0.5 + (p1 - p0), Vector3.UP if absf((p1 - p0).normalized().y) < 0.95 else Vector3.RIGHT)
+		bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": bolt, "t": 0.0, "life": 0.16, "kind": "flash", "s": 1.0})
+	var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, b)
+	f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	effects.append({"node": f, "t": 0.0, "life": 0.18, "kind": "flash", "s": 0.5})
+
+
 # v0.9.61: the War Drummer (anim_drummer.py) brings both sticks down on the drumhead on Attack frame 8 (BEAT): a flash
 # on the head, rings of sound rolling out from the drum over his whole reach, and every robot in it jolted.
 const DRUM_HEAD := Vector3(0.219, 0.833, 0.442)
@@ -8208,6 +8454,10 @@ func _make_projectile(p: Dictionary) -> Node3D:
 	if utype == "crossbowman" and u != null and _hq_clips(int(u.id)):
 		_arrow_proj(root, p, u, dt)            # v0.9.51: a real bolt, loosed from the HQ Crossbowman's crossbow
 		return root
+	if utype == "ada" and u != null and _hq_clips(int(u.id)):
+		_arrow_proj(root, p, u, dt)            # v0.9.64: a steel bolt from Ada's steam launcher, in a puff of steam
+		_steam_puff(root.position, -root.global_transform.basis.z)
+		return root
 	if MUSKET_TIPS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		_musket_proj(root, p, u)               # v0.9.59: a ball from the HQ Musketeer's muzzle, in fire and smoke
 		return root
@@ -8461,6 +8711,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			if sim.hero != null and str(sim.hero.type) == "brenna" and _hq_clips(sim.hero.id):
 				_brenna_cry()                               # she beats spear on shield and roars: a blue wave over the towers
 				_banner(aname, Color(0.5, 0.75, 1.0))
+				return
+			if sim.hero != null and str(sim.hero.type) == "ada" and _hq_clips(sim.hero.id):
+				_ada_overdrive()                            # v0.9.64: her spanner raised high, an amber surge to every tower
+				_banner(aname, Color(1.0, 0.7, 0.25))
 				return
 			if sim.hero != null and str(sim.hero.type) == "tarek" and _hq_clips(sim.hero.id):
 				_tarek_fury()                               # v0.9.26: three blows on the anvil, a wave of heat, glowing towers

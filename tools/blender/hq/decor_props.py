@@ -514,6 +514,9 @@ def KITS(theme):
     if theme in ("jungle", "harbor", "fortress", "fort_city"):  # the Gunpowder Age kits
         import decor_gunpowder
         return decor_gunpowder.KITS(theme)
+    if theme in ("factory", "railyard", "smog", "factory_city"):  # the Industrial Age kits
+        import decor_industrial
+        return decor_industrial.KITS(theme)
     if theme == "portal":
         return {"Portal": (lambda: portal(23), 3600), "PortalLights": (lambda: portal_lights(), 300)}
     if theme == "meadow":
