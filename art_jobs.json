@@ -1,0 +1,7 @@
+[
+ {
+  "name": "dk_lab_q1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dk_lab_q1; mkdir -p $O\npython3 decor_build.py -- --theme lab --out $O --tex 512 --ao 4 --only Cart,Instruments,Servers_A,Servers_B,Reel,Bollards,Partition,Fern_A,Fern_B,SpillKit,Cylinders,Cable,ArmCell,Accelerator,ControlRoom,Pod,Gantry,Robot,Centrifuge,Scanner,Tank_A,Tank_B --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/dk_lab_q1"
+ }
+]
