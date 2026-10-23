@@ -103,11 +103,11 @@ def head(fd):
     fd.add(E((0, -0.134, 1.5), (0.072, 0.064, 0.066)), 0.05, SKIN)                           # a firm chin
     fd.sub(RoundCone(hp((0, -0.2, 1.486)), hp((0, -0.197, 1.508)), hr(0.0035), hr(0.0025)), hr(0.005))   # its cleft
     for sx in (-1, 1):
-        fd.add(S((sx * 0.11, -0.118, 1.642), 0.044), 0.05, SKIN)                               # high cheekbones
+        fd.add(S((sx * 0.108, -0.116, 1.64), 0.042), 0.05, SKIN)                               # high cheekbones
         fd.add(S((sx * 0.113, -0.046, 1.562), 0.043), 0.05, SKIN)                              # jaw corners
         pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.13, 1.752)), hp((sx * 0.06, -0.174, 1.75)), hp((0.0, -0.184, 1.75))]
         fd.add(Chain(pts, [hr(0.012), hr(0.022), hr(0.027), hr(0.027)], k=hr(0.022)), hr(0.035), SKIN)     # brow ridge
-        fd.sub(Ellipsoid(hp((sx * 0.117, -0.118, 1.574)), v3((0.025, 0.019, 0.029)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.021))
+        fd.sub(Ellipsoid(hp((sx * 0.117, -0.118, 1.574)), v3((0.022, 0.016, 0.026)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.02))
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # level brows, low and straight (a calm, steady look), a faint furrow between them
     for sx in (-1, 1):
@@ -118,11 +118,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0118))), (sx * 0.18, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0142))), (sx * 0.18, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0056)), Plane(ec + v3((0, 0, -hr(0.0185))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0108))), (sx * 0.18, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0132))), (sx * 0.18, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):                                                                      # crow's feet
             a = hp((sx * (0.108 + 0.004 * k), -0.134 + 0.006 * k, 1.688 - 0.011 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.025, 0.012, 0.006 - 0.01 * k)), hr(0.002), hr(0.0013)), hr(0.003))
@@ -198,7 +198,7 @@ def teeth_field():
 # ======================================================================================= the boonie hat
 HAT_O = v3((0.0, 0.024, 1.826))            # the crown's foot, on its axis (world)
 HAT_R = euler(0.03, 0.0, 0.0)              # tipped a hair forward
-HAT_CH = 0.118                             # the crown's height
+HAT_CH = 0.1                               # the crown's height
 HAT_R0 = (0.196, 0.218)                    # its radii at the band (x, y) and at the top
 HAT_R1 = (0.188, 0.206)
 HAT_T = 0.008
@@ -223,7 +223,7 @@ def crown_sd(q):
     e = (np.sqrt((q[:, 0] / rx) ** 2 + (q[:, 1] / ry) ** 2) - F(1.0)) * np.minimum(rx, ry)
     top = F(HAT_CH) - F(0.008) * np.exp(-((q[:, 0] / F(0.09)) ** 2 + ((q[:, 1] - F(0.01)) / F(0.12)) ** 2))   # a soft dent on top
     dz = np.maximum(z - top, F(-0.03) - z)
-    rr = F(0.05)
+    rr = F(0.062)
     a = e + rr
     b = dz + rr
     return np.sqrt(np.maximum(a, 0) ** 2 + np.maximum(b, 0) ** 2) + np.minimum(np.maximum(a, b), 0) - rr
@@ -238,7 +238,7 @@ def _brim_front(a):
 
 
 def brim_width(a):
-    return F(0.072) - F(0.026) * _brim_front(a) + F(0.006) * np.cos(a)       # (narrow at the front, widest behind)
+    return F(0.088) - F(0.026) * _brim_front(a) - F(0.004) * np.cos(a)       # (narrow at the front, widest behind)
 
 
 def brim_z(t, a):
@@ -324,7 +324,7 @@ def scrim_paths():
         br = float(_band_r(np.float32(a)))
         W = float(brim_width(np.float32(a)))
         dirv = v3((math.sin(a), -math.cos(a), 0.0))
-        L = rs.uniform(0.035, 0.075)
+        L = rs.uniform(0.014, 0.03)
         pts, ns = [], []
         for t in (-0.004, 0.02, 0.045, W + 0.004):
             z = float(brim_z(np.float32(max(t, 0.0)), np.float32(a))) + BRIM_TH / 2 + 0.004 + (0.012 if t < 0 else 0.0)
@@ -611,6 +611,10 @@ def boot_base(side):
         b.add(p, k)
     b.add(RoundCone(an + v3((0, 0.01, -0.02)), an + v3((0, 0.02, 0.12)), 0.058, 0.06), 0.03)
     foot(b, side)
+    sx = -1 if side == "R" else 1
+    Rz = euler(0, 0, sx * 0.1)
+    fwd = Rz @ v3((0, -1, 0))
+    b.add(RoundBox(an + fwd * 0.11 + v3((0, 0, -0.075)), (0.06, 0.09, 0.03), 0.028, R=Rz), 0.04)     # a smooth toe box
     return b
 
 
@@ -718,9 +722,9 @@ def vest_field():
     base = shirt_base()
     lo, hi = (-0.42, -0.5, 0.85), (0.42, 0.5, 1.6)
     molle = lambda P: F(-0.0012) * smoothstep(0.55, 0.8, np.abs(np.sin(P[:, 2] * F(math.pi / 0.026)))) + F(0.0006) * NOISE(P * F(70))
-    fd.add(Inter(Shell(base, VEST_PLATE[0], VEST_PLATE[1], pad=0.12, disp=molle, disp_amp=0.0015), Func(_plate_region, lo, hi), 0.01), 0.0)
-    fd.add(Inter(Shell(base, VEST_BAND[0], VEST_BAND[1], pad=0.12, disp=molle, disp_amp=0.0015), Func(_band_region, lo, hi), 0.008), 0.006)
-    fd.add(Inter(Shell(base, VEST_STRAP[0], VEST_STRAP[1], pad=0.12), Func(_strap_region, lo, hi), 0.006), 0.006)
+    fd.add(Inter(Func(_plate_region, lo, hi), Shell(base, VEST_PLATE[0], VEST_PLATE[1], pad=0.12, disp=molle, disp_amp=0.0015), 0.01), 0.0)
+    fd.add(Inter(Func(_band_region, lo, hi), Shell(base, VEST_BAND[0], VEST_BAND[1], pad=0.12, disp=molle, disp_amp=0.0015), 0.008), 0.006)
+    fd.add(Inter(Func(_strap_region, lo, hi), Shell(base, VEST_STRAP[0], VEST_STRAP[1], pad=0.12), 0.006), 0.006)
     # the drag handle on the back's top
     vo = vest_outer()
     h, ok = ray_hit(vo, [v3((0.0, 0.6, 1.38))], [v3((0, -1, 0))], tmax=0.6)
@@ -755,8 +759,8 @@ def vest_field():
         fd.paint(Func(band, pc - 0.06, pc + 0.06), 7)
     # the battle belt
     tr = legs_field()
-    fd.add(Inter(Shell(tr, 0.041, 0.016, pad=0.1, disp=lambda P: F(0.0006) * NOISE(P * F(60)), disp_amp=0.001),
-                 Func(lambda P: np.abs(P[:, 2] - F(WAIST_Z)) - F(0.03), (-0.4, -0.4, WAIST_Z - 0.06), (0.4, 0.4, WAIST_Z + 0.06)), 0.004), 0.004)
+    fd.add(Inter(Func(lambda P: np.abs(P[:, 2] - F(WAIST_Z)) - F(0.03), (-0.4, -0.4, WAIST_Z - 0.06), (0.4, 0.4, WAIST_Z + 0.06)),
+                 Shell(tr, 0.041, 0.016, pad=0.1, disp=lambda P: F(0.0006) * NOISE(P * F(60)), disp_amp=0.001), 0.004), 0.004)
     bo = Func(lambda P: tr.eval(P, margin=0.1) - F(0.049), (-0.4, -0.4, WAIST_Z - 0.1), (0.4, 0.4, WAIST_Z + 0.1))
     h, ok = ray_hit(bo, [v3((0.0, -0.6, WAIST_Z))], [v3((0, 1, 0))], tmax=0.7)
     if ok[0]:
@@ -795,7 +799,7 @@ def _cape_keep(P):
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     k = _cape_hem(P) - z
     rho = np.sqrt(x * x + ((y - F(0.05)) * F(0.95)) ** 2)
-    neck = z - (F(1.47) + F(0.4) * smoothstep(0.125, 0.165, rho))
+    neck = z - (F(1.45) + F(0.4) * smoothstep(0.15, 0.2, rho))
     k = np.maximum(k, neck)
     for side in ("R", "L"):
         sx = -1 if side == "R" else 1
@@ -812,7 +816,7 @@ def cape_outer(extra=0.0):
     return Func(lambda P: b.eval(P, margin=0.12) - F(CAPE_OFF + CAPE_T / 2 + extra), (-0.7, -0.6, 0.9), (0.7, 0.6, 1.65))
 
 
-def strand_paths(n=46, seed=23):
+def strand_paths(n=84, seed=23):
     """Hanging jute strips round the capelet's hem: (points, normals, label) each."""
     rs = np.random.RandomState(seed)
     co = cape_outer(-0.004)
@@ -835,7 +839,8 @@ def strand_paths(n=46, seed=23):
         if z_hem is None:
             continue
         z0, p0 = z_hem
-        L = rs.uniform(0.05, 0.12) * (1.25 if math.cos(a) < -0.3 else 1.0)
+        z0 = z0 + (rs.uniform(0.02, 0.1) if i % 3 == 1 else 0.0)                 # (a layer of strips laid on the net above the hem)
+        L = rs.uniform(0.04, 0.15) * (1.25 if math.cos(a) < -0.3 else 1.0)
         pts, ns = [], []
         for j in range(5):
             z = z0 + 0.03 - (L + 0.03) * j / 4
@@ -854,10 +859,10 @@ def cape_field():
     fibres, a ragged hem, strips hanging from it (0, tan 5, brown 6)."""
     fd = Field("Cape")
     base = shirt_base()
-    fib = lambda P: (F(0.003) * np.sin(np.arctan2(P[:, 0], P[:, 1] - F(0.05)) * F(70) + F(2.0) * NOISE(P * F(6)))
+    fib = lambda P: (F(0.0035) * np.sin(np.arctan2(P[:, 0], P[:, 1] - F(0.05)) * F(46) + F(5.0) * NOISE(P * F(4)) + P[:, 2] * F(9)) * (F(0.6) + F(0.6) * NOISE(P * F(9)))
                      + F(0.0016) * NOISE(P * np.array([90, 90, 20], F)) + F(0.002) * NOISE(P * F(14)))
     lo, hi = (-0.62, -0.5, 1.0), (0.62, 0.55, 1.62)
-    fd.add(Inter(Shell(base, CAPE_OFF, CAPE_T, pad=0.12, disp=fib, disp_amp=0.005), Func(_cape_keep, lo, hi), 0.006), 0.0)
+    fd.add(Inter(Func(_cape_keep, lo, hi), Shell(base, CAPE_OFF, CAPE_T, pad=0.12, disp=fib, disp_amp=0.005), 0.006), 0.0)
     sfib = lambda P: F(0.0012) * NOISE(P * np.array([140, 140, 30], F))
     for pts, ns, lab, w in strand_paths():
         n = len(pts)
@@ -1211,8 +1216,8 @@ MAT_OVERRIDES = {
     "Bipod": ("modern_kit", {"name": "HQ_SnipRifle", "base": BLACK, "weave": 0.0}),
 }
 GLOW = {"Lens": ((0.62, 0.86, 1.0), 0.7, 0.45)}
-LOW_TARGETS = {"Skin": 4600, "Teeth": 60, "Hair": 700, "Hat": 1500, "Scrim": 700, "Headset": 600, "Shirt": 2600,
-               "Trousers": 2200, "Pads": 500, "Boots": 1200, "Gloves": 900, "Vest": 3000, "Cape": 3200, "Rifle": 2400,
+LOW_TARGETS = {"Skin": 4400, "Teeth": 60, "Hair": 700, "Hat": 1500, "Scrim": 700, "Headset": 600, "Shirt": 2300,
+               "Trousers": 2000, "Pads": 500, "Boots": 1200, "Gloves": 900, "Vest": 3000, "Cape": 3200, "Rifle": 2400,
                "Scope": 1300, "Lens": 60, "Bolt": 300, "Bipod": 500}
 AO_EXCLUDE = ["Rifle", "Scope", "Lens", "Bolt", "Bipod", "Scrim"]
 BAKE_APART = (["Rifle", "Scope", "Bolt", "Bipod", "Lens"], (-0.9, 0.0, 0.0))

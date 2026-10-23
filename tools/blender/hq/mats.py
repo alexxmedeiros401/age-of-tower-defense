@@ -1893,12 +1893,14 @@ def modern_kit(name="HQ_ModernKit", base=(0.6, 0.5, 0.36), weave=1.0, black=(0.0
     c = g.mix(g.reg(11), c, gl)
     rb = g.mix(g.math("MULTIPLY", hi_, 0.5), g.rgb(rubber), g.rgb(tuple(min(1.0, x * 2.2) for x in rubber)))
     c = g.mix(g.reg(12), c, rb)
+    c = g.mix(g.reg(14), c, _brass_col(g, pt))
     rough = g.mixf(g.reg(5), 0.82 if weave > 0 else 0.6, 0.7)
     rough = g.mixf(g.reg(9), rough, g.mixf(rs, 0.38, 0.7))
     rough = g.mixf(g.reg(10), rough, 0.25)
     rough = g.mixf(g.reg(11), rough, 0.06)
     rough = g.mixf(g.reg(12), rough, 0.9)
-    metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(9), g.reg(10)), g.reg(11))
+    rough = g.mixf(g.reg(14), rough, 0.3)
+    metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(9), g.reg(10)), g.math("MAXIMUM", g.reg(11), g.reg(14)))
     h = g.math("MULTIPLY", g.mixf(g.math("MULTIPLY", wv, weave), g.math("MULTIPLY", stip, 0.4), 0.0 if weave > 0 else 1.0),
                g.math("SUBTRACT", 1.0, metal))
     return g.finish(c, rough, g.bump(h, 0.16, 0.0015))
@@ -1921,3 +1923,35 @@ def ghillie(name="HQ_Ghillie", moss=(0.3, 0.36, 0.17), olive=(0.42, 0.42, 0.24),
     c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.6), c, g.rgb((0.08, 0.08, 0.05)))
     c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.4), c, g.rgb((0.78, 0.72, 0.52)))
     return g.finish(c, 0.95, g.bump(fib, 0.4, 0.003))
+
+
+def concrete_roof(name="HQ_ConcreteRoof", base=(0.6, 0.59, 0.56), gravel=(0.52, 0.51, 0.49), metal=(0.66, 0.68, 0.7),
+                  stain=(0.3, 0.26, 0.21), paint=(0.95, 0.78, 0.2), asphalt=(0.17, 0.17, 0.18)):
+    """Cast concrete and a flat roof: label 0 = concrete (pale grey, fine pores, darker in the joints, pale on the edges,
+    a little mottled); 5 = yellow paint; 6 = asphalt; 7 = roof gravel (grey pebbles, a few darker and paler); 8 =
+    galvanized metal (a cool sheen, spangled); 9 = dirt and rust streaks (dark, brownish)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    pores = g.noise(p, 120.0, 2.0, 0.6)
+    c = g.mix(g.remap(g.noise(p, 4.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.86 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pores, 0.66, 0.72), 0.5), c, g.rgb(tuple(x * 0.62 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.6), c, g.rgb(tuple(x * 0.5 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.45), c, g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    c = g.mix(g.reg(5), c, g.rgb(paint))
+    c = g.mix(g.reg(6), c, g.mix(g.noise(p, 60.0, 2.0), g.rgb(asphalt), g.rgb(tuple(x * 1.4 for x in asphalt))))
+    peb = g.voronoi(p, 70.0, 1.0, "F1", "Color")
+    pv = g.node("ShaderNodeSeparateColor")
+    g.put(pv.inputs[0], peb)
+    gv = g.mix(pv.outputs[0], g.rgb(tuple(x * 0.7 for x in gravel)), g.rgb(tuple(min(1.0, x * 1.3) for x in gravel)))
+    edge = g.smooth(g.voronoi(p, 70.0, 1.0, "DISTANCE_TO_EDGE", "Distance"), 0.0, 0.08)
+    gv = g.mix(g.math("SUBTRACT", 1.0, edge), gv, g.rgb(tuple(x * 0.45 for x in gravel)))
+    c = g.mix(g.reg(7), c, gv)
+    mt = g.mix(g.smooth(g.voronoi(p, 30.0, 1.0, "F1", "Distance"), 0.2, 0.5), g.rgb(metal), g.rgb(tuple(x * 0.86 for x in metal)))
+    mt = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.6), mt, g.rgb((0.9, 0.92, 0.94)))
+    c = g.mix(g.reg(8), c, mt)
+    st = g.math("MULTIPLY", g.reg(9), g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.35, 0.9))
+    c = g.mix(st, c, g.rgb(stain))
+    rough = g.mixf(g.reg(8), g.mixf(g.reg(5), 0.9, 0.55), 0.32)
+    h = g.math("ADD", g.math("MULTIPLY", pores, 0.25), g.math("MULTIPLY", g.math("SUBTRACT", 1.0, edge), g.math("MULTIPLY", g.reg(7), 0.8)))
+    return g.finish(c, rough, g.bump(h, 0.3, 0.003))

@@ -251,7 +251,7 @@ def net_field():
     """A scrap of camo net with jute garnish (the ghillie material: 0 moss and olive, 5 tan, 6 brown) thrown over the
     ring's back, spilling down its outer face onto the roof; garnish strips in tufts on it."""
     fd = Field("Net")
-    lo, hi = (-1.2, -1.2, TOP_Z - 0.02), (1.2, 1.2, LEDGE_TOP + 0.08)
+    lo, hi = (-0.92, 0.3, TOP_Z - 0.02), (0.78, 1.25, LEDGE_TOP + 0.08)
     lumps = lambda P: F(0.006) * NOISE(P * F(11)) + F(0.003) * NOISE(P * F(35))
     fd.add(Inter(Func(lambda P: np.abs(ring_env(P) - F(0.012)) - F(0.005), lo, hi, disp=lumps, disp_amp=0.008),
                  Func(_net_keep, lo, hi), 0.01), 0.0)
