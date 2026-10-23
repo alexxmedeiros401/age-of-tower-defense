@@ -1111,7 +1111,7 @@ PARTS = ["Skin", "Eyes", "Teeth", "Hair", "Pencil", "Goggles", "Lenses", "Blouse
          "Belt", "Tools", "Brass", "Gauntlet", "Gear", "Core", "Launcher", "Drum", "Wrench"]
 REGION_PARTS = ("Skin", "Pencil", "Goggles", "Corset", "Skirt", "Boots", "Belt", "Tools", "Gauntlet", "Gear", "Launcher", "Drum",
                 "Wrench")
-NAVY = (0.05, 0.07, 0.17)                 # the corps' navy (the brief's material colour)
+NAVY = (0.18, 0.22, 0.42)                 # the corps' navy (the lead's ruling: reads as navy from the game camera)
 BRASS = (0.8, 0.55, 0.22)
 MAROON = (0.4, 0.09, 0.11)
 COPPER = ((0.75, 0.35, 0.18), (0.98, 0.66, 0.44))
