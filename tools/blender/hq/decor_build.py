@@ -505,6 +505,7 @@ def digital_materials(dark):
     if th == "neon":
         m.update({
             "puddle": DM.puddle("DK_Puddle"),
+            "tower_curtain": DM.curtain("DK_TowerCurtain", glass=(0.06, 0.08, 0.15), mullion=(0.2, 0.22, 0.27), spandrel=(0.07, 0.08, 0.11), lit=(0.95, 0.72, 0.5)),
             "vending_red": T("DK_VendingRed", (0.74, 0.08, 0.12), col5=(0.95, 0.95, 0.93), col7=(0.06, 0.06, 0.07), col9=(0.98, 0.8, 0.1)),
             "vending_blue": T("DK_VendingBlue", (0.1, 0.3, 0.7), col5=(0.95, 0.95, 0.93), col7=(0.06, 0.06, 0.07), col9=(0.98, 0.8, 0.1)),
             "stall": T("DK_Stall", (0.6, 0.12, 0.1), col5=(0.9, 0.84, 0.7), col7=(0.08, 0.07, 0.07), col9=(0.95, 0.9, 0.8), grime=0.4),
