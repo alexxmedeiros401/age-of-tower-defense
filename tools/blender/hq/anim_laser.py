@@ -224,7 +224,7 @@ def kick(f):
 
 def lens_scale(f):
     """The lens's flare: it swells to the shot and shrinks back."""
-    return {0: 1.0, 1: 1.22, 2: 1.55, 3: 1.38, 4: 1.18, 5: 1.06}.get(f, 1.0)
+    return {0: 1.0, 1: 1.2, 2: 1.42, 3: 1.3, 4: 1.14, 5: 1.05}.get(f, 1.0)
 
 
 def coil_scale(f):
@@ -277,7 +277,8 @@ def attack_pose(arm, f, rest):
     for side in ("R", "L"):
         p, R = grip_hand(side, Mg, press)
         apply_hand(arm, aims, side, p, R, elbow_pole(side, yaw))
-    return aims, ro, yaw, {"lens": lens_scale(f), "coil": coil_scale(f)}
+    ls = lens_scale(f)
+    return aims, ro, yaw, {"lens": (ls, 1.0 + 0.3 * (ls - 1.0), ls), "coil": coil_scale(f)}
 
 
 def make_attack(arm, frames=FR):

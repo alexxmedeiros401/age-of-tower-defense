@@ -100,15 +100,15 @@ def head(fd):
     # dark brows, set on the brow ridge: low and level at the inner ends, a confident arch over the outer third
     tuft = lambda P: F(0.0018) * NOISE(P * F(150)) + F(0.0008) * np.sin(P[:, 0] * F(380) + P[:, 2] * F(80))
     for sx in (-1, 1):
-        pts = [hp((sx * 0.022, -0.214, 1.749)), hp((sx * 0.064, -0.211, 1.764)), hp((sx * 0.108, -0.192, 1.773)), hp((sx * 0.15, -0.15, 1.763))]
-        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.012), hr(0.014), hr(0.012), hr(0.006)], k=hr(0.008),
+        pts = [hp((sx * 0.024, -0.214, 1.754)), hp((sx * 0.064, -0.211, 1.767)), hp((sx * 0.108, -0.192, 1.774)), hp((sx * 0.15, -0.15, 1.762))]
+        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.01), hr(0.012), hr(0.01), hr(0.005)], k=hr(0.008),
                      disp=tuft, disp_amp=0.003), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.019), hr(0.021), hr(0.018), hr(0.011)], k=hr(0.01)), BROW)
+        fd.paint(Chain(pts, [hr(0.016), hr(0.018), hr(0.016), hr(0.01)], k=hr(0.01)), BROW)
     # eyes open and steady (the upper lid a hair lower than wide open: focused)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.12, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0185))), (sx * 0.12, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0205))), (sx * -0.08, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
@@ -129,8 +129,6 @@ def head(fd):
     fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0056), hr(0.006), hr(0.0056), hr(0.003)], k=hr(0.005)), hr(0.006), LIP)
     lo_lip = [(-0.044, -0.177, 1.545), (-0.022, -0.194, 1.535), (0, -0.199, 1.533), (0.022, -0.194, 1.535), (0.044, -0.177, 1.545)]
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0072), hr(0.0082), hr(0.0072), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    for sx in (-1, 1):                                                                # the corners' little lift
-        fd.add(S((sx * 0.054, -0.17, 1.561), 0.007), hr(0.008), SKIN)
     fd.add(RoundCone(hp((0.0, -0.215, 1.594)), hp((0.0, -0.205, 1.568)), hr(0.007), hr(0.006)), hr(0.008), SKIN)      # philtrum
 
 
@@ -465,8 +463,8 @@ def _pauldron_region(P, side, lame):
     z = P[:, 2]
     inner = F(0.21) - P[:, 0] * F(sx)
     if lame == 0:
-        return np.maximum(np.maximum(d - F(0.16), F(c[2] - 0.06) - z), inner)
-    return np.maximum(np.maximum(d - F(0.17), np.maximum(F(c[2] - 0.15) - z, z - F(c[2] - 0.02))), inner + F(0.03))
+        return np.maximum(np.maximum(d - F(0.25), F(c[2] - 0.07) - z), inner)
+    return np.maximum(np.maximum(d - F(0.27), np.maximum(F(c[2] - 0.17) - z, z - F(c[2] - 0.03))), inner + F(0.03))
 
 
 def _bracer_region(P, side):
@@ -946,11 +944,11 @@ MAT_OVERRIDES = {
                       "extra": ((LASH, (0.04, 0.03, 0.025), 0.5), (STUBBLE, (0.36, 0.26, 0.2), 0.62, 0.5))}),
     "Hair": ("hair", {"name": "HQ_LzrHair", "base": (0.05, 0.04, 0.035), "hi": (0.18, 0.14, 0.11), "low": (0.025, 0.02, 0.018),
                       "streak": (0.035, 0.03, 0.025), "tint": (0.08, 0.06, 0.05)}),
-    "Helmet": ("modern_kit", dict(KIT, name="HQ_LzrHelmet", base=GRAPHITE, olive=NAVY, gloss=0.42)),
-    "Comms": ("modern_kit", dict(KIT, name="HQ_LzrHelmet", base=GRAPHITE, olive=NAVY, gloss=0.42)),
+    "Helmet": ("modern_kit", dict(KIT, name="HQ_LzrHelmet", base=GRAPHITE, olive=NAVY, gloss=0.5)),
+    "Comms": ("modern_kit", dict(KIT, name="HQ_LzrHelmet", base=GRAPHITE, olive=NAVY, gloss=0.5)),
     "Suit": ("modern_kit", dict(KIT, name="HQ_LzrSuit", base=(0.075, 0.075, 0.085), weave=1.0, black=(0.035, 0.035, 0.04))),
-    "Armour": ("modern_kit", dict(KIT, name="HQ_LzrArmour", base=GRAPHITE, olive=NAVY, gloss=0.42)),
-    "Guards": ("modern_kit", dict(KIT, name="HQ_LzrArmour", base=GRAPHITE, olive=NAVY, gloss=0.42)),
+    "Armour": ("modern_kit", dict(KIT, name="HQ_LzrArmour", base=GRAPHITE, olive=NAVY, gloss=0.5)),
+    "Guards": ("modern_kit", dict(KIT, name="HQ_LzrArmour", base=GRAPHITE, olive=NAVY, gloss=0.5)),
     "Trousers": ("modern_kit", dict(KIT, name="HQ_LzrTrousers", base=NAVY, weave=1.0, olive=GRAPHITE)),
     "Boots": ("leather_dyed", {"name": "HQ_LzrBoots", "base": (0.07, 0.068, 0.075), "dyed": (0.14, 0.15, 0.17), "worn_c": (0.3, 0.3, 0.33)}),
     "Gloves": ("leather_dyed", {"name": "HQ_LzrGloves", "base": (0.075, 0.075, 0.082), "dyed": GRAPHITE, "worn_c": (0.3, 0.3, 0.33)}),
