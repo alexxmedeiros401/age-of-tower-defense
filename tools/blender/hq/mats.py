@@ -2054,3 +2054,70 @@ def asphalt(name="HQ_Asphalt", base=(0.2, 0.2, 0.205), stone=(0.46, 0.45, 0.43),
     h = g.math("ADD", g.math("MULTIPLY", agg, 0.5), g.math("MULTIPLY", fine, 0.3))
     h = g.math("ADD", h, g.math("MULTIPLY", g.noise(p, 8.0, 3.0), 0.3))
     return g.finish(c, rough, g.bump(h, 0.35, 0.003))
+
+
+# ======================================================================================= Digital Age: android armour (Glitch)
+def android(name="HQ_Android", suit=(0.075, 0.08, 0.095), graphite=(0.16, 0.17, 0.2), navy=(0.12, 0.16, 0.3),
+            violet=(0.5, 0.17, 0.72), tape=(0.6, 0.6, 0.58), steel=(0.52, 0.56, 0.62), glass=(0.03, 0.035, 0.045),
+            face=(0.6, 0.64, 0.7), white=(0.9, 0.9, 0.87), orange=(1.0, 0.45, 0.1), rubber=(0.085, 0.085, 0.09),
+            yellow=(0.95, 0.74, 0.12), wear=1.0):
+    """Sleek android armour and techwear, hand-painted: label 0 = a dark flexible under-suit (a fine knit, lighter on its
+    ridges, darker in the folds); painted armour plates, satin, worn bright on their edges, a soft sheen on faces turned
+    up: 5 graphite, 6 midnight navy, 12 a pale steel faceplate (polished), 13 white (a robot's armour), 14 hazard orange;
+    7 panel lines (dark, sunk in the normal map); 8 violet cloth (a weave, dark in the folds); 9 grey duct tape (crinkled,
+    matte); 10 bright steel; 11 dark glass (glossy, a cool sheen on its edges); 15 black rubber; 16 hazard yellow."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    ridge, hollow = g.smooth(pt, 0.51, 0.57), g.smooth(pt, 0.48, 0.42)
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], g.geo("Normal"))
+    sky = g.smooth(sep.outputs["Z"], 0.2, 0.95)
+    knit = g.math("ADD", g.wave(p, 420.0, 0.0, 0.0, "BANDS", "Z"), g.math("MULTIPLY", g.noise(p, 260.0, 1.0), 0.6))
+    # the under-suit
+    c = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(suit), g.rgb(tuple(x * 1.25 for x in suit)))
+    c = g.mix(g.math("MULTIPLY", ridge, 0.6), c, g.rgb(tuple(min(1.0, x * 2.4 + 0.03) for x in suit)))
+    c = g.mix(g.math("MULTIPLY", hollow, 0.6), c, g.rgb(tuple(x * 0.45 for x in suit)))
+    def plate(col, gloss=1.0):
+        q = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.86 for x in col)))
+        q = g.mix(g.math("MULTIPLY", sky, 0.35 * gloss), q, g.rgb(tuple(min(1.0, x * 1.45 + 0.05) for x in col)))
+        chip = g.smooth(g.noise(p, 30.0, 4.0, 0.6), 0.45, 0.6)
+        edge = g.math("MULTIPLY", ridge, g.math("ADD", 0.45, g.math("MULTIPLY", chip, 0.55 * wear)))
+        q = g.mix(g.math("MULTIPLY", edge, 0.85), q, g.rgb(tuple(min(1.0, x * 1.9 + 0.16) for x in col)))
+        q = g.mix(g.math("MULTIPLY", hollow, 0.5), q, g.rgb(tuple(x * 0.45 for x in col)))
+        scr = g.smooth(g.wave(g.scale_vec(p, (1.0, 3.0, 1.0)), 40.0, 9.0, 3.0), 0.94, 0.99)
+        return g.mix(g.math("MULTIPLY", scr, 0.35 * wear), q, g.rgb(tuple(min(1.0, x * 1.7 + 0.12) for x in col)))
+    c = g.mix(g.reg(5), c, plate(graphite))
+    c = g.mix(g.reg(6), c, plate(navy))
+    c = g.mix(g.reg(12), c, plate(face, 1.4))
+    c = g.mix(g.reg(13), c, plate(white, 0.6))
+    c = g.mix(g.reg(14), c, plate(orange, 0.6))
+    c = g.mix(g.reg(16), c, plate(yellow, 0.6))
+    cl = g.mix(g.remap(g.noise(p, 8.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(violet), g.rgb(tuple(x * 0.82 for x in violet)))
+    cl = g.mix(g.math("MULTIPLY", hollow, 0.7), cl, g.rgb(tuple(x * 0.45 for x in violet)))
+    cl = g.mix(g.math("MULTIPLY", ridge, 0.5), cl, g.rgb(tuple(min(1.0, x * 1.4 + 0.06) for x in violet)))
+    c = g.mix(g.reg(8), c, cl)
+    tp = g.mix(g.remap(g.noise(p, 60.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(tape), g.rgb(tuple(x * 0.8 for x in tape)))
+    c = g.mix(g.reg(9), c, tp)
+    st = g.mix(g.math("MULTIPLY", ridge, 0.8), g.rgb(steel), g.rgb(tuple(min(1.0, x * 1.5 + 0.1) for x in steel)))
+    st = g.mix(g.math("MULTIPLY", hollow, 0.6), st, g.rgb(tuple(x * 0.4 for x in steel)))
+    st = g.mix(g.math("MULTIPLY", sky, 0.3), st, g.rgb(tuple(min(1.0, x * 1.3) for x in steel)))
+    c = g.mix(g.reg(10), c, st)
+    gl = g.mix(g.math("MULTIPLY", ridge, 0.7), g.rgb(glass), g.rgb((0.3, 0.42, 0.5)))
+    c = g.mix(g.reg(11), c, gl)
+    rb = g.mix(g.math("MULTIPLY", ridge, 0.5), g.rgb(rubber), g.rgb(tuple(min(1.0, x * 2.2) for x in rubber)))
+    c = g.mix(g.reg(15), c, rb)
+    c = g.mix(g.reg(7), c, g.rgb((0.025, 0.027, 0.032)))
+    plates = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(5), g.reg(6)), g.math("MAXIMUM", g.reg(12), g.math("MAXIMUM", g.reg(13), g.math("MAXIMUM", g.reg(14), g.reg(16)))))
+    rough = g.mixf(plates, 0.78, 0.36)
+    rough = g.mixf(g.reg(12), rough, 0.24)
+    rough = g.mixf(g.reg(8), rough, 0.88)
+    rough = g.mixf(g.reg(9), rough, 0.62)
+    rough = g.mixf(g.reg(10), rough, 0.26)
+    rough = g.mixf(g.reg(11), rough, 0.06)
+    rough = g.mixf(g.reg(15), rough, 0.9)
+    soft = g.math("MAXIMUM", g.reg(0), g.reg(8))
+    h = g.math("MULTIPLY", knit, g.math("MULTIPLY", soft, 0.35))
+    h = g.math("ADD", h, g.math("MULTIPLY", g.noise(p, 90.0, 2.0), g.math("MULTIPLY", g.reg(9), 0.8)))
+    h = g.math("SUBTRACT", h, g.math("MULTIPLY", g.reg(7), 1.4))
+    return g.finish(c, rough, g.bump(h, 0.14, 0.002))
