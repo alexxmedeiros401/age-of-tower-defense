@@ -197,7 +197,8 @@
   "bounty": 26,
   "leak": 5,
   "size": 0.85,
-  "model_scale": 0.9,
+  "walk_speed": 0.848,
+   "model_scale": 0.9,
   "regen": 0.02,
   "bar_h": 1.76
  },
@@ -352,7 +353,8 @@
   "bounty": 1100,
   "leak": 70,
   "size": 1.7,
-  "model_scale": 1.0,
+  "walk_speed": 0.5,
+   "model_scale": 1.0,
   "enrage": {
    "below": 0.5,
    "speed_mult": 2.2

@@ -2974,6 +2974,9 @@ func _make_robot(type: String) -> Node3D:
 		if boss and root.has_meta("anim"):         # (an HQ boss: a dome hugging its body, not a ball over it)
 			bubble.scale = Vector3(1.0, 0.62, 1.0)
 			bubble.position.y = 0.95
+			if type == "juggernaut":               # v0.9.62: a long, tall walking locomotive (funnel crown at 3.47)
+				bubble.scale = Vector3(0.8, 1.0, 1.2)
+				bubble.position = Vector3(0, 1.4, 0.45)
 		bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		bubble.name = "Bubble"
 	var mark := TorusMesh.new()
@@ -5005,6 +5008,7 @@ func _handle_events() -> void:
 			"enrage":
 				if enemy_nodes.has(ev.id):
 					var en: Node3D = enemy_nodes[ev.id]
+					_robot_enrage(ev.id)                    # v0.9.62: the Juggernaut's whistle shrieks (its Enrage clip)
 					_float_text(en.position + Vector3(0, 3.5, 0), "ENRAGED!", Color(1, 0.3, 0.2), 80)
 					_ring_fx(en.position + Vector3(0, 0.3, 0), 3.0, Color(1, 0.3, 0.2), 0.6)
 				_sfx("steam", 0.0, 0.0, 1.0)
@@ -8558,9 +8562,56 @@ func _animate_fire(id: int) -> void:
 
 ## HQ robot clips: the walk plays as fast as the robot really moves (slowed in mud, stopped when stunned, sped up with
 ## the game); a stunned robot shakes; a one-shot (the boss's Summon) plays through, then the loop resumes.
+# v0.9.62: the Industrial Age robots (robot_steam_tank.py, robot_juggernaut.py): their funnels puff smoke as they go, and
+# the Juggernaut's Enrage clip blows its whistle (WHISTLE_FRAME 10) in a jet of steam.
+const FUNNELS := {"steam_tank": Vector3(0, 1.25, -0.20), "juggernaut": Vector3(0, 3.46, 1.30)}
+const JUGG_WHISTLE := Vector3(0.249, 2.816, 0.452)
+func _funnel_puff(n: Node3D, e: Dictionary) -> void:
+	if Progress.gfx_level() >= 2 or not _fx_room(8):
+		return
+	var t := float(n.get_meta("puff_t", 0.0)) - get_process_delta_time() * float(speed)
+	if t > 0.0:
+		n.set_meta("puff_t", t)
+		return
+	n.set_meta("puff_t", randf_range(0.28, 0.42) if str(e.type) == "steam_tank" else randf_range(0.18, 0.3))
+	var model: Node3D = n.get_node("Model")
+	var at: Vector3 = model.global_transform * (FUNNELS[str(e.type)] as Vector3)
+	var big := 1.0 if str(e.type) == "steam_tank" else 1.8
+	var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.3, 0.29, 0.28, 0.55)), self, at)
+	pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pf.scale = Vector3.ONE * 0.45 * big
+	effects.append({"node": pf, "t": 0.0, "life": randf_range(1.0, 1.5), "kind": "dust",
+		"v": Vector3(randf_range(-0.15, 0.15), randf_range(1.0, 1.5), randf_range(-0.15, 0.15)) * big})
+
+
+func _robot_enrage(eid: int) -> void:
+	var n: Node3D = enemy_nodes[eid]
+	if not n.has_meta("anim"):
+		return
+	var ap: AnimationPlayer = n.get_meta("anim")
+	if not ap.has_animation("Enrage"):
+		return
+	ap.play("Enrage", 0.15)
+	_fx_after(10.0 / CLIP_FPS / maxf(float(speed), 0.01), func() -> void:
+		if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
+			return
+		var model: Node3D = (enemy_nodes[eid] as Node3D).get_node("Model")
+		var at: Vector3 = model.global_transform * JUGG_WHISTLE
+		for i in 7:
+			if not _fx_room(1):
+				break
+			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.97, 0.97, 0.97, 0.7)), self, at)
+			pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			pf.scale = Vector3.ONE * 0.6
+			effects.append({"node": pf, "t": -0.08 * i, "life": randf_range(0.9, 1.3), "kind": "dust",
+				"v": Vector3(randf_range(-0.3, 0.3), randf_range(3.5, 5.0), randf_range(-0.3, 0.3))}))
+
+
 func _robot_anim_tick(n: Node3D, e: Dictionary, stunned: bool) -> void:
 	var ap: AnimationPlayer = n.get_meta("anim")
 	var model: Node3D = n.get_node("Model")
+	if FUNNELS.has(str(e.type)) and not stunned:
+		_funnel_puff(n, e)
 	var loop: String = n.get_meta("loop")
 	if ap.current_animation == "" or not ap.is_playing():
 		ap.play(loop, 0.2)
@@ -13595,7 +13646,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			if defs.enemies[type].get("cloak", false):
 				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
@@ -13616,6 +13667,15 @@ func _run_demo() -> void:
 				for k in 3:
 					await _wait_ticks(2)
 					await _shot("bots_shield_break_%d.png" % k)
+			if type == "juggernaut":              # v0.9.62: its whistle shrieks (the Enrage clip)
+				_robot_enrage(int(be.id))
+				for k in 10:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.0, 0)) * big
+					cam.look_at(bn.global_position + Vector3(0, 1.0 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.15 / TICK))
+					await _shot("bots_enrage_%d.png" % k)
 			if type == "dreadnought":             # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
 				be.emp_cd = 99.0
 				be.summon_cd = 0.0
