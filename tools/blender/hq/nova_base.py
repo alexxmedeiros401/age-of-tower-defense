@@ -4,7 +4,8 @@ chamfered edge, black-and-yellow hazard stripes round its side), the hero ring a
 frame, black server units with violet status lights and a little screen, vents, cables out of its back); behind her on
 her left a black hard case with her spare deck open on it (a keyboard slab, the lid's screen glowing violet) and a can
 of energy drink beside it; on her left a little satellite dish on a tripod, tilted up at the sky (a violet light on its
-feed); on her right a rooftop cooling unit (a fan under a round grille); cable spaghetti snaking over the plate between
+feed); on her right a rooftop cooling unit (a fan under a round grille); behind her a stretch of the roof's parapet (hazard
+stripes, a little antenna mast with a violet light on top); cable spaghetti snaking over the plate between
 them all."""
 import math
 import numpy as np
@@ -40,6 +41,11 @@ RACK = _placed(142.0, 0.98)       # (+x her left, +y behind her)
 CRATE = _placed(42.0, 0.97)
 DISH = _placed(-22.0, 0.96)
 COOLER = _placed(204.0, 0.97)
+DISH_R = 0.21
+WALL_A = (66.0, 116.0)            # a stretch of the roof's parapet behind her
+WALL_R = (1.04, 1.16)
+WALL_H = 0.2
+MAST_A = 100.0
 
 
 def _frame(pl, twist=0.0):
@@ -66,7 +72,6 @@ def plate_field():
         cell = np.floor(u / F(0.05)) + np.floor(v / F(0.05))
         a = np.where(np.mod(cell, 2) == 0, u, v)
         b = np.where(np.mod(cell, 2) == 0, v, u)
-        bump = smoothstep(0.45, 0.85, np.abs(np.sin(a * k * F(0.5)))) * smoothstep(0.2, 0.5, np.abs(np.sin(b * k * F(0.5))))
         bump = np.abs(np.sin(a * k * F(0.5))) ** 6 * np.abs(np.sin(b * k * F(0.5) + F(1.57))) ** 2
         seams = np.minimum(np.minimum(np.abs(P[:, 0] - F(0.42)), np.abs(P[:, 0] + F(0.42))), np.minimum(np.abs(P[:, 1] - F(0.42)), np.abs(P[:, 1] + F(0.42))))
         seam = F(0.004) * (F(1) - smoothstep(0.0, 0.006, seams))
@@ -239,16 +244,44 @@ def props_field():
         q = P - dc.astype(F)
         h = q @ ax.astype(F)
         rho = np.sqrt(np.maximum((q * q).sum(1) - h * h, 0))
-        surf = h - F(1.2) * rho * rho                                         # a shallow paraboloid
-        return np.maximum(np.abs(surf) - F(0.006), rho - F(0.17))
+        surf = h - F(1.0) * rho * rho                                         # a shallow paraboloid
+        return np.maximum(np.abs(surf) - F(0.007), rho - F(DISH_R))
     fd.add(Func(dish, dc - 0.25, dc + 0.25), 0.004, 7)
-    fd.add(Torus(dc + ax * (1.2 * 0.17 ** 2), 0.168, 0.007, R=Rdish), 0.004, 7)
-    feed = dc + ax * 0.16
+    fd.add(Torus(dc + ax * (1.0 * DISH_R ** 2), DISH_R - 0.002, 0.008, R=Rdish), 0.004, 7)
+    feed = dc + ax * 0.2
     for k in range(3):
         a = 2 * math.pi * k / 3
-        rim = dc + ax * (1.2 * 0.16 ** 2) + Rdish @ v3((math.cos(a) * 0.15, math.sin(a) * 0.15, 0))
+        rim = dc + ax * (1.0 * (DISH_R - 0.01) ** 2) + Rdish @ v3((math.cos(a) * (DISH_R - 0.01), math.sin(a) * (DISH_R - 0.01), 0))
         fd.add(RoundCone(rim, feed, 0.0045, 0.004), 0.003, 9)
     fd.add(RoundCone(feed - ax * 0.01, feed + ax * 0.025, 0.017, 0.012), 0.004, 9)
+    # a stretch of the roof's parapet behind her: a graphite wall (0), a gunmetal (9) coping, a hazard band (8)
+    def wall(P):
+        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
+        a = np.degrees(np.arctan2(P[:, 1], P[:, 0]))
+        dr = np.abs(r - F(sum(WALL_R) / 2)) - F((WALL_R[1] - WALL_R[0]) / 2)
+        da = (np.abs(a - F(sum(WALL_A) / 2)) - F((WALL_A[1] - WALL_A[0]) / 2)) * F(math.pi / 180 * 1.1)
+        dz = np.abs(P[:, 2] - F(TOP_Z + WALL_H / 2)) - F(WALL_H / 2)
+        q = np.stack([np.maximum(dr + F(0.01), 0), np.maximum(da + F(0.01), 0), np.maximum(dz + F(0.01), 0)], 1)
+        return np.sqrt((q ** 2).sum(1)) + np.minimum(np.maximum(np.maximum(dr, da), dz) + F(0.01), 0) - F(0.01)
+    fd.add(Func(wall, (-0.6, 0.8, TOP_Z - 0.02), (0.6, 1.25, TOP_Z + WALL_H + 0.02), disp=lambda P: F(0.0012) * NOISE(P * F(25)), disp_amp=0.0015), 0.0, 0)
+    def coping(P):
+        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
+        a = np.degrees(np.arctan2(P[:, 1], P[:, 0]))
+        return np.maximum(np.maximum(np.abs(r - F(sum(WALL_R) / 2)) - F((WALL_R[1] - WALL_R[0]) / 2 + 0.012),
+                                     (np.abs(a - F(sum(WALL_A) / 2)) - F((WALL_A[1] - WALL_A[0]) / 2 + 0.6)) * F(0.019)),
+                          np.abs(P[:, 2] - F(TOP_Z + WALL_H + 0.008)) - F(0.012))
+    fd.add(Func(coping, (-0.6, 0.8, TOP_Z + WALL_H - 0.03), (0.6, 1.25, TOP_Z + WALL_H + 0.04)), 0.006, 9)
+    def band(P):
+        a = np.degrees(np.arctan2(P[:, 1], P[:, 0]))
+        st = np.sin((a * F(math.pi / 180 * 1.1) + P[:, 2]) * F(2 * math.pi / 0.09))
+        return np.maximum(np.abs(P[:, 2] - F(TOP_Z + 0.05)) - F(0.025), -st * F(0.02))
+    fd.paint(Func(band, (-0.6, 0.8, TOP_Z), (0.6, 1.25, TOP_Z + 0.1)), 8)
+    ma = math.radians(MAST_A)
+    mb = v3((math.cos(ma) * sum(WALL_R) / 2, math.sin(ma) * sum(WALL_R) / 2, TOP_Z + WALL_H + 0.02))
+    fd.add(Cylinder(mb + Z * 0.01, 0.022, 0.02, rr=0.006), 0.004, 9)
+    fd.add(RoundCone(mb, mb + Z * 0.5, 0.009, 0.005), 0.003, 9)
+    for k in range(3):
+        fd.add(RoundBox(mb + Z * (0.22 + 0.09 * k), (0.06 - 0.012 * k, 0.004, 0.004), 0.003, R=rot_from_axes(z_axis=Z, x_axis=v3((math.cos(ma), math.sin(ma), 0)))), 0.002, 9)
     # the cooling unit
     c, R = _frame(COOLER, 0.1)
     b = c + Z * 0.13
@@ -291,6 +324,8 @@ def screens_field():
     fd.add(RoundBox(hinge + lup * 0.1 + lid_n * 0.006, (0.13, 0.08, 0.003), 0.002, R=Rl), 0.0)
     c, inw, tg = DISH
     fd.add(Sphere(c + Z * 0.3 + inw * 0.026 + Z * 0.012, 0.009), 0.0)
+    ma = math.radians(MAST_A)
+    fd.add(Sphere(v3((math.cos(ma) * sum(WALL_R) / 2, math.sin(ma) * sum(WALL_R) / 2, TOP_Z + WALL_H + 0.53)), 0.013), 0.0)
     return fd
 
 

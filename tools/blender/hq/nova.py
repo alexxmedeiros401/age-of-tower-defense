@@ -36,7 +36,7 @@ from isla import _seg_dist_np, boots_weights as _isla_boots_weights
 from ada import ScaledField, _on_face, arm_prims, legs_hull, boot_hull, boot_top
 
 SKIN, NAIL, LIP, MOUTH, BROW, PAINT, LASH = 0, 1, 2, 3, 4, 5, 8
-IRIS = ((0.3, 0.24, 0.48), (0.62, 0.52, 0.84))           # violet-grey eyes (prep.paint_eyes)
+IRIS = ((0.2, 0.13, 0.34), (0.5, 0.34, 0.74))           # violet-grey eyes (prep.paint_eyes)
 
 GRAPHITE = (0.16, 0.17, 0.2)              # the corps' techwear (the brief's colours, sRGB)
 NAVY = (0.12, 0.16, 0.3)
@@ -75,8 +75,8 @@ def head(fd):
         pts = [hp((sx * 0.15, -0.056, 1.748)), hp((sx * 0.115, -0.12, 1.754)), hp((sx * 0.062, -0.152, 1.752))]
         fd.add(Chain(pts, [hr(0.005), hr(0.0065), hr(0.0055)], k=hr(0.02)), hr(0.03), SKIN)   # (a soft brow bone)
     # brows: level and lying on the brow, the left one (+X) arched a little higher (amused, never knitted)
-    brows = {-1: [(-0.03, 1.776), (-0.066, 1.789), (-0.106, 1.793), (-0.145, 1.781)],
-             1: [(0.03, 1.779), (0.066, 1.799), (0.106, 1.806), (0.145, 1.792)]}
+    brows = {-1: [(-0.03, 1.772), (-0.066, 1.787), (-0.106, 1.792), (-0.145, 1.783)],
+             1: [(0.03, 1.775), (0.066, 1.796), (0.106, 1.806), (0.145, 1.796)]}
     for sx in (-1, 1):
         on = _on_face(fd, brows[sx], lift=0.001)
         fd.add(Chain(on, [hr(0.004), hr(0.0052), hr(0.0046), hr(0.0022)], k=hr(0.006)), hr(0.004), BROW)
@@ -86,12 +86,12 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0245))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0215))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0175))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0165))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.0215))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.017)))
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.0185))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.014)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.016), hr(0.006), hr(0.009))), hr(0.004), hr(0.0014)), hr(0.004), LASH)
     # a small, upturned nose
     fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.211, 1.654)), hr(0.0102), hr(0.0142)), hr(0.016), SKIN)
@@ -194,17 +194,17 @@ def head_pt(d, off=0.0):
 
 
 def _strands(P):
-    return F(0.0012) * NOISE(P * F(55)) + F(0.0016) * np.abs(np.sin((P @ np.array([0.5, 0.8, 0.3], F)) * F(240)))
+    return F(0.0014) * NOISE(P * F(70)) + F(0.0009) * NOISE(P * F(160))
 
 
 # the locks of the long side: each runs from the parting over her head to her left side and falls past her left cheek
 # (the front ones sweep across her forehead above her brows, at the hairline; the back ones go over the crown)
 FRONT_PATH = [(-0.56, -0.44, 0.71), (-0.2, -0.68, 0.7), (0.3, -0.69, 0.66), (0.72, -0.48, 0.5), (0.93, -0.27, 0.15)]
-FRONT_HANG = [(0.188, -0.05, 1.67), (0.196, -0.036, 1.6), (0.188, -0.022, 1.54)]
+FRONT_HANG = [(0.212, -0.06, 1.672), (0.222, -0.05, 1.6), (0.214, -0.036, 1.53), (0.196, -0.024, 1.488)]
 BACK_PATH = [(-0.5, 0.42, 0.76), (0.0, 0.5, 0.87), (0.48, 0.52, 0.7), (0.8, 0.45, 0.4), (0.9, 0.42, 0.02)]
-BACK_HANG = [(0.172, 0.09, 1.69), (0.166, 0.11, 1.635), (0.152, 0.125, 1.6)]
+BACK_HANG = [(0.19, 0.09, 1.69), (0.184, 0.11, 1.635), (0.17, 0.125, 1.6), (0.152, 0.13, 1.575)]
 N_LOCKS = 10
-STREAK_LOCKS = (1,)
+STREAK_LOCKS = (0,)
 
 
 def lock_spec(j):
@@ -213,12 +213,13 @@ def lock_spec(j):
     t = t ** 0.8
     dirs = [norm(lerp(v3(a), v3(b), t)) for a, b in zip(FRONT_PATH, BACK_PATH)]
     pts, nrm = [], []
-    lift = 0.003 * (j % 2) + (0.004 if j in STREAK_LOCKS else 0.0)
+    lift = 0.004 * (j % 2) + (0.005 if j in STREAK_LOCKS else 0.0)
+    swoop = 1.0 - 0.55 * t                                      # (the front locks stand up highest: the swoop)
     for i in range(len(dirs) - 1):                             # densify over the head
         for s in ((0.0, 0.5) if i < len(dirs) - 2 else (0.0, 0.5, 1.0)):
             d = norm(lerp(dirs[i], dirs[i + 1], s))
             k = (i + s) / (len(dirs) - 1.0)
-            off = 0.006 + 0.016 * smoothstep_f(0.0, 0.6, k) + lift
+            off = 0.008 + swoop * 0.036 * smoothstep_f(0.0, 0.3, k) * (1.0 - 0.45 * smoothstep_f(0.55, 1.0, k)) + lift
             p, n = head_pt(d, off)
             pts.append(p)
             nrm.append(n)
@@ -228,9 +229,9 @@ def lock_spec(j):
         pts.append(q)
         nrm.append(v3((1.0, 0.0, 0.0)))
     n = len(pts)
-    w0 = 0.046 * (1.15 if j in STREAK_LOCKS else 1.0)
+    w0 = 0.054 * (1.1 if j in STREAK_LOCKS else 1.0)
     widths = [w0 * (0.7 + 0.3 * smoothstep_f(0.0, 0.2, i / (n - 1.0))) * (1.0 - 0.75 * smoothstep_f(0.6, 1.0, i / (n - 1.0))) for i in range(n)]
-    thicks = [0.0165 * (1.0 - 0.6 * smoothstep_f(0.7, 1.0, i / (n - 1.0))) for i in range(n)]
+    thicks = [0.024 * (0.75 + 0.25 * smoothstep_f(0.0, 0.2, i / (n - 1.0))) * (1.0 - 0.6 * smoothstep_f(0.7, 1.0, i / (n - 1.0))) for i in range(n)]
     return pts, widths, thicks, nrm
 
 
@@ -250,7 +251,7 @@ def hair_field():
         d = head_(P)
         h = -hairline(P)
         side = long_side(P)
-        th = F(0.005) + F(0.016) * smoothstep(0.0, 0.035, h) * smoothstep(-0.01, 0.03, side)
+        th = F(0.005) + F(0.026) * smoothstep(0.0, 0.04, h) * smoothstep(-0.01, 0.03, side)
         return np.abs(d - (F(0.002) + th * F(0.5))) - th * F(0.5) + F(0.0012) * NOISE(P * F(45))
     def region(P):
         return np.maximum(hairline(P) * F(HS), -long_side(P) * F(HS) - F(0.004))
@@ -293,7 +294,7 @@ def streak_field():
 
 
 # ======================================================================================= the AR visor (pushed up on her head)
-_VA, _VB, _VC = hp((0.0, -0.118, 1.912)), hp((0.178, 0.03, 1.805)), hp((-0.178, 0.03, 1.805))
+_VA, _VB, _VC = hp((0.0, -0.06, 1.95)), hp((0.178, 0.05, 1.8)), hp((-0.178, 0.05, 1.8))
 VIS_N = norm(np.cross(_VB - _VA, _VC - _VA))
 if VIS_N[2] < 0:
     VIS_N = -VIS_N
@@ -305,10 +306,41 @@ def _vang(P):
     return np.arctan2(Q[:, 0], -(Q[:, 1] - F(0.01)))
 
 
+_VIS_TAB = None
+
+
+def _vis_table():
+    """The hair's height over her head's ellipsoid along the visor's line, every few degrees round her head (rays in the
+    visor's plane): the band rides on the hair."""
+    global _VIS_TAB
+    if _VIS_TAB is None:
+        hf, sf = hair_field(), streak_field()
+        both = Func(lambda P: np.minimum(hf.eval(P, margin=0.02), sf.eval(P, margin=0.02)), HEAD_C - 0.35, HEAD_C + 0.35)
+        head_ = Ellipsoid(HEAD_C, HEAD_RAD)
+        rays = np.radians(np.arange(-140.0, 141.0, 2.5))
+        pa, po = [], []
+        for a in rays:
+            for dz in (-0.02, -0.01, 0.0, 0.01, 0.02):         # (across the band's height)
+                d = v3((math.sin(a), -math.cos(a), 0.0))
+                d = norm(d - VIS_N * float(d @ VIS_N))
+                c = HEAD_C + VIS_N * float((_VA - HEAD_C) @ VIS_N) + VIS_N * dz
+                h, ok = ray_hit(both, [c + d * 0.35], [-d], tmax=0.35, step=0.001)
+                q = np.array([h[0] if ok[0] else c + d * 0.2], F)
+                pa.append(float(_vang(q)[0]))
+                po.append(float(head_(q)[0]) if ok[0] else 0.0)
+        pa, po = np.array(pa), np.array(po)
+        angs = np.radians(np.arange(-130.0, 131.0, 2.5))
+        offs = np.array([po[np.abs(pa - x) < math.radians(9.0)].max(initial=0.0) for x in angs])
+        _VIS_TAB = (angs.astype(F), (offs + 0.008).astype(F))
+    return _VIS_TAB
+
+
 def vis_off(P):
-    """How far the visor stands off her head: clear of the long side's locks, close over the buzz on her right."""
+    """How far the visor stands off her head: on top of the hair (measured along its line), close over the buzz on her
+    right."""
     a = _vang(P)
-    return F(0.009) + F(0.032) * smoothstep(-0.72, -0.3, a) + F(0.003) * smoothstep(0.3, 1.2, a)
+    angs, offs = _vis_table()
+    return np.interp(a, angs, offs).astype(F)
 
 
 def _vplane(P):
