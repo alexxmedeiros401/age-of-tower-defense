@@ -1,0 +1,7 @@
+[
+ {
+  "name": "plasma_p3",
+  "cmd": "O=$GITHUB_WORKSPACE/out/plasma_p3; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character plasma_mortar --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character plasma_mortar --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 9,36 --step 3 --spp 8 --res 500 --tx 0.35 --ty 0.1 --tz 0.85 --dist 4.4 --az 150 --el 30 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,0 --step 1 --spp 8 --res 500 --tx 0.35 --ty 0.1 --tz 0.85 --dist 4.4 --az 150 --el 30 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\npython3 face_hq.py -- $O/qb/char_game.blend $O/face.png --target -0.04,0.24,1.66 --scale 0.85 > $O/face.log 2>&1 || tail -20 $O/face.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/plasma_p3"
+ }
+]
