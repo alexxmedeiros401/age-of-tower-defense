@@ -1380,3 +1380,212 @@ def glazing(name="DK_Glazing", glass=(0.1, 0.13, 0.16), bar=(0.84, 0.8, 0.7), pi
     c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 8.0, 2.0), 0.55, 0.7), 0.4), c, g.rgb((0.28, 0.27, 0.24)))
     c = g.mix(bars, c, g.rgb(bar))
     return g.finish(c, g.mixf(bars, 0.12, 0.6), g.bump(bars, 0.4, 0.004))
+
+
+# ------------------------------------------------------------------------------------------------ Modern Age
+def multi(name, base, cols=None, rough=0.45, var=0.08, edge=0.25):
+    """Plain flat colours by label (plastic toys, a gnome, posters, flowers, towels): `base` on label 0 and cols
+    {label: colour} over it, each mottled a little and lighter on its worn edges, darker in the crevices."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 20.0, 2.0), g.rgb(base), g.rgb(tuple(min(1.0, x * (1.0 + var)) for x in base)))
+    for k, col in sorted((cols or {}).items()):
+        c = g.mix(g.reg(k), c, g.mix(g.noise(p, 20.0, 2.0), g.rgb(col), g.rgb(tuple(min(1.0, x * (1.0 + var)) for x in col))))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), edge), c, g.rgb((1.0, 1.0, 1.0)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.45), c, g.rgb((0.05, 0.05, 0.05)))
+    return g.finish(c, rough)
+
+
+def vehicle(name, paint, col5=(0.62, 0.52, 0.36), col7=(0.05, 0.05, 0.055), col8=(0.7, 0.08, 0.06), col9=(0.92, 0.92, 0.88),
+            rough=0.42, grime=0.35):
+    """Modern painted metal (vehicles, aircraft, crates, street furniture): the paint mottled a little, lighter on
+    worn edges, grime in the recesses and streaking down (grime); label 5, 8, 9 more paints (a band, a red light or
+    flash, white markings), 6 bright metal (chrome, steel fittings), 7 black (trim, rubber, grilles)."""
+    g = new(name)
+    p = g.obj()
+    c = _paint_col(g, p, paint, 0.35)
+    for k, col in ((5, col5), (8, col8), (9, col9), (7, col7)):
+        c = g.mix(g.reg(k), c, _paint_col(g, p, col, 0.25))
+    pt = g.geo("Pointiness")
+    ch = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.6, 0.62, 0.66)), g.rgb((0.95, 0.96, 1.0)))
+    ch = g.mix(g.math("MULTIPLY", _up(g, 0.3, 0.95), 0.4), ch, g.rgb((0.85, 0.88, 0.92)))
+    c = g.mix(g.reg(6), c, ch)
+    streak = g.remap(g.noise(g.scale_vec(p, (10.0, 10.0, 1.2)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    nb = g.math("SUBTRACT", 1.0, g.reg(6))
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(streak, 0.55, 0.8), grime), nb), c, g.rgb(tuple(x * 0.6 for x in paint)))
+    rgh = g.mixf(g.reg(6), g.mixf(g.reg(7), rough, 0.8), 0.2)
+    return g.finish(c, rgh, g.bump(g.noise(p, 60.0, 2.0), 0.08, 0.002))
+
+
+def concrete(name="DK_Concrete", base=(0.66, 0.65, 0.61), board=0.15):
+    """Poured concrete: mottled warm grey, faint formwork lines (every `board` up), tie holes, stains running down,
+    pale worn arrises, dark in the joints; label 5 yellow paint, 6 white paint, 7 dark grime and tyre marks, 8 hazard
+    stripes (yellow and black on the diagonal), 9 white stencils."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(tuple(x * 0.88 for x in base)), g.rgb(tuple(min(1, x * 1.08) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 25.0, 3.0), 0.55, 0.7), 0.35), c, g.rgb(tuple(x * 0.78 for x in base)))
+    fz = g.math("FRACT", g.math("DIVIDE", sep.outputs["Z"], board))
+    line = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz)), 0.0, 0.05))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    side = g.math("SUBTRACT", 1.0, g.smooth(g.math("ABSOLUTE", nz.outputs["Z"]), 0.6, 0.85))
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", line, side), 0.3), c, g.rgb(tuple(x * 0.7 for x in base)))
+    streak = g.remap(g.noise(g.scale_vec(p, (8.0, 8.0, 1.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(streak, 0.55, 0.8), side), 0.4), c, g.rgb((0.36, 0.34, 0.3)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.35), c, g.rgb((0.85, 0.84, 0.8)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), c, g.rgb((0.22, 0.21, 0.2)))
+    c = g.mix(g.reg(5), c, _paint_col(g, p, (0.92, 0.72, 0.12), 0.2))
+    c = g.mix(g.reg(6), c, _paint_col(g, p, (0.92, 0.92, 0.9), 0.2))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), 0.75), c, g.rgb((0.12, 0.115, 0.11)))
+    diag = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"]), 0.16))
+    hz = g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.74, 0.1)), g.rgb((0.06, 0.06, 0.06)))
+    c = g.mix(g.reg(8), c, hz)
+    c = g.mix(g.reg(9), c, g.rgb((0.94, 0.94, 0.92)))
+    h = g.math("ADD", g.math("MULTIPLY", line, -0.4), g.math("MULTIPLY", g.noise(p, 50.0, 2.0), 0.3))
+    return g.finish(c, 0.86, g.bump(h, 0.25, 0.004))
+
+
+def hesco(name="DK_Hesco", fabric=(0.66, 0.58, 0.42), wire=(0.42, 0.43, 0.44), pitch=0.075):
+    """A HESCO cell's tan geotextile seen through its welded wire mesh (dark lines every `pitch` across and up), dusty
+    low down; label 5 = the bare galvanised corner coils."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    c = g.mix(g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(fabric), g.rgb(tuple(x * 0.85 for x in fabric)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.55, 0.7), 0.4), c, g.rgb(tuple(x * 0.72 for x in fabric)))
+    fa = g.math("FRACT", g.math("DIVIDE", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), pitch))
+    fz = g.math("FRACT", g.math("DIVIDE", sep.outputs["Z"], pitch))
+    ga = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fa, g.math("SUBTRACT", 1.0, fa)), 0.03, 0.08))
+    gz = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz)), 0.03, 0.08))
+    grid = g.math("MAXIMUM", ga, gz)
+    c = g.mix(g.math("MULTIPLY", grid, 0.85), c, g.rgb(wire))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), c, g.rgb((0.25, 0.2, 0.14)))
+    low = g.math("SUBTRACT", 1.0, g.smooth(sep.outputs["Z"], 0.0, 0.18))
+    c = g.mix(g.math("MULTIPLY", low, 0.5), c, g.rgb((0.5, 0.4, 0.28)))
+    c = g.mix(g.reg(5), c, g.rgb((0.58, 0.6, 0.62)))
+    return g.finish(c, 0.85, g.bump(grid, 0.35, 0.003))
+
+
+def chainlink(name="DK_Chainlink"):
+    """Chain-link mesh on a solid panel: bright galvanised wires in diamonds over a dim, see-through-dark ground."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    u = g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"])
+    v = g.math("SUBTRACT", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"])
+    fu = g.math("FRACT", g.math("DIVIDE", u, 0.06))
+    fv = g.math("FRACT", g.math("DIVIDE", v, 0.06))
+    wu = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fu, g.math("SUBTRACT", 1.0, fu)), 0.06, 0.14))
+    wv = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fv, g.math("SUBTRACT", 1.0, fv)), 0.06, 0.14))
+    w = g.math("MAXIMUM", wu, wv)
+    c = g.mix(w, g.rgb((0.2, 0.21, 0.2)), g.rgb((0.72, 0.74, 0.76)))
+    return g.finish(c, g.mixf(w, 0.9, 0.35), g.bump(w, 0.4, 0.003))
+
+
+def camo(name="DK_Camo"):
+    """Camouflage netting: woodland blotches (olive, brown, dark green, black, a little tan) over a knobbly garnish."""
+    g = new(name)
+    p = g.obj()
+    n1 = g.noise(p, 2.4, 3.0, 0.6)
+    n2 = g.noise(g.add_vec(p, g.rgb((3.1, 7.7, 1.3))), 2.8, 3.0, 0.6)
+    c = g.mix(g.smooth(n1, 0.45, 0.5), g.rgb((0.33, 0.35, 0.2)), g.rgb((0.36, 0.27, 0.16)))
+    c = g.mix(g.smooth(n2, 0.56, 0.6), c, g.rgb((0.14, 0.2, 0.1)))
+    c = g.mix(g.smooth(n1, 0.66, 0.7), c, g.rgb((0.06, 0.06, 0.05)))
+    c = g.mix(g.smooth(n2, 0.33, 0.29), c, g.rgb((0.6, 0.55, 0.38)))
+    leaf = g.voronoi(p, 45.0, 1.0, "F1", "Distance")
+    c = g.mix(g.math("MULTIPLY", g.smooth(leaf, 0.05, 0.0), 0.5), c, g.rgb((0.04, 0.04, 0.03)))
+    return g.finish(c, 0.95, g.bump(leaf, 0.6, 0.008))
+
+
+def curtain(name, glass=(0.18, 0.32, 0.38), mullion=(0.6, 0.64, 0.66), spandrel=(0.2, 0.24, 0.26), lit=(1.0, 0.84, 0.52), pitch=0.16,
+            floor=0.3, z0=0.42):
+    """A glass curtain wall: panes of tinted glass catching the sky (lighter up the tower) in a grid of aluminium
+    mullions every `pitch` along x + y and an opaque spandrel band at every floor (`floor` apart from z0); label 5 =
+    a lit office (warm), 6 = bright metal."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    fa = g.math("FRACT", g.math("DIVIDE", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), pitch))
+    fz = g.math("FRACT", g.math("DIVIDE", g.math("SUBTRACT", sep.outputs["Z"], z0), floor))
+    mul = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fa, g.math("SUBTRACT", 1.0, fa)), 0.03, 0.06))
+    spd = g.math("MAXIMUM", g.smooth(fz, 0.2, 0.17), g.smooth(fz, 0.9, 0.93))
+    sky = g.smooth(sep.outputs["Z"], 0.0, 7.0)
+    gc = g.mix(sky, g.rgb(glass), g.rgb(tuple(min(1.0, x * 1.7 + 0.08) for x in glass)))
+    gc = g.mix(g.math("MULTIPLY", g.smooth(g.noise(g.scale_vec(p, (1.0, 1.0, 0.3)), 2.0, 2.0), 0.5, 0.7), 0.5), gc,
+               g.rgb(tuple(min(1.0, x * 2.2 + 0.12) for x in glass)))
+    c = g.mix(g.reg(5), gc, g.mix(g.noise(p, 9.0, 2.0), g.rgb(lit), g.rgb(tuple(x * 0.85 for x in lit))))
+    c = g.mix(spd, c, g.rgb(spandrel))
+    c = g.mix(mul, c, g.rgb(mullion))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    top = g.smooth(nz.outputs["Z"], 0.7, 0.9)
+    c = g.mix(top, c, g.rgb((0.42, 0.43, 0.44)))
+    c = g.mix(g.reg(6), c, g.rgb((0.8, 0.82, 0.84)))
+    rough = g.mixf(g.math("MAXIMUM", g.math("MAXIMUM", mul, spd), top), 0.12, 0.6)
+    return g.finish(c, rough, g.bump(g.math("MAXIMUM", mul, spd), 0.3, 0.003))
+
+
+def siding(name, col, trim=(0.94, 0.93, 0.9), found=(0.5, 0.48, 0.45), shutter=(0.08, 0.1, 0.1), door=(0.62, 0.08, 0.07), lap=0.045):
+    """Clapboard siding in `col`: lapped boards (a shadow line under each, every `lap` up), sun-faded in patches,
+    grime at the foot; label 5 white trim paint, 6 the grey foundation, 7 the shutters' paint, 8 the front door's."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    fz = g.math("FRACT", g.math("DIVIDE", sep.outputs["Z"], lap))
+    sh = g.smooth(fz, 0.16, 0.0)
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(min(1.0, x * 1.08) for x in col)))
+    c = g.mix(g.math("MULTIPLY", sh, 0.55), c, g.rgb(tuple(x * 0.62 for x in col)))
+    c = g.mix(g.reg(5), c, _paint_col(g, p, trim, 0.2))
+    c = g.mix(g.reg(6), c, g.mix(g.noise(p, 20.0, 2.0), g.rgb(found), g.rgb(tuple(x * 0.85 for x in found))))
+    c = g.mix(g.reg(7), c, _paint_col(g, p, shutter, 0.3))
+    c = g.mix(g.reg(8), c, _paint_col(g, p, door, 0.3))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.45), c, g.rgb((0.12, 0.12, 0.12)))
+    low = g.math("SUBTRACT", 1.0, g.smooth(sep.outputs["Z"], 0.0, 0.25))
+    c = g.mix(g.math("MULTIPLY", low, 0.3), c, g.rgb((0.35, 0.3, 0.24)))
+    return g.finish(c, 0.7, g.bump(g.math("MULTIPLY", sh, -1.0), 0.35, 0.004))
+
+
+def shingles(name, col=(0.26, 0.27, 0.29), course=0.05, tab=0.11, ridge=(0.12, 0.12, 0.13)):
+    """Asphalt shingles: courses of tabs (each its own shade, granular), dark gaps under every course and between tabs;
+    label 7 the darker ridge cap, 5 white fascia paint."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    row = g.math("FLOOR", g.math("DIVIDE", sep.outputs["Z"], course))
+    fz = g.math("SUBTRACT", g.math("DIVIDE", sep.outputs["Z"], course), row)
+    run = g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), g.math("MULTIPLY", g.math("MODULO", g.math("ADD", row, 1000.0), 2.0), tab * 0.5))
+    colm = g.math("FLOOR", g.math("DIVIDE", run, tab))
+    fx = g.math("SUBTRACT", g.math("DIVIDE", run, tab), colm)
+    gap = g.math("MAXIMUM", g.smooth(fz, 0.1, 0.0), g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx)), 0.01, 0.04)))
+    rnd = _cell_rand(g, row, colm)
+    c = g.mix(rnd, g.rgb(tuple(x * 0.82 for x in col)), g.rgb(tuple(min(1.0, x * 1.2) for x in col)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 60.0, 2.0), 0.5, 0.7), 0.4), c, g.rgb(tuple(min(1.0, x * 1.4) for x in col)))
+    c = g.mix(g.math("MULTIPLY", gap, 0.8), c, g.rgb(tuple(x * 0.35 for x in col)))
+    c = g.mix(g.reg(7), c, g.rgb(ridge))
+    c = g.mix(g.reg(5), c, g.rgb((0.94, 0.93, 0.9)))
+    return g.finish(c, 0.88, g.bump(g.math("ADD", g.math("MULTIPLY", gap, -0.8), g.math("MULTIPLY", fz, 0.3)), 0.35, 0.004))
+
+
+def radome(name="DK_Radome", base=(0.9, 0.9, 0.87)):
+    """White fibreglass (a radome's panels, a dish): faint panel seams (voronoi edges), grime streaking down."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 4.0, 2.0), g.rgb(base), g.rgb(tuple(x * 0.94 for x in base)))
+    seam = g.smooth(g.voronoi(p, 6.0, 0.6, "DISTANCE_TO_EDGE", "Distance"), 0.02, 0.0)
+    c = g.mix(g.math("MULTIPLY", seam, 0.35), c, g.rgb(tuple(x * 0.7 for x in base)))
+    streak = g.remap(g.noise(g.scale_vec(p, (8.0, 8.0, 1.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    c = g.mix(g.math("MULTIPLY", g.smooth(streak, 0.6, 0.85), 0.25), c, g.rgb((0.5, 0.48, 0.42)))
+    c = g.mix(g.reg(7), c, g.rgb((0.2, 0.21, 0.22)))
+    return g.finish(c, 0.5, g.bump(seam, 0.2, 0.003))
