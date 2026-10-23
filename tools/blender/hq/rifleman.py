@@ -47,11 +47,11 @@ def head(fd):
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.05, 1.592), (0.132, 0.126, 0.122)), 0.07, SKIN)                           # a square jaw
+    fd.add(E((0, -0.05, 1.588), (0.124, 0.124, 0.12)), 0.07, SKIN)                            # a square jaw
     fd.add(E((0, -0.13, 1.505), (0.08, 0.066, 0.064)), 0.05, SKIN)                            # a firm, broad chin
     fd.sub(RoundCone(hp((0, -0.2, 1.488)), hp((0, -0.196, 1.512)), hr(0.004), hr(0.003)), hr(0.006))   # its cleft
     for sx in (-1, 1):
-        fd.add(S((sx * 0.104, -0.118, 1.642), 0.04), 0.05, SKIN)                               # cheekbones
+        fd.add(S((sx * 0.1, -0.12, 1.64), 0.036), 0.05, SKIN)                                  # cheekbones
         fd.add(S((sx * 0.114, -0.05, 1.566), 0.042), 0.05, SKIN)                               # square jaw corners
         pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.13, 1.752)), hp((sx * 0.06, -0.174, 1.75)), hp((0.0, -0.184, 1.75))]
         fd.add(Chain(pts, [hr(0.012), hr(0.022), hr(0.026), hr(0.026)], k=hr(0.022)), hr(0.035), SKIN)     # brow ridge
