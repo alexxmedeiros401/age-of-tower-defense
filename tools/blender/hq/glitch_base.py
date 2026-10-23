@@ -53,6 +53,7 @@ def _placed(angle_deg, r, turn=0.0):
 BENCH = _placed(58.0, 1.08, 8.0)
 DOCK = _placed(126.0, 1.04, -6.0)
 ARM_SCRAP = _placed(-52.0, 1.06, 30.0)
+PLATE_SCRAP = _placed(200.0, 1.1, 20.0)
 
 
 def _frame_of(pl):
@@ -220,7 +221,7 @@ def glowmarks_field():
 
 
 # ---------------------------------------------------------------------------------------------- the workbench and its scrap
-BENCH_H = (0.27, 0.15, 0.62)      # half length, half depth, the top's height above the ground
+BENCH_H = (0.3, 0.18, 0.62)      # half length, half depth, the top's height above the ground
 
 
 def bench_frame():
@@ -230,7 +231,7 @@ def bench_frame():
 def robot_head_frame():
     c, inw, tg, R = bench_frame()
     top = c + v3((0, 0, BENCH_H[2] + 0.02))
-    hc = top + tg * 0.08 + inw * 0.02 + v3((0, 0, 0.1))
+    hc = top + tg * 0.08 + inw * 0.02 + v3((0, 0, 0.135))
     Rh = R @ euler(0.2, 0.0, math.radians(-150))               # tipped back a little, its dead face to him and the camera
     return hc, Rh
 
@@ -243,12 +244,12 @@ def bench_field():
     c, inw, tg, R = bench_frame()
     L, D, H = BENCH_H
     top = c + v3((0, 0, H))
-    fd.add(RoundBox(top, (L, D, 0.02), 0.008, R=R), 0.0, GRAPHITE)
+    fd.add(RoundBox(top, (L, D, 0.03), 0.01, R=R), 0.0, GRAPHITE)
     fd.paint(Func(lambda P: F(D - 0.02) - np.abs((P - top.astype(F)) @ inw.astype(F)), top - 0.5, top + 0.5), NAVY)
     for sl in (-1, 1):
         for sd in (-1, 1):
             a = top + tg * (sl * (L - 0.035)) + inw * (sd * (D - 0.03))
-            fd.add(RoundCone(v3((a[0], a[1], c[2] - 0.01)), a, 0.016, 0.016), 0.004, STEEL)
+            fd.add(RoundCone(v3((a[0], a[1], c[2] - 0.01)), a, 0.024, 0.022), 0.004, STEEL)
     shelf = c + v3((0, 0, 0.13))
     fd.add(RoundBox(shelf, (L - 0.03, D - 0.03, 0.01), 0.005, R=R), 0.006, STEEL)
     # a crate of parts on the shelf
@@ -256,19 +257,19 @@ def bench_field():
     # the robot head: a white dome, an orange stripe over its crown, a dark visor band with two dead lens eyes, a jaw grille
     hc, Rh = robot_head_frame()
     fwd = Rh[:, 1] * -1.0                                       # (its face)
-    fd.add(Ellipsoid(hc, (0.105, 0.1, 0.095), R=Rh), 0.006, WHITE)
-    fd.add(RoundBox(hc - Rh[:, 2] * 0.06 + fwd * 0.02, (0.085, 0.07, 0.04), 0.03, R=Rh), 0.03, WHITE)
-    fd.paint(Func(lambda P: np.abs((P - hc.astype(F)) @ Rh[:, 0].astype(F)) - F(0.022), hc - 0.2, hc + 0.2), ORANGE)
-    fd.sub(RoundBox(hc + fwd * 0.1 + Rh[:, 2] * 0.01, (0.075, 0.03, 0.024), 0.02, R=Rh), 0.006)
-    fd.paint(RoundBox(hc + fwd * 0.09 + Rh[:, 2] * 0.01, (0.082, 0.04, 0.03), 0.022, R=Rh), GLASS)
+    fd.add(Ellipsoid(hc, (0.135, 0.13, 0.122), R=Rh), 0.006, WHITE)
+    fd.add(RoundBox(hc - Rh[:, 2] * 0.078 + fwd * 0.026, (0.11, 0.09, 0.052), 0.04, R=Rh), 0.03, WHITE)
+    fd.paint(Func(lambda P: np.maximum(np.abs((P - hc.astype(F)) @ Rh[:, 0].astype(F)) - F(0.028), F(0.02) - (P - hc.astype(F)) @ Rh[:, 2].astype(F)), hc - 0.25, hc + 0.25), ORANGE)
+    fd.sub(RoundBox(hc + fwd * 0.13 + Rh[:, 2] * 0.01, (0.095, 0.03, 0.03), 0.02, R=Rh), 0.006)
+    fd.paint(RoundBox(hc + fwd * 0.118 + Rh[:, 2] * 0.01, (0.104, 0.045, 0.038), 0.024, R=Rh), GLASS)
     for s in (-1, 1):
-        fd.add(Sphere(hc + fwd * 0.078 + Rh[:, 2] * 0.01 + Rh[:, 0] * (s * 0.034), 0.017), 0.003, GLASS)
-        fd.add(Torus(hc + fwd * 0.088 + Rh[:, 2] * 0.01 + Rh[:, 0] * (s * 0.034), 0.02, 0.004, R=rot_from_axes(z_axis=fwd)), 0.002, STEEL)
-        fd.add(Cylinder(hc + Rh[:, 0] * (s * 0.1), 0.03, 0.03, rr=0.008, R=rot_from_axes(z_axis=Rh[:, 0])), 0.004, STEEL)   # ear bolts
+        fd.add(Sphere(hc + fwd * 0.102 + Rh[:, 2] * 0.01 + Rh[:, 0] * (s * 0.044), 0.022), 0.003, GLASS)
+        fd.add(Torus(hc + fwd * 0.114 + Rh[:, 2] * 0.01 + Rh[:, 0] * (s * 0.044), 0.026, 0.005, R=rot_from_axes(z_axis=fwd)), 0.002, STEEL)
+        fd.add(Cylinder(hc + Rh[:, 0] * (s * 0.13), 0.038, 0.034, rr=0.008, R=rot_from_axes(z_axis=Rh[:, 0])), 0.004, STEEL)   # ear bolts
     for k in range(3):
-        fd.sub(RoundBox(hc + fwd * 0.095 - Rh[:, 2] * (0.045 + 0.013 * k), (0.03, 0.02, 0.003), 0.002, R=Rh), 0.002)
+        fd.sub(RoundBox(hc + fwd * 0.125 - Rh[:, 2] * (0.06 + 0.016 * k), (0.04, 0.02, 0.004), 0.002, R=Rh), 0.002)
     # neck cables trailing from under it over the bench's edge
-    base = hc - Rh[:, 2] * 0.09
+    base = hc - Rh[:, 2] * 0.12
     for i, (o, lab) in enumerate(((-0.025, RUBBER), (0.0, STEEL), (0.026, RUBBER))):
         p0 = base + tg * o
         pts = [p0, p0 + inw * -0.05 + v3((0, 0, -0.03)), top + tg * (0.02 + o) - inw * (D - 0.01) + v3((0, 0, 0.025)),
@@ -365,9 +366,9 @@ def scrap_field():
     fd = Field("Scrap")
     c, inw, tg, R = _frame_of(ARM_SCRAP)
     g = c[2]
-    a = c + tg * -0.13 + v3((0, 0, 0.045))
-    b = c + tg * 0.14 + inw * 0.04 + v3((0, 0, 0.045))
-    fd.add(RoundCone(a, b, 0.05, 0.042), 0.0, WHITE)
+    a = c + tg * -0.17 + v3((0, 0, 0.06))
+    b = c + tg * 0.17 + inw * 0.05 + v3((0, 0, 0.055))
+    fd.add(RoundCone(a, b, 0.066, 0.056), 0.0, WHITE)
     fd.paint(Func(lambda P: np.abs((P - lerp(a, b, 0.55).astype(F)) @ norm(b - a).astype(F)) - F(0.022), a - 0.3, b + 0.3), ORANGE)
     fd.add(Sphere(a - norm(b - a) * 0.02, 0.046), 0.006, STEEL)
     for k in range(3):
@@ -381,6 +382,13 @@ def scrap_field():
         d = norm(hd + norm(np.cross(v3((0, 0, 1)), hd)) * math.sin(ang) * 0.9)
         p0 = b + hd * 0.06
         fd.add(Chain([p0, p0 + d * 0.06 + v3((0, 0, 0.005)), p0 + d * 0.1 + v3((0, 0, -0.02))], [0.012, 0.009, 0.005], k=0.004), 0.003, STEEL)
+    # a dented white chest plate lying on the asphalt, an orange hazard stripe across it
+    c2, i2, t2, R2 = _frame_of(PLATE_SCRAP)
+    pc = c2 + v3((0, 0, -0.07))
+    sh = Inter(Shell(Ellipsoid(pc, (0.16, 0.12, 0.13)), 0.0, 0.018), Func(lambda P: F(c2[2] + 0.004) - P[:, 2], pc - 0.3, pc + 0.3), 0.004)
+    fd.add(sh, 0.0, WHITE)
+    fd.paint(Func(lambda P: np.abs((P - c2.astype(F)) @ (t2 * 0.7 + i2 * 0.7).astype(F)) - F(0.025), c2 - 0.3, c2 + 0.3), ORANGE)
+    fd.sub(Sphere(pc + v3((0.05, -0.02, 0.135)) + t2 * 0.03, 0.035), 0.01)
     return fd
 
 
@@ -410,7 +418,7 @@ def _blocked(c, pad=0.0):
     r = math.hypot(c[0], c[1])
     if r < PAD_R + 0.08 + pad or r > GROUND_R - 0.05:
         return True
-    for pl, rr in ((BENCH, 0.34), (DOCK, 0.24), (ARM_SCRAP, 0.22)):
+    for pl, rr in ((BENCH, 0.38), (DOCK, 0.26), (ARM_SCRAP, 0.26), (PLATE_SCRAP, 0.2)):
         if math.hypot(c[0] - pl[0][0], c[1] - pl[0][1]) < rr + pad:
             return True
     return False

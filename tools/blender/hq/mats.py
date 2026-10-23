@@ -2057,7 +2057,7 @@ def asphalt(name="HQ_Asphalt", base=(0.2, 0.2, 0.205), stone=(0.46, 0.45, 0.43),
 
 
 # ======================================================================================= Digital Age: android armour (Glitch)
-def android(name="HQ_Android", suit=(0.075, 0.08, 0.095), graphite=(0.16, 0.17, 0.2), navy=(0.12, 0.16, 0.3),
+def android(name="HQ_Android", suit=(0.075, 0.08, 0.095), graphite=(0.2, 0.21, 0.25), navy=(0.14, 0.19, 0.36),
             violet=(0.5, 0.17, 0.72), tape=(0.6, 0.6, 0.58), steel=(0.52, 0.56, 0.62), glass=(0.03, 0.035, 0.045),
             face=(0.6, 0.64, 0.7), white=(0.9, 0.9, 0.87), orange=(1.0, 0.45, 0.1), rubber=(0.085, 0.085, 0.09),
             yellow=(0.95, 0.74, 0.12), wear=1.0):
@@ -2079,12 +2079,12 @@ def android(name="HQ_Android", suit=(0.075, 0.08, 0.095), graphite=(0.16, 0.17, 
     c = g.mix(g.math("MULTIPLY", ridge, 0.6), c, g.rgb(tuple(min(1.0, x * 2.4 + 0.03) for x in suit)))
     c = g.mix(g.math("MULTIPLY", hollow, 0.6), c, g.rgb(tuple(x * 0.45 for x in suit)))
     def plate(col, gloss=1.0):
-        q = g.mix(g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.86 for x in col)))
+        q = g.mix(g.remap(g.noise(p, 3.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.93 for x in col)))
         q = g.mix(g.math("MULTIPLY", sky, 0.35 * gloss), q, g.rgb(tuple(min(1.0, x * 1.45 + 0.05) for x in col)))
         chip = g.smooth(g.noise(p, 30.0, 4.0, 0.6), 0.45, 0.6)
-        edge = g.math("MULTIPLY", ridge, g.math("ADD", 0.45, g.math("MULTIPLY", chip, 0.55 * wear)))
-        q = g.mix(g.math("MULTIPLY", edge, 0.85), q, g.rgb(tuple(min(1.0, x * 1.9 + 0.16) for x in col)))
-        q = g.mix(g.math("MULTIPLY", hollow, 0.5), q, g.rgb(tuple(x * 0.45 for x in col)))
+        edge = g.math("MULTIPLY", g.smooth(pt, 0.53, 0.6), g.math("ADD", 0.55, g.math("MULTIPLY", chip, 0.45 * wear)))
+        q = g.mix(g.math("MULTIPLY", edge, 0.8), q, g.rgb(tuple(min(1.0, x * 1.9 + 0.16) for x in col)))
+        q = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.46, 0.4), 0.45), q, g.rgb(tuple(x * 0.5 for x in col)))
         scr = g.smooth(g.wave(g.scale_vec(p, (1.0, 3.0, 1.0)), 40.0, 9.0, 3.0), 0.94, 0.99)
         return g.mix(g.math("MULTIPLY", scr, 0.35 * wear), q, g.rgb(tuple(min(1.0, x * 1.7 + 0.12) for x in col)))
     c = g.mix(g.reg(5), c, plate(graphite))

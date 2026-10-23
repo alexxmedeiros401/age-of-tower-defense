@@ -471,7 +471,7 @@ def pauldron_u(side):
 
 
 PD_R = 0.1                               # the pauldron's sphere (round the deltoid) ...
-PD_OFF, PD_T = 0.046, 0.026              # ... the cap: its offset and thickness
+PD_OFF, PD_T = 0.036, 0.024              # ... the cap: its offset and thickness
 
 
 def _crack_axes():
@@ -518,16 +518,16 @@ def shoulders_field():
         sph = Sphere(c, PD_R)
         lo, hi = c - 0.3, c + 0.3
         def cap(P, c=c, u=u, sx=sx):
-            return np.maximum(F(-0.03) - (P - c.astype(F)) @ u.astype(F), F(0.2) - P[:, 0] * F(sx))
+            return np.maximum(F(-0.015) - (P - c.astype(F)) @ u.astype(F), F(0.2) - P[:, 0] * F(sx))
         fd.add(Inter(Func(cap, lo, hi), Shell(sph, PD_OFF, PD_T, pad=0.1), 0.006), 0.0, NAVY)
         def rim(P, c=c, u=u, sx=sx):
             s = (P - c.astype(F)) @ u.astype(F)
-            return np.maximum(np.abs(s + F(0.024)) - F(0.009), F(0.205) - P[:, 0] * F(sx))
+            return np.maximum(np.abs(s + F(0.01)) - F(0.009), F(0.205) - P[:, 0] * F(sx))
         fd.add(Inter(Func(rim, lo, hi), Shell(sph, PD_OFF + 0.006, PD_T + 0.01, pad=0.1), 0.004), 0.004, GRAPHITE)
         def lame(P, c=c, u=u, sx=sx):
             s = (P - c.astype(F)) @ u.astype(F)
             out = (P - c.astype(F)) @ np.array([sx, 0.0, 0.0], F)
-            return np.maximum(np.maximum(np.abs(s + F(0.075)) - F(0.018), F(0.0) - out), F(0.21) - P[:, 0] * F(sx))
+            return np.maximum(np.maximum(np.abs(s + F(0.058)) - F(0.017), F(0.0) - out), F(0.21) - P[:, 0] * F(sx))
         fd.add(Inter(Func(lame, lo, hi), Shell(sph, PD_OFF + 0.002, 0.022, pad=0.1), 0.004), 0.0, NAVY)
     # the crack across the left cap, and the tape over it
     c = pauldron_c("L")
@@ -555,8 +555,8 @@ def arm_hull(side, upper):
 BLADE_OFF = 0.066                        # the blade's plane: this far out over the back of the forearm and fist
 BLADE_L = 0.43                           # its point: this far past the wrist
 BLADE_ROOT = -0.15                       # its root, inside the housing
-BLADE_HW = 0.027                         # its half width (edges included)
-EDGE_W = 0.012                           # the glowing edges' width
+BLADE_HW = 0.032                         # its half width (edges included)
+EDGE_W = 0.0135                          # the glowing edges' width
 HOUSING_C = -0.075                       # the housing's middle along the forearm (from the wrist)
 
 
@@ -667,9 +667,9 @@ def arms_field():
         # the blade housing along the outside of the forearm, its mouth just past the wrist
         Rh = np.stack([tt, nn, ax], 1)
         hc = O + ax * HOUSING_C
-        fd.add(RoundBox(hc, (0.039, 0.026, 0.094), 0.014, R=Rh), 0.008, NAVY)
-        fd.add(RoundBox(O + ax * (HOUSING_C + 0.082), (0.042, 0.029, 0.008), 0.006, R=Rh), 0.004, STEEL)
-        fd.sub(RoundBox(O + ax * (HOUSING_C + 0.094), (0.031, 0.0095, 0.03), 0.004, R=Rh), 0.002)
+        fd.add(RoundBox(hc, (0.044, 0.026, 0.094), 0.014, R=Rh), 0.008, NAVY)
+        fd.add(RoundBox(O + ax * (HOUSING_C + 0.082), (0.047, 0.029, 0.008), 0.006, R=Rh), 0.004, STEEL)
+        fd.sub(RoundBox(O + ax * (HOUSING_C + 0.094), (0.036, 0.0095, 0.03), 0.004, R=Rh), 0.002)
         def hlines(P, hc=hc, ax=ax):
             s = (P - hc.astype(F)) @ ax.astype(F)
             return np.minimum(np.abs(s + F(0.03)) - F(0.0025), np.abs(s - F(0.03)) - F(0.0025))
@@ -711,15 +711,15 @@ def legs_field():
             d, t = _seg(P, a, b)
             ax_ = (a + (b - a) * 0.5).astype(F)
             front = (P[:, 1] - ax_[1]) - F(0.03) - F(0.06) * np.maximum((P[:, 0] - ax_[0]) * F(sx), F(0))
-            return np.maximum(np.maximum(F(0.2) - t, t - F(0.8)), front)
+            return np.maximum(np.maximum(F(0.2) - t, t - F(0.72)), front)
         fd.add(Inter(Func(tband, hip - 0.3, kn + 0.3), Shell(tl, 0.017, 0.022, pad=0.06), 0.005), 0.0, GRAPHITE)
         fd.paint(Func(lambda P, sx=sx, x0=lerp(hip, kn, 0.5)[0], zk=kn[2]: np.maximum(np.abs((P[:, 0] - F(x0)) * F(sx) - F(0.035)) - F(0.012),
                                                                                   F(zk + 0.05) - P[:, 2]), hip - 0.3, kn + 0.3), NAVY)
         # the knee cop, a little below the knee
         kc = kn + v3((0, -0.034, -0.016))
         fd.add(Inter(Func(lambda P, kc=kc: (P[:, 1] - F(kc[1] + 0.02)), kc - 0.2, kc + 0.2),
-                     Shell(Ellipsoid(kc, (0.07, 0.058, 0.074)), 0.012, 0.02, pad=0.05), 0.006), 0.0, NAVY)
-        kb, kn_ = _hit(lambda P, kc=kc: Ellipsoid(kc, (0.07, 0.058, 0.074))(P) - F(0.022), kc + v3((0, -0.4, 0)), (0, 1, 0))
+                     Shell(Ellipsoid(kc, (0.07, 0.058, 0.064)), 0.012, 0.02, pad=0.05), 0.006), 0.0, NAVY)
+        kb, kn_ = _hit(lambda P, kc=kc: Ellipsoid(kc, (0.07, 0.058, 0.064))(P) - F(0.022), kc + v3((0, -0.4, 0)), (0, 1, 0))
         if kb is not None:
             fd.add(Cylinder(kb, 0.02, 0.012, rr=0.004, R=rot_from_axes(z_axis=kn_)), 0.004, STEEL)
         # the shin guard
@@ -727,7 +727,7 @@ def legs_field():
             d, t = _seg(P, a, b)
             ax_ = (a + (b - a) * 0.5).astype(F)
             front = (P[:, 1] - ax_[1]) - F(0.04)
-            return np.maximum(np.maximum(F(0.2) - t, t - F(0.84)), front)
+            return np.maximum(np.maximum(F(0.34) - t, t - F(0.84)), front)
         fd.add(Inter(Func(sband, kn - 0.3, an + 0.3), Shell(sl, 0.016, 0.022, pad=0.06), 0.005), 0.0, GRAPHITE)
         fd.paint(Func(lambda P, sx=sx, x0=lerp(kn, an, 0.5)[0], zk=kn[2]: np.maximum(F(0.04) - np.abs(P[:, 0] - F(x0)), P[:, 2] - F(zk - 0.04)),
                       kn - 0.3, an + 0.3), NAVY)
@@ -774,6 +774,23 @@ def scarf_tails():
 ARMBAND_T = 0.6
 
 
+def _densify(pts, nrm, n):
+    """Catmull-Rom through the points, n samples per span (a smooth tail, not a string of beads)."""
+    P = [v3(p) for p in pts]
+    N = [v3(x) for x in nrm]
+    out, on = [], []
+    for i in range(len(P) - 1):
+        p0, p1, p2, p3 = P[max(i - 1, 0)], P[i], P[i + 1], P[min(i + 2, len(P) - 1)]
+        for j in range(n):
+            t = j / float(n)
+            q = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t ** 3)
+            out.append(q)
+            on.append(norm(N[i] * (1 - t) + N[i + 1] * t))
+    out.append(P[-1])
+    on.append(N[-1])
+    return out, on
+
+
 def cloth_field():
     """Violet cloth (8): the scarf rolled round his neck and lying in a thick roll on the cuirass round the neck's
     opening, knotted at his left, its tails ragged at the ends; the armband round his left upper arm (over its plate)."""
@@ -799,10 +816,9 @@ def cloth_field():
     front, back = scarf_tails()
     rag = lambda P: F(0.002) * NOISE(P * F(26))
     for tail, w0, w1 in ((front, 0.05, 0.064), (back, 0.056, 0.072)):
-        pts = [p for p, n in tail]
-        nrm = [n for p, n in tail]
+        pts, nrm = _densify([p for p, n in tail], [n for p, n in tail], 3)
         ws = list(np.linspace(w0, w1, len(pts)))
-        fd.add(Lock(pts, ws, [0.011] * len(pts), nrm, k=0.008, disp=rag, disp_amp=0.003), 0.008, VIOLET)
+        fd.add(Lock(pts, ws, [0.012] * len(pts), nrm, k=0.012, overlap=1.9, disp=rag, disp_amp=0.002), 0.008, VIOLET)
         # ragged ends: notches cut into the last segment
         e, e0 = pts[-1], pts[-2]
         d = norm(e - e0)
