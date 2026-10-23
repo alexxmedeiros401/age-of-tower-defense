@@ -2488,7 +2488,7 @@ def KITS(theme):
             "Stub_A": (lambda: chimney_stub(501, square=True), 900), "Stub_B": (lambda: chimney_stub(502, square=False), 800),
             "Scrap": (lambda: scrap_heap(503), 1300), "Castings": (lambda: castings(504), 1300), "Ingots": (lambda: ingots(505), 900),
             "SlagCart": (lambda: slag_cart(506), 1500), "Barrels": (lambda: barrels(507), 1000), "Crates": (lambda: crates(508), 1100),
-            "Drum": (lambda: cable_drum(509), 1000), "Weeds": (lambda: weeds(510), 700),
+            "Drum": (lambda: cable_drum(509), 1000), "Weeds": (lambda: weeds(510), 950),
             "Rock_A": (lambda: rock(1.4, 0.45, 511, n_extra=2), 600), "Rock_B": (lambda: rock(0.9, 0.3, 512, n_extra=1), 400),
             "Tree_A": (lambda: sooty_tree(2.1, 513, young=False), 1500), "Tree_B": (lambda: sooty_tree(1.8, 514), 1100),
             "Foundry": (lambda: foundry(515), 6000), "Gasholder": (lambda: gasholder(516), 4200), "HammerShed": (lambda: hammer_shed(517), 4200),
@@ -2499,8 +2499,8 @@ def KITS(theme):
     if theme == "railyard":
         return {
             "Buffer": (lambda: buffer_stop(531), 1000), "Signal": (lambda: semaphore(532), 900), "CoalTub": (lambda: coal_tub(533), 1100),
-            "Sleepers": (lambda: sleeper_stack(534), 700), "Crates": (lambda: crates(535), 1100), "Barrels": (lambda: barrels(536), 1000),
-            "Lamp": (lambda: lamp_standard(537), 500), "Churns": (lambda: churns(538), 900), "Weeds": (lambda: weeds(539), 700),
+            "Sleepers": (lambda: sleeper_stack(534), 1100), "Crates": (lambda: crates(535), 1100), "Barrels": (lambda: barrels(536), 1000),
+            "Lamp": (lambda: lamp_standard(537), 500), "Churns": (lambda: churns(538), 900), "Weeds": (lambda: weeds(539), 950),
             "Tree_A": (lambda: __import__("decor_iron").birch(2.4, 540), 1300), "Tree_B": (lambda: __import__("decor_iron").birch(1.8, 541), 1000),
             "Loco": (lambda: locomotive(542), 6000), "Wagon_A": (lambda: goods_wagon(543), 2000), "Wagon_B": (lambda: goods_wagon(544, van=True), 2000),
             "WaterTower": (lambda: water_tower(545, trestle=True), 3000), "SignalBox": (lambda: signal_box(546), 3000),
