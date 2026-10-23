@@ -81,13 +81,16 @@ def _uvw(P, side):
     return q @ A.astype(F), q @ W.astype(F), q @ M.astype(F)
 
 
-FS = 1.15                   # the fist's scale (designed at 1.0 about the wrist plate U0)
+FS = 1.5                    # the fist's scale (designed at 1.0 about the wrist plate U0)
 U0 = 0.02
 KN_U = 0.284                # the knuckle-plate's front (design u): the ram bone's head
 
 
+FS_U = 1.22                 # (along the forearm it grows less: a squat, wide fist)
+
+
 def fp(side, u, v, w):
-    return gp(side, U0 + (u - U0) * FS, v * FS, w * FS)
+    return gp(side, U0 + (u - U0) * FS_U, v * FS, w * FS)
 
 
 def knuckle_point(side):
@@ -95,26 +98,27 @@ def knuckle_point(side):
 
 
 H_FRONT = -0.006            # the housing's front end (u, from the wrist)
-TILT = 0.06 / 0.13          # its elbow end is cut on a slant: short at the crook, long over the elbow's point
+HR0, HR1 = 0.142, 0.162     # its radius at the elbow end and at the front
+TILT = 0.55                 # its elbow end is cut on a slant: short at the crook, long over the elbow's point
 PIST_PHI = (68.0, 112.0)    # the two piston cylinders, on the back of the forearm
-PIST_R = 0.152              # their axes' distance from the forearm's
+PIST_R = HR1 + 0.026        # their axes' distance from the forearm's
 INLET_PHI = 160.0           # the hose inlet: behind, near the elbow
 RAM_MAX = 0.17              # how far the pistons drive the fist out at the blow
 
 
 def h_rad(u):
-    return F(0.118) + F(0.012) * np.clip((u + F(0.26)) / F(0.26), 0, 1)
+    return F(HR0) + F(HR1 - HR0) * np.clip((u + F(0.26)) / F(0.26), 0, 1)
 
 
 def h_back(v):
-    return F(-0.235) + F(TILT) * v
+    return F(-0.225) + F(TILT) * v
 
 
 def hose_inlet(side):
     """The copper inlet on the housing (its end, where the hose is clamped) and its direction."""
     e = gdir(side, INLET_PHI)
     wr, A, W, M = gframe(side)
-    p0 = gp(side, -0.2, 0, 0) + e * 0.105
+    p0 = gp(side, -0.2, 0, 0) + e * (HR0 - 0.01)
     d = norm(e - A * 0.45)
     return p0 + d * 0.07, d
 
@@ -276,7 +280,7 @@ def hair_field():
         face = np.where(ax < F(0.13), F(-0.07) - y, F(-0.13) - y)          # (not over his forehead or face)
         side = np.where((ax > F(0.12)) & (y < F(0.0)), F(1.66) - z, F(-1.0))
         ear = np.where((ax > F(0.15)) & (z < F(1.735)) & (np.abs(y - F(0.035)) < F(0.06)), F(0.02), F(-1.0))
-        return np.maximum(np.maximum(np.maximum(top, nape), np.maximum(face, side)), ear)
+        return np.maximum(np.maximum(top, nape), np.maximum(face, side))
     fd.add(Inter(Shell(skull(), 0.006, 0.014, pad=0.06, disp=stub, disp_amp=0.003), Func(keep, HEAD_C - 0.4, HEAD_C + 0.4), 0.004), 0.0)
     return fd
 
@@ -305,10 +309,11 @@ def moustache_field():
         Q = hinv(P)
         x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
         ax = np.abs(x)
-        inner = F(0.104) + F(0.022) * smoothstep(1.56, 1.48, z)
-        return np.maximum(np.maximum(np.maximum(inner - ax, z - F(1.7)), F(1.47) - z), np.maximum(y - F(0.04), F(-0.2) - y))
+        inner = F(0.112) + F(0.02) * smoothstep(1.56, 1.48, z)
+        front = F(-0.03) - F(0.9) * (F(1.7) - z)                          # the front edge: from the sideburn to the grin's corner
+        return np.maximum(np.maximum(np.maximum(inner - ax, z - F(1.7)), F(1.48) - z), np.maximum(y - F(0.04), front - y))
     fd.add(Inter(Func(chops, HEAD_C - v3((0.4, 0.4, 0.4)), HEAD_C + v3((0.4, 0.3, 0.1))),
-                 Shell(hull, 0.008, 0.026, pad=0.06, disp=whisker_tex, disp_amp=0.006), 0.008), 0.0)
+                 Shell(hull, 0.008, 0.026, pad=0.06, disp=lambda P: curls(P, 0.016, 0.006), disp_amp=0.007), 0.012), 0.0)
     strands = lambda P: F(0.0018) * NOISE(P * np.array([30, 90, 90], F)) + F(0.001) * np.sin(P[:, 2] * F(420))
     for sx in (-1, 1):
         pts = [hp(p) for p in moustache_path(sx)]
@@ -325,7 +330,7 @@ PEAK_N = norm(v3((0.0, 0.28, 1.0)))     # the peak slopes down at its front
 
 
 def cap_puff():
-    return Ellipsoid(hp((0.0, -0.035, 1.905)), v3((0.214, 0.244, 0.072)) * HS, R=euler(0.2, 0, 0))
+    return Ellipsoid(hp((0.0, -0.005, 1.905)), v3((0.214, 0.226, 0.07)) * HS, R=euler(0.22, 0, 0))
 
 
 def cap_body(P):
@@ -344,7 +349,7 @@ def peak_fn(P):
     Q = hinv(P)
     x, y = Q[:, 0], Q[:, 1]
     o = (np.sqrt((x / F(0.165)) ** 2 + ((y + F(0.14)) / F(0.14)) ** 2) - F(1.0)) * F(0.14)
-    pl = (Q - np.array([0.0, -0.2, 1.84], F)) @ PEAK_N.astype(F)
+    pl = (Q - np.array([0.0, -0.2, 1.848], F)) @ PEAK_N.astype(F)
     d = np.maximum(o, np.abs(pl) - F(0.0065))
     return d * F(HS)
 
@@ -355,9 +360,8 @@ CAP_LO, CAP_HI = HEAD_C + v3((-0.29, -0.36, -0.12)), HEAD_C + v3((0.29, 0.3, 0.3
 def cap_field():
     """Brown-grey tweed (label 0), the band round its foot a darker stripe (6)."""
     fd = Field("Cap")
-    tweed = lambda P: F(0.0012) * NOISE(P * F(30)) + F(0.0008) * np.sin((P[:, 0] + P[:, 1]) * F(500))
-    fd.add(Func(cap_body, CAP_LO, CAP_HI, disp=tweed, disp_amp=0.0018), 0.0)
-    fd.add(Func(peak_fn, CAP_LO, CAP_HI), 0.006)
+    tweed = lambda P: F(0.0012) * NOISE(P * F(30)) + F(0.0006) * NOISE(P * F(90))
+    fd.add(Func(lambda P: smin(cap_body(P), peak_fn(P), F(0.022)), CAP_LO, CAP_HI, disp=tweed, disp_amp=0.0018), 0.0)
     sk = skull()
     fd.paint(Func(lambda P: np.maximum(band_d(P) * F(HS) - F(0.022), F(CAP_IN + 0.006) - sk(P)), CAP_LO, CAP_HI), 6)
     return fd
@@ -435,7 +439,7 @@ def shirt_hull():
 SHIRT_OFF, SHIRT_T = 0.012, 0.01
 VEST_OFF, VEST_T = 0.034, 0.014
 VEST_OUT = VEST_OFF + VEST_T * 0.5          # the waistcoat's outer surface (from vest_hull)
-SLEEVE_END = 0.17                           # the undershirt's sleeves end this far down the upper arm
+SLEEVE_END = 0.13                           # the undershirt's sleeves end this far down the upper arm
 
 
 def _sleeve_end(P):
@@ -813,14 +817,14 @@ def gauntlets_field():
             for u in (-0.03, -0.09):
                 p = gp(side, u, 0, 0) + e * float(h_rad(np.array([u], F))[0])
                 fd.add(Sphere(p, 0.0078), 0.002, IRON)
-            vb = 0.13 * math.cos(a)
-            ub = -0.235 + TILT * vb * 1.0 + 0.04
+            vb = HR0 * math.cos(a)
+            ub = -0.225 + TILT * vb + 0.04
             p = gp(side, ub, 0, 0) + e * float(h_rad(np.array([ub], F))[0])
             fd.add(Sphere(p, 0.0072), 0.002, IRON)
         for phi in (0.0, 180.0, 270.0):
             e = gdir(side, phi)
             for u in (-0.13, -0.17):
-                if u < float(h_back(np.array([0.13 * math.cos(math.radians(phi))], F))[0]) + 0.03:
+                if u < float(h_back(np.array([HR0 * math.cos(math.radians(phi))], F))[0]) + 0.03:
                     continue
                 p = gp(side, u, 0, 0) + e * float(h_rad(np.array([u], F))[0])
                 fd.add(Sphere(p, 0.0072), 0.002, IRON)
@@ -832,17 +836,17 @@ def gauntlets_field():
             ub = -0.034
             a, b = gp(side, ua, 0, 0) + e * PIST_R, gp(side, ub, 0, 0) + e * PIST_R
             R = rot_from_axes(z_axis=A)
-            fd.add(Cylinder((a + b) / 2, 0.027, ub - ua, rr=0.008, R=R), 0.004, BRASS)
-            fd.add(Cylinder(b + A * 0.006, 0.031, 0.018, rr=0.005, R=R), 0.003, IRON)                    # gland
-            fd.add(Cylinder(a, 0.03, 0.016, rr=0.006, R=R), 0.003, IRON)                                   # end cap
+            fd.add(Cylinder((a + b) / 2, 0.031, ub - ua, rr=0.009, R=R), 0.004, BRASS)
+            fd.add(Cylinder(b + A * 0.006, 0.036, 0.02, rr=0.006, R=R), 0.003, IRON)                     # gland
+            fd.add(Cylinder(a, 0.035, 0.018, rr=0.007, R=R), 0.003, IRON)                                  # end cap
             for u in (ua + 0.04, ub - 0.05):
-                q = gp(side, u, 0, 0) + e * (PIST_R - 0.022)
+                q = gp(side, u, 0, 0) + e * (PIST_R - 0.024)
                 Rs = np.stack([norm(np.cross(A, e)), e, A], axis=1)
                 fd.add(RoundBox(q, (0.016, 0.014, 0.012), 0.004, R=Rs), 0.004, IRON)
         # the copper inlet (the hose is clamped on its end)
         end, d = hose_inlet(side)
         e = gdir(side, INLET_PHI)
-        p0 = gp(side, -0.2, 0, 0) + e * 0.105
+        p0 = gp(side, -0.2, 0, 0) + e * (HR0 - 0.01)
         fd.add(RoundCone(p0, end, 0.02, 0.018), 0.006, COPPER)
         fd.add(Cylinder(p0 + d * 0.03, 0.025, 0.016, rr=0.005, R=rot_from_axes(z_axis=d)), 0.003, BRASS)
     return fd
@@ -860,25 +864,25 @@ def fists_field():
         Rf = np.stack([A, W, M], axis=1)
         # the back plate and its brass rim
         bp = gp(side, 0.042, 0, 0)
-        fd.add(Cylinder(bp, 0.126, 0.034, rr=0.01, R=rot_from_axes(z_axis=A)), 0.0, IRON)
-        fd.add(Torus(bp, 0.124, 0.0075, R=rot_from_axes(z_axis=A)), 0.003, BRASS)
+        fd.add(Cylinder(bp, HR1 - 0.002, 0.036, rr=0.01, R=rot_from_axes(z_axis=A)), 0.0, IRON)
+        fd.add(Torus(bp, HR1 - 0.004, 0.008, R=rot_from_axes(z_axis=A)), 0.003, BRASS)
         for k in range(10):
             a = 2 * math.pi * k / 10 + 0.3
             e = W * math.cos(a) + M * math.sin(a)
-            fd.add(Sphere(bp + A * 0.017 + e * 0.1, 0.0075), 0.002, IRON)
+            fd.add(Sphere(bp + A * 0.018 + e * (HR1 - 0.03), 0.008), 0.002, IRON)
         # lugs for the piston rods, the rods, the central ram
         for phi in PIST_PHI:
             e = gdir(side, phi)
             Rl = np.stack([e, norm(np.cross(A, e)), A], axis=1)
-            fd.add(RoundBox(gp(side, 0.04, 0, 0) + e * 0.135, (0.035, 0.022, 0.017), 0.008, R=Rl), 0.006, IRON)
-            fd.add(RoundCone(gp(side, -0.19, 0, 0) + e * PIST_R, gp(side, 0.03, 0, 0) + e * PIST_R, 0.0125, 0.0125), 0.003, STEEL)
-        fd.add(RoundCone(gp(side, -0.19, 0, 0), gp(side, 0.03, 0, 0), 0.05, 0.05), 0.004, STEEL)
-        fd.add(Torus(gp(side, 0.006, 0, 0), 0.052, 0.006, R=rot_from_axes(z_axis=A)), 0.002, BRASS)
+            fd.add(RoundBox(gp(side, 0.04, 0, 0) + e * (PIST_R - 0.016), (0.035, 0.024, 0.018), 0.008, R=Rl), 0.006, IRON)
+            fd.add(RoundCone(gp(side, -0.19, 0, 0) + e * PIST_R, gp(side, 0.03, 0, 0) + e * PIST_R, 0.0145, 0.0145), 0.003, STEEL)
+        fd.add(RoundCone(gp(side, -0.19, 0, 0), gp(side, 0.03, 0, 0), 0.064, 0.064), 0.004, STEEL)
+        fd.add(Torus(gp(side, 0.006, 0, 0), 0.066, 0.007, R=rot_from_axes(z_axis=A)), 0.002, BRASS)
         # the hand: a block of riveted plates, a lame over its back
-        fd.add(RoundBox(fp(side, 0.112, 0.0, -0.012), v3((0.06, 0.112, 0.072)) * FS, 0.036 * FS, R=Rf), 0.012, IRON)
-        fd.add(RoundBox(fp(side, 0.12, 0.0, -0.08), v3((0.066, 0.102, 0.012)) * FS, 0.01 * FS, R=Rf), 0.006, IRON)
+        fd.add(RoundBox(fp(side, 0.112, 0.0, -0.012), v3((0.06 * FS_U, 0.112 * FS, 0.072 * FS)), 0.036 * FS_U, R=Rf), 0.012, IRON)
+        fd.add(RoundBox(fp(side, 0.12, 0.0, -0.08), v3((0.066 * FS_U, 0.102 * FS, 0.012 * FS)), 0.01 * FS, R=Rf), 0.006, IRON)
         for v in (-0.06, 0.0, 0.06):
-            fd.add(Sphere(fp(side, 0.075, v, -0.094), 0.0085), 0.002, BRASS)
+            fd.add(Sphere(fp(side, 0.075, v, -0.094), 0.0075 * FS), 0.002, BRASS)
         # four fat curled fingers
         for i, v in enumerate(FINGER_V):
             s = 0.9 if i == 3 else 1.0
@@ -895,7 +899,7 @@ def fists_field():
         fd.add(Chain(th, [0.037 * FS, 0.034 * FS, 0.031 * FS, 0.027 * FS], k=0.008), 0.008, IRON)
         fd.add(Sphere(fp(side, 0.125, 0.162, 0.072), 0.016 * FS), 0.003, BRASS)
         # the brass knuckle-plate across the front of the fingers, four domed studs on it
-        fd.add(RoundBox(fp(side, 0.258, 0.0, 0.0), v3((0.012, 0.118, 0.056)) * FS, 0.01 * FS, R=Rf), 0.006, BRASS)
+        fd.add(RoundBox(fp(side, 0.258, 0.0, 0.0), v3((0.012 * FS_U, 0.118 * FS, 0.056 * FS)), 0.01 * FS, R=Rf), 0.006, BRASS)
         for v in FINGER_V:
             fd.add(Sphere(fp(side, 0.268, v, 0.0), 0.02 * FS), 0.004, BRASS)
     return fd

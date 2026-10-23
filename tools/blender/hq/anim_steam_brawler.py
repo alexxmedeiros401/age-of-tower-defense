@@ -155,7 +155,7 @@ def idle_pose(arm, t, rest):
     torso(aims, yaw, bend=0.06 - 0.06 * heave, side=0.015 * sway, chest=2.0 * sway, look=look, pitch=0.02 + 0.02 * br + 0.05 * heave,
           shrug=(upL + 0.04 * heave, upR + 0.04 * heave), reach=(fwL, fwR))
     for side, sx, up, fw in (("R", -1, upR, fwR), ("L", 1, upL, fwL)):
-        T = body_pt(V(sx * 0.56, -0.16 - 0.06 * fw, 0.6 + 0.25 * up), ro, yaw)
+        T = body_pt(V(sx * 0.66, -0.2 - 0.06 * fw, 0.56 + 0.25 * up), ro, yaw)
         tau = rz(yaw) @ V(-sx * 0.25, -1.0, 0.35)
         aims.update(fist_at(arm, side, T, tau, 0.0, rest))
     return aims, ro, rz(yaw)
@@ -173,12 +173,12 @@ def make_idle(arm, frames=96):
 
 # ---------------------------------------------------------------------------------------------- combat: the guard
 # (fists and thumbs in the robots' frame: the robots are toward -Y)
-C_YAW = -30.0
+C_YAW = -18.0
 C_FEET = dict(lf=(0.15, -0.21), rf=(-0.2, 0.17), turn=(6.0, -22.0))
-G_L = V(0.03, -0.64, 1.31)            # the lead (left) fist's knuckles, out before him
-G_R = V(-0.19, -0.43, 1.39)           # the right by his chin
-TAU_L = V(0.1, 0.35, 1.0)             # thumbs up (palms in), tipped back toward him
-TAU_R = V(0.2, 0.35, 1.0)
+G_L = V(0.21, -0.86, 1.2)             # the lead (left) fist's knuckles, out before him
+G_R = V(-0.3, -0.74, 1.27)            # the right by his chin
+TAU_L = V(-0.2, 0.35, 1.0)            # thumbs up (palms in), tipped back toward him
+TAU_R = V(0.45, 0.35, 1.0)
 C_CROUCH = 0.075
 
 
@@ -219,7 +219,7 @@ def make_combat(arm, frames=40):
 
 
 # ---------------------------------------------------------------------------------------------- attack: the piston punch
-BLOW_AT = V(0.02, -1.42, 1.12)        # where the knuckles land at BLOW
+BLOW_AT = V(0.02, -1.46, 1.22)        # where the knuckles land at BLOW
 
 
 def _ro(lunge, crouch):
@@ -228,11 +228,11 @@ def _ro(lunge, crouch):
 
 #      frame, right knuckles,               its thumb,             left knuckles,          yaw,   chest, bend, crouch, lunge
 KEYS = [(0, G_R, TAU_R, G_L, C_YAW, 0.0, 0.12, C_CROUCH, 0.0),
-        (5, V(-0.37, -0.12, 1.43), V(0.45, -0.1, 1.0), V(0.06, -0.67, 1.3), -50.0, -10.0, 0.05, 0.1, -0.04),
-        (8, V(-0.22, -0.96, 1.22), V(1.0, 0.1, 0.5), V(0.1, -0.52, 1.35), -12.0, 8.0, 0.22, 0.12, 0.1),
-        (BLOW, BLOW_AT, V(1.0, 0.0, -0.08), V(0.2, -0.48, 1.37), 14.0, 12.0, 0.3, 0.14, 0.17),
-        (13, BLOW_AT + V(0.0, 0.06, 0.01), V(1.0, 0.0, -0.05), V(0.19, -0.49, 1.37), 12.0, 10.0, 0.28, 0.135, 0.16),
-        (17, V(-0.2, -0.86, 1.26), V(0.6, 0.2, 1.0), V(0.08, -0.58, 1.33), -6.0, 4.0, 0.2, 0.11, 0.09),
+        (5, V(-0.52, -0.46, 1.33), V(0.9, -0.1, 1.0), V(0.22, -0.88, 1.22), -40.0, -10.0, 0.05, 0.1, -0.04),
+        (8, V(-0.22, -1.06, 1.28), V(1.0, 0.1, 0.5), V(0.32, -0.88, 1.22), -12.0, 8.0, 0.22, 0.12, 0.1),
+        (BLOW, BLOW_AT, V(1.0, 0.0, -0.08), V(0.42, -0.84, 1.2), 14.0, 12.0, 0.3, 0.14, 0.17),
+        (13, BLOW_AT + V(0.0, 0.06, 0.01), V(1.0, 0.0, -0.05), V(0.42, -0.85, 1.2), 12.0, 10.0, 0.28, 0.135, 0.16),
+        (17, V(-0.25, -0.98, 1.3), V(0.6, 0.2, 1.0), V(0.3, -0.88, 1.2), -6.0, 4.0, 0.2, 0.11, 0.09),
         (FR, G_R, TAU_R, G_L, C_YAW, 0.0, 0.12, C_CROUCH, 0.0)]
 
 
@@ -286,7 +286,7 @@ def attack_pose(arm, f, rest):
     lean = max(0.0, min(1.0, (bend - 0.12) / 0.18))
     torso(aims, yaw, bend=bend, chest=chest, look=0.0, pitch=0.07 - 0.1 * (bend - 0.12), reach=(0.0, 0.35 * lean))
     aims.update(fist_at(arm, "R", T, tau, ram, rest))
-    aims.update(fist_at(arm, "L", TL, TAU_L, 0.0, rest))
+    aims.update(fist_at(arm, "L", TL, TAU_L + V(-0.9 * lean, 0.0, 0.0), 0.0, rest))     # (the left elbow out as he turns)
     return aims, ro, rz(yaw)
 
 

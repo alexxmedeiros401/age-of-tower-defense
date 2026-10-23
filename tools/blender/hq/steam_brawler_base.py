@@ -158,8 +158,8 @@ def pipe_field():
 
 
 # ---------------------------------------------------------------------------------------------- the punching bag and its gallows
-GAL_H = 0.95                        # the gallows' arm, above the floor
-BAG_TOP, BAG_BOT, BAG_RAD = 0.76, 0.24, 0.112
+GAL_H = 0.9                         # the gallows' arm, above the floor
+BAG_TOP, BAG_BOT, BAG_RAD = 0.7, 0.19, 0.112
 
 
 def gallows_field():
@@ -183,7 +183,7 @@ def gallows_field():
         fd.add(Sphere(p, 0.007), 0.002, IRON)
     # the hook and the chain down to the bag
     h0 = v3((BAG[0], BAG[1], TOP_Z + GAL_H - 0.03))
-    for k in range(4):
+    for k in range(3):
         c = h0 - up * (0.025 + 0.042 * k)
         R = rot_from_axes(z_axis=(1, 0, 0)) if k % 2 == 0 else rot_from_axes(z_axis=(0, 1, 0))
         fd.add(Torus(c, 0.016, 0.0055, R=R), 0.0, IRON)
@@ -207,7 +207,7 @@ def bag_field():
 
 
 # ---------------------------------------------------------------------------------------------- the gas lamp
-LAMP_H = 0.66                      # the lantern's foot above the floor
+LAMP_H = 0.62                      # the lantern's foot above the floor
 
 
 def lamp_field():
