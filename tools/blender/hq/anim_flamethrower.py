@@ -304,7 +304,7 @@ def idle_pose(arm, P_, t, f):
     ro = V(0.008 * sway, 0.0, -0.025 + 0.005 * br)
     look = (26.0 * math.sin(w + 0.5) + 6.0 * math.sin(w * 3)) * (1.0 - read) + 14.0 * read
     torso(aims, yaw, bend=0.05 + 0.04 * read, side=0.015 * sway, chest=2.0 * sway + 6.0 * g, look=look,
-          pitch=0.03 + 0.02 * br - 0.42 * read, roll=-0.08 * read, shrug=(0.06 * g, 0.0))
+          pitch=0.03 + 0.02 * br - 0.62 * read, roll=-0.1 * read, shrug=(0.06 * g, 0.0))
     ch, P = P_.solve(aims, ro, rz(yaw))
     Dr = root_delta(P_, P)
     R = Dr.to_3x3()

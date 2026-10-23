@@ -3,7 +3,7 @@ side = -X.
 
 A big, tough flame trooper of the task force, cheerful and scorched: a broad square jaw dark with stubble, a strong
 straight nose, a wide grin (his teeth showing, the corners up into his cheeks), dark brows, brown eyes crinkled by the
-grin, soot streaked across his forehead, nose and cheeks; short dark hair cropped close under his helmet. A heavy helmet
+grin, soot streaked across his forehead and cheeks; short dark hair cropped close under his helmet. A heavy helmet
 painted olive drab (a black rubber trim round its edge) with a smoked visor flipped up over its
 front (a dark glass band in a black frame, hinged on bosses at his temples).
 
@@ -106,7 +106,7 @@ def stubble_mask(P):
 def head(fd):
     """A broad, tough, good-humoured face: a broad square jaw dark with stubble, round cheeks bunched by his grin, dark
     brows set level on the brow ridge, brown eyes crinkled by the grin, a strong straight nose, a wide grin with his teeth
-    showing, soot streaked across his brow, nose and cheeks."""
+    showing, soot streaked across his brow and cheeks."""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
@@ -122,19 +122,19 @@ def head(fd):
     # dark brows, thick, set level on the brow ridge (the outer ends lifted a little: a grin, not a scowl)
     tuft = lambda P: F(0.0024) * NOISE(P * F(150)) + F(0.001) * np.sin(P[:, 0] * F(380))
     for sx in (-1, 1):
-        pts = [hp((sx * 0.026, -0.212, 1.796)), hp((sx * 0.068, -0.207, 1.811)), hp((sx * 0.114, -0.186, 1.812)),
-               hp((sx * 0.157, -0.146, 1.796))]
+        pts = [hp((sx * 0.026, -0.212, 1.808)), hp((sx * 0.068, -0.207, 1.815)), hp((sx * 0.114, -0.186, 1.811)),
+               hp((sx * 0.157, -0.146, 1.792))]
         fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.0105), hr(0.0125), hr(0.011), hr(0.0055)], k=hr(0.008),
                      disp=tuft, disp_amp=0.0025), hr(0.01), BROW)
         fd.paint(Chain(pts, [hr(0.02), hr(0.023), hr(0.021), hr(0.012)], k=hr(0.01)), BROW)
     # eyes crinkled by his grin
     for sx in (-1, 1):
         ec = eye_c(sx)
-        top = 0.029
+        top = 0.021
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(top))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.0125))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.0105))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(top - 0.003))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(2):                                                                      # laughter lines
@@ -156,9 +156,8 @@ def head(fd):
         fd.add(S((sx * 0.092, -0.146, 1.584), 0.01), hr(0.007), SKIN)                          # the grin's corners in his cheeks
         fd.add(Ellipsoid(hp((sx * 0.18, 0.035, 1.664)), v3((0.028, 0.05, 0.064)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.2, 0.028, 1.668)), v3((0.012, 0.032, 0.042)) * HS, R=euler(0, 0, sx * -0.35)), hr(0.01))
-    # soot: streaked across his brow, down his nose, over both cheeks, a smear on his left jaw
+    # soot: streaked across his brow, over both cheeks, a smear on his left jaw
     for c, r, rot in (((0.03, -0.205, 1.815), (0.07, 0.014, 0.011), (0.1, 0.0, 0.15)),
-                      ((-0.004, -0.235, 1.68), (0.014, 0.012, 0.03), (0.3, 0.0, 0.0)),
                       ((-0.112, -0.15, 1.655), (0.034, 0.016, 0.012), (0.2, 0.0, -0.5)),
                       ((-0.1, -0.16, 1.625), (0.022, 0.012, 0.009), (0.2, 0.0, -0.35)),
                       ((0.12, -0.148, 1.648), (0.028, 0.014, 0.011), (0.2, 0.0, 0.42)),
@@ -210,8 +209,8 @@ def teeth_field():
     fd = Field("Teeth")
     for k in range(6):
         x = -0.05 + 0.02 * k
-        y = -0.181 + 0.014 * (abs(x) / 0.05) ** 2
-        fd.add(RoundBox(hp((x, y, 1.553 + 0.007 * (abs(x) / 0.05) ** 2)), v3((0.0096, 0.006, 0.011)) * HS, hr(0.003)), 0.002)
+        y = -0.184 + 0.014 * (abs(x) / 0.05) ** 2
+        fd.add(RoundBox(hp((x, y, 1.55 + 0.007 * (abs(x) / 0.05) ** 2)), v3((0.0096, 0.006, 0.011)) * HS, hr(0.003)), 0.002)
     return fd
 
 
