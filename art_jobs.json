@@ -1,0 +1,22 @@
+[
+ {
+  "name": "ikits_p1_factory",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_p1_factory; mkdir -p $O\npython3 decor_build.py -- --theme factory --out $O --tex 512 --ao 4 --only Stub_A,Stub_B,Scrap,Castings,Ingots,SlagCart,Barrels,Crates,Drum,Weeds,Rock_A,Rock_B,Tree_A,Tree_B,Foundry,Gasholder,HammerShed,WaterTower,Workshop,Hammer,BeamEngine,Crane --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/ikits_p1_factory"
+ },
+ {
+  "name": "ikits_p1_railyard",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_p1_railyard; mkdir -p $O\npython3 decor_build.py -- --theme railyard --out $O --tex 512 --ao 4 --only Buffer,Signal,CoalTub,Sleepers,Crates,Barrels,Lamp,Churns,Weeds,Tree_A,Tree_B,Loco,Wagon_A,Wagon_B,WaterTower,SignalBox,EngineShed,Coal,Staithe --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/ikits_p1_railyard"
+ },
+ {
+  "name": "ikits_p1_smog",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_p1_smog; mkdir -p $O\npython3 decor_build.py -- --theme smog --out $O --tex 512 --ao 4 --only Lamp,PillarBox,Bench,Barrels,Crates,Railings,Plane_A,Plane_B,Pots,Terrace,Pub,ClockTower,Lock,Chimney,Kerb,Bollard,Narrowboat --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/ikits_p1_smog"
+ },
+ {
+  "name": "ikits_p1_city",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_p1_city; mkdir -p $O\npython3 decor_build.py -- --theme factory_city --out $O --tex 512 --ao 4 --only City --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/ikits_p1_city"
+ }
+]
