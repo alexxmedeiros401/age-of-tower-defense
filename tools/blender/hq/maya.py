@@ -61,7 +61,7 @@ def head(fd):
     for sx in (-1, 1):
         pts = [hp((sx * 0.034, -0.201, 1.75)), hp((sx * 0.072, -0.197, 1.761)), hp((sx * 0.112, -0.174, 1.765)),
                hp((sx * 0.148, -0.134, 1.757))]
-        fd.add(Chain([p + v3((0, 0.009, 0)) for p in pts], [hr(0.0045), hr(0.0058), hr(0.005), hr(0.0024)], k=hr(0.008)), hr(0.014), BROW)
+        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.005), hr(0.0065), hr(0.0056), hr(0.0026)], k=hr(0.006)), hr(0.01), BROW)
         fd.paint(Chain(pts, [hr(0.015), hr(0.017), hr(0.014), hr(0.007)], k=hr(0.01)), BROW)
     # clear almond eyes: the upper lids just over the irises' tops, the lower lids just under them; lashes painted along
     # the upper lids
@@ -77,7 +77,7 @@ def head(fd):
     fd.add(RoundCone(hp((0, -0.174, 1.722)), hp((0, -0.205, 1.66)), hr(0.0115), hr(0.0145)), hr(0.024), SKIN)
     fd.add(S((0, -0.206, 1.651), 0.0185), hr(0.013), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.022, -0.193, 1.637), 0.0135), hr(0.01), SKIN)
+        fd.add(S((sx * 0.022, -0.193, 1.637), 0.0135), hr(0.017), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.012, -0.203, 1.628)), v3((0.0055, 0.007, 0.0035)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.005))
     # the closed mouth: a level line, a small smile drawn up at her left corner (+X)
     slot = [hp((-0.051, -0.165, 1.555)), hp((-0.027, -0.186, 1.546)), hp((0, -0.192, 1.545)), hp((0.027, -0.185, 1.549)),
@@ -903,9 +903,9 @@ MAT_OVERRIDES = {
     "Optic": ("vials", {"name": "HQ_MayaOptic", "glass": (0.16, 0.2, 0.24)}),
     "Smoke": ("fieldgun", {"name": "HQ_MayaSmoke", "olive": (0.42, 0.45, 0.36), "red": (0.85, 0.12, 0.08)}),
 }
-LOW_TARGETS = {"Skin": 6000, "Teeth": 100, "Hair": 900, "Helmet": 2400, "Lens": 150, "Headset": 700, "Shirt": 2000,
-               "Carrier": 3200, "Radio": 700, "Trousers": 1300, "Pads": 400, "Boots": 1300, "Belt": 500, "Gloves": 900,
-               "Rifle": 3200, "Optic": 80, "Smoke": 300}
+LOW_TARGETS = {"Skin": 7600, "Teeth": 100, "Hair": 900, "Helmet": 2200, "Lens": 150, "Headset": 700, "Shirt": 2000,
+               "Carrier": 2800, "Radio": 700, "Trousers": 1200, "Pads": 400, "Boots": 1300, "Belt": 500, "Gloves": 900,
+               "Rifle": 2900, "Optic": 80, "Smoke": 300}
 AO_EXCLUDE = ["Rifle", "Optic", "Smoke", "Lens"]
 BAKE_APART = (["Rifle", "Optic", "Smoke"], (3.0, 0.0, 0.0))     # (the rifle floats before her, the grenade sits in its pouch)
 
