@@ -2233,6 +2233,8 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 					var rr := rad + r.randf_range(0.05, 0.3)
 					_decor_single(["Papyrus", "Reeds", "Papyrus"][k % 3], Vector3(cos(a0) * rr, 0, sin(a0) * rr), r.randf() * TAU, r.randf_range(0.5, 0.72), n)
 				return true
+			if th == "smog":                  # v0.9.63: Smog City's dock pools: water in the ground, the quay round it
+				return true
 			if th in ["highland", "bog"]:     # v0.9.40: lochans and bog pools move in the ground too; reeds and rushes round them
 				var ring := ["Reeds", "Rushes", "Reeds"] if th == "highland" else ["Reeds", "Rushes", "Cotton"]
 				for k in 9:
