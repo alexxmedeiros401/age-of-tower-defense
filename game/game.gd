@@ -11604,7 +11604,7 @@ func _build_map_select(root: Control) -> void:
 			var b: Button = tab_buttons[k]
 			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else (Color(0.8, 0.8, 0.8) if b.get_meta("open") else Color(0.55, 0.55, 0.55))
 		Progress.data.tab = era_name
-		if map_select.visible and era_name == Progress.new_age():
+		if map_select.has_meta("built") and map_select.visible and era_name == Progress.new_age():
 			Progress.clear_new_age()
 	for era_name in tab_buttons:
 		if (tab_buttons[era_name] as Button).get_meta("open"):
@@ -11682,6 +11682,7 @@ func _build_map_select(root: Control) -> void:
 		brow.add_child(dev)
 	box.move_child(brow, 0)   # keep Legacy / Settings / New Timeline visible without scrolling
 	map_select.visible = false
+	map_select.set_meta("built", true)
 
 
 ## A locked age's tab was tapped: a note under the tabs says what opens it, then fades.
@@ -13039,18 +13040,19 @@ func _era_title_card(era: String, on_done: Callable) -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(dim)
-	var bh := 360.0
+	var bh := 370.0
+	var bw := vp.x - (float(SIDEBAR_W) if started else 0.0)      # over the map, not the sidebar
 	var band := Control.new()
 	band.position = Vector2(0, (vp.y - bh) * 0.5)
-	band.size = Vector2(vp.x, bh)
-	band.pivot_offset = Vector2(vp.x * 0.5, bh * 0.5)
+	band.size = Vector2(bw, bh)
+	band.pivot_offset = Vector2(bw * 0.5, bh * 0.5)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(band)
 	# the band: the age's deep colour, fading out at both ends, with bright rules top and bottom
 	for part in [[0.0, bh, Color(deep, 0.92)], [0.0, 5.0, bright], [bh - 5.0, 5.0, bright]]:
 		var gt := GradientTexture2D.new()
 		var g := Gradient.new()
-		g.offsets = PackedFloat32Array([0.0, 0.22, 0.78, 1.0])
+		g.offsets = PackedFloat32Array([0.0, 0.2, 0.8, 1.0])
 		var col: Color = part[2]
 		g.colors = PackedColorArray([Color(col, 0.0), col, col, Color(col, 0.0)])
 		gt.gradient = g
@@ -13061,14 +13063,14 @@ func _era_title_card(era: String, on_done: Callable) -> void:
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.position = Vector2(0, float(part[0]))
-		tr.size = Vector2(vp.x, float(part[1]))
+		tr.size = Vector2(bw, float(part[1]))
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		band.add_child(tr)
 	var v := VBoxContainer.new()
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", -4)
-	v.position = Vector2.ZERO
-	v.size = Vector2(vp.x - (float(SIDEBAR_W) if started else 0.0), bh)      # centred over the map, not the sidebar
+	v.add_theme_constant_override("separation", 0)
+	v.position = Vector2(30, 0)
+	v.size = Vector2(bw - 60, bh)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	band.add_child(v)
 	var kick := _label("AGE %d OF %d" % [_eras().find(era) + 1, _eras().size()], 30, bright, 8)
@@ -13088,6 +13090,8 @@ func _era_title_card(era: String, on_done: Callable) -> void:
 	v.add_child(tag)
 	var ml := _label("MAP %d   -   %s" % [map_order.find(map_id) + 1, str(map.get("name", map_id)).to_upper()], 24, Color(0.82, 0.88, 0.96), 6)
 	ml.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ml.custom_minimum_size = Vector2(0, 44)
+	ml.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	v.add_child(ml)
 	for n in [kick, ttl, tag, ml]:
 		n.modulate.a = 0.0
