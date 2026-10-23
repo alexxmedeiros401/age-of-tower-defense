@@ -164,15 +164,22 @@ def idle_pose(arm, t):
 # ---------------------------------------------------------------------------------------------- combat: ready
 C_YAW = -32.0
 C_FEET = dict(lf=(0.25, -0.16), rf=(-0.24, 0.17), turn=(-4.0, -24.0))
-C_TILT = 0.42                             # the swing's plane leans out to his right (the handle clear of his head)
-COCK_G = V(-0.2, -0.13, 1.25)             # the grip at the ready (the robots' frame, before the crouch)
-COCK_PHI = -40.0                          # the handle up and back over his right shoulder
+C_TILT = 0.5                              # the swing's plane leans out to his right (the handle clear of his head)
+COCK_GB = V(-0.1, -0.5, 1.1)              # the grip at the ready: before his chest (body space, before the crouch)
+COCK_PHI = -29.0                          # the handle up and back, past his right shoulder, the head by his ear
 
 
-def cock_state(yaw=C_YAW):
-    U, W = swing_axes(rz(yaw) @ V(0, -1, 0), C_TILT)
-    haft, face = swing_dirs(COCK_PHI, U, W)
-    return COCK_G, haft, face
+def grip_at(gb, ro, yaw):
+    return body_pt(gb, ro, yaw)
+
+
+def dirs_at(phi, yaw, tilt):
+    return swing_dirs(phi, *swing_axes(rz(yaw) @ V(0, -1, 0), tilt))
+
+
+def cock_state(yaw=C_YAW, ro=V(0, 0, 0)):
+    haft, face = dirs_at(COCK_PHI, yaw, C_TILT)
+    return grip_at(COCK_GB, ro, yaw), haft, face
 
 
 def combat_pose(arm, t):
@@ -180,49 +187,48 @@ def combat_pose(arm, t):
     bob = math.sin(w * 2)
     sway = math.sin(w)
     ro = V(0.0, 0.0, -0.085 + 0.012 * bob)
+    yaw = C_YAW + 2.0 * sway
     aims = feet(arm, C_YAW, **C_FEET)
-    torso(aims, C_YAW + 2.0 * sway, bend=0.12, chest=-6.0, look=0.0, pitch=0.05)
-    g, haft, face = cock_state()
-    U, W = swing_axes(rz(C_YAW) @ V(0, -1, 0), C_TILT)
-    haft, face = swing_dirs(COCK_PHI + 3.0 * bob, U, W)
-    aims.update(two_hands(arm, g + ro + V(0.006 * sway, 0.0, 0.008 * bob), haft, face, ro, C_YAW + 2.0 * sway))
-    return aims, ro, rz(C_YAW + 2.0 * sway)
+    torso(aims, yaw, bend=0.12, chest=-4.0, look=0.0, pitch=0.05)
+    haft, face = dirs_at(COCK_PHI + 3.0 * bob, yaw, C_TILT)
+    aims.update(two_hands(arm, grip_at(COCK_GB + V(0.0, 0.0, 0.008 * bob), ro, yaw), haft, face, ro, yaw))
+    return aims, ro, rz(yaw)
 
 
 # ---------------------------------------------------------------------------------------------- attack: the blow
-WIND_G, WIND_PHI = V(-0.22, -0.06, 1.38), -62.0       # heaved further back, the grip up by his ear
-TOP_G = V(-0.16, -0.32, 1.42)                         # (over the top)
-HIT_G, HIT_PHI = V(-0.06, -0.46, 1.08), 120.0         # the blow: the head about 1.3 m out, at a robot's middle
+WIND_GB, WIND_PHI = V(-0.1, -0.56, 1.42), -52.0       # heaved further back, his fists up before his face
+TOP_GB = V(-0.08, -0.64, 1.38)                        # (over the top)
+HIT_GB, HIT_PHI = V(-0.06, -0.5, 1.08), 120.0         # the blow: the head about 1.3 m out, low on a robot
 HIT_TILT = 0.12
+BACK_GB = V(-0.1, -0.58, 1.26)
 
 
 def attack_state(f):
-    """(yaw, chest, bend, crouch, lunge, grip, phi, tilt, heel lift R) at frame f (the robots' frame)."""
+    """(yaw, chest, bend, crouch, lunge, grip (body space), phi, tilt, heel lift R) at frame f."""
     if f <= 3:
         k = ease(f / 3.0)
-        return (lerp(C_YAW, C_YAW - 6.0, k), lerp(-6.0, -12.0, k), lerp(0.12, 0.0, k), lerp(0.085, 0.07, k), 0.0,
-                COCK_G.lerp(WIND_G, k), lerp(COCK_PHI, WIND_PHI, k), C_TILT, 0.0)
+        return (lerp(C_YAW, C_YAW - 6.0, k), lerp(-4.0, -10.0, k), lerp(0.12, 0.0, k), lerp(0.085, 0.07, k), 0.0,
+                COCK_GB.lerp(WIND_GB, k), lerp(COCK_PHI, WIND_PHI, k), C_TILT, 0.0)
     if f <= HIT:
         k = ((f - 3) / float(HIT - 3)) ** 1.35
-        return (lerp(C_YAW - 6.0, -4.0, k), lerp(-12.0, 4.0, k), lerp(0.0, 0.42, k), lerp(0.07, 0.16, k), 0.09 * k,
-                bez_p(WIND_G, TOP_G, HIT_G, k), lerp(WIND_PHI, HIT_PHI, k), lerp(C_TILT, HIT_TILT, k), 0.05 * k)
+        return (lerp(C_YAW - 6.0, -4.0, k), lerp(-10.0, 4.0, k), lerp(0.0, 0.42, k), lerp(0.07, 0.16, k), 0.09 * k,
+                bez_p(WIND_GB, TOP_GB, HIT_GB, k), lerp(WIND_PHI, HIT_PHI, k), lerp(C_TILT, HIT_TILT, k), 0.05 * k)
     if f <= 9:                                                    # the weight of it: held on the blow, a little give
         k = (f - HIT) / 2.0
         return (-4.0, 4.0, 0.42 + 0.02 * math.sin(math.pi * k), 0.16 + 0.01 * math.sin(math.pi * k), 0.09,
-                HIT_G + V(0.0, 0.0, -0.006 * math.sin(math.pi * k)), HIT_PHI + 2.0 * math.sin(math.pi * k), HIT_TILT, 0.05)
-    k = ease((f - 9) / float(FR - 9))                             # hauled back up over his shoulder
-    return (lerp(-4.0, C_YAW, k), lerp(4.0, -6.0, k), lerp(0.42, 0.12, k), lerp(0.16, 0.085, k), 0.09 * (1 - k),
-            bez_p(HIT_G, V(-0.18, -0.3, 1.3), COCK_G, k), lerp(HIT_PHI, COCK_PHI, k), lerp(HIT_TILT, C_TILT, k), 0.05 * (1 - k))
+                HIT_GB + V(0.0, 0.0, -0.006 * math.sin(math.pi * k)), HIT_PHI + 2.0 * math.sin(math.pi * k), HIT_TILT, 0.05)
+    k = ease((f - 9) / float(FR - 9))                             # hauled back up past his shoulder
+    return (lerp(-4.0, C_YAW, k), lerp(4.0, -4.0, k), lerp(0.42, 0.12, k), lerp(0.16, 0.085, k), 0.09 * (1 - k),
+            bez_p(HIT_GB, BACK_GB, COCK_GB, k), lerp(HIT_PHI, COCK_PHI, k), lerp(HIT_TILT, C_TILT, k), 0.05 * (1 - k))
 
 
 def attack_pose(arm, f):
-    yaw, chest, bend, crouch, lunge, g, phi, tilt, heel = attack_state(f)
+    yaw, chest, bend, crouch, lunge, gb, phi, tilt, heel = attack_state(f)
     ro = rz(yaw) @ V(0.0, -lunge, 0.0) + V(0.0, 0.0, -crouch)
     aims = feet(arm, C_YAW, lift=(0.0, heel), **C_FEET)
     torso(aims, yaw, bend=bend, chest=chest, look=0.0, pitch=0.05 - 0.15 * bend)
-    U, W = swing_axes(rz(yaw) @ V(0, -1, 0), tilt)
-    haft, face = swing_dirs(phi, U, W)
-    aims.update(two_hands(arm, g + ro, haft, face, ro, yaw))
+    haft, face = dirs_at(phi, yaw, tilt)
+    aims.update(two_hands(arm, grip_at(gb, ro, yaw), haft, face, ro, yaw))
     return aims, ro, rz(yaw)
 
 
@@ -251,34 +257,30 @@ def valve_strike():
 
 
 V_YAW = valve_strike()[3]                 # turned to the valve
+RAISE_GB, RAISE_PHI, RAISE_TILT = V(-0.12, -0.64, 1.66), -50.0, 0.3     # heaved high, his fists above his brow
+SLAM_TOP_GB = V(-0.08, -0.66, 1.56)
+V_FEET = dict(lf=(0.22, -0.2), rf=(-0.25, 0.14), turn=(2.0, -18.0))
 
 
 def ability_state(f):
-    """(yaw, mode blend 0 combat .. 1 valve, crouch, bend, lunge, grip, phi, tilt, pitch, laugh, roll)."""
-    gv, hv, fv, _ = valve_strike()
+    """(yaw, feet blend 0 combat .. 1 valve, crouch, bend, lunge, phase, k)."""
     if f <= 8:                                                   # turn to the valve, the maul still ready
         k = ease(f / 8.0)
-        return lerp(C_YAW, V_YAW, k), k, lerp(0.085, 0.06, k), lerp(0.12, 0.0, k), 0.0, "ready", k
-    if f <= 19:                                                  # heave it high overhead, up on his toes
+        return lerp(C_YAW, V_YAW, k), k, lerp(0.085, 0.06, k), lerp(0.12, 0.0, k), 0.0, "turn", k
+    if f <= 19:                                                  # heave it high, up on his toes
         k = ease((f - 8) / 11.0)
-        return V_YAW, 1.0, lerp(0.06, 0.0, k), lerp(0.0, -0.12, k), 0.0, "raise", k
+        return V_YAW, 1.0, lerp(0.06, 0.0, k), lerp(0.0, -0.1, k), 0.0, "raise", k
     if f <= SLAM:                                                # the slam
         k = ((f - 19) / float(SLAM - 19)) ** 1.6
-        return V_YAW, 1.0, lerp(0.0, 0.2, k), lerp(-0.12, 0.5, k), 0.1 * k, "slam", k
+        return V_YAW, 1.0, lerp(0.0, 0.2, k), lerp(-0.1, 0.5, k), 0.1 * k, "slam", k
     if f <= 36:                                                  # leaning on it while the steam roars
         k = (f - SLAM) / float(36 - SLAM)
         return V_YAW, 1.0, 0.2 + 0.01 * math.sin(k * 9), 0.5, 0.1, "hold", k
-    if f <= 50:                                                  # up, the maul onto his shoulder, laughing
+    if f <= 50:                                                  # up into the ready stance, a booming laugh
         k = ease((f - 36) / 14.0)
-        return lerp(V_YAW, V_YAW * 0.5, k), 1.0, lerp(0.2, 0.0, k), lerp(0.5, -0.08, k), 0.1 * (1 - k), "shoulder", k
-    k = ease((f - 50) / float(AB_FR - 50))                       # back to the ready stance
-    return lerp(V_YAW * 0.5, C_YAW, k), 1.0 - k, lerp(0.0, 0.085, k), lerp(-0.08, 0.12, k), 0.0, "back", k
-
-
-RAISE_G, RAISE_PHI = V(-0.2, -0.16, 1.86), -45.0         # high overhead (body space of the turned stance)
-RAISE_TILT = 0.38
-SHOULDER_G, SHOULDER_PHI = V(-0.22, -0.2, 1.3), -38.0    # on his shoulder
-V_FEET = dict(lf=(0.22, -0.2), rf=(-0.25, 0.14), turn=(2.0, -18.0))
+        return V_YAW, 1.0, lerp(0.2, 0.06, k), lerp(0.5, -0.05, k), 0.1 * (1 - k), "up", k
+    k = ease((f - 50) / float(AB_FR - 50))                       # turned back to the robots
+    return lerp(V_YAW, C_YAW, k), 1.0 - k, lerp(0.06, 0.085, k), lerp(-0.05, 0.12, k), 0.0, "back", k
 
 
 def ability_pose(arm, f):
@@ -290,37 +292,28 @@ def ability_pose(arm, f):
     heel = 0.04 * k if phase == "raise" else (0.04 * (1 - k) if phase == "slam" else 0.0)
     aims = feet(arm, fy, lift=(heel, heel), **fs)
     laugh = 0.0
-    if phase == "shoulder":
-        laugh = smooth01(k / 0.5)
+    if phase == "up":
+        laugh = smooth01(k / 0.4)
     elif phase == "back":
-        laugh = 1.0 - smooth01(k / 0.4)
+        laugh = 1.0 - smooth01(k / 0.5)
     shake = math.sin(f * 2.1) * laugh
-    look = yaw if phase not in ("back",) else lerp(yaw, 0.0, k)
+    look = yaw if phase != "back" else lerp(yaw, 0.0, k)
     torso(aims, yaw, bend=bend, chest=0.0, look=look, pitch=0.05 - 0.2 * max(bend, 0.0) + 0.45 * laugh + 0.04 * shake)
     ro = ro + V(0.0, 0.0, 0.008 * shake)
-    Uv, Wv = swing_axes(rz(V_YAW) @ V(0, -1, 0), 0.0)
-    Uc, Wc = swing_axes(rz(yaw) @ V(0, -1, 0), C_TILT)
-    if phase == "ready":
-        g0, h0, f0 = cock_state(C_YAW)
-        g1 = body_pt(SHOULDER_G, V(0, 0, 0), V_YAW)
-        g = g0.lerp(g1, k) + ro
-        haft, face = swing_dirs(lerp(COCK_PHI, SHOULDER_PHI, k), *swing_axes(rz(yaw) @ V(0, -1, 0), lerp(C_TILT, 0.2, k)))
+    if phase in ("turn", "back"):
+        g = grip_at(COCK_GB, ro, yaw)
+        haft, face = dirs_at(COCK_PHI, yaw, C_TILT)
     elif phase == "raise":
-        g = body_pt(SHOULDER_G, V(0, 0, 0), V_YAW).lerp(body_pt(RAISE_G, V(0, 0, 0), V_YAW), k) + ro
-        haft, face = swing_dirs(lerp(SHOULDER_PHI, RAISE_PHI, k), *swing_axes(rz(V_YAW) @ V(0, -1, 0), lerp(0.2, RAISE_TILT, k)))
+        g = grip_at(COCK_GB.lerp(RAISE_GB, k), ro, yaw)
+        haft, face = dirs_at(lerp(COCK_PHI, RAISE_PHI, k), yaw, lerp(C_TILT, RAISE_TILT, k))
     elif phase == "slam":
-        top = body_pt(V(-0.1, -0.42, 1.62), V(0, 0, 0), V_YAW)
-        g = bez_p(body_pt(RAISE_G, V(0, 0, 0), V_YAW) + ro, top + ro, gv, k)
-        haft, face = swing_dirs(lerp(RAISE_PHI, 135.0, k), *swing_axes(rz(V_YAW) @ V(0, -1, 0), lerp(RAISE_TILT, 0.0, k)))
+        g = bez_p(grip_at(RAISE_GB, ro, yaw), grip_at(SLAM_TOP_GB, ro, yaw), gv, k)
+        haft, face = dirs_at(lerp(RAISE_PHI, 135.0, k), yaw, lerp(RAISE_TILT, 0.0, k))
     elif phase == "hold":
         g, haft, face = gv, hv, fv
-    elif phase == "shoulder":
-        g = gv.lerp(body_pt(SHOULDER_G, V(0, 0, 0), yaw) + ro, k) + V(0, 0, 0.12 * math.sin(math.pi * k))
-        haft, face = swing_dirs(lerp(135.0, SHOULDER_PHI, k), *swing_axes(rz(lerp(V_YAW, yaw, k)) @ V(0, -1, 0), lerp(0.0, 0.2, k)))
-    else:
-        g0, h0, f0 = cock_state(C_YAW)
-        g = body_pt(SHOULDER_G, V(0, 0, 0), yaw).lerp(g0, k) + ro
-        haft, face = swing_dirs(lerp(SHOULDER_PHI, COCK_PHI, k), *swing_axes(rz(yaw) @ V(0, -1, 0), lerp(0.2, C_TILT, k)))
+    else:                                                        # up
+        g = gv.lerp(grip_at(COCK_GB, ro, yaw), k) + V(0, 0, 0.1 * math.sin(math.pi * k))
+        haft, face = dirs_at(lerp(135.0, COCK_PHI, k), yaw, lerp(0.0, C_TILT, k))
     aims.update(two_hands(arm, g, haft, face, ro, yaw))
     return aims, ro, rz(yaw)
 
@@ -341,22 +334,25 @@ def make_cheer(arm, frames=CH_FR):
     """Rank up: the maul heaved up over his head, held across in both fists, pumped twice; a booming laugh."""
     P = Poser(arm)
     act = new_action(arm, "Cheer")
-    up_g, up_h, up_f = V(-0.3, -0.06, 2.02), V(1.0, 0.0, 0.08).normalized(), V(0.0, 0.0, 1.0)
+    up_g, up_h, up_f = V(-0.3, -0.08, 2.02), V(1.0, 0.0, 0.08).normalized(), V(0.0, 0.0, 1.0)
     for f in range(frames + 1):
         t = f / float(frames)
         up = smooth01(t / 0.2) * (1 - smooth01((t - 0.8) / 0.2))
         pump = max(0.0, math.sin((t - 0.2) / 0.6 * 2 * math.pi * 2)) * smooth01((t - 0.18) / 0.06) * (1 - smooth01((t - 0.76) / 0.06))
         laugh = math.sin(f * 1.9) * up
         hop = 0.025 * pump
-        ro = V(0.0, 0.0, -0.03 + hop + 0.006 * laugh - 0.03 * (1 - up))
+        yaw = lerp(C_YAW * 0.5, 0.0, up)
+        ro = V(0.0, 0.0, -0.03 + hop + 0.006 * laugh - 0.04 * (1 - up))
         aims = feet(arm, 0.0, lf=(0.23, -0.02), rf=(-0.23, 0.04), turn=(14.0, -14.0), lift=(hop * 0.4, hop * 0.4))
-        torso(aims, 0.0, bend=-0.1 * up, look=4.0 * math.sin(f * 0.3) * up, pitch=0.05 + 0.4 * up + 0.04 * laugh)
-        g = (SHOULDER_G + ro).lerp(up_g + V(0.0, 0.0, 0.1 * pump) + ro, up)
-        U, W = swing_axes(V(0, -1, 0), 0.3)
-        haft, face = swing_dirs(SHOULDER_PHI, U, W)
-        haft, face = mixd(haft, up_h, up), mixd(face, up_f, up)
-        aims.update(two_hands(arm, g, haft, face, ro, 0.0, left_on=lerp(LEFT_ON, 0.56, up)))
-        ch, _ = P.solve(aims, ro, Quaternion())
+        torso(aims, yaw, bend=-0.1 * up + 0.1 * (1 - up), look=4.0 * math.sin(f * 0.3) * up, pitch=0.05 + 0.4 * up + 0.04 * laugh)
+        g0 = grip_at(COCK_GB, ro, yaw)
+        h0, f0 = dirs_at(COCK_PHI, yaw, C_TILT)
+        k = smooth01(up * 1.6) if up < 1.0 else 1.0
+        mid = g0.lerp(up_g + ro, 0.5) + V(0.0, -0.38, 0.0)
+        g = bez_p(g0, mid, up_g + V(0.0, 0.0, 0.1 * pump) + ro, up)
+        haft, face = mixd(h0, up_h, up), mixd(f0, up_f, up)
+        aims.update(two_hands(arm, g, haft, face, ro, yaw, left_on=lerp(LEFT_ON, 0.56, up)))
+        ch, _ = P.solve(aims, ro, rz(yaw))
         P.key(ch, f)
     finish_action(arm, act, frames, False)
     return act
