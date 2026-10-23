@@ -98,7 +98,7 @@ def hinv(P):
 
 HEAD_C = hp(D_HC)
 HEAD_RAD = v3((0.176, 0.19, 0.186)) * PS
-EYE_R = hr(0.039)
+EYE_R = hr(0.037)
 
 
 def eye_c(sx):
@@ -298,26 +298,23 @@ def head(fd):
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.05, 1.59), (0.155, 0.14, 0.128)), hr(0.07), SKIN)                          # the jaw
-    fd.add(E((0, -0.138, 1.5), (0.088, 0.07, 0.066)), hr(0.05), SKIN)                          # a firm chin
+    fd.add(E((0, -0.05, 1.6), (0.152, 0.138, 0.118)), hr(0.07), SKIN)                           # the jaw
+    fd.add(E((0, -0.134, 1.514), (0.082, 0.066, 0.06)), hr(0.05), SKIN)                         # a firm chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.112, -0.128, 1.638), 0.054), hr(0.05), SKIN)                           # round cheeks
+        fd.add(S((sx * 0.11, -0.126, 1.642), 0.058), hr(0.05), SKIN)                            # round cheeks, lifted by the grin
         fd.add(S((sx * 0.134, -0.044, 1.556), 0.054), hr(0.05), SKIN)                           # the jaw's corners
         pts = [hp((sx * 0.154, -0.055, 1.744)), hp((sx * 0.116, -0.134, 1.758)), hp((sx * 0.062, -0.176, 1.757)), hp((0.0, -0.186, 1.752))]
         fd.add(Chain(pts, [hr(0.012), hr(0.019), hr(0.022), hr(0.02)], k=hr(0.022)), hr(0.03), SKIN)    # the brow ridge
-    # dark brows, level on the brow ridge; his left one cocked up (the cocky look), the right a touch lower
-    tuft = lambda P: F(0.0022) * NOISE(P * F(150)) + F(0.001) * np.sin(P[:, 0] * F(380))
+    # dark brows lying on the brow ridge (set into its surface); his left one cocked up (the cocky look)
+    tuft = lambda P: F(0.0018) * NOISE(P * F(150)) + F(0.0008) * np.sin(P[:, 0] * F(380))
     for sx in (-1, 1):
-        up = (0.0, 0.012, 0.019, 0.012) if sx > 0 else (0.0, -0.002, -0.002, -0.004)
-        pts = [hp((sx * 0.026, -0.21, 1.806 + up[0])), hp((sx * 0.068, -0.205, 1.814 + up[1])), hp((sx * 0.112, -0.185, 1.811 + up[2])),
-               hp((sx * 0.154, -0.146, 1.792 + up[3]))]
-        fd.add(Chain([p + v3((0, 0.006 * PS, 0)) for p in pts], [hr(0.0105), hr(0.0125), hr(0.011), hr(0.0055)], k=hr(0.008),
-                     disp=tuft, disp_amp=0.0022), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.02), hr(0.023), hr(0.021), hr(0.012)], k=hr(0.01)), BROW)
+        pts = brow_points(sx)
+        fd.add(Chain(pts, [hr(0.0095), hr(0.0115), hr(0.0105), hr(0.0055)], k=hr(0.008), disp=tuft, disp_amp=0.0018), hr(0.008), BROW)
+        fd.paint(Chain(pts, [hr(0.019), hr(0.022), hr(0.02), hr(0.012)], k=hr(0.01)), BROW)
     # eyes crinkled by the grin (the left a little wider under its cocked brow)
     for sx in (-1, 1):
         ec = eye_c(sx)
-        top = 0.022 if sx < 0 else 0.026
+        top = 0.03 if sx < 0 else 0.034
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         lid = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(top))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(lid, hr(0.005), SKIN)
@@ -328,8 +325,8 @@ def head(fd):
             a = hp((sx * (0.108 + 0.004 * k), -0.128 + 0.006 * k, 1.68 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.02, 0.011, -0.002 - 0.008 * k)) * PS, hr(0.002), hr(0.0014)), hr(0.003))
     # a straight nose
-    fd.add(RoundCone(hp((0, -0.186, 1.722)), hp((0, -0.228, 1.64)), hr(0.017), hr(0.022)), hr(0.017), SKIN)
-    fd.add(S((0, -0.228, 1.628), 0.025), hr(0.015), SKIN)
+    fd.add(RoundCone(hp((0, -0.186, 1.722)), hp((0, -0.222, 1.646)), hr(0.016), hr(0.02)), hr(0.017), SKIN)
+    fd.add(S((0, -0.222, 1.634), 0.023), hr(0.015), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.033, -0.214, 1.608), 0.022), hr(0.012), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.018, -0.232, 1.598)), v3((0.009, 0.0105, 0.0065)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
@@ -345,6 +342,28 @@ def head(fd):
         fd.add(S((sx * 0.092, -0.146, cz), 0.01), hr(0.007), SKIN)                             # the grin's corners in his cheeks
         fd.add(Ellipsoid(hp((sx * 0.176, 0.035, 1.664)), v3((0.026, 0.048, 0.062)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.196, 0.028, 1.668)), v3((0.011, 0.03, 0.04)) * HS, R=euler(0, 0, sx * -0.35)), hr(0.01))
+
+
+BROW_D = {1: ((0.026, 1.78), (0.066, 1.795), (0.108, 1.797), (0.145, 1.778)),        # his left (x > 0): cocked up
+          -1: ((0.026, 1.775), (0.066, 1.78), (0.108, 1.779), (0.147, 1.765))}
+
+
+def brow_points(sx):
+    """The brows' middle line: rays from in front onto the face (without the brows), set 3 mm into the surface."""
+    fd = Field("BrowBase")
+    E = lambda c, r: Ellipsoid(hp(c), v3(r) * HS)
+    fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.0)
+    for s2 in (-1, 1):
+        pts = [hp((s2 * 0.154, -0.055, 1.744)), hp((s2 * 0.116, -0.134, 1.758)), hp((s2 * 0.062, -0.176, 1.757)), hp((0.0, -0.186, 1.752))]
+        fd.add(Chain(pts, [hr(0.012), hr(0.019), hr(0.022), hr(0.02)], k=hr(0.022)), hr(0.03))
+    out = []
+    for x, z in BROW_D[sx]:
+        o = hp((sx * x, -0.4, z))
+        d = v3((0.0, 1.0, 0.0))
+        h, ok = ray_hit(fd, [o], [d], tmax=0.6, step=0.0006)
+        assert ok[0], (sx, x, z)
+        out.append(h[0] + d * hr(0.002))
+    return out
 
 
 def neck_prim():
@@ -391,7 +410,7 @@ def hair_field():
         x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
         ax = np.abs(x)
         face = np.where(ax < F(0.13), F(-0.09) - y, F(-0.125) - y)
-        side = np.where((ax > F(0.12)) & (y < F(0.0)), F(1.7) - z, F(-1.0))
+        side = np.where((ax > F(0.1)) & (y < F(0.07)), F(1.6) - z, F(-1.0))
         ear = np.where((ax > F(0.15)) & (z < F(1.735)) & (np.abs(y - F(0.035)) < F(0.065)), F(0.02), F(-1.0))
         nape = F(1.6) - z
         return np.maximum(np.maximum(face, side), np.maximum(ear, nape))
@@ -404,7 +423,7 @@ HELM_C = HEAD_C + v3((0.0, 0.004, 0.014))
 HELM_OUT = HEAD_RAD + v3((0.034, 0.034, 0.034))     # the shell's outside ...
 HELM_IN = HEAD_RAD + v3((0.014, 0.014, 0.016))      # ... and inside (clear of his skull)
 # its edge (design z): high over his brow (EF), down over his ears at the sides (ES), low at the nape (EB)
-EF, ES, EB = 1.862, 1.635, 1.655
+EF, ES, EB = 1.84, 1.635, 1.655
 
 
 def _phi(P):
@@ -483,7 +502,7 @@ def helmet_field():
 
 VIS_OFF, VIS_T = 0.01, 0.008           # the visor: this far out from the helmet, this thick
 VIS_PHI = math.radians(70)             # its half width (round the helmet)
-VIS_LO, VIS_HI = 1.885, 1.952          # its band (design z) over the helmet's front, flipped up
+VIS_LO, VIS_HI = 1.868, 1.94          # its band (design z) over the helmet's front, flipped up
 PIVOT_PHI = math.radians(92)
 
 
@@ -516,7 +535,7 @@ def visor_field():
         fd.paint(Sphere(piv + n * 0.007, 0.008), VIOLET)
         end, n2 = on_helmet(sx * (VIS_PHI - math.radians(6)), (VIS_LO + VIS_HI) / 2 - 0.03, VIS_OFF)
         mp, n3 = on_helmet(sx * (VIS_PHI + PIVOT_PHI) / 2, 1.83, VIS_OFF * 0.7)
-        fd.add(Lock([end, mp, piv + n * 0.004], [0.016, 0.014, 0.014], [0.005, 0.005, 0.005], [n2, n3, n], k=0.004), 0.004, BLACK)
+        fd.add(Lock([end, mp, piv + n * 0.002], [0.022, 0.02, 0.018], [0.0065, 0.0065, 0.0065], [n2, n3, n], k=0.004), 0.004, BLACK)
     return fd
 
 
@@ -539,9 +558,9 @@ def pilot_field():
     def collar(P):
         q = P - np.array([0.0, 0.02, 0.0], F)
         r = np.sqrt(q[:, 0] ** 2 + (q[:, 1] * F(1.15)) ** 2)
-        front = F(1.69) - F(0.04) * smoothstep(0.0, -0.1, q[:, 1])
+        front = F(1.69) - F(0.04) * smoothstep(0.0, -0.1, q[:, 1]) + F(0.06) * smoothstep(0.0, 0.1, q[:, 1])
         return np.maximum(np.abs(r - F(0.095)) - F(0.014), np.maximum(F(1.58) - P[:, 2], P[:, 2] - front))
-    fd.add(Func(collar, (-0.2, -0.2, 1.55), (0.2, 0.25, 1.72)), 0.012, NAVY)
+    fd.add(Func(collar, (-0.2, -0.2, 1.55), (0.2, 0.25, 1.78)), 0.012, NAVY)
     # the chest plate
     fd.add(RoundBox((0, -0.03, 1.49), (0.13, 0.03, 0.09), 0.035, R=euler(-0.25, 0, 0)), 0.02, GRAPH)
     fd.paint(RoundBox((0, -0.08, 1.5), (0.11, 0.06, 0.005), 0.003), VIOLET)
@@ -681,6 +700,7 @@ def pauldron(fd, side):
     fd.add(RoundBox(c + R @ v3((0, 0, 0.1)), (0.13, 0.17, 0.035), 0.03, R=R), 0.02, NAVY)
     fd.paint(RoundBox(c + R @ v3((0, 0, -0.07)), (0.4, 0.4, 0.006), 0.0, R=R), BLACK)
     fd.paint(RoundBox(c + R @ v3((sx * 0.12, -0.18, 0.04)), (0.035, 0.08, 0.016), 0.005, R=R), WHITE)
+    fd.paint(RoundBox(c + R @ v3((sx * 0.15, 0.0, 0.1)), (0.012, 0.3, 0.2), 0.0, R=R), VIOLET)
 
 
 def upperarm_armour(fd, side):
@@ -967,7 +987,7 @@ PARTS = ["Skin", "Eyes", "Teeth", "Hair", "Helmet", "Visor", "Pilot", "Cockpit",
          "KnuckleR", "KnuckleL", "ArmR", "ArmL", "Chest"]
 REGION_PARTS = ("Skin", "Helmet", "Visor", "Pilot", "Cockpit", "Armour", "Frame", "Fists")
 KIT = dict(weave=0.0, black=(0.05, 0.05, 0.058), red=(0.62, 0.2, 0.74), white=(0.9, 0.9, 0.92), olive=MIDNIGHT,
-           gunmetal=(0.22, 0.23, 0.26), steel=(0.62, 0.64, 0.68), glass=(0.05, 0.06, 0.09), rubber=(0.07, 0.07, 0.075),
+           gunmetal=(0.32, 0.33, 0.37), steel=(0.7, 0.72, 0.76), glass=(0.05, 0.06, 0.09), rubber=(0.07, 0.07, 0.075),
            coyote=(0.92, 0.72, 0.14))
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_PilotSkin", "base": (0.8, 0.56, 0.4), "ruddy": (0.84, 0.46, 0.34), "lips": (0.66, 0.36, 0.3),

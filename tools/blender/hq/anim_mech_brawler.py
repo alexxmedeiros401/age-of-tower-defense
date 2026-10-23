@@ -7,7 +7,7 @@
 - Attack (24 frames, the 1.0 s cooldown): the two-fisted ground slam. From the guard it rears up and swings both fists
   up over its head behind the roll bar (0-4), the left foot lifting; then it hammers them down in an arc before it,
   bending deep at the hips and knees, the left foot stamping forward, and drives the knuckles into the ground at BLOW
-  (frame 8: the knuckle plates strike the floor about 0.95 m before it); the recoil bounces the fists up (8-11), it holds
+  (frame 8: the knuckle plates strike the floor about 0.9 m before it); the recoil bounces the fists up (8-11), it holds
   low a moment (11-13) and straightens back into the guard (13-24). The pilot's head jolts at the blow.
 
 The arms are posed by their knuckles (as the Steam Brawler's, anim_steam_brawler.py): the upper arm and the forearm with
@@ -229,10 +229,10 @@ def make_combat(arm, frames=40):
 
 
 # ---------------------------------------------------------------------------------------------- attack: the ground slam
-SLAM_X, SLAM_Y, SLAM_Z = 0.3, -0.95, 0.07      # where the knuckles strike (each side's x), knuckle plates to the floor
+SLAM_X, SLAM_Y, SLAM_Z = 0.3, -0.88, 0.07      # where the knuckles strike (each side's x), knuckle plates to the floor
 #      frame, right knuckles,            right thumb,          bend,  crouch, lunge, rise, pitch, open
 KEYS = [(0, G_R, TAU_R, C_BEND, C_CROUCH, 0.0, 0.0, 0.12, 0.0),
-        (4, V(-0.3, 0.1, 2.55), V(0.8, 0.5, -0.1), -0.16, 0.0, -0.04, 0.05, 0.22, 0.25),
+        (4, V(-0.3, 0.22, 2.5), V(0.8, 0.5, -0.1), -0.16, 0.0, -0.04, 0.05, 0.22, 0.25),
         (6, V(-0.34, -0.78, 1.95), V(0.9, 0.1, -0.3), 0.2, 0.08, 0.04, 0.0, 0.1, 0.0),
         (BLOW, V(-SLAM_X, SLAM_Y, SLAM_Z), V(0.85, 0.45, 0.0), 0.66, 0.27, 0.1, 0.0, 0.04, 0.0),
         (10, V(-SLAM_X - 0.01, SLAM_Y + 0.05, SLAM_Z + 0.15), V(0.85, 0.45, 0.0), 0.56, 0.22, 0.09, 0.0, 0.16, 0.0),
