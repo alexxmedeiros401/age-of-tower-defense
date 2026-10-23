@@ -1,7 +1,7 @@
 """The Flamethrower's base: a scorched patch of street at a burnt-out checkpoint. A round patch of cracked asphalt (a
 worn double yellow line running across it, an old tar patch, a cast-iron manhole cover by his left foot) inside a
 concrete kerb, a strip of suburban lawn round it; a fan of black scorch marks burnt into the asphalt before him where his
-jet licks the street. Behind him on his left a low wall of sandbags (two courses), behind him on his right a stack of
+jet licks the street. Behind him on his left a low wall of sandbags (three courses), behind him on his right a stack of
 olive fuel drums (two standing, one lying across them; yellow bands, red-and-white flammable placards), on his left
 behind the sandbags a charred burn barrel with embers glowing in it (its own glowing mesh), before him on his right a
 coyote jerrycan, before him on his left a red fire extinguisher. Grass tufts and a few dandelions on the lawn (direct
@@ -38,9 +38,9 @@ def _polar(deg, r, z=TOP_Z):
     return v3((r * math.cos(math.radians(deg)), r * math.sin(math.radians(deg)), z))
 
 
-DRUM_A = (140.0, 166.0)            # the two standing drums (degrees round from his left; 90 = behind him)
-DRUM_RR = 0.948
-DRUM_R, DRUM_H = 0.138, 0.37
+DRUM_A = (138.0, 167.0)            # the two standing drums (degrees round from his left; 90 = behind him)
+DRUM_RR = 0.94
+DRUM_R, DRUM_H = 0.152, 0.45
 BARREL = _polar(34.0, 0.93)
 BARREL_R, BARREL_H = 0.13, 0.35
 JERRY = _polar(207.0, 0.95)
@@ -179,18 +179,18 @@ def bag_spots():
     a0, a1 = BAGS_A
     n0 = 5
     L = math.radians(a1 - a0) / n0
-    for row in range(2):
-        n = n0 if row == 0 else n0 - 1
+    for row in range(3):
+        n = n0 - (row % 2)
         for k in range(n):
-            a = math.radians(a0) + L * (k + 0.5 + 0.5 * row)
-            r = BAGS_R + (0.0 if row == 0 else -0.004)
+            a = math.radians(a0) + L * (k + 0.5 + 0.5 * (row % 2))
+            r = BAGS_R - 0.005 * row
             z = TOP_Z + BAG_HALF[2] * 0.95 + row * BAG_HALF[2] * 1.75
             out.append((a, r, z, row * 10 + k))
     return out
 
 
 def sandbags_field():
-    """Sandbags (sacking: label 0, stencilled marks 5, twine ties 6) in two courses, slumped, their tied ends tucked."""
+    """Sandbags (sacking: label 0, stencilled marks 5, twine ties 6) in three courses, slumped, their tied ends tucked."""
     fd = Field("Sandbags")
     for a, r, z, k in bag_spots():
         rs = np.random.RandomState(400 + k)

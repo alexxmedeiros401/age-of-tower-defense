@@ -180,10 +180,10 @@ def props(P_, T_g):
 
 # ----------------------------------------------------------------------------------------------- the braced stance
 C_YAW = -30.0                     # turned side-on to his right, the gun at his right hip
-C_CHEST = -14.0
+C_CHEST = -12.0
 C_FEET = dict(lf=(0.21, -0.2), rf=(-0.23, 0.17), turn=(14.0, -24.0))
 C_CROUCH = 0.07
-AIM_G = V(-0.21, -0.32, 0.94)     # the rear grip's middle (armature space), clear of his front
+AIM_G = V(-0.28, -0.375, 0.98)    # the rear grip's middle (armature space), clear of his front
 AIM_A = V(0.05, -1.0, -0.075).normalized()     # the bore: toward the robots, a little below level
 R_POLE = V(-0.7, 0.8, -0.5)       # his right elbow back and out
 L_POLE = V(0.7, -0.1, -1.0)       # his left elbow down and out
@@ -191,17 +191,18 @@ PIVOT = V(0.0, 0.03, 0.0)         # (the sweep turns the gun about the vertical 
 
 
 def stance(arm, br=0.0, sway=0.0, crouch=0.0, bend=0.0, turn=0.0, look=None, pitch=0.0, lift=(0.0, 0.0)):
-    """The braced stance, the hips and shoulders turned `turn` more degrees (the sweep)."""
-    yaw = C_YAW + turn * 0.75
+    """The braced stance, the hips and shoulders turned `turn` more degrees (the sweep: his whole body turns with the gun
+    over his planted feet, so the gun keeps its place at his hip)."""
+    yaw = C_YAW + turn
     aims = feet(arm, C_YAW, lift=lift, **C_FEET)
     ro = rz(C_YAW) @ V(0.0, -0.02, 0.0) + V(0.0, 0.0, -C_CROUCH - crouch + 0.004 * br)
     rr = rz(yaw + 1.2 * sway)
-    torso(aims, yaw, bend=0.13 + bend, side=0.02 * sway, chest=C_CHEST + turn * 0.25, look=turn * 0.9 if look is None else look,
+    torso(aims, yaw, bend=0.13 + bend, side=0.02 * sway, chest=C_CHEST, look=turn * 0.9 if look is None else look,
           pitch=-0.02 + pitch, reach=(0.15, 0.0))
     return aims, ro, rr
 
 
-def aim_T(br=0.0, sway=0.0, turn=0.0, push=0.0, lift=0.0, shake=(0.0, 0.0)):
+def aim_T(br=0.0, sway=0.0, turn=0.0, push=0.0, lift=0.0, shake=(0.0, 0.0), drop=0.0):
     """The gun on the aim, turned `turn` degrees about his hips' vertical; `push` shoves it back toward him (the jet's
     thrust), `lift` tips the nozzle up (easing off), `shake` jitters it (radians, about up and across)."""
     A = AIM_A
@@ -209,7 +210,7 @@ def aim_T(br=0.0, sway=0.0, turn=0.0, push=0.0, lift=0.0, shake=(0.0, 0.0)):
         A = Quaternion(A.cross(V(0, 0, 1)).normalized(), lift) @ A
     if shake[0] or shake[1]:
         A = rz(math.degrees(shake[0])) @ (Quaternion(A.cross(V(0, 0, 1)).normalized(), shake[1]) @ A)
-    G = AIM_G + V(0.006 * sway, 0.0, 0.004 * br) + V(0.0, 0.045, 0.0) * push
+    G = AIM_G + V(0.006 * sway, 0.0, 0.004 * br - drop) + V(0.0, 0.045, 0.0) * push
     T = gun_T(G, A, up_perp(A))
     return turn_about(T, turn, PIVOT) if turn else T
 
@@ -261,10 +262,10 @@ def attack_pose(arm, P_, f):
     brace = seg(f, 0, JET_ON) * (1.0 - seg(f, JET_OFF, FR))        # down and in for the jet
     j = jet_on(f)
     ease_off = math.sin(math.pi * min(1.0, max(0.0, (f - JET_OFF) / float(FR - JET_OFF))))
-    body, ro, rr = stance(arm, crouch=0.035 * brace, bend=0.07 * brace, turn=turn, pitch=0.02 * brace,
+    body, ro, rr = stance(arm, crouch=0.035 * brace, bend=0.05 * brace, turn=turn, pitch=0.02 * brace,
                           lift=(0.0, 0.025 * brace))
     shake = (0.012 * j * math.sin(f * 3.7), 0.01 * j * math.sin(f * 5.3 + 0.7))
-    T_g = aim_T(turn=turn, push=0.6 * j, lift=0.11 * ease_off, shake=shake)
+    T_g = aim_T(turn=turn, push=0.2 * j, lift=0.11 * ease_off, shake=shake, drop=0.03 * brace)
     holds = {"R": on_gun(T_g, "R", R_POLE), "L": on_gun(T_g, "L", L_POLE)}
     pilot = flicker(f, 1.0 + 0.35 * j, 0.07)
     return solve(P_, arm, body, ro, rr, holds, props(P_, T_g), scales={"pilot": pilot})

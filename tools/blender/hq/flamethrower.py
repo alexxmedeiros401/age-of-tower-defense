@@ -4,7 +4,7 @@ side = -X.
 A big, tough flame trooper of the task force, cheerful and scorched: a broad square jaw dark with stubble, a strong
 straight nose, a wide grin (his teeth showing, the corners up into his cheeks), dark brows, brown eyes crinkled by the
 grin, soot streaked across his forehead, nose and cheeks; short dark hair cropped close under his helmet. A heavy helmet
-painted olive drab (a black rubber trim round its edge, a black chin strap) with a smoked visor flipped up over its
+painted olive drab (a black rubber trim round its edge) with a smoked visor flipped up over its
 front (a dark glass band in a black frame, hinged on bosses at his temples).
 
 A fire suit of olive-drab cloth (label 0), a jacket to his upper thighs with a stand-up collar, reflective tan bands
@@ -27,7 +27,7 @@ front grip on a clamp; the steel nozzle flared at its mouth; under it the brass 
 and at the nozzle's tip the pilot flame (`Pilot`, its own glowing mesh on the `pilot` bone, a child of `flamer`: the
 clips scale it, low in the Idle, lit in Combat, swelling in the Attack).
 
-His body is the smith's (tarek.py: big and broad) with the Steam Brawler's biceps (steam_brawler.py); his face is
+His body is the smith's (tarek.py: big and broad) ; his face is
 built like the Brawler's and the grenadier's (marco.py); both hands are fists (round the grips). The gun and its pilot
 ride parentless / child bones posed in world space (anim_flamethrower.py), as Ada's launcher (ada.py)."""
 import math
@@ -40,7 +40,7 @@ from tarek import (J, HS, DZ, HPIV, hp, hr, hinv, HEAD_C, HEAD_RAD, EYE_R, eye_c
                    torso_prims, traps, neck_prim, deltoid, upper_arm, _forearm, TORSO, TORSO_Z, torso_bones, HAND_S,
                    fist_center)
 from marco import neck_open, neck_dist, legs_hull, leg_prims, shin_hull, foot_hull, torso_hull
-from steam_brawler import biceps
+
 
 SKIN, NAIL, LIP, MOUTH, BROW, PAINT, LASH, STUBBLE, SOOT = 0, 1, 2, 3, 4, 5, 8, 9, 10
 # cloth labels (mats.uniform): olive cloth, charred grey, (brass), reflective tan, black
@@ -99,7 +99,7 @@ def stubble_mask(P):
     Q = hinv(P)
     x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
     ax = np.abs(x)
-    top = F(1.598) + F(0.036) * smoothstep(0.05, 0.13, ax) - F(0.05) * smoothstep(0.15, 0.19, ax)
+    top = F(1.552) + F(0.072) * smoothstep(0.075, 0.14, ax) - F(0.05) * smoothstep(0.15, 0.19, ax)
     return np.maximum(np.maximum(z - top, F(1.43) - z), y - F(0.035))
 
 
@@ -122,19 +122,19 @@ def head(fd):
     # dark brows, thick, set level on the brow ridge (the outer ends lifted a little: a grin, not a scowl)
     tuft = lambda P: F(0.0024) * NOISE(P * F(150)) + F(0.001) * np.sin(P[:, 0] * F(380))
     for sx in (-1, 1):
-        pts = [hp((sx * 0.026, -0.212, 1.79)), hp((sx * 0.068, -0.207, 1.802)), hp((sx * 0.114, -0.186, 1.801)),
-               hp((sx * 0.157, -0.146, 1.783))]
-        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.013), hr(0.016), hr(0.014), hr(0.007)], k=hr(0.008),
-                     disp=tuft, disp_amp=0.003), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.025), hr(0.028), hr(0.025), hr(0.014)], k=hr(0.01)), BROW)
+        pts = [hp((sx * 0.026, -0.212, 1.796)), hp((sx * 0.068, -0.207, 1.811)), hp((sx * 0.114, -0.186, 1.812)),
+               hp((sx * 0.157, -0.146, 1.796))]
+        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.0105), hr(0.0125), hr(0.011), hr(0.0055)], k=hr(0.008),
+                     disp=tuft, disp_amp=0.0025), hr(0.01), BROW)
+        fd.paint(Chain(pts, [hr(0.02), hr(0.023), hr(0.021), hr(0.012)], k=hr(0.01)), BROW)
     # eyes crinkled by his grin
     for sx in (-1, 1):
         ec = eye_c(sx)
-        top = 0.024
+        top = 0.029
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(top))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.014))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.0125))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(top - 0.003))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(2):                                                                      # laughter lines
@@ -147,13 +147,13 @@ def head(fd):
         fd.add(S((sx * 0.035, -0.217, 1.606), 0.024), hr(0.012), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.019, -0.235, 1.596)), v3((0.0095, 0.011, 0.007)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     # a wide grin, teeth showing; its corners up into his cheeks
-    slot = [hp((-0.076, -0.156, 1.578)), hp((-0.044, -0.19, 1.551)), hp((0, -0.2, 1.541)), hp((0.044, -0.19, 1.551)), hp((0.076, -0.156, 1.578))]
-    fd.sub(Chain(slot, [hr(0.005), hr(0.012), hr(0.015), hr(0.012), hr(0.005)], k=hr(0.004)), hr(0.004))
-    fd.paint(Chain(slot, [hr(0.006), hr(0.0135), hr(0.0165), hr(0.0135), hr(0.006)], k=hr(0.004)), MOUTH)
-    lo_lip = [(-0.062, -0.163, 1.564), (-0.034, -0.188, 1.533), (0, -0.194, 1.526), (0.034, -0.188, 1.533), (0.062, -0.163, 1.564)]
+    slot = [hp((-0.084, -0.152, 1.584)), hp((-0.048, -0.19, 1.553)), hp((0, -0.201, 1.541)), hp((0.048, -0.19, 1.553)), hp((0.084, -0.152, 1.584))]
+    fd.sub(Chain(slot, [hr(0.006), hr(0.015), hr(0.018), hr(0.015), hr(0.006)], k=hr(0.004)), hr(0.004))
+    fd.paint(Chain(slot, [hr(0.007), hr(0.0165), hr(0.0195), hr(0.0165), hr(0.007)], k=hr(0.004)), MOUTH)
+    lo_lip = [(-0.07, -0.16, 1.568), (-0.038, -0.188, 1.53), (0, -0.195, 1.522), (0.038, -0.188, 1.53), (0.07, -0.16, 1.568)]
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0078), hr(0.0088), hr(0.0078), hr(0.004)], k=hr(0.007)), hr(0.008), LIP)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.084, -0.149, 1.576), 0.009), hr(0.007), SKIN)                          # the grin's corners in his cheeks
+        fd.add(S((sx * 0.092, -0.146, 1.584), 0.01), hr(0.007), SKIN)                          # the grin's corners in his cheeks
         fd.add(Ellipsoid(hp((sx * 0.18, 0.035, 1.664)), v3((0.028, 0.05, 0.064)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.2, 0.028, 1.668)), v3((0.012, 0.032, 0.042)) * HS, R=euler(0, 0, sx * -0.35)), hr(0.01))
     # soot: streaked across his brow, down his nose, over both cheeks, a smear on his left jaw
@@ -164,6 +164,11 @@ def head(fd):
                       ((0.12, -0.148, 1.648), (0.028, 0.014, 0.011), (0.2, 0.0, 0.42)),
                       ((0.13, -0.09, 1.54), (0.024, 0.02, 0.012), (0.0, 0.3, 0.6))):
         fd.paint(Ellipsoid(hp(c), v3(r) * HS * 1.4, R=euler(*rot)), SOOT)
+
+
+def biceps(side):
+    sh, el = J["shoulder_" + side], J["elbow_" + side]
+    return Ellipsoid(lerp(sh, el, 0.5) + v3((0, -0.028, 0)), (0.1, 0.104, 0.134), R=rot_from_axes(z_axis=el - sh))
 
 
 def body_parts(fd):
@@ -206,7 +211,7 @@ def teeth_field():
     for k in range(6):
         x = -0.05 + 0.02 * k
         y = -0.181 + 0.014 * (abs(x) / 0.05) ** 2
-        fd.add(RoundBox(hp((x, y, 1.554 + 0.006 * (abs(x) / 0.05) ** 2)), v3((0.0092, 0.006, 0.0088)) * HS, hr(0.003)), 0.002)
+        fd.add(RoundBox(hp((x, y, 1.553 + 0.007 * (abs(x) / 0.05) ** 2)), v3((0.0096, 0.006, 0.011)) * HS, hr(0.003)), 0.002)
     return fd
 
 
@@ -257,7 +262,7 @@ def head_hull():
 
 def helmet_field():
     """Olive-drab paint (fieldgun label 0) chipped to the steel on its edges; black (8): the rubber trim round its edge,
-    the chin strap and its buckles."""
+    bolts along its sides."""
     fd = Field("Helmet")
     out, inn = helm_outer(), Ellipsoid(HELM_C, HELM_IN)
     lo, hi = HELM_C - HELM_OUT - 0.03, HELM_C + HELM_OUT + 0.03
@@ -271,20 +276,6 @@ def helmet_field():
         d = np.abs(P[:, 2] - edge_z(P) - F(0.008)) - F(0.01)
         return np.maximum(d, np.abs(out(P) + F(0.012)) - F(0.017))
     fd.add(Func(trim, lo, hi), 0.004, BLACK)
-    # the chin strap: from inside the edge before each ear, down along his jaw and under his chin (on the skin)
-    hh = head_hull()
-    on_skin = Field("OnSkin")
-    on_skin.add(Func(lambda P: hh.eval(P, margin=0.05) - F(0.009), HEAD_C - 0.4, HEAD_C + 0.3), 0.0)
-    for sx in (-1, 1):
-        pts = [hp((sx * 0.19, -0.02, 1.735)), hp((sx * 0.188, -0.05, 1.66)), hp((sx * 0.178, -0.07, 1.58)), hp((sx * 0.14, -0.09, 1.49)),
-               hp((sx * 0.07, -0.12, 1.43))]
-        pts = [v3(p) for p in project_to(on_skin, pts, iters=5)]
-        fd.add(Chain(pts, [0.0075] * len(pts), k=0.004), 0.003, BLACK)
-        b = pts[1] * 0.5 + pts[2] * 0.5
-        nb = norm(b - HEAD_C)
-        fd.add(RoundBox(b + nb * 0.004, (0.007, 0.012, 0.016), 0.004, R=rot_from_axes(x_axis=nb, z_axis=norm(pts[1] - pts[2]))), 0.003, BLACK)
-    mid = [v3(p) for p in project_to(on_skin, [hp((-0.07, -0.12, 1.43)), hp((0.0, -0.126, 1.418)), hp((0.07, -0.12, 1.43))], iters=5)]
-    fd.add(Chain(mid, [0.0075] * 3, k=0.004), 0.004, BLACK)
     # bolts along each side (a rail for the visor's pivots)
     for sx in (-1, 1):
         for k in range(3):
@@ -775,9 +766,9 @@ GUN_U0 = v3((0.0, 0.0, 1.0))
 GUN_S0 = np.cross(GUN_A0, GUN_U0)       # (his right: the gun's right side)
 BORE_H = 0.1                            # the bore above the grip's middle
 NOZZLE_U = 0.905                        # the nozzle's tip
-FORE_U = 0.34                           # the front grip
+FORE_U = 0.3                            # the front grip
 PILOT_U = 0.918                         # the pilot flame's foot (just ahead of the igniter's spout, under the nozzle)
-PILOT_H = 0.054
+PILOT_H = 0.044
 
 
 def gp(u, v=0.0, h=0.0):
@@ -804,7 +795,7 @@ def pilot_base():
 
 def hose_inlet():
     """The hose's brass fitting under the receiver's rear: its end and the direction the hose leaves it."""
-    return gp(-0.118, 0.0, 0.016), norm(-GUN_A0 * 0.55 - GUN_U0 * 0.85)
+    return gp(-0.1, 0.0, 0.016), norm(-GUN_A0 * 0.55 - GUN_U0 * 0.85)
 
 
 def gun_field():
@@ -827,55 +818,55 @@ def gun_field():
     fd.add(Chain([gp(0.03, 0.0, 0.056), gp(0.045, 0.0, 0.006), gp(0.1, 0.0, 0.004), gp(0.118, 0.0, 0.052)], [0.0055] * 4, k=0.003), 0.003, BLACK)
     fd.add(RoundCone(gp(0.062, 0.0, 0.054), gp(0.07, 0.0, 0.026), 0.007, 0.005), 0.002, STEEL)
     # the receiver: an olive block, a panel line and screws on its sides
-    fd.add(RoundBox(gp(0.035, 0.0, 0.1), (0.046, 0.125, 0.054), 0.018, R=Rg), 0.012, OLIVE)
+    fd.add(RoundBox(gp(0.04, 0.0, 0.1), (0.054, 0.115, 0.062), 0.02, R=Rg), 0.012, OLIVE)
     for sv in (-1, 1):
-        fd.sub(RoundBox(gp(0.035, sv * 0.047, 0.1), (0.004, 0.09, 0.034), 0.004, R=Rg), 0.002)
-        for u in (-0.04, 0.11):
-            fd.add(Sphere(gp(u, sv * 0.046, 0.1), 0.0065), 0.002, STEEL)
+        fd.sub(RoundBox(gp(0.04, sv * 0.055, 0.1), (0.004, 0.08, 0.04), 0.004, R=Rg), 0.002)
+        for u in (-0.03, 0.11):
+            fd.add(Sphere(gp(u, sv * 0.054, 0.1), 0.0075), 0.002, STEEL)
     # the rear cap and the hose fitting under it
-    fd.add(Cylinder(gp(-0.095, 0.0, 0.1), 0.048, 0.03, rr=0.01, R=RA), 0.006, GUNMETAL)
+    fd.add(Cylinder(gp(-0.078, 0.0, 0.1), 0.056, 0.03, rr=0.012, R=RA), 0.006, GUNMETAL)
     hi_, hd = hose_inlet()
-    f0 = gp(-0.075, 0.0, 0.055)
+    f0 = gp(-0.058, 0.0, 0.055)
     fd.add(RoundCone(f0, hi_, 0.02, 0.019), 0.006, BRASS)
     fd.add(Cylinder(lerp(f0, hi_, 0.45), 0.026, 0.022, rr=0.004, R=rot_from_axes(z_axis=norm(hi_ - f0))), 0.003, BRASS)
     # the valve wheel on top (red), its stem and gland
-    vb = gp(0.02, 0.0, 0.155)
+    vb = gp(0.02, 0.0, 0.163)
     fd.add(Cylinder(vb, 0.02, 0.018, rr=0.005, R=rot_from_axes(z_axis=U)), 0.004, GUNMETAL)
     fd.add(RoundCone(vb, vb + U * 0.045, 0.008, 0.008), 0.003, STEEL)
     wc = vb + U * 0.05
-    fd.add(Torus(wc, 0.036, 0.0085, R=rot_from_axes(z_axis=U)), 0.0, RED)
+    fd.add(Torus(wc, 0.044, 0.01, R=rot_from_axes(z_axis=U)), 0.0, RED)
     for k in range(3):
         a = 2 * math.pi * k / 3 + 0.3
         e = S * math.cos(a) + A * math.sin(a)
-        fd.add(RoundCone(wc, wc + e * 0.034, 0.0065, 0.006), 0.003, RED)
-    fd.add(Sphere(wc, 0.012), 0.003, RED)
+        fd.add(RoundCone(wc, wc + e * 0.042, 0.0075, 0.007), 0.003, RED)
+    fd.add(Sphere(wc, 0.014), 0.003, RED)
     # the fuel tube
-    fd.add(RoundCone(gp(0.15, 0.0, BORE_H), gp(0.82, 0.0, BORE_H), 0.026, 0.026), 0.008, GUNMETAL)
-    fd.add(Cylinder(gp(0.165, 0.0, BORE_H), 0.034, 0.03, rr=0.008, R=RA), 0.006, GUNMETAL)
+    fd.add(RoundCone(gp(0.15, 0.0, BORE_H), gp(0.82, 0.0, BORE_H), 0.033, 0.033), 0.008, GUNMETAL)
+    fd.add(Cylinder(gp(0.165, 0.0, BORE_H), 0.043, 0.032, rr=0.009, R=RA), 0.006, GUNMETAL)
     # the heat shield over its front half: black, perforated, steel bands at its ends
     s0, s1 = 0.48, 0.8
-    fd.add(Cylinder(gp((s0 + s1) / 2, 0.0, BORE_H), 0.042, s1 - s0, rr=0.008, R=RA), 0.006, BLACK)
+    fd.add(Cylinder(gp((s0 + s1) / 2, 0.0, BORE_H), 0.053, s1 - s0, rr=0.01, R=RA), 0.006, BLACK)
     for i, u in enumerate(np.linspace(s0 + 0.035, s1 - 0.035, 7)):
         for k in range(8):
             a = 2 * math.pi * (k + 0.5 * (i % 2)) / 8
             e = S * math.cos(a) + U * math.sin(a)
-            fd.sub(Sphere(gp(u, 0.0, BORE_H) + e * 0.045, 0.0085), 0.002)
+            fd.sub(Sphere(gp(u, 0.0, BORE_H) + e * 0.057, 0.0105), 0.002)
     for u in (s0, s1):
-        fd.add(Torus(gp(u, 0.0, BORE_H), 0.043, 0.0065, R=RA), 0.003, STEEL)
+        fd.add(Torus(gp(u, 0.0, BORE_H), 0.054, 0.008, R=RA), 0.003, STEEL)
     # the nozzle, flared at its mouth
-    fd.add(RoundCone(gp(0.81, 0.0, BORE_H), gp(NOZZLE_U - 0.004, 0.0, BORE_H), 0.03, 0.041), 0.006, STEEL)
-    fd.add(Torus(gp(NOZZLE_U - 0.008, 0.0, BORE_H), 0.038, 0.007, R=RA), 0.003, STEEL)
-    fd.sub(Cylinder(gp(NOZZLE_U, 0.0, BORE_H), 0.022, 0.07, rr=0.003, R=RA), 0.003)
+    fd.add(RoundCone(gp(0.81, 0.0, BORE_H), gp(NOZZLE_U - 0.005, 0.0, BORE_H), 0.038, 0.052), 0.006, STEEL)
+    fd.add(Torus(gp(NOZZLE_U - 0.01, 0.0, BORE_H), 0.048, 0.009, R=RA), 0.003, STEEL)
+    fd.sub(Cylinder(gp(NOZZLE_U, 0.0, BORE_H), 0.029, 0.07, rr=0.003, R=RA), 0.003)
     # the front grip on its clamp
-    fd.add(RoundBox(gp(FORE_U, 0.0, 0.088), (0.036, 0.03, 0.04), 0.012, R=Rg), 0.006, GUNMETAL)
+    fd.add(RoundBox(gp(FORE_U, 0.0, 0.09), (0.046, 0.032, 0.05), 0.014, R=Rg), 0.006, GUNMETAL)
     fd.add(RoundCone(gp(FORE_U, 0.0, 0.06), gp(FORE_U - 0.008, 0.0, -0.07), 0.021, 0.024, disp=poly, disp_amp=0.001), 0.006, BLACK)
     fd.add(Ellipsoid(gp(FORE_U - 0.009, 0.0, -0.076), (0.027, 0.027, 0.012), R=Rg), 0.005, BLACK)
     # the igniter line under the tube, its clamps, the igniter housing under the nozzle and its spout
-    fd.add(RoundCone(gp(0.13, 0.0, 0.05), gp(0.835, 0.0, 0.05), 0.0095, 0.0095), 0.003, BRASS)
+    fd.add(RoundCone(gp(0.13, 0.0, 0.035), gp(0.835, 0.0, 0.035), 0.0095, 0.0095), 0.003, BRASS)
     for u in (0.28, 0.6):
-        fd.add(RoundBox(gp(u, 0.0, 0.075), (0.012, 0.012, 0.03), 0.005, R=Rg), 0.003, GUNMETAL)
-    fd.add(RoundBox(gp(0.86, 0.0, 0.052), (0.024, 0.032, 0.022), 0.009, R=Rg), 0.006, GUNMETAL)
-    fd.add(RoundCone(gp(0.885, 0.0, 0.052), gp(PILOT_U - 0.004, 0.0, PILOT_H), 0.009, 0.007), 0.002, STEEL)
+        fd.add(RoundBox(gp(u, 0.0, 0.06), (0.013, 0.013, 0.03), 0.005, R=Rg), 0.003, GUNMETAL)
+    fd.add(RoundBox(gp(0.86, 0.0, 0.04), (0.026, 0.032, 0.022), 0.009, R=Rg), 0.006, GUNMETAL)
+    fd.add(RoundCone(gp(0.885, 0.0, 0.04), gp(PILOT_U - 0.004, 0.0, PILOT_H), 0.009, 0.007), 0.002, STEEL)
     return fd
 
 
@@ -885,8 +876,8 @@ def pilot_field():
     fd = Field("Pilot")
     b = pilot_base()
     A, U = GUN_A0, GUN_U0
-    pts = [b, b + A * 0.03 + U * 0.006, b + A * 0.058 + U * 0.022, b + A * 0.08 + U * 0.044]
-    fd.add(Chain(pts, [0.019, 0.02, 0.013, 0.003], k=0.01), 0.0)
+    pts = [b, b + A * 0.035 + U * 0.008, b + A * 0.068 + U * 0.03, b + A * 0.095 + U * 0.058]
+    fd.add(Chain(pts, [0.024, 0.026, 0.017, 0.004], k=0.012), 0.0)
     return fd
 
 
@@ -952,7 +943,7 @@ KIT = {"name": "HQ_FlameGun", "olive": (0.36, 0.38, 0.24), "grey": (0.27, 0.29, 
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_FlameSkin", "base": (0.82, 0.58, 0.44), "ruddy": (0.86, 0.46, 0.36), "lips": (0.68, 0.38, 0.33),
                       "brow": ((0.08, 0.055, 0.04), (0.18, 0.12, 0.08)),
-                      "extra": ((LASH, (0.08, 0.05, 0.035), 0.5), (STUBBLE, (0.36, 0.27, 0.22), 0.6, 0.62),
+                      "extra": ((LASH, (0.08, 0.05, 0.035), 0.5), (STUBBLE, (0.44, 0.33, 0.27), 0.6, 0.45),
                                 (SOOT, (0.11, 0.1, 0.095), 0.65, 0.8))}),
     "Hair": ("hair", {"name": "HQ_FlameHair", "base": (0.12, 0.085, 0.06), "hi": (0.3, 0.22, 0.16), "low": (0.05, 0.035, 0.025),
                       "streak": (0.08, 0.055, 0.04), "tint": (0.18, 0.12, 0.08)}),
