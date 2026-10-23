@@ -4855,7 +4855,7 @@ func _handle_events() -> void:
 					n.position = _v3(e.pos)
 					add_child(n)
 					enemy_nodes[ev.id] = n
-					if str(e.type) == "bomber":
+					if BAY_LAUNCH.has(str(e.type)):
 						_bay_launch(n, e)                   # v0.9.60: launched from a Dreadnought's hangar bay
 					if absf(float(e.dist) - Sim.SPAWN_DIST) < 0.05:
 						n.set_meta("emerge", true)
@@ -7291,18 +7291,25 @@ func _dread_broadside(eid: int) -> void:
 
 
 ## A Bomber summoned by a Dreadnought: it waits in the hangar bay until the hatch opens, then lifts off to its place.
+# v0.9.67: the HUNTER-KILLER (robot_hunter_killer.py) launches its Stealth Jets from the bay on its back the same way
+# (its Summon clip's frame 16); a jet's body flies 1.8 over its node (the flying lift plus its own height in its model).
+const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
+	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.329, -0.451), 16.0 / CLIP_FPS, 1.8]}
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
+	var bl: Array = BAY_LAUNCH[str(e.type)]
 	for b in sim.enemies:
-		if b.alive and str(b.type) == "dreadnought" and int(b.pi) == int(e.pi) and enemy_nodes.has(b.id) \
+		if b.alive and str(b.type) == str(bl[0]) and int(b.pi) == int(e.pi) and enemy_nodes.has(b.id) \
 				and float(e.dist) - float(b.dist) > 0.3 and float(e.dist) - float(b.dist) < 1.3:
 			n.set_meta("lift", time_s)
 			n.set_meta("lift_from", int(b.id))
+			n.set_meta("lift_bay", bl)
 			n.visible = false
 			return
 
 
 func _bay_lift(n: Node3D) -> void:
-	var t := (time_s - float(n.get_meta("lift"))) * float(speed) - DREAD_LAUNCH
+	var bl: Array = n.get_meta("lift_bay")
+	var t := (time_s - float(n.get_meta("lift"))) * float(speed) - float(bl[2])
 	var bid := int(n.get_meta("lift_from"))
 	if t >= 0.8 or not enemy_nodes.has(bid) or not is_instance_valid(enemy_nodes[bid]):
 		n.remove_meta("lift")
@@ -7313,7 +7320,7 @@ func _bay_lift(n: Node3D) -> void:
 		return
 	var k := t / 0.8
 	k = k * k * (3.0 - 2.0 * k)
-	var bay: Vector3 = (enemy_nodes[bid] as Node3D).global_transform * DREAD_BAY - Vector3(0, BOMBER_LIFT, 0)
+	var bay: Vector3 = (enemy_nodes[bid] as Node3D).global_transform * (bl[1] as Vector3) - Vector3(0, float(bl[3]), 0)
 	n.position = bay.lerp(n.position, k)
 	n.scale = Vector3.ONE * lerpf(0.55, 1.0, k)
 
@@ -14905,7 +14912,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut", "hunter_killer"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			if defs.enemies[type].get("cloak", false):
 				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
@@ -14926,6 +14933,15 @@ func _run_demo() -> void:
 				for k in 3:
 					await _wait_ticks(2)
 					await _shot("bots_shield_break_%d.png" % k)
+			if type == "hunter_killer":           # v0.9.67: its bay opens and Stealth Jets launch from its back
+				be.summon_cd = 0.0
+				for k in 10:
+					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.4, 0)) * big
+					cam.look_at(bn.global_position + Vector3(0, 1.2 * big, 0))
+					cam_base = cam.position
+					shake = 0.0
+					await _wait_ticks(int(0.15 / TICK))
+					await _shot("bots_summon_%d.png" % k)
 			if type == "juggernaut":              # v0.9.62: its whistle shrieks (the Enrage clip)
 				_robot_enrage(int(be.id))
 				for k in 10:
