@@ -215,6 +215,7 @@ def parts(fine=False):
         f.add(Cylinder(v3((sx * (BAY_HALF[0] + 0.006), BAY[1], BAY[2] + 0.02)), 0.028, BAY_HALF[1] * 2 + 0.02, rr=0.008, R=Y_AX), k=0.006)
         hazard(f, c - v3((BAY_HALF[0] / 2 - 0.015, BAY_HALF[1] - 0.015, 0.0)), c + v3((BAY_HALF[0] / 2 - 0.015, BAY_HALF[1] - 0.015, 0.06)),
                w=0.09, d=(1, 1, 0))
+        f.paint(Func(lambda P, z=c[2]: P[:, 2] - F(z - 0.004), c - 0.5, c + 0.5), 3)      # its inner face
         out.append(("Door" + s, f, vs, "hatch." + s, "armor"))
     for i, lp in enumerate(LAMPS):
         f = Field("Lamp%d" % i)

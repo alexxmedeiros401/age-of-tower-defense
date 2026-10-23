@@ -112,8 +112,8 @@ BODY = facet(BODY_PTS, k=0.007)
 
 HEAD_PTS = mirror_pts([(0.05, -0.43, 1.055), (0.105, -0.2, 1.085), (0.095, 0.06, 1.085),        # its foot (in the body)
                        (0.0, -0.455, 1.075),
-                       (0.042, -0.37, 1.135), (0.072, -0.22, 1.195), (0.05, -0.02, 1.175),      # its upper facets
-                       (0.0, -0.39, 1.14), (0.0, -0.24, 1.215), (0.0, 0.0, 1.18)])
+                       (0.045, -0.37, 1.145), (0.075, -0.22, 1.215), (0.052, -0.02, 1.19),      # its upper facets
+                       (0.0, -0.39, 1.15), (0.0, -0.24, 1.24), (0.0, 0.0, 1.195)])
 HEAD = facet(HEAD_PTS, k=0.006)
 HEAD_LO, HEAD_HI = np.min(HEAD_PTS, 0) - 0.03, np.max(HEAD_PTS, 0) + 0.03
 
@@ -121,7 +121,7 @@ HEAD_LO, HEAD_HI = np.min(HEAD_PTS, 0) - 0.03, np.max(HEAD_PTS, 0) + 0.03
 def _visor_band(P):
     """Signed distance across the visor band: a band round the head's front, low in the middle and rising to the sides
     and back (a frown)."""
-    zc = F(1.152) + F(0.42) * np.abs(P[:, 0]) + F(0.16) * (P[:, 1] + F(0.3))
+    zc = F(1.162) + F(0.42) * np.abs(P[:, 0]) + F(0.16) * (P[:, 1] + F(0.3))
     return (P[:, 2] - zc) * F(0.92)
 
 
