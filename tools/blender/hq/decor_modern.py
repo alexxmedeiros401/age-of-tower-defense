@@ -618,6 +618,9 @@ def jet(seed=0, keep_x=None, chocks=True, ladder=True):
     return parts
 
 
+CORR = 0.008
+
+
 def hangar(seed=0):
     """An arched hangar of corrugated steel (front toward -Y): the barrel vault on its ribs, a portal frame across its
     front with the door leaves slid back into their pockets, the dark hall inside lit by hanging lamps, a jet nosing
@@ -630,15 +633,16 @@ def hangar(seed=0):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
         e = np.sqrt((x / F32(HW)) ** 2 + (z / F32(HH)) ** 2)
         a = np.arctan2(z / F32(HH), x / F32(HW))
-        corr = F32(0.008) * np.cos(a * F32(150))
+        corr = F32(CORR) * np.cos(a * F32(150))
         d = (e - F32(1.0)) * F32(min(HW, HH)) + corr
         return np.maximum.reduce([d, np.abs(y) - F32(HD), -z]).astype(F32)
     vt.add(Func(vault, (-HW - 0.1, -HD - 0.1, -0.1), (HW + 0.1, HD + 0.1, HH + 0.1)), k=0.0)
-    for y in np.linspace(-HD + 0.05, HD - 0.05, 6):                 # the ribs
+    rb = Field("Ribs")                                              # (the ribs a mesh of their own: merged into the corrugated
+    for y in np.linspace(-HD + 0.05, HD - 0.05, 6):                 # vault they left slivers the decimation could not collapse)
         def rib(P, y=y):
             e = np.sqrt((P[:, 0] / F32(HW + 0.03)) ** 2 + (P[:, 2] / F32(HH + 0.03)) ** 2)
             return np.maximum.reduce([np.abs(e - F32(1.0)) * F32(min(HW, HH)) - F32(0.025), np.abs(P[:, 1] - F32(y)) - F32(0.04), -P[:, 2]]).astype(F32)
-        vt.add(Func(rib, (-HW - 0.2, y - 0.1, -0.1), (HW + 0.2, y + 0.1, HH + 0.2)), k=0.004, label=7)
+        rb.add(Func(rib, (-HW - 0.2, y - 0.1, -0.1), (HW + 0.2, y + 0.1, HH + 0.2)), k=0.0, label=7)
     for x in (-0.9, 0.0, 0.9):                                      # roof vents
         z = HH * math.sqrt(max(0.0, 1 - (x / HW) ** 2))
         for y in (-0.6, 0.6):
@@ -648,7 +652,9 @@ def hangar(seed=0):
     DW, DH = 1.32, 1.42
     vt.sub(RoundBox((0, -HD + 0.3, DH / 2 - 0.05), (DW, 0.6, DH / 2 + 0.05), 0.01), k=0.0)
     ground_cut(vt, -0.03)
-    out.append(("Vault", vt, fine(0.012, 0.024), "hangar"))
+    rb.sub(RoundBox((0, -HD + 0.3, DH / 2 - 0.05), (DW, 0.6, DH / 2 + 0.05), 0.01), k=0.0)
+    ground_cut(rb, -0.03)
+    out += [("Vault", vt, fine(0.012, 0.024), "hangar"), ("Ribs", rb, fine(0.008, 0.016), "hangar")]
     pf = Field("Portal")
     for sx in (-1, 1):
         box(pf, (sx * 1.75, -HD - 0.04, 0.8), (0.42, 0.1, 0.82), 0.02)
@@ -2760,7 +2766,7 @@ def KITS(theme):
             "Cones": (lambda: cones(607), 300), "LightTower": (lambda: light_tower(608), 1100), "Fence": (lambda: chainlink(609), 700),
             "Barriers": (lambda: barriers(610), 400), "Scrub_A": (lambda: dry_scrub(611, 0.8), 500), "Scrub_B": (lambda: dry_scrub(612, 0.6), 400),
             "Humvee": (lambda: humvee(613), 1400),
-            "Hangar": (lambda: hangar(614), 4400), "Tower": (lambda: control_tower(615), 3000), "Jet": (lambda: jet(616), 3400),
+            "Hangar": (lambda: hangar(614), 5000), "Tower": (lambda: control_tower(615), 3000), "Jet": (lambda: jet(616), 3400),
             "Heli": (lambda: helipad(617), 3400), "FuelTruck": (lambda: fuel_truck(618), 2400), "Radome": (lambda: radome(619), 2000),
             "Rubble_A": (lambda: rubble(620), 800), "Rubble_B": (lambda: rubble(621, metal=True), 900), "Wreck": (lambda: wreck(622), 1200),
             "Dish": (lambda: radar_dish(623), 1800), "Generator": (lambda: generator(624), 1400), "AAGun": (lambda: aa_gun(625), 2000),
