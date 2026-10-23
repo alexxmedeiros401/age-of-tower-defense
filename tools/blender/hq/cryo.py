@@ -59,8 +59,8 @@ def face_mask(P):
 
 def mouth_slot():
     """A closed mouth, its corners lifted a little: the faintest smile."""
-    return [hp((-0.049, -0.173, 1.5585)), hp((-0.026, -0.193, 1.5505)), hp((0.0, -0.199, 1.549)), hp((0.026, -0.193, 1.5505)),
-            hp((0.049, -0.173, 1.5585))]
+    return [hp((-0.054, -0.17, 1.5635)), hp((-0.028, -0.192, 1.5515)), hp((0.0, -0.199, 1.549)), hp((0.028, -0.192, 1.5515)),
+            hp((0.054, -0.17, 1.5635))]
 
 
 def head(fd):
@@ -80,17 +80,17 @@ def head(fd):
     fd.paint(Func(face_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # level brows with a gentle arch, their inner ends relaxed (a calm look)
     for sx in (-1, 1):
-        pts = [hp((sx * 0.022, -0.209, 1.763)), hp((sx * 0.064, -0.203, 1.779)), hp((sx * 0.107, -0.184, 1.782)), hp((sx * 0.148, -0.144, 1.769))]
+        pts = [hp((sx * 0.024, -0.207, 1.77)), hp((sx * 0.064, -0.201, 1.787)), hp((sx * 0.107, -0.182, 1.79)), hp((sx * 0.148, -0.143, 1.776))]
         fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.007), hr(0.0085), hr(0.0075), hr(0.004)], k=hr(0.007)), hr(0.009), BROW)
         fd.paint(Chain(pts, [hr(0.013), hr(0.015), hr(0.013), hr(0.008)], k=hr(0.01)), BROW)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.028))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.031))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0052)), Plane(ec + v3((0, 0, -hr(0.026))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0265))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0295))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
     # a straight nose
     fd.add(RoundCone(hp((0, -0.186, 1.726)), hp((0, -0.231, 1.634)), hr(0.013), hr(0.018)), hr(0.016), SKIN)
     fd.add(S((0, -0.232, 1.616), 0.022), hr(0.014), SKIN)
@@ -101,12 +101,12 @@ def head(fd):
     slot = mouth_slot()
     fd.sub(Chain(slot, [hr(0.0024), hr(0.003), hr(0.0033), hr(0.003), hr(0.0024)], k=hr(0.003)), hr(0.003))
     fd.paint(Chain(slot, [hr(0.003), hr(0.0042), hr(0.0046), hr(0.0042), hr(0.003)], k=hr(0.004)), MOUTH)
-    up_lip = [(-0.047, -0.171, 1.5615), (-0.026, -0.187, 1.5565), (0.0, -0.191, 1.558), (0.026, -0.187, 1.5565), (0.047, -0.171, 1.5615)]
+    up_lip = [(-0.052, -0.168, 1.5665), (-0.028, -0.186, 1.5575), (0.0, -0.191, 1.558), (0.028, -0.186, 1.5575), (0.052, -0.168, 1.5665)]
     lo_lip = [(-0.037, -0.173, 1.546), (-0.02, -0.186, 1.537), (0, -0.19, 1.535), (0.02, -0.186, 1.537), (0.037, -0.173, 1.546)]
     fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0045), hr(0.005), hr(0.0045), hr(0.003)], k=hr(0.006)), hr(0.007), LIP)
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.006), hr(0.0065), hr(0.006), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.058, -0.165, 1.566), 0.007), hr(0.006), SKIN)                          # the smile's soft corners
+        fd.add(S((sx * 0.062, -0.161, 1.571), 0.008), hr(0.006), SKIN)                          # the smile's soft corners
     # ears: a rim, a hollow, a lobe (bare: the headset's pods sit over his temples)
     for sx in (-1, 1):
         R = euler(0, sx * 0.25, sx * -0.35)
