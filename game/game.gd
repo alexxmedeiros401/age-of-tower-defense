@@ -7500,7 +7500,7 @@ func _flame_jet(u: Dictionary, targets: Array) -> void:
 	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
 	var spd := maxf(float(speed), 0.01)
 	var at0 := float(FLAME_ON) / CLIP_FPS
-	var reach := float(u.stats.get("range", 2.3)) * 1.05
+	var reach := float(u.stats.get("range", 2.3)) * 1.2
 	var ids := []
 	for tid in targets:
 		if _robot_point(int(tid), 0.0) == Vector3.INF:
@@ -7514,11 +7514,11 @@ func _flame_jet(u: Dictionary, targets: Array) -> void:
 		_flame_core.billboard_keep_scale = true
 		_flame_core.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		_flame_core.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-		_flame_core.albedo_color = Color(1.0, 0.55, 0.18, 0.9)
+		_flame_core.albedo_color = Color(1.0, 0.62, 0.22, 1.0)
 		_flame_core.albedo_texture = _mote_tex()
 	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at0, at0 / rate, func() -> void:
 		_sfx("flame", -3.0, 0.1, 0.2)
-		var per: int = [2, 1, 1][clampi(Progress.gfx_level(), 0, 2)]
+		var per: int = [3, 2, 1][clampi(Progress.gfx_level(), 0, 2)]
 		for i in FLAME_OFF - FLAME_ON + 1:
 			_fx_after(float(i) / CLIP_FPS / rate / spd, func() -> void:
 				if not tower_nodes.has(uid) or not is_instance_valid(tower_nodes[uid]) or not (tower_nodes[uid] as Node3D).has_meta("yaw"):
@@ -7532,12 +7532,12 @@ func _flame_jet(u: Dictionary, targets: Array) -> void:
 						return
 					var pf := _mi(_fx_mesh("flash"), _flame_core, self, tip + dir * 0.05)
 					pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-					pf.scale = Vector3.ONE * 0.12
-					var end := tip + dir * reach * randf_range(0.85, 1.05) + Vector3(randf_range(-0.15, 0.15), randf_range(0.0, 0.35), randf_range(-0.15, 0.15))
-					var life := randf_range(0.26, 0.34) / spd
+					pf.scale = Vector3.ONE * 0.25
+					var end := tip + dir * reach * randf_range(0.75, 1.05) + Vector3(randf_range(-0.15, 0.15), randf_range(0.0, 0.35), randf_range(-0.15, 0.15))
+					var life := randf_range(0.3, 0.4) / spd
 					var tw := create_tween().set_parallel(true)
 					tw.tween_property(pf, "position", end, life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-					tw.tween_property(pf, "scale", Vector3.ONE * randf_range(0.55, 0.8), life)
+					tw.tween_property(pf, "scale", Vector3.ONE * randf_range(1.1, 1.5), life)
 					tw.chain().tween_callback(pf.queue_free)
 				if i % 3 == 0 and _fx_room(1):          # the jet rolls into black smoke at its end
 					var sm := _mi(_fx_mesh("dust"), _puff_mat(Color(0.18, 0.16, 0.15, 0.55)), self, tip + dir * reach)
