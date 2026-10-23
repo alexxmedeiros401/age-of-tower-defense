@@ -12483,9 +12483,9 @@ func _results_prep(box: VBoxContainer, won: bool, newly: String) -> void:
 	if nxt != "" and _tower_buyable(era):
 		t_cap = "READY TO UNLOCK: %s" % str(defs.towers[nxt].name).to_upper()
 	elif nxt != "":
-		t_cap = "NEXT: %s  (%d SCRAP)" % [str(defs.towers[nxt].name).to_upper(), Progress.tower_scrap_cost(nxt)]
+		t_cap = "NEXT: %s, %d SCRAP" % [str(defs.towers[nxt].name).to_upper(), Progress.tower_scrap_cost(nxt)]
 	if new_age and _tower_buyable(_era()):
-		t_cap += "\nAND A %s TOWER IS READY TO UNLOCK" % _era().to_upper()
+		t_cap += "\n%s: ONE READY TO UNLOCK!" % _era().to_upper()
 	var t_med := _medallion(_icon_tex(nxt if nxt != "" else str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.42, 0.7, 1.0), Color(0.08, 0.22, 0.55), 132,
 		func(): _open_workshop(era), {"badge": t_hot, "icon_frac": 0.98, "icon_dy": -0.12, "phase": 0.0, "label_size": 26})
 	_results_cluster(row, t_med, _currency_pill(_scrap_tex(era), str(Progress.scrap(era)), Color(0.86, 0.94, 1.0)), "%s SCRAP" % era.to_upper(), t_cap, t_hot)
@@ -12530,7 +12530,7 @@ func _results_cluster(row: HBoxContainer, med: Control, pill: Control, wallet: S
 	v.add_child(wl)
 	var cl := _label(cap, 19, Color(0.6, 1.0, 0.55) if hot else Color(0.8, 0.85, 0.92), 6)
 	cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	cl.custom_minimum_size = Vector2(300, 0)
+	cl.custom_minimum_size = Vector2(330, 0)
 	v.add_child(cl)
 	if hot:
 		var tw := cl.create_tween().set_loops()
