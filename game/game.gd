@@ -3318,7 +3318,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4982,6 +4982,9 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
+				elif u3 != null and u3.type in ["emp_tower", "ken"] and _hq_clips(ev.id):
+					_face_targets(ev.id, u3, tg3)
+					_emp_pulse(u3, tg3)                         # v0.9.68: the pulse leaves the emitter head (Ken: his plate)
 				elif u3 != null and u3.type == "tesla_coil" and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_tesla_zap(u3, tg3)                         # v0.9.64: lightning leaps from the toroid as he throws the switch
@@ -8012,6 +8015,89 @@ func _theron_sun(uid: int, p: Vector3) -> Vector3:
 	return Vector3.INF
 
 
+# v0.9.68: the EMP Tower (anim_emp.py): its operator slams the trigger on frame 10 (DISCHARGE) and the emitter head at
+# the top of its mast flashes blue-white; rings of blue light roll out over its reach and every robot in it crackles.
+# Dr. Ken Ito's ground pound (anim_ken.py, HIT 9-11) sends the same pulse rolling out from his gauntlet's plate.
+const EMP_POINTS := {"emp_tower": Vector3(0.540, 2.200, -0.300), "ken": Vector3(-0.280, 0.012, 0.385)}
+func _emp_pulse(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var ids := targets.duplicate()
+	var R := float(u.stats.get("range", 3.6))
+	var ty := str(u.type)
+	_at_attack_frame(uid, float(ATTACK_FRAME.get(ty, 10)), 0.1, func() -> void:
+		var at := _v3(u.pos, 1.4)
+		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+			at = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * (EMP_POINTS.get(ty, Vector3.ZERO) as Vector3)
+		if _fx_room(2):
+			for s2 in ([1.2, 0.6] if ty == "emp_tower" else [0.8]):
+				var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, at + Vector3(0, 0.1, 0))
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": s2})
+		var g := Vector3(at.x, 0.3, at.z)
+		_ring_fx(g, R, Color(0.45, 0.85, 1.0), 0.55)
+		_ring_fx(g, R * 0.6, Color(0.8, 0.95, 1.0), 0.42)
+		if ty == "ken":
+			_dust_fx(Vector3(at.x, 0.2, at.z), 5, 0.9)
+			shake = maxf(shake, 0.12)
+		var cap: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+		var i := 0
+		for tid in ids:
+			if i >= cap or not _fx_room(1):
+				break
+			var p := _robot_point(int(tid), _hit_height_of(_robot_type(int(tid))))
+			if p == Vector3.INF:
+				continue
+			var f2 := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, p)
+			f2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f2, "t": 0.0, "life": 0.2, "kind": "flash", "s": 0.45})
+			i += 1)
+
+
+# v0.9.68: Dr. Ken Ito's EMP Grenade (anim_ken.py): he draws a grenade, arms it on his tablet (its band flares) and lobs
+# it overarm at frame 43 (RELEASE); it flies a short arc to land in front of him and bursts in rings of blue light, arcs
+# leaping to every robot it stuns. The damage waits for the burst.
+const KEN_RELEASE := 43
+const KEN_GRENADE := Vector3(-0.148, 1.610, 0.478)
+const KEN_LAND := Vector3(-0.1, 0.1, 1.8)
+func _ken_grenade(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var at_r := float(KEN_RELEASE) / CLIP_FPS
+	var fly := 0.4
+	for tid in ev.get("ids", []):
+		_hold_hit(int(tid), at_r + fly + 0.05)
+	var R := float(ev.get("radius", 6.0))
+	var hits: Array = ev.get("hits", [])
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_r, at_r, func() -> void:
+		var from := hp + Vector3(0, 1.2, 0)
+		var land := hp + Vector3(0, -0.2, 1.5)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			var yt := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform
+			from = yt * KEN_GRENADE
+			land = yt * KEN_LAND
+		land.y = 0.1
+		var gr := _mi(_cyl(0.07, 0.07, 0.2, 8), _mat("emp_grenade", Color(0.35, 0.8, 1.0), {"emit": Color(0.3, 0.75, 1.0), "emit_e": 2.5}), self, from)
+		gr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var tw := create_tween()
+		tw.tween_method(func(k: float) -> void:
+			if is_instance_valid(gr):
+				gr.position = from.lerp(land, k) + Vector3(0, 0.9 * 4.0 * k * (1.0 - k), 0)
+				gr.rotation = Vector3(k * 9.0, 0, k * 4.0), 0.0, 1.0, fly / maxf(float(speed), 0.01))
+		tw.tween_callback(func() -> void:
+			if is_instance_valid(gr):
+				gr.queue_free()
+			var g := Vector3(land.x, 0.3, land.z)
+			for s2 in [1.6, 0.8]:
+				var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, g + Vector3(0, 0.3, 0))
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.35, "kind": "flash", "s": s2})
+			_ring_fx(g, R, Color(0.45, 0.85, 1.0), 0.7)
+			_ring_fx(g, R * 0.55, Color(0.8, 0.95, 1.0), 0.5)
+			for p in hits:
+				_tesla_arc(g + Vector3(0, 0.4, 0), _v3(p, 0.8))
+			shake = maxf(shake, 0.8)
+			_sfx("emp", 0.0, 0.0, 0.5))))
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -8815,6 +8901,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("freeze", 0.0, 0.0, 0.5)
 			return
 		"emp":
+			if sim.hero != null and str(sim.hero.type) == "ken" and _hq_clips(sim.hero.id):
+				_ken_grenade(ev, hp)                        # v0.9.68: he arms the grenade on his tablet and lobs it
+				_banner(aname, Color(0.5, 0.85, 1.0))
+				return
 			_ring_fx(hp, float(ev.radius), Color(0.45, 0.85, 1.0), 0.7)
 			_ring_fx(hp, float(ev.radius) * 0.55, Color(0.8, 0.95, 1.0), 0.5)
 			for p in ev.hits:
