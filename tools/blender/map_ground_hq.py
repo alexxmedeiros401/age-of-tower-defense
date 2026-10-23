@@ -1061,7 +1061,7 @@ if MOD_T or DIG_T:
             if skip is not None:
                 k &= ~skip(Q[:, 0], Q[:, 1])
             if DIG_T and abs(off) > 0.3:         # (an edge line stays at its distance from the road's edge: none cut
-                k &= _smp(ped, Q[:, 0], Q[:, 1]) > abs(off) - HALF - 0.05    # across where the road kinks sharply)
+                k &= _smp(ped, Q[:, 0], Q[:, 1]) > abs(off) - HALF - 0.16    # across where the road kinks sharply)
             if dash > 0:
                 k &= (S_ % (dash + gap)) < dash
             for a, b in _runs(k):
