@@ -123,6 +123,22 @@ def doorway(wf, lf, c, nrm, w, h, depth=0.06, arch=False, label=5, panels=True, 
         wf.add(RoundBox(c + n * 0.05 + Z * 0.012, (hw + 0.04, 0.07, 0.03), 0.006, R=R), k=0.002, label=6)
 
 
+def coal_heap(f, c, radii, seed=0, n=30, lump=0.06, k=0.08):
+    """A heap of coal (field f): a mound (an ellipsoid centred at c, radii) knobbly all over with lumps."""
+    rng = np.random.default_rng(seed)
+    c, radii = v3(c), v3(radii)
+    f.add(Ellipsoid(c, tuple(radii), **wob(10.0, 0.025, seed)), k=k)
+    for i in range(n):
+        u = rng.normal(size=3)
+        u[2] = abs(u[2]) + 0.15
+        u = u / np.linalg.norm(u)
+        q = c + radii * u * 0.97
+        if q[2] < 0.01:
+            continue
+        r = lump * rng.uniform(0.6, 1.3)
+        f.add(Ellipsoid(q, (r, r * 0.85, r * 0.7), R=euler(rng.uniform(0, 3), rng.uniform(0, 3), rng.uniform(0, 3))), k=0.012)
+
+
 def gear_fn(c, axis, r, w, teeth=12, th=None, spokes=5, hub=0.22):
     """A cast-iron gear wheel (or a flywheel: teeth=0) about `axis` through c: rim, spokes, hub, `w` thick."""
     R = rot_from_axes(z_axis=axis).astype(F32)
@@ -274,9 +290,7 @@ def sawtooth(rf, gl, fr, x0, x1, y0, y1, z0, n, h, glaze=-1):
         R = np.stack([v3((1, 0, 0)), unit((0, sg, 0.12)), unit(np.cross((1, 0, 0), (0, sg, 0.12)))], axis=1)
         if R[2, 2] < 0:
             R[:, 2] = -R[:, 2]
-        gl.add(RoundBox(gp, ((x1 - x0) / 2 - 0.06, 0.008, h * 0.4), 0.0, R=R), k=0.0)
-        for x in np.arange(x0 + 0.1, x1 - 0.05, 0.16):
-            fr.add(RoundBox(v3((x, gp[1], gp[2])) + R @ v3((0, 0.01, 0)), (0.009, 0.01, h * 0.42), 0.003, R=R), k=0.0)
+        gl.add(RoundBox(gp, ((x1 - x0) / 2 - 0.06, 0.008, h * 0.4), 0.0, R=R), k=0.0)      # (its bars painted: 'glazing')
         fr.add(RoundBox(gp + R @ v3((0, 0.01, h * 0.41)), ((x1 - x0) / 2 - 0.05, 0.012, 0.012), 0.004, R=R), k=0.0)
         fr.add(RoundBox(gp + R @ v3((0, 0.01, -h * 0.41)), ((x1 - x0) / 2 - 0.05, 0.012, 0.012), 0.004, R=R), k=0.0)
 
@@ -608,12 +622,12 @@ def weeds(seed=0, s=1.0, n=6, flowers=True):
             L = (0.13 - 0.012 * j) * s
             lv.add(leaf(q, d, np.cross(Z, d) + Z * 0.01, lance(L, 0.026 * s), 0.003, bend=-0.6), k=0.0)
         if flowers:                                                 # the flower spike
-            fl.add(RoundCone(b + (top - b) * 0.7, top + unit(lean) * 0.03 * s, 0.02 * s, 0.008 * s), k=0.0)
-            for j in range(7):
-                t = 0.72 + 0.04 * j
+            fl.add(RoundCone(b + (top - b) * 0.7, top + unit(lean) * 0.03 * s, max(0.013 * s, 0.008), max(0.005 * s, 0.004)), k=0.0)
+            for j in range(9):
+                t = 0.71 + 0.032 * j
                 q = b + (top - b) * t
                 aa = j * 2.4
-                fl.add(Sphere(q + v3((math.cos(aa), math.sin(aa), 0)) * 0.018 * s, (0.02 - 0.0015 * j) * s), k=0.008 * s)
+                fl.add(Sphere(q + v3((math.cos(aa), math.sin(aa), 0)) * 0.014 * s, max((0.013 - 0.001 * j) * s, 0.006)), k=0.004 * s)
     for k in range(5):                                              # dock leaves at the foot
         a = 2 * math.pi * k / 5 + rng.uniform(-0.3, 0.3)
         d = unit(v3((math.cos(a), math.sin(a), 0.5)))
@@ -688,9 +702,9 @@ def foundry(seed=0):
     # the chimney at the west end
     ch = Field("Chimney")
     chx = -hx - 0.3
-    chimney_square(ch, (chx, 0.1), -0.05, 0.6, 0.27, 0.25, seed, cap=False, plinth=0.5)
-    ch.add(RoundBox((chx, 0.1, 0.62), (0.3, 0.3, 0.04), 0.01), k=0.004, label=6)
-    chimney_round(ch, (chx, 0.1), 0.6, 3.75, 0.23, 0.15, seed + 1, bands=(1.3, 2.1, 2.9))
+    chimney_square(ch, (chx, 0.1), -0.05, 0.6, 0.33, 0.31, seed, cap=False, plinth=0.5)
+    ch.add(RoundBox((chx, 0.1, 0.62), (0.36, 0.36, 0.04), 0.01), k=0.004, label=6)
+    chimney_round(ch, (chx, 0.1), 0.6, 3.75, 0.29, 0.2, seed + 1, bands=(1.3, 2.1, 2.9))
     ground_cut(ch)
     out.append(("Chimney", ch, fine(0.007, 0.014), "brick"))
     # the cupola at the east end
@@ -884,8 +898,7 @@ def steam_hammer(seed=0):
     _steam_hammer(out, (0, 0, 0), 0.0, seed)
     _vertical_boiler(out, (0.72, 0.3, 0), seed)
     cl = Field("Coal")
-    for k in range(4):
-        cl.add(Ellipsoid((0.75 + 0.12 * math.cos(k * 1.7), -0.35 + 0.1 * math.sin(k * 1.7), 0.0), (0.2, 0.16, 0.14), **wob(16.0, 0.02, seed + k)), k=0.04)
+    coal_heap(cl, (0.75, -0.35, 0.0), (0.3, 0.24, 0.18), seed, n=18, lump=0.045)
     ground_cut(cl, -0.01)
     out.append(("Coal", cl, fine(0.006, 0.012), "coal"))
     tg = Field("Tongs")
@@ -932,7 +945,7 @@ def hammer_shed(seed=0):
     out.append(("Roof", rf, fine(0.008, 0.016), "slate"))
     sk = Field("Skylights")
     for x in (-0.55, 0.55):
-        sk.add(RoundBox((x, -0.36, ze + 0.32), (0.22, 0.24, 0.02), 0.005, R=euler(-math.atan2(0.55, hy + 0.1), 0, 0)), k=0.0)
+        sk.add(RoundBox((x, -0.36, ze + 0.375), (0.22, 0.2, 0.015), 0.005, R=euler(-math.atan(0.55 / hy), 0, 0)), k=0.0)
     out.append(("Skylights", sk, fine(0.005, 0.01), "glass"))
     fl = Field("Floor")
     fl.add(RoundBox((0, 0, 0.0), (hx - 0.05, hy - 0.05, 0.03), 0.01), k=0.0)
@@ -941,8 +954,7 @@ def hammer_shed(seed=0):
     _steam_hammer(out, (0.0, 0.05, 0.02), 0.0, seed)
     _vertical_boiler(out, (hx + 0.35, 0.3, 0), seed, h=0.95, r=0.2)
     cl = Field("Coal")
-    for k in range(4):
-        cl.add(Ellipsoid((hx + 0.35 + 0.1 * math.cos(k * 1.7), -0.3 + 0.1 * math.sin(k * 1.7), 0.0), (0.18, 0.15, 0.13), **wob(16.0, 0.02, seed + k)), k=0.04)
+    coal_heap(cl, (hx + 0.35, -0.3, 0.0), (0.26, 0.22, 0.16), seed, n=16, lump=0.04)
     ground_cut(cl, -0.01)
     out.append(("Coal", cl, fine(0.006, 0.012), "coal"))
     return out
@@ -1059,7 +1071,7 @@ def workshop(seed=0):
     stack(wl, Field("_"), (0.6, 0.35), 0.1, 0.1, ze, ze + 0.75, pots=0, seed=seed)
     ground_cut(wl)
     out += [("Walls", wl, fine(0.008, 0.016), "brick"), ("Glass", dk, fine(0.006, 0.012), "glass"), ("Frames", fr, fine(0.004, 0.008), "frames"),
-            ("Doors", dr, fine(0.005, 0.01), "door"), ("Roof", rf, fine(0.007, 0.014), "slate"), ("Lights", gl, fine(0.005, 0.01), "glass")]
+            ("Doors", dr, fine(0.005, 0.01), "door"), ("Roof", rf, fine(0.007, 0.014), "slate"), ("Lights", gl, fine(0.005, 0.01), "glazing")]
     bb = Field("Casks")
     add_barrel(bb, (0.25, -hy - 0.25, 0.17), hl=0.16, r_end=0.12)
     add_barrel(bb, (0.55, -hy - 0.22, 0.13), R=rot_from_axes(z_axis=(1, 0.2, 0)), hl=0.16, r_end=0.11)
@@ -1264,10 +1276,7 @@ def coal_tub(seed=0):
             wh.add(rwheel_fn((sx * 0.2, sy * 0.17, 0.076 + 0.1), (0, sy, 0), 0.1, 0.035, spokes=6, counter=False), k=0.0)
         wh.add(RoundCone((sx * 0.2, -0.21, 0.176), (sx * 0.2, 0.21, 0.176), 0.016, 0.016), k=0.004)
     out.append(("Wheels", wh, fine(0.004, 0.008), "iron"))
-    cl.add(Ellipsoid((0, 0, zb + 0.32), (0.3, 0.2, 0.14), **wob(14.0, 0.02, seed)), k=0.0)
-    for k in range(6):
-        a = 2 * math.pi * k / 6
-        cl.add(Ellipsoid((math.cos(a) * 0.15, math.sin(a) * 0.09, zb + 0.4), (0.06, 0.05, 0.05), R=Rz(a)), k=0.01)
+    coal_heap(cl, (0, 0, zb + 0.32), (0.3, 0.2, 0.14), seed, n=16, lump=0.04, k=0.0)
     cl.inter(Plane((0, 0, zb + 0.25), (0, 0, -1)))
     out.append(("Coal", cl, fine(0.005, 0.01), "coal"))
     return out
@@ -1311,13 +1320,14 @@ def churns(seed=0):
             f.add(Torus(c + u * 0.27 + (R @ v3((s * 0.08, 0, 0))), 0.03, 0.008, R=R @ rot_from_axes(z_axis=(0, 1, 0))), k=0.004)
     for (x, y) in ((0.0, 0.0), (0.22, 0.06), (0.1, 0.22), (-0.16, 0.2)):
         churn((x, y, 0.0))
-    tc = v3((0.5, -0.35, 0.0))                                      # the sack truck, tipped back on its wheels
-    tilt = euler(0, -0.5, 0.3)
+    tc = v3((0.45, -0.3, 0.0))                                      # the sack truck, standing on its toe plate
+    tilt = euler(0, -0.12, 0.3)
     u = tilt @ Z
     for s in (-1, 1):
         side = tilt @ v3((0, s * 0.13, 0))
         tr.add(RoundCone(tc + side + v3((0, 0, 0.09)), tc + side + u * 0.75, 0.015, 0.015), k=0.0, label=11)
-        tr.add(Cylinder(tc + side * 1.25 + v3((0, 0, 0.09)), 0.09, 0.035, rr=0.01, R=rot_from_axes(z_axis=tilt @ v3((0, 1, 0)))), k=0.004, label=6)
+        tr.add(Cylinder(tc + side * 1.3 + tilt @ v3((0.1, 0, 0)) + v3((0, 0, 0.09)), 0.09, 0.035, rr=0.01, R=rot_from_axes(z_axis=tilt @ v3((0, 1, 0)))), k=0.004, label=6)
+        tr.add(RoundCone(tc + side + v3((0, 0, 0.09)), tc + side * 1.3 + tilt @ v3((0.1, 0, 0)) + v3((0, 0, 0.09)), 0.012, 0.012), k=0.004, label=6)
     for k in range(3):
         tr.add(RoundCone(tc + v3((0, 0, 0.09)) + u * (0.25 + 0.2 * k) + tilt @ v3((0, -0.13, 0)), tc + v3((0, 0, 0.09)) + u * (0.25 + 0.2 * k) + tilt @ v3((0, 0.13, 0)),
                          0.01, 0.01), k=0.002, label=10)
@@ -1388,7 +1398,17 @@ def locomotive(seed=0):
         bd.sub(Cylinder((-0.49, sy * 0.17, 1.02), 0.06, 0.06, R=Rx), k=0.004)
         gl.add(Cylinder((-0.485, sy * 0.17, 1.02), 0.062, 0.012, R=Rx), k=0.0)
         bd.add(Torus((-0.47, sy * 0.17, 1.02), 0.062, 0.01, R=Rx), k=0.003, label=6)
-    bd.add(Ellipsoid((-0.66, 0, 1.2), (0.22, 0.37, 0.07)), k=0.006)
+    bd.add(Func(lambda P: np.maximum.reduce([np.abs(P[:, 0] + F32(0.66)) - F32(0.22), np.abs(P[:, 1]) - F32(0.36),
+                                             np.abs(P[:, 2] - (F32(1.17) - F32(0.5) * P[:, 1] ** 2)) - F32(0.018)]).astype(F32) * F32(0.9),
+                (-0.95, -0.45, 1.0), (-0.38, 0.45, 1.25)), k=0.006, label=7)
+    for x in (0.45, 0.0, -0.45):                                    # splashers over the drivers
+        for sy in (-1, 1):
+            bd.add(Func(lambda P, x=x, sy=sy: np.maximum.reduce([np.sqrt((P[:, 0] - F32(x)) ** 2 + (P[:, 2] - F32(zr + 0.2)) ** 2) - F32(0.235),
+                                                                np.abs(P[:, 1] - F32(sy * 0.22)) - F32(0.045), F32(0.44) - P[:, 2]]).astype(F32),
+                        (x - 0.3, sy * 0.22 - 0.1, 0.4), (x + 0.3, sy * 0.22 + 0.1, 0.6)), k=0.006)
+            bd.add(Func(lambda P, x=x, sy=sy: np.maximum.reduce([np.abs(np.sqrt((P[:, 0] - F32(x)) ** 2 + (P[:, 2] - F32(zr + 0.2)) ** 2) - F32(0.235)) - F32(0.012),
+                                                                np.abs(P[:, 1] - F32(sy * 0.268)) - F32(0.006), F32(0.44) - P[:, 2]]).astype(F32),
+                        (x - 0.3, sy * 0.27 - 0.05, 0.4), (x + 0.3, sy * 0.27 + 0.05, 0.6)), k=0.002, label=6)
     bd.inter(Plane((0, 0, 1.24), (0, 0, 1)))
     dk.add(RoundBox((-0.66, 0, 0.78), (0.16, 0.29, 0.32), 0.01), k=0.0)
     # the tender
@@ -1408,7 +1428,7 @@ def locomotive(seed=0):
     for sy in (-1, 1):                                              # brass lining round the tender's panel and the cab side
         bd.paint(Func(lambda P, sy=sy: np.maximum(np.abs(np.maximum(np.abs(P[:, 0] + F32(1.38)) - F32(0.36), np.abs(P[:, 2] - F32(0.6)) - F32(0.13))) - F32(0.008),
                                                 np.abs(P[:, 1] - F32(sy * 0.3)) - F32(0.05)).astype(F32), (-1.9, sy * 0.3 - 0.1, 0.3), (-0.8, sy * 0.3 + 0.1, 0.9)), 6)
-    cl.add(Ellipsoid((-1.4, 0, 0.84), (0.38, 0.26, 0.12), **wob(14.0, 0.02, seed)), k=0.0)
+    coal_heap(cl, (-1.4, 0, 0.84), (0.38, 0.26, 0.12), seed, n=20, lump=0.04, k=0.0)
     cl.inter(Plane((0, 0, 0.8), (0, 0, -1)))
     gw.add(RoundBox((1.09, 0.2, 0.5), (0.025, 0.035, 0.04), 0.01), k=0.0)
     gw.add(RoundBox((-1.86, -0.2, 0.5), (0.025, 0.035, 0.04), 0.01), k=0.0)
@@ -1479,10 +1499,7 @@ def goods_wagon(seed=0, van=False):
                                          np.abs(P[:, 0]) - F32(L + 0.04)).astype(F32) * F32(0.9), (-L - 0.1, -0.5, zt - 0.1), (L + 0.1, 0.5, zt + 0.2)), k=0.0)
         out.append(("Roof", rf, fine(0.006, 0.012), "van_roof"))
     else:
-        ld.add(Ellipsoid((0, 0, zt - 0.04), (L * 0.95, W * 0.92, 0.13), **wob(10.0, 0.02, seed)), k=0.0)
-        for k in range(8):
-            a = 2 * math.pi * k / 8 + 0.3
-            ld.add(Ellipsoid((math.cos(a) * 0.4, math.sin(a) * 0.17, zt + 0.06), (0.07, 0.06, 0.05), R=Rz(a)), k=0.01)
+        coal_heap(ld, (0, 0, zt - 0.04), (L * 0.95, W * 0.92, 0.13), seed, n=28, lump=0.045, k=0.0)
         ld.inter(Plane((0, 0, zt - 0.1), (0, 0, -1)))
         out.append(("Load", ld, fine(0.005, 0.01), "coal"))
     return out
@@ -1618,8 +1635,8 @@ def coal_bin(seed=0):
     for (x, y) in ((-W - 0.06, D + 0.06), (W + 0.06, D + 0.06), (-W - 0.06, -0.1), (W + 0.06, -0.1), (0.0, D + 0.06)):
         ps.add(RoundBox((x, y, 0.2), (0.016, 0.03, 0.24), 0.006), k=0.0)
     ground_cut(ps)
-    cl.add(Ellipsoid((0, 0.28, 0.0), (0.85, 0.5, 0.48), **wob(4.0, 0.04, seed)), k=0.0)
-    cl.add(Ellipsoid((0.1, -0.25, 0.0), (0.6, 0.35, 0.2), **wob(5.0, 0.03, seed + 1)), k=0.08)
+    coal_heap(cl, (0, 0.28, 0.0), (0.85, 0.5, 0.48), seed, n=45, lump=0.07, k=0.0)
+    coal_heap(cl, (0.1, -0.25, 0.0), (0.6, 0.35, 0.2), seed + 1, n=20, lump=0.06)
     for k in range(10):
         a = rng.uniform(0, 2 * math.pi)
         rr = rng.uniform(0.2, 0.75)
@@ -1673,8 +1690,8 @@ def staithe(seed=0):
     place_parts(out, trk, (0, 0.05, zd + 0.0))
     tub = coal_tub(seed + 3)
     place_parts(out, [(n, f, v, m) for (n, f, v, m) in tub if not n.startswith("Track")], (0.35, 0.05, zd + 0.0), Rz(0.0), rename={"Coal": "TubCoal"})
-    cl.add(Ellipsoid((0.0, -W - 0.45, 0.0), (0.62, 0.42, 0.4), **wob(4.0, 0.04, seed)), k=0.0)
-    cl.add(Ellipsoid((-0.5, -0.2, 0.0), (0.45, 0.4, 0.2), **wob(5.0, 0.03, seed + 1)), k=0.08)
+    coal_heap(cl, (0.0, -W - 0.45, 0.0), (0.62, 0.42, 0.4), seed, n=36, lump=0.065, k=0.0)
+    coal_heap(cl, (-0.5, -0.2, 0.0), (0.45, 0.4, 0.2), seed + 1, n=16, lump=0.06)
     for k in range(9):
         a = rng.uniform(0, 2 * math.pi)
         rr = rng.uniform(0.3, 0.8)
@@ -1761,7 +1778,7 @@ def plane_tree(h=3.2, seed=0, guard=False):
     s = h / 3.2
     f, c, sd = Field("Trunk"), Field("Leaves"), Field("Seeds")
     r0 = 0.12 * s
-    fork = h * 0.48
+    fork = h * 0.4
     f.add(RoundCone((0, 0, -0.06), (0, 0, fork), r0, r0 * 0.75, **wob(4.0 / s, 0.012 * s, seed)), k=0.0)
     for k in range(4):
         a = 2 * math.pi * k / 4 + rng.uniform(-0.3, 0.3)
@@ -1772,8 +1789,8 @@ def plane_tree(h=3.2, seed=0, guard=False):
         a = a0 + 2 * math.pi * i / 4 + rng.uniform(-0.3, 0.3)
         out_ = v3((math.cos(a), math.sin(a), 0.0))
         p0 = v3((0, 0, fork - 0.05 * s))
-        p1 = p0 + out_ * 0.28 * s + v3((0, 0, 0.45 * s))
-        p2 = p1 + out_ * 0.3 * s + v3((0, 0, 0.5 * s))
+        p1 = p0 + out_ * 0.4 * s + v3((0, 0, 0.45 * s))
+        p2 = p1 + out_ * 0.38 * s + v3((0, 0, 0.42 * s))
         f.add(Chain([p0, p1, p2], [r0 * 0.6, r0 * 0.42, r0 * 0.2], k=0.03 * s, **wob(5.0 / s, 0.01 * s, seed * 10 + i)), k=0.05 * s)
         tops += [p1 + out_ * 0.15 * s + v3((0, 0, 0.1 * s)), p2]
     tops.append(v3((0, 0, h * 0.9)))
@@ -1781,17 +1798,17 @@ def plane_tree(h=3.2, seed=0, guard=False):
     for j, q in enumerate(tops):
         for k in range(3):
             o = v3((rng.uniform(-1, 1), rng.uniform(-1, 1), rng.uniform(-0.3, 0.6))) * 0.2 * s
-            r = s * rng.uniform(0.26, 0.36)
+            r = s * rng.uniform(0.34, 0.44)
             c.add(Ellipsoid(q + o, (r, r * 0.92, r * 0.8), **wob(10.0 / s, 0.045 * s, seed * 100 + j * 3 + k)), k=0.07 * s)
-    for j in range(9):
+    for j in range(12):
         u = rng.normal(size=3)
         u = u / np.linalg.norm(u)
-        q = ctr + v3((u[0] * 0.55 * s, u[1] * 0.55 * s, abs(u[2]) * 0.45 * s + 0.1 * s))
-        r = s * rng.uniform(0.3, 0.4)
+        q = ctr + v3((u[0] * 0.78 * s, u[1] * 0.78 * s, abs(u[2]) * 0.5 * s + 0.05 * s))
+        r = s * rng.uniform(0.4, 0.5)
         c.add(Ellipsoid(q, (r, r * 0.92, r * 0.8), **wob(10.0 / s, 0.045 * s, seed * 200 + j)), k=0.08 * s)
     for j in range(10):                                             # seed balls hanging under the crown's rim
         a = 2 * math.pi * j / 10 + rng.uniform(-0.2, 0.2)
-        q = ctr + v3((math.cos(a) * 0.62 * s, math.sin(a) * 0.62 * s, -0.42 * s + rng.uniform(-0.05, 0.05)))
+        q = ctr + v3((math.cos(a) * 0.85 * s, math.sin(a) * 0.85 * s, -0.5 * s + rng.uniform(-0.05, 0.05)))
         sd.add(Sphere(q, 0.03 * s), k=0.0)
         sd.add(RoundCone(q, q + v3((0, 0, 0.12 * s)), 0.004, 0.004), k=0.004)
     out = [("Trunk", f, fine(0.007, 0.014), "plane_bark"), ("Leaves", c, vx(h) * 0.9, "soot_leaves"), ("Seeds", sd, fine(0.004, 0.008), "weed_stem")]
@@ -2285,9 +2302,6 @@ def industrial_city(seed=0):
         gh.add(RoundBox(((LX0 + LX1) / 2, yc, 0.25), ((LX1 - LX0) / 2 + 0.02, hyl + 0.02, 0.025), 0.006), k=0.003, label=6)
         gh.add(RoundBox(((LX0 + LX1) / 2, yc, 1.05), ((LX1 - LX0) / 2 + 0.02, hyl + 0.02, 0.025), 0.006), k=0.003, label=6)
         gh.add(RoundBox(((LX0 + LX1) / 2, yc, LH), ((LX1 - LX0) / 2 + 0.06, hyl + 0.06, 0.05), 0.01), k=0.003, label=6)
-        for k in range(9):                                          # crenellated parapet
-            t = -1 + 2 * k / 8
-            gh.add(RoundBox((LX0 - 0.02, yc + t * (hyl - 0.05), LH + 0.13), (0.06, 0.06, 0.08), 0.01), k=0.003)
         for sx2 in (-1, 1):                                         # quoins
             for sy2 in (-1, 1):
                 for k in range(9):
@@ -2319,7 +2333,7 @@ def industrial_city(seed=0):
             ("Lit", gw, fine(0.006, 0.012), "glow_lamp")]
     rf = Field("Roofs")
     for sy in (-1, 1):
-        hipped(rf, ((LX0 + LX1) / 2 + 0.05, sy * (LY0 + LY1) / 2), (LX1 - LX0) / 2 - 0.08, (LY1 - LY0) / 2 - 0.08, LH + 0.04, LH + 0.5, over=0.0)
+        hipped(rf, ((LX0 + LX1) / 2, sy * (LY0 + LY1) / 2), (LX1 - LX0) / 2, (LY1 - LY0) / 2, LH + 0.05, LH + 0.6, over=0.1)
     out.append(("Roofs", rf, fine(0.008, 0.016), "slate"))
     # ---- the clock tower behind the arch
     ct = Field("Tower")
@@ -2435,7 +2449,7 @@ def industrial_city(seed=0):
                           (x0 - 0.3, ya - 0.2, zs - 0.2), (x0 + 0.3, ya + dyt + 0.2, zs + 0.8)), k=0.0)
         ground_cut(sh)
         out += [("Shed%d" % (sy + 1), sh, fine(0.016, 0.03), "brick"), ("ShedRoof%d" % (sy + 1), sw, fine(0.016, 0.03), "slate"),
-                ("ShedLights%d" % (sy + 1), sg, fine(0.014, 0.028), "glass"), ("ShedBars%d" % (sy + 1), sf, fine(0.008, 0.016), "frames"),
+                ("ShedLights%d" % (sy + 1), sg, fine(0.014, 0.028), "glazing"), ("ShedBars%d" % (sy + 1), sf, fine(0.008, 0.016), "frames"),
                 ("ShedGlass%d" % (sy + 1), sd, fine(0.012, 0.024), "glass")]
     # ---- the engine house and the smokestacks
     eh = Field("EngineHouse")
@@ -2476,7 +2490,7 @@ def KITS(theme):
             "SlagCart": (lambda: slag_cart(506), 1500), "Barrels": (lambda: barrels(507), 1000), "Crates": (lambda: crates(508), 1100),
             "Drum": (lambda: cable_drum(509), 1000), "Weeds": (lambda: weeds(510), 700),
             "Rock_A": (lambda: rock(1.4, 0.45, 511, n_extra=2), 600), "Rock_B": (lambda: rock(0.9, 0.3, 512, n_extra=1), 400),
-            "Tree_A": (lambda: sooty_tree(2.3, 513), 1400), "Tree_B": (lambda: sooty_tree(1.8, 514), 1100),
+            "Tree_A": (lambda: sooty_tree(2.1, 513, young=False), 1500), "Tree_B": (lambda: sooty_tree(1.8, 514), 1100),
             "Foundry": (lambda: foundry(515), 6000), "Gasholder": (lambda: gasholder(516), 4200), "HammerShed": (lambda: hammer_shed(517), 4200),
             "WaterTower": (lambda: water_tower(518), 2600),
             "Workshop": (lambda: workshop(519), 2600), "Hammer": (lambda: steam_hammer(520), 2000), "BeamEngine": (lambda: beam_engine(521), 2400),

@@ -286,6 +286,7 @@ def industrial_materials(dark):
         "stone": DM.ashlar("DK_Stone", base=(0.74, 0.69, 0.58), joint=(0.42, 0.38, 0.32), course=0.16, block=0.32, grime7=(0.3, 0.28, 0.24)),
         "flags": mats.flagstone("DK_Flags", base=(0.44, 0.42, 0.4), alt=(0.52, 0.48, 0.42)),
         "glass": DM.flat("DK_Glass", (0.1, 0.13, 0.16), 0.15, hi=(0.46, 0.54, 0.6)), "frames": DM.flat("DK_Frames", (0.84, 0.8, 0.7), 0.6),
+        "glazing": DM.glazing("DK_Glazing"),
         "timber": mats.siege("DK_Timber", wood=(0.42, 0.31, 0.2), wood2=(0.3, 0.21, 0.13), red=(0.5, 0.14, 0.08), blue=(0.86, 0.8, 0.62), metal="iron"),
         "door": mats.siege("DK_Door", wood=(0.1, 0.22, 0.15), wood2=(0.07, 0.16, 0.11), red=(0.46, 0.08, 0.08), blue=(0.08, 0.12, 0.3), metal="iron"),
         "box_timber": mats.siege("DK_BoxTimber", wood=(0.4, 0.26, 0.16), wood2=(0.3, 0.19, 0.11), red=(0.86, 0.8, 0.62), blue=(0.36, 0.2, 0.12), metal="iron"),

@@ -1297,7 +1297,7 @@ def coal(name="DK_Coal"):
     up = _up(g, 0.5, 0.95)
     c = g.mix(g.math("MULTIPLY", up, 0.25), c, g.rgb((0.2, 0.21, 0.25)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.48, 0.43), 0.6), c, g.rgb((0.015, 0.015, 0.015)))
-    return g.finish(c, 0.35, g.bump(g.voronoi(p, 26.0, 1.0, "F1", "Distance"), 0.5, 0.005))
+    return g.finish(c, 0.55, g.bump(g.voronoi(p, 26.0, 1.0, "F1", "Distance"), 0.6, 0.006))
 
 
 def cinders(name="DK_Cinders"):
@@ -1362,3 +1362,21 @@ def plane_bark(name="DK_PlaneBark"):
     c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.smooth(_z(g), 0.05, 0.5)), 0.5), c, g.rgb((0.14, 0.12, 0.1)))
     h = g.math("ADD", g.smooth(n1, 0.47, 0.53), g.math("MULTIPLY", g.smooth(n2, 0.56, 0.6), 0.5))
     return g.finish(c, 0.8, g.bump(h, 0.25, 0.003))
+
+
+def glazing(name="DK_Glazing", glass=(0.1, 0.13, 0.16), bar=(0.84, 0.8, 0.7), pitch=0.16, rail=0.2):
+    """Roof glazing (a sawtooth's north lights): dark glass catching the sky, with glazing bars painted in (every `pitch`
+    along X, a rail every `rail` up it), dirty along the bars' feet."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    fx = g.math("FRACT", g.math("DIVIDE", sep.outputs["X"], pitch))
+    fz = g.math("FRACT", g.math("DIVIDE", sep.outputs["Z"], rail))
+    bx = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx)), 0.05, 0.09))
+    bz = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz)), 0.05, 0.1))
+    bars = g.math("MAXIMUM", bx, bz)
+    c = g.mix(g.remap(g.noise(p, 3.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(glass), g.rgb(tuple(min(1.0, x * 1.8 + 0.05) for x in glass)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 8.0, 2.0), 0.55, 0.7), 0.4), c, g.rgb((0.28, 0.27, 0.24)))
+    c = g.mix(bars, c, g.rgb(bar))
+    return g.finish(c, g.mixf(bars, 0.12, 0.6), g.bump(bars, 0.4, 0.004))
