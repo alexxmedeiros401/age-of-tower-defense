@@ -34,7 +34,7 @@ CRATE_C = v3((-0.5, -0.5, TOP_Z)) # the crate of cartridges (before him on his r
 CRATE_A = math.radians(40.0)
 CRATE_HALF = (0.17, 0.12, 0.09)
 BAGS_A = (-62.0, 14.0)             # the sandbags' arc on his left (degrees from +x), at r = BAGS_R
-BAGS_R = 0.85
+BAGS_R = 0.84
 
 
 def smoothstep(e0, e1, x):
@@ -246,7 +246,7 @@ def pier_field():
 
 LAMP_BASE_Z = TOP_Z + PIER_H + 0.075
 LANTERN_Z = LAMP_BASE_Z + 0.3             # the lantern's foot
-LANT_W0, LANT_W1, LANT_H = 0.05, 0.075, 0.17
+LANT_W0, LANT_W1, LANT_H = 0.06, 0.088, 0.2
 
 
 def lamp_field():
@@ -306,14 +306,14 @@ def bag_spots():
     """(centre, along, half sizes) of each sandbag: a bottom course of four along the arc, three on top over the joints."""
     out = []
     a0, a1 = math.radians(BAGS_A[0]), math.radians(BAGS_A[1])
-    for course, n, z in ((0, 4, TOP_Z + 0.042), (1, 3, TOP_Z + 0.112)):
+    for course, n, z in ((0, 4, TOP_Z + 0.055), (1, 3, TOP_Z + 0.15)):
         for i in range(n):
             u = (i + 0.5 + (0.5 if course else 0.0)) / 4.0
             a = a0 + (a1 - a0) * u + 0.02 * math.sin(i * 3.1 + course)
             r = BAGS_R + (0.012 if course else 0.0) + 0.01 * math.cos(i * 1.7)
             c = v3((r * math.cos(a), r * math.sin(a), z))
             along = v3((-math.sin(a), math.cos(a), 0.0))
-            out.append((c, along, (0.125, 0.085, 0.045), 0.06 * math.sin(i * 2.3 + course * 1.1)))
+            out.append((c, along, (0.14, 0.095, 0.058), 0.06 * math.sin(i * 2.3 + course * 1.1)))
     return out
 
 

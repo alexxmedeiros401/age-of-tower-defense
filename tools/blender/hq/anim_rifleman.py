@@ -188,10 +188,11 @@ def body(arm, br=0.0, sway=0.0, head_up=0.0, push=0.0):
     return aims, ro, rr
 
 
-def aim_rifle(P, kick=0.0, sway=0.0, br=0.0, cant=0.0):
+def aim_rifle(P, kick=0.0, sway=0.0, br=0.0, cant=0.0, drop=0.0):
     """The rifle on the aim: the butt plate in his right shoulder's pocket, the barrel level toward the robots (-y),
     dipping a little; `kick` turns the muzzle up about his cheek (radians) and shoves it back; `cant` rolls it a little
-    onto its right side (the bolt up into view while he works it)."""
+    onto its right side (the bolt up into view while he works it); `drop` lowers it from his cheek and out a little
+    (while he works the bolt, his hand clear of his face)."""
     sh = P["upperarm.R"].translation
     C = P["chest"].to_3x3()
     fwd = C @ V(0, 0, 1)
@@ -205,6 +206,7 @@ def aim_rifle(P, kick=0.0, sway=0.0, br=0.0, cant=0.0):
     U_t = V(0, 0, 1) - A_t * A_t.z
     if cant:
         U_t = Quaternion(A_t, -cant) @ U_t
+    pocket = pocket + (V(0, 0, -DROP[0]) - medial * DROP[1]) * drop
     return rifle_at(BUTT_END, pocket + V(0, 0.3 * kick, -0.2 * kick), A_t, U_t)
 
 
@@ -229,8 +231,8 @@ def idle_frame(arm, P_, t):
     aims["clavicle.L"] = q @ V(1.0, 0.0, -0.02)
     aims["clavicle.R"] = q @ V(-1.0, 0.04, 0.02)
     # the rifle at the order: upright by his right foot, its trigger guard to the front, the bolt outward
-    butt = q @ V(-0.31, -0.11, 0.0) + V(0, 0, -0.004)
-    A_t = (q @ V(-0.025, 0.035, 1.0)).normalized()
+    butt = q @ V(-0.35, -0.13, 0.0) + V(0, 0, -0.004)
+    A_t = (q @ V(-0.02, -0.03, 1.0)).normalized()
     U_t = q @ V(0.0, 1.0, 0.0)
     T_m = rifle_at(BUTT_END, butt, A_t, U_t)
     hold_u = 0.45 + 0.004 * br
@@ -269,25 +271,27 @@ def make_combat(arm, frames=40):
 
 
 # ---------------------------------------------------------------------------------------------- Attack: the shot, the bolt
-# per frame: (kick, cant, push, bolt lift 0..1, bolt draw 0..1, right hand: "grip" | "knob" | blend 0..1 grip->knob)
+# per frame: (kick, cant, push, bolt lift 0..1, bolt draw 0..1, right hand: "grip" | "knob" | blend 0..1 grip->knob,
+# drop 0..1)
 ATTACK = {
-    0: (0.0, 0.0, 0.0, 0.0, 0.0, "grip"),
-    1: (0.0, 0.0, 0.0, 0.0, 0.0, "grip"),          # SHOT
-    2: (0.13, 0.0, 1.0, 0.0, 0.0, "grip"),         # the kick
-    3: (0.06, 0.05, 0.6, 0.0, 0.0, 0.5),
-    4: (0.025, 0.1, 0.3, 0.0, 0.0, "knob"),        # on the knob
-    5: (0.012, 0.14, 0.15, 1.0, 0.0, "knob"),      # up
-    6: (0.006, 0.15, 0.05, 1.0, 0.55, "knob"),     # back
-    7: (0.0, 0.15, 0.0, 1.0, 1.0, "knob"),
-    8: (0.0, 0.15, 0.0, 1.0, 0.45, "knob"),        # home
-    9: (0.0, 0.14, 0.0, 1.0, 0.0, "knob"),
-    10: (0.0, 0.1, 0.0, 0.0, 0.0, "knob"),         # down
-    11: (0.0, 0.05, 0.0, 0.0, 0.0, 0.5),           # back to the grip
-    12: (0.0, 0.015, 0.0, 0.0, 0.0, "grip"),
-    13: (0.0, 0.0, 0.0, 0.0, 0.0, "grip"),
-    14: (0.0, 0.0, 0.0, 0.0, 0.0, "grip"),
+    0: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),
+    1: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),          # SHOT
+    2: (0.13, 0.0, 1.0, 0.0, 0.0, "grip", 0.0),         # the kick
+    3: (0.06, 0.08, 0.6, 0.0, 0.0, 0.5, 0.45),
+    4: (0.025, 0.18, 0.3, 0.0, 0.0, "knob", 0.85),      # on the knob, the butt dropped from his cheek
+    5: (0.012, 0.24, 0.15, 1.0, 0.0, "knob", 1.0),      # up
+    6: (0.006, 0.26, 0.05, 1.0, 0.55, "knob", 1.0),     # back
+    7: (0.0, 0.26, 0.0, 1.0, 1.0, "knob", 1.0),
+    8: (0.0, 0.26, 0.0, 1.0, 0.45, "knob", 1.0),        # home
+    9: (0.0, 0.24, 0.0, 1.0, 0.0, "knob", 1.0),
+    10: (0.0, 0.17, 0.0, 0.0, 0.0, "knob", 0.85),       # down
+    11: (0.0, 0.08, 0.0, 0.0, 0.0, 0.5, 0.5),           # back to the grip, up to his cheek
+    12: (0.0, 0.02, 0.0, 0.0, 0.0, "grip", 0.15),
+    13: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),
+    14: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),
 }
 KNOB_OFF = (0.0, 0.026, 0.012)               # the fist's grip centre from the knob (rifle axes: along, right, up)
+DROP = (0.06, 0.035)                         # the rifle's drop from his cheek while he works the bolt (down, out)
 R_KNOB_POLE = V(-0.8, 0.3, -0.5)
 
 
@@ -303,10 +307,10 @@ def make_attack(arm, frames=14):
     P_ = Poser(arm)
     act = new_action(arm, "Attack")
     for f in range(frames + 1):
-        kick, cant, push, lift, draw, rh = ATTACK[f]
-        aims, ro, rr = body(arm, push=push, head_up=0.04 * min(1.0, lift + draw))
+        kick, cant, push, lift, draw, rh, drop = ATTACK[f]
+        aims, ro, rr = body(arm, push=push, head_up=0.12 * drop)
         ch, P = P_.solve(aims, ro, rr)
-        T_m = aim_rifle(P, kick=kick, cant=cant)
+        T_m = aim_rifle(P, kick=kick, cant=cant, drop=drop)
         li, dr = LIFT * lift, DRAW * draw
         grip_p = lambda P, T_m=T_m: (T_m @ G_M, (rot_of(T_m) @ A_M).normalized(), R_POLE)
         if rh == "grip":

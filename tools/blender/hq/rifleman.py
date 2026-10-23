@@ -51,12 +51,11 @@ def head(fd):
     fd.add(E((0, -0.13, 1.505), (0.08, 0.066, 0.064)), 0.05, SKIN)                            # a firm, broad chin
     fd.sub(RoundCone(hp((0, -0.2, 1.488)), hp((0, -0.196, 1.512)), hr(0.004), hr(0.003)), hr(0.006))   # its cleft
     for sx in (-1, 1):
-        fd.add(S((sx * 0.112, -0.116, 1.642), 0.046), 0.05, SKIN)                              # cheekbones
-        fd.add(S((sx * 0.122, -0.046, 1.56), 0.047), 0.05, SKIN)                               # square jaw corners
-        fd.add(S((sx * 0.07, -0.118, 1.52), 0.04), 0.05, SKIN)                                 # the jaw's line to the chin
+        fd.add(S((sx * 0.104, -0.118, 1.642), 0.04), 0.05, SKIN)                               # cheekbones
+        fd.add(S((sx * 0.114, -0.05, 1.566), 0.042), 0.05, SKIN)                               # square jaw corners
         pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.13, 1.752)), hp((sx * 0.06, -0.174, 1.75)), hp((0.0, -0.184, 1.75))]
         fd.add(Chain(pts, [hr(0.012), hr(0.022), hr(0.026), hr(0.026)], k=hr(0.022)), hr(0.035), SKIN)     # brow ridge
-        fd.sub(Ellipsoid(hp((sx * 0.12, -0.112, 1.575)), v3((0.024, 0.018, 0.026)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.02))
+        fd.sub(Ellipsoid(hp((sx * 0.116, -0.114, 1.58)), v3((0.022, 0.016, 0.024)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.02))
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # level brows, thick, a little drawn down at their inner ends (a steady, keen look)
     for sx in (-1, 1):
@@ -66,11 +65,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.011))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0145))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0056)), Plane(ec + v3((0, 0, -hr(0.019))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.01))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0135))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):                                                                      # crow's feet
             a = hp((sx * (0.108 + 0.004 * k), -0.134 + 0.006 * k, 1.688 - 0.011 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.024, 0.012, 0.006 - 0.01 * k)), hr(0.002), hr(0.0013)), hr(0.003))
@@ -268,8 +267,8 @@ def hair_field():
     fd = Field("Hair")
     hull = Field("HairHull")
     hull.add(Ellipsoid(HEAD_C, HEAD_RAD + v3((0.004, 0.006, 0.006))), 0.0)
-    strands = lambda P: (F(0.0018) * np.sin(np.arctan2(P[:, 0], P[:, 1] - F(0.03)) * F(60) + P[:, 2] * F(30))
-                         + F(0.0012) * NOISE(P * np.array([80, 80, 25], F)))
+    strands = lambda P: (F(0.0006) * np.sin(np.arctan2(P[:, 0], P[:, 1] - F(0.03)) * F(140) + P[:, 2] * F(40))
+                         + F(0.001) * NOISE(P * np.array([110, 110, 40], F)) + F(0.0008) * NOISE(P * F(30)))
     def keep(P):
         Q = hinv(P)
         x, y, z = Q[:, 0], Q[:, 1], Q[:, 2]
@@ -280,7 +279,7 @@ def hair_field():
         bottom = bottom + F(0.006) * np.sin(x * F(60))
         front = np.where(ax > F(0.125), F(-0.075) - y, F(-0.02) - y)
         return np.maximum(bottom - z, front)
-    fd.add(Inter(Shell(hull, 0.006, 0.014, pad=0.06, disp=strands, disp_amp=0.003),
+    fd.add(Inter(Shell(hull, 0.002, 0.011, pad=0.06, disp=strands, disp_amp=0.002),
                  Func(keep, HEAD_C - v3((0.4, 0.4, 0.5)), HEAD_C + 0.35), 0.003), 0.0)
     fd.inter(Func(_under_cap, CAP_O - 0.5, CAP_O + 0.5), 0.002)
     return fd
@@ -525,10 +524,10 @@ def puttees_field():
             fr = ph - np.floor(ph)
             return F(-0.0035) * smoothstep(0.0, 0.12, fr) * smoothstep(1.0, 0.85, fr) + F(0.001) * NOISE(P * F(40))
         lo, hi = an - v3((0.2, 0.2, 0.15)), kn + v3((0.2, 0.2, 0.1))
-        fd.add(Inter(Shell(sb, 0.03, 0.014, pad=0.06, disp=spiral, disp_amp=0.004),
+        fd.add(Inter(Shell(sb, 0.021, 0.012, pad=0.06, disp=spiral, disp_amp=0.004),
                      Func(lambda P: np.maximum(F(PUTTEE_BOT) - P[:, 2], P[:, 2] - F(PUTTEE_TOP)), lo, hi), 0.003), 0.0)
         c = an + ax * ((PUTTEE_TOP - 0.03 - an[2]) / ax[2])
-        fd.add(Inter(Shell(sb, 0.039, 0.006, pad=0.06), Func(lambda P, c=c: np.abs(P[:, 2] - F(c[2])) - F(0.009), lo, hi), 0.002), 0.003, 5)
+        fd.add(Inter(Shell(sb, 0.029, 0.006, pad=0.06), Func(lambda P, c=c: np.abs(P[:, 2] - F(c[2])) - F(0.009), lo, hi), 0.002), 0.003, 5)
     return fd
 
 
