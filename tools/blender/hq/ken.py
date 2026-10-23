@@ -291,7 +291,7 @@ def peak_d(P):
 
 def cap_field():
     """Coyote-tan cotton twill (uniform material, label 0): six panels with sewn seams from a button on top, worn backwards
-    (the brim out over his nape, slightly curved), black (8) the adjuster strap across his brow."""
+    (the brim out over his nape, slightly curved)."""
     fd = Field("Cap")
     lo, hi = HEAD_C + v3((-0.3, -0.33, -0.16)), HEAD_C + v3((0.3, 0.42, 0.32))
     sk = skull()
@@ -312,9 +312,6 @@ def cap_field():
     h, ok = ray_hit(Func(cap_outer, lo, hi), [hp((0.0, 0.03, 2.3))], [v3((0, 0, -1))], tmax=0.6)
     top = h[0] if ok[0] else hp((0.0, 0.03, 1.97))
     fd.add(Ellipsoid(top, (0.017, 0.017, 0.009)), 0.005)
-    # the adjuster strap across the opening over his brow (black)
-    fd.paint(Func(lambda P: np.maximum(np.abs(hinv(P)[:, 0]) - F(0.045), band_d(P) - F(0.03)) * F(HS) + np.maximum(hinv(P)[:, 1] + F(0.05), 0),
-                  lo, hi), 8)
     return fd
 
 
