@@ -1858,3 +1858,32 @@ def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13),
     rough = g.mixf(g.reg(5), 0.86, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
     return g.finish(c, rough, g.bump(h, 0.4, 0.006))
+
+
+# ======================================================================================= Modern Age: cast concrete (the EMP Tower)
+def field_concrete(name="HQ_FieldConcrete", base=(0.6, 0.6, 0.58), dark=(0.42, 0.42, 0.41), paint=(0.95, 0.75, 0.12),
+                   paint2=(0.07, 0.07, 0.07), stain=(0.3, 0.29, 0.27)):
+    """Cast concrete, hand-painted: a cool grey with a fine aggregate speckle and pores, darker blotches and grime in the
+    hollows, pale worn edges; label 5 = yellow road paint (worn), 6 = black paint (hazard stripes), 7 = oil stains."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    c = g.mix(g.remap(g.noise(p, 4.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.88 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 1.6, 2.0), 0.55, 0.7), 0.35), c, g.rgb(dark))
+    agg = g.noise(p, 140.0, 2.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.smooth(agg, 0.62, 0.7), 0.45), c, g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(agg, 0.34, 0.27), 0.5), c, g.rgb(dark))
+    pores = g.smooth(g.voronoi(p, 70.0), 0.06, 0.03)
+    c = g.mix(g.math("MULTIPLY", pores, 0.5), c, g.rgb(tuple(x * 0.6 for x in dark)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.6), c, g.rgb(tuple(x * 0.7 for x in dark)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.52, 0.58), 0.45), c, g.rgb(tuple(min(1.0, x * 1.3) for x in base)))
+    wear = g.smooth(g.noise(p, 18.0, 3.0), 0.62, 0.7)
+    pc = g.mix(g.math("MULTIPLY", wear, 0.7), g.rgb(paint), c)
+    c = g.mix(g.reg(5), c, pc)
+    c = g.mix(g.reg(6), c, g.mix(g.math("MULTIPLY", wear, 0.6), g.rgb(paint2), c))
+    oil = g.math("MULTIPLY", g.reg(7), g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.45, 0.9))
+    c = g.mix(oil, c, g.rgb(stain))
+    rough = g.mixf(g.math("MAXIMUM", g.reg(5), g.reg(6)), 0.88, 0.6)
+    rough = g.mixf(g.reg(7), rough, 0.4)
+    h = g.math("ADD", g.math("MULTIPLY", agg, 0.4), g.math("MULTIPLY", pores, -0.6))
+    return g.finish(c, rough, g.bump(h, 0.25, 0.002))
