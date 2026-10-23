@@ -177,7 +177,7 @@ def make_idle(arm, frames=120):
         aims = feet(arm, I_FEET[0], I_FEET[1], I_YAW)
         look_up = math.sin(math.pi * min(1.0, max(0.0, t / 0.24))) * (1.0 - lean)
         nod = 0.08 * math.sin(math.pi * min(1.0, max(0.0, (t - 0.56) / 0.12))) if 0.56 < t < 0.68 else 0.0
-        torso(aims, yaw, bend=0.08 + 0.3 * lean, side=-0.16 * lean, chest=-16.0 * lean + 3.0 * math.sin(w),
+        torso(aims, yaw, bend=0.08 + 0.24 * lean, side=-0.14 * lean, chest=-16.0 * lean + 3.0 * math.sin(w),
               look=I_YAW + 34.0 * look_up - 40.0 * lean + 6.0 * math.sin(w * 2) * (1 - lean),
               pitch=0.02 + 0.32 * look_up - 0.38 * lean - nod + 0.02 * br, tilt=0.12 * look_up - 0.1 * lean)
         aims.update(hip_l(arm, ro, yaw))
@@ -282,10 +282,10 @@ def attack_pose(arm, f):
         aims.update(hip_l(arm, ro, yaw))
     else:
         hip = body_pt(V(0.3, -0.005, 1.0), ro, yaw)
-        high = body_pt(V(0.46, -0.08, 1.56 + 0.04 * shiver(f)), ro, yaw)
+        high = body_pt(V(0.64, 0.1, 1.5 + 0.04 * shiver(f)), ro, yaw)
         wrist = hip.lerp(high, up)
-        hd = (rz(yaw) @ V(-0.4, 0.25, -1.0)).lerp(rz(yaw) @ V(0.25, -0.2, 1.0), up)
-        aims.update(arm_aims(arm, "L", wrist, pole=rz(yaw) @ V(1.0, 0.45, 0.1 - 0.6 * up), hand_dir=hd))
+        hd = (rz(yaw) @ V(-0.4, 0.25, -1.0)).lerp(rz(yaw) @ V(0.5, 0.1, 1.0), up)
+        aims.update(arm_aims(arm, "L", wrist, pole=rz(yaw) @ V(1.0, 0.45, 0.1).lerp(V(0.6, 0.3, -1.0), up), hand_dir=hd))
     deg = smooth_keys(K_DEG, f)
     aims["switch"] = ("rot", swing_q(deg))
     sc = {"hair": smooth_keys(K_HAIR, f)}

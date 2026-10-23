@@ -33,7 +33,7 @@ from ugo import _blend_add
 import spear as sp
 from spear import (J, SKIN, NAIL, LIP, MOUTH, BROW, LASH, STUBBLE, HS, DZ, HPIV, hp, hr, hinv, HEAD_C, HEAD_RAD, EYE_R,
                    eye_c, smoothstep, hand_frame, HAND_S, CURLS, fist_center, hand, foot, torso_prims, traps, neck_prim,
-                   deltoid, eyes_field, _forearm, TORSO, TORSO_Z, torso_bones)
+                   eyes_field, _forearm, TORSO, TORSO_Z, torso_bones)
 
 COPPER, BRASS, IRON, WOOD, PORC, RUBBER, SLATE, WIND, GLASS, ENAMEL, RED, LEATHER = 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 4
 IRIS = ((0.2, 0.32, 0.44), (0.5, 0.66, 0.78))          # pale blue eyes (prep.paint_eyes: outer ring, inner ring)
@@ -92,7 +92,7 @@ def head(fd):
     for sx in (-1, 1):
         fd.sub(RoundCone(hp((sx * 0.013, -0.2, 1.742)), hp((sx * 0.017, -0.197, 1.768)), hr(0.0018), hr(0.0015)), hr(0.003))
     # big bushy brows, raised high and flaring up at their outer ends
-    tuft = lambda P: F(0.0026) * NOISE(P * F(140)) + F(0.0012) * np.sin(P[:, 0] * F(360) + P[:, 2] * F(90))
+    tuft = lambda P: F(0.0024) * NOISE(P * F(120)) + F(0.0012) * NOISE(P * F(260))
     for sx in (-1, 1):
         pts = [hp((sx * 0.022, -0.212, 1.774)), hp((sx * 0.064, -0.208, 1.797)), hp((sx * 0.11, -0.188, 1.81)),
                hp((sx * 0.158, -0.148, 1.824)), hp((sx * 0.18, -0.12, 1.84))]
@@ -103,12 +103,12 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.026))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.021))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, -hr(0.024))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.add(Ellipsoid(hp((sx * 0.072, -0.161, 1.637)), v3((0.032, 0.012, 0.012)) * HS), hr(0.012), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.023))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.018))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):
             a = hp((sx * (0.112 + 0.004 * k), -0.132 + 0.006 * k, 1.69 - 0.013 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.026, 0.012, 0.008 - 0.011 * k)), hr(0.0022), hr(0.0014)), hr(0.003))
@@ -134,6 +134,12 @@ def head(fd):
         fd.add(Sphere(hp((sx * 0.187, 0.03, 1.604)), hr(0.017)), hr(0.01), SKIN)
 
 
+def deltoid(side):
+    """A narrower shoulder than the guard's (an old man's)."""
+    sx = -1 if side == "R" else 1
+    return Sphere(J["shoulder_" + side] + v3((sx * 0.012, -0.005, 0.006)), 0.096)
+
+
 def body_parts(fd):
     for p, k in torso_prims():
         fd.add(p, k, SKIN)
@@ -143,10 +149,10 @@ def body_parts(fd):
         sx = -1 if side == "R" else 1
         sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
         fd.add(deltoid(side), 0.055, SKIN)
-        fd.add(RoundCone(sh, el, 0.09, 0.07), 0.05, SKIN)
-        fd.add(Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.022, 0)), (0.08, 0.082, 0.12), R=rot_from_axes(z_axis=el - sh)), 0.04, SKIN)
-        fd.add(RoundCone(el, wr, 0.068, 0.054), 0.035, SKIN)
-        fd.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.085, 0.076, 0.125), R=rot_from_axes(z_axis=wr - el)), 0.04, SKIN)
+        fd.add(RoundCone(sh, el, 0.08, 0.064), 0.05, SKIN)
+        fd.add(Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.018, 0)), (0.07, 0.072, 0.115), R=rot_from_axes(z_axis=el - sh)), 0.04, SKIN)
+        fd.add(RoundCone(el, wr, 0.062, 0.052), 0.035, SKIN)
+        fd.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.006, 0, 0)), (0.075, 0.068, 0.12), R=rot_from_axes(z_axis=wr - el)), 0.04, SKIN)
         fd.add(Sphere(el + v3((0, 0.025, 0)), 0.053), 0.028, SKIN)
         hand(fd, side)
         for p, k in leg_prims(side):
@@ -213,9 +219,9 @@ def tuft_specs():
     """(angle round his head from the front (deg), height (design z), length, width, lift up, sweep back)."""
     rs = np.random.RandomState(17)
     out = []
-    rows = [(1.645, (102, 126, 150, 172), 0.085, 0.032, -0.3, 0.35),
-            (1.73, (86, 106, 128, 150, 172), 0.13, 0.04, 0.15, 0.3),
-            (1.815, (94, 118, 142, 166), 0.12, 0.038, 0.55, 0.25)]
+    rows = [(1.645, (100, 120, 140, 160, 178), 0.09, 0.05, -0.3, 0.35),
+            (1.73, (84, 100, 116, 132, 148, 164, 178), 0.13, 0.058, 0.15, 0.3),
+            (1.815, (92, 110, 128, 146, 164), 0.12, 0.054, 0.55, 0.25)]
     for z, angs, L, w, lift, back in rows:
         for sx in (-1, 1):
             for a in angs:
@@ -261,7 +267,7 @@ def tufts_field():
             p = root - n * hr(0.03) * (1 - u) + d * (hr(L) * u) + curl * (hr(L) * 0.35 * u * u)
             pts.append(p)
             ws.append(hr(w) * (0.75 + 0.5 * math.sin(min(1.0, u / 0.4) * math.pi / 2)) * (1 - 0.85 * u ** 1.4) + 0.002)
-            ts.append(hr(0.018) * (1 - 0.7 * u) + 0.002)
+            ts.append(hr(0.024) * (1 - 0.7 * u) + 0.002)
             ref = Z if abs(d @ Z) < 0.8 else v3((0, 1, 0))
             ns.append(norm(ref - d * (ref @ d)))
         fd.add(Lock(pts, ws, ts, ns, k=hr(0.008), disp=strands, disp_amp=0.003), hr(0.01))
@@ -324,7 +330,7 @@ def goggles_field():
 WAIST_Z = 0.98
 HEM_Z = 0.44
 COAT_OFF, COAT_T = 0.04, 0.014
-SLEEVE_OFF = 0.026
+SLEEVE_OFF = 0.022
 FLAP = 0.01                      # lapels and pockets: a layer on top of the coat
 CUFF_S = 0.09                    # the sleeves end this far above the wrist (under the gauntlets' cuffs)
 
@@ -339,10 +345,10 @@ def coat_base():
         sx = -1 if side == "R" else 1
         sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
         b.add(deltoid(side), 0.055)
-        b.add(RoundCone(sh, el, 0.09, 0.07), 0.05)
-        b.add(Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.022, 0)), (0.08, 0.082, 0.12), R=rot_from_axes(z_axis=el - sh)), 0.04)
-        b.add(RoundCone(el, wr, 0.068, 0.056), 0.035)
-        b.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.008, 0, 0)), (0.085, 0.076, 0.125), R=rot_from_axes(z_axis=wr - el)), 0.04)
+        b.add(RoundCone(sh, el, 0.08, 0.064), 0.05)
+        b.add(Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.018, 0)), (0.07, 0.072, 0.115), R=rot_from_axes(z_axis=el - sh)), 0.04)
+        b.add(RoundCone(el, wr, 0.062, 0.054), 0.035)
+        b.add(Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.006, 0, 0)), (0.075, 0.068, 0.12), R=rot_from_axes(z_axis=wr - el)), 0.04)
         b.add(Sphere(el + v3((0, 0.025, 0)), 0.053), 0.028)
     return b
 
@@ -976,7 +982,7 @@ MAT_OVERRIDES = {
     "Switch": APPARATUS,
 }
 GLOW = {"Charge": ((0.45, 0.92, 1.0), 1.0, 0.5)}
-LOW_TARGETS = {"Skin": 6000, "Teeth": 80, "Hair": 900, "Tufts": 2200, "Moustache": 700, "Goggles": 700, "Coat": 5200,
+LOW_TARGETS = {"Skin": 6000, "Teeth": 80, "Hair": 900, "Tufts": 2800, "Moustache": 700, "Goggles": 700, "Coat": 5200,
                "Waistcoat": 900, "Shirt": 700, "Trousers": 1300, "Boots": 900, "Gloves": 1400, "Brass": 500, "Coil": 4200,
                "Charge": 300, "Console": 3600, "Switch": 500}
 AO_EXCLUDE = ["Brass", "Switch"]
