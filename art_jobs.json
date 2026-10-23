@@ -1,0 +1,12 @@
+[
+ {
+  "name": "rifleman_p2a",
+  "cmd": "O=$GITHUB_WORKSPACE/out/rifleman_p2a; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character rifleman --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character rifleman --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 0,14 --step 1 --spp 8 --res 500 --tx -0.15 --ty -0.45 --tz 1.42 --dist 2.0 --az 40 --el 14 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Combat --range 0,0 --step 1 --spp 8 --res 500 --tx -0.15 --ty -0.45 --tz 1.42 --dist 2.0 --az 40 --el 14 > $O/poses_Combat.log 2>&1 || tail -20 $O/poses_Combat.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/rifleman_p2a"
+ },
+ {
+  "name": "rifleman_p2b",
+  "cmd": "O=$GITHUB_WORKSPACE/out/rifleman_p2b; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_base.py --module rifleman_base --out $O/qbase/base_q.blend --shots $O/qbase/shots > $O/qbase.log 2>&1 & BP=$!\npython3 sculpt_char.py --character rifleman --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character rifleman --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,60 --step 30 --spp 8 --res 500 --tx 0.0 --ty -0.25 --tz 1.0 --dist 4.6 --az 30 --el 26 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 0,8 --step 4 --spp 8 --res 500 --tx 0.0 --ty -0.25 --tz 1.0 --dist 4.6 --az 30 --el 26 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\nwait $BP || tail -40 $O/qbase.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/rifleman_p2b"
+ }
+]
