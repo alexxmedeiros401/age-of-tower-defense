@@ -154,7 +154,9 @@ def face_mask(P):
 def face_pt(x, z, lift=0.0):
     """A point on the face's surface in front of design (x, z), lifted `lift` along the normal, and the normal."""
     hb = head_base()
-    p, n = _hit(hb, hp((x, -0.5, z)), (0, 1, 0), tmax=0.6)
+    p, n = _hit(hb, hp((x, -0.5, z)), (0, 1, 0), tmax=0.9)
+    if p is None:
+        raise ValueError("face_pt(%.3f, %.3f) misses the face" % (x, z))
     return p + n * lift, n
 
 
@@ -241,8 +243,8 @@ def head_field():
     # vents on his cheeks: three short slanted lines each side
     for sx in (-1, 1):
         for k in range(3):
-            a, _ = face_pt(sx * (0.118 + 0.004 * k), 1.605 - 0.016 * k)
-            b, _ = face_pt(sx * (0.138 + 0.004 * k), 1.618 - 0.016 * k)
+            a, _ = face_pt(sx * (0.11 + 0.003 * k), 1.612 - 0.015 * k)
+            b, _ = face_pt(sx * (0.128 + 0.003 * k), 1.624 - 0.015 * k)
             fd.paint(RoundCone(a, b, hr(0.0028), hr(0.0028)), SEAM)
     return fd
 
