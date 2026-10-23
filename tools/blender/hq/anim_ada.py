@@ -46,8 +46,7 @@ G0, A0, U0 = VV(cm.GUN_G0), VV(cm.GUN_A0), VV(cm.GUN_U0)
 S0 = A0.cross(U0)
 
 
-def gl(u, v=0.0, h=0.0):
-    return G0 + A0 * u + S0 * v + U0 * h
+gl = lambda *a: VV(cm.gl(*a))                          # (a point of the launcher at rest, its drawing coordinates)
 
 
 GRIP_AX = VV(cm.grip_axis())
@@ -350,10 +349,10 @@ def make_idle(arm, frames=120):
 
 
 # ----------------------------------------------------------------------------------------------- Overdrive
-CARRY_FIST = V(0.2, -0.38, 1.1)                   # (body frame) the left fist holding the launcher up before her left side
-CARRY_A = V(0.08, 0.1, 1.0).normalized()          # (body frame) its muzzle up
-MID_FIST = V(0.0, -0.6, 1.12)                     # (body frame) on the way: before her, clear of her front
-MID_A = V(0.2, -0.75, 0.62).normalized()
+CARRY_FIST = V(0.35, -0.19, 1.2)                  # (body frame) the left fist on the fore-grip before her left shoulder ...
+CARRY_A = V(0.12, 0.55, 0.83).normalized()        # (body frame) ... the barrel shouldered, up and back over it
+MID_FIST = V(0.08, -0.62, 1.2)                    # (body frame) on the way: before her, clear of her front
+MID_A = V(0.35, -0.55, 0.75).normalized()
 HIGH_W = V(-0.22, -0.12, 2.16)                    # (body frame) the spanner thrust high: its grip ...
 HIGH_A = V(-0.12, -0.18, 1.0).normalized()        # ... its jaw up
 FRONT_W = V(-0.08, -0.4, 1.28)                    # (body frame) where she twirls it: before her chest
@@ -363,7 +362,7 @@ FRONT_A = V(0.1, -0.35, 1.0).normalized()
 def carry_T(Dr, br=0.0):
     R = Dr.to_3x3()
     A = (R @ CARRY_A).normalized()
-    U = up_perp(A, R @ V(0.25, -1.0, 0.0))
+    U = up_perp(A, R @ V(1.0, -0.35, 0.0))        # (its top, the pan, turned out to her left)
     return gun_at(FORE_PT, body_point(Dr, CARRY_FIST) + V(0, 0, 0.003 * br), A, U)
 
 

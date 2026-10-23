@@ -2,7 +2,9 @@
 brick, its riveted iron rim set with the hero ring: twelve glowing amber lamps in brass bezels (their own emissive mesh).
 Round it, on the granite setts: behind her on her right her workbench (an oak top on stout legs, an iron vice on its
 corner with a brass gear clamped in it, two gears and a rolled blueprint on the top, another blueprint hanging over the
-front edge, an oil can, a coil of copper pipe on the shelf below); behind her on her left a small vertical steam engine
+front edge, an oil can, a coil of copper pipe on the shelf below); behind her a stub of
+brick wall broken off in steps, an oak pegboard on it hung with a saw, a big spanner, a hammer and callipers; behind her on
+her left a small vertical steam engine
 (a riveted boiler on an iron firebox whose grated door glows (an emissive mesh), a brass steam dome and whistle, a
 pressure gauge, a chimney pipe, a flywheel on its bearing, a copper steam pipe to its cylinder); before her on her right
 a blue-painted toolbox with a hammer, a spanner and a screwdriver; before her on her left a crate of brass cogs with a big
@@ -171,6 +173,66 @@ def glowmarks_field():
     for i in range(N_GLOW):
         c = glow_pos(i)
         fd.add(Ellipsoid(c, (0.03, 0.03, 0.02)), 0.0)
+    return fd
+
+
+# ---------------------------------------------------------------------------------------------- the workshop's wall
+WALL_A = (73.0, 107.0)            # a stub of the workshop's brick wall behind her (degrees round her)
+WALL_R, WALL_T = 1.17, 0.12
+WALL_TOP = GROUND_TOP + 0.78
+
+
+def wall_top(a):
+    """The wall's broken top: full height in the middle, stepping down course by course toward its ends."""
+    m = (math.radians(WALL_A[0]) + math.radians(WALL_A[1])) / 2
+    t = np.abs(a - F(m)) / F(math.radians(WALL_A[1] - WALL_A[0]) / 2)
+    steps = np.floor(np.clip(t - F(0.45), 0, 1) * F(9)) * F(0.052)
+    return F(WALL_TOP) - steps
+
+
+def wall_field():
+    """Red brick (label 0): a curved stub of wall, courses and joints cut into it, its top broken off in steps toward both
+    ends."""
+    fd = Field("Wall")
+    a0, a1 = math.radians(WALL_A[0]), math.radians(WALL_A[1])
+    course, brick = 0.052, 0.15
+    def wall(P):
+        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
+        a = np.arctan2(P[:, 1], P[:, 0])
+        d_r = np.abs(r - F(WALL_R)) - F(WALL_T / 2)
+        d_a = np.maximum(F(a0) - a, a - F(a1)) * F(WALL_R)
+        d_z = np.maximum(P[:, 2] - wall_top(a), F(GROUND_TOP - 0.06) - P[:, 2])
+        q = np.stack([np.maximum(d_r + F(0.008), 0), np.maximum(d_a + F(0.008), 0), np.maximum(d_z + F(0.008), 0)], 1)
+        return np.minimum(np.maximum(np.maximum(d_r, d_a), d_z) + F(0.008), 0) + np.sqrt((q ** 2).sum(1)) - F(0.008)
+    def joints(P):
+        z = P[:, 2] - F(GROUND_TOP - 0.06)
+        row = np.floor(z / F(course))
+        fz = z / F(course) - row
+        x = np.arctan2(P[:, 1], P[:, 0]) * F(WALL_R) / F(brick) + row * F(0.5)
+        fx = x - np.floor(x)
+        j = np.maximum(F(1) - smoothstep(0.05, 0.14, np.minimum(fz, F(1) - fz)), F(1) - smoothstep(0.02, 0.06, np.minimum(fx, F(1) - fx)))
+        return F(0.005) * j + F(0.002) * NOISE(P * F(25))
+    R = WALL_R + 0.2
+    fd.add(Func(wall, (-R, 0.0, GROUND_TOP - 0.1), (R, R, WALL_TOP + 0.05), disp=joints, disp_amp=0.006), 0.0)
+    return fd
+
+
+def board_frame():
+    """The pegboard on the wall's inner face: (its middle, inward, tangent)."""
+    a = math.radians(sum(WALL_A) / 2)
+    d = v3((math.cos(a), math.sin(a), 0.0))
+    c = d * (WALL_R - WALL_T / 2 - 0.012) + v3((0, 0, GROUND_TOP + 0.5))
+    return c, -d, norm(np.cross(v3((0, 0, 1)), -d))
+
+
+def board_field():
+    """An oak pegboard (siege: label 10) on the wall, a row of iron pegs (6)."""
+    fd = Field("Board")
+    c, inw, tg = board_frame()
+    R = np.stack([tg, inw, v3((0, 0, 1))], 1)
+    fd.add(RoundBox(c, (0.25, 0.012, 0.17), 0.006, R=R, disp=lambda P: F(0.001) * NOISE(P * F(40)), disp_amp=0.0012), 0.0, 10)
+    for k in range(5):
+        fd.add(RoundCone(c + tg * (-0.18 + 0.09 * k) + v3((0, 0, 0.1)), c + tg * (-0.18 + 0.09 * k) + inw * 0.035 + v3((0, 0, 0.11)), 0.006, 0.005), 0.003, 6)
     return fd
 
 
@@ -482,6 +544,28 @@ def metal_field():
     _gear(fd, b3 - R3[:, 0] * 0.05 + R3[:, 1] * -0.03 + v3((0, 0, 0.07)), norm(R3[:, 0] + v3((0, 0, 0.6))), 0.05, 0.012, 10)
     lean = c3 + inw3 * 0.15 + v3((0, 0, 0.11))
     _gear(fd, lean, norm(inw3 + v3((0, 0, 0.3))), 0.1, 0.016, 16)
+    # tools hanging on the pegboard: a saw, a big spanner, a hammer, callipers
+    c4, inw4, tg4 = board_frame()
+    peg = lambda k: c4 + tg4 * (-0.18 + 0.09 * k) + inw4 * 0.03 + v3((0, 0, 0.1))
+    Rb = np.stack([tg4, inw4, v3((0, 0, 1))], 1)
+    p0 = peg(0)                                                                  # the saw: a steel blade (7), walnut handle (0)
+    fd.add(RoundBox(p0 + v3((0, 0, -0.03)) + inw4 * 0.004, (0.022, 0.012, 0.03), 0.008, R=Rb), 0.0, 0)
+    fd.add(Inter(RoundBox(p0 + v3((0, 0, -0.15)) + inw4 * 0.004, (0.03, 0.0025, 0.1), 0.002, R=Rb),
+                 Plane(p0 + v3((0, 0, -0.06)) + tg4 * 0.032, norm(tg4 + v3((0, 0, -0.18)))), 0.002), 0.003, 7)
+    p1 = peg(1) + inw4 * 0.004                                                   # a big spanner (8)
+    fd.add(RoundBox(p1 + v3((0, 0, -0.12)), (0.011, 0.004, 0.1), 0.003, R=Rb), 0.0, 8)
+    jc = p1 + v3((0, 0, -0.24))
+    fd.add(Cylinder(jc, 0.032, 0.01, rr=0.003, R=rot_from_axes(z_axis=inw4)), 0.004, 8)
+    fd.sub(RoundBox(jc + v3((0, 0, -0.025)), (0.012, 0.03, 0.03), 0.003, R=Rb), 0.002)
+    fd.add(Torus(p1 + v3((0, 0, -0.012)), 0.014, 0.004, R=rot_from_axes(z_axis=inw4)), 0.002, 8)
+    p3 = peg(3) + inw4 * 0.004                                                   # a hammer, head down
+    fd.add(RoundCone(p3 + v3((0, 0, -0.01)), p3 + v3((0, 0, -0.17)), 0.009, 0.011), 0.0, 0)
+    fd.add(RoundBox(p3 + v3((0, 0, -0.19)), (0.045, 0.014, 0.016), 0.005, R=Rb), 0.004, 8)
+    p4 = peg(4) + inw4 * 0.004                                                   # callipers (brass, 6)
+    for s_ in (-1, 1):
+        fd.add(Chain([p4 + v3((0, 0, -0.01)), p4 + tg4 * (s_ * 0.025) + v3((0, 0, -0.09)), p4 + tg4 * (s_ * 0.012) + v3((0, 0, -0.17))],
+                     [0.004, 0.004, 0.003], k=0.002), 0.002, 6)
+    fd.add(Torus(p4 + v3((0, 0, -0.006)), 0.012, 0.004, R=rot_from_axes(z_axis=inw4)), 0.002, 6)
     return fd
 
 
@@ -516,12 +600,13 @@ def fields():
     return [("Ground", ground_field(), 0.008), ("Plinth", plinth_field(), 0.005), ("Floor", floor_field(), 0.004),
             ("Rim", rim_field(), 0.003), ("Glowmarks", glowmarks_field(), 0.0025), ("Bench", bench_field(), 0.004),
             ("Paper", paper_field(), 0.0022), ("Engine", engine_field(), 0.0035), ("Fire", fire_field(), 0.004),
-            ("Crates", crates_field(), 0.003), ("Metal", metal_field(), 0.0022)]
+            ("Crates", crates_field(), 0.003), ("Metal", metal_field(), 0.0022), ("Wall", wall_field(), 0.004),
+            ("Board", board_field(), 0.003)]
 
 
-REGION_PARTS = ("Ground", "Floor", "Rim", "Bench", "Paper", "Engine", "Crates", "Metal")
+REGION_PARTS = ("Ground", "Floor", "Rim", "Bench", "Paper", "Engine", "Crates", "Metal", "Board")
 LOW_TARGETS = {"Ground": 2200, "Plinth": 1100, "Floor": 2200, "Rim": 1100, "Glowmarks": 300, "Bench": 900, "Paper": 500,
-               "Engine": 2600, "Fire": 60, "Crates": 1100, "Metal": 2200}
+               "Engine": 2600, "Fire": 60, "Crates": 1100, "Metal": 2600, "Wall": 900, "Board": 300}
 OAK = {"wood": (0.56, 0.38, 0.22), "wood2": (0.42, 0.27, 0.15), "metal": "iron"}
 MAT_OVERRIDES = {"Ground": ("flagstone", {"name": "HQ_Setts", "base": (0.44, 0.43, 0.42), "alt": (0.52, 0.45, 0.37)}),
                  "Plinth": ("mudbrick", {"name": "HQ_RedBrick", "base": (0.6, 0.24, 0.16), "mortar": (0.66, 0.62, 0.55),
@@ -529,6 +614,9 @@ MAT_OVERRIDES = {"Ground": ("flagstone", {"name": "HQ_Setts", "base": (0.44, 0.4
                  "Floor": ("siege", dict(OAK, name="HQ_Floorboards")),
                  "Rim": ("armory", {"name": "HQ_TurntableRim"}),
                  "Bench": ("siege", dict(OAK, name="HQ_Workbench")),
+                 "Board": ("siege", dict(OAK, name="HQ_Workbench")),
+                 "Wall": ("mudbrick", {"name": "HQ_RedBrick", "base": (0.6, 0.24, 0.16), "mortar": (0.66, 0.62, 0.55),
+                                       "course": 0.052, "brick": 0.15}),
                  "Paper": ("linen", {"name": "HQ_Blueprint", "base": (0.2, 0.36, 0.64), "stripe": (0.9, 0.93, 0.97)}),
                  "Engine": ("armory", {"name": "HQ_SteamEngine", "copper": ((0.75, 0.35, 0.18), (0.98, 0.66, 0.44))}),
                  "Crates": ("siege", {"name": "HQ_Boxes", "wood": (0.6, 0.45, 0.28), "wood2": (0.46, 0.33, 0.2),

@@ -39,6 +39,31 @@ SKIN, NAIL, LIP, MOUTH, BROW, PAINT, FRECKLE, LASH = 0, 1, 2, 3, 4, 5, 6, 8
 IRIS = ((0.12, 0.32, 0.12), (0.44, 0.66, 0.24))           # green eyes (prep.paint_eyes)
 
 
+class ScaledField(Field):
+    """A field scaled by `s` about the point `c` (labels and painted regions kept): the props are drawn at one size and
+    shipped at another."""
+
+    def __init__(self, inner, c, s):
+        self.name, self.inner, self.c, self.s = inner.name, inner, v3(c), float(s)
+        self.ops = []
+
+    def _in(self, P):
+        return ((np.asarray(P, F) - self.c.astype(F)) / F(self.s) + self.c.astype(F)).astype(F)
+
+    def bounds(self):
+        lo, hi = self.inner.bounds()
+        return self.c + (lo - self.c) * self.s, self.c + (hi - self.c) * self.s
+
+    def eval(self, P, labels=False, margin=0.0):
+        r = self.inner.eval(self._in(P), labels=labels, margin=margin / self.s)
+        if labels:
+            return r[0] * F(self.s), r[1]
+        return r * F(self.s)
+
+    def paint_dist(self, P, band=0.004):
+        return {k: v * F(self.s) for k, v in self.inner.paint_dist(self._in(P), band / self.s).items()}
+
+
 # ======================================================================================= head
 def head(fd):
     """Kira's face made younger and rounder: soft apple cheeks lifted by a wide grin, both corners of the mouth drawn up,
@@ -52,25 +77,25 @@ def head(fd):
     for sx in (-1, 1):
         fd.add(S((sx * 0.106, -0.12, 1.634), 0.04), 0.05, SKIN)                                # cheekbones
         fd.add(S((sx * 0.112, -0.05, 1.566), 0.043), 0.05, SKIN)
-        fd.add(S((sx * 0.074, -0.15, 1.598), 0.031), 0.03, SKIN)                               # apple cheeks (the grin)
+        fd.add(S((sx * 0.076, -0.148, 1.602), 0.025), 0.03, SKIN)                              # apple cheeks (the grin)
         pts = [hp((sx * 0.15, -0.06, 1.744)), hp((sx * 0.115, -0.128, 1.75)), hp((sx * 0.062, -0.162, 1.748))]
         fd.add(Chain(pts, [hr(0.01), hr(0.014), hr(0.012)], k=hr(0.02)), hr(0.03), SKIN)
     # brows: arched, a little drawn down at their inner ends
     for sx in (-1, 1):
-        pts = [hp((sx * 0.033, -0.201, 1.755)), hp((sx * 0.07, -0.197, 1.771)), hp((sx * 0.11, -0.174, 1.781)),
-               hp((sx * 0.148, -0.134, 1.773))]
-        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.0052), hr(0.0066), hr(0.0056), hr(0.0026)], k=hr(0.006)), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.012), hr(0.0145), hr(0.012), hr(0.0065)], k=hr(0.01)), BROW)
+        pts = [hp((sx * 0.034, -0.202, 1.769)), hp((sx * 0.07, -0.198, 1.787)), hp((sx * 0.11, -0.175, 1.794)),
+               hp((sx * 0.148, -0.135, 1.781))]
+        fd.add(Chain([p + v3((0, 0.009, 0)) for p in pts], [hr(0.0042), hr(0.0056), hr(0.0048), hr(0.0022)], k=hr(0.006)), hr(0.01), BROW)
+        fd.paint(Chain(pts, [hr(0.0105), hr(0.0125), hr(0.0105), hr(0.0055)], k=hr(0.01)), BROW)
     # eyes wide open, lashes on the upper lids flicked out at the corners; the lower lids lifted by the grin
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.22, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0245))), (sx * 0.18, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0215))), (sx * -0.16, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0235))), (sx * -0.2, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0155))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.012)))
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.18, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.016)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.013), hr(0.006), hr(0.006))), hr(0.0042), hr(0.0015)), hr(0.004), LASH)
     # a small, upturned nose
     fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.212, 1.652)), hr(0.0105), hr(0.0145)), hr(0.016), SKIN)
@@ -79,39 +104,40 @@ def head(fd):
         fd.add(S((sx * 0.022, -0.196, 1.627), 0.013), hr(0.01), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.012, -0.209, 1.616)), v3((0.007, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     # the grin: both corners drawn up into the cheeks, the lips parted on her upper teeth
-    slot = [hp((-0.064, -0.158, 1.567)), hp((-0.034, -0.186, 1.548)), hp((0, -0.195, 1.544)), hp((0.034, -0.186, 1.548)),
-            hp((0.064, -0.158, 1.567))]
+    slot = [hp((-0.068, -0.153, 1.58)), hp((-0.038, -0.184, 1.553)), hp((0, -0.195, 1.544)), hp((0.038, -0.184, 1.553)),
+            hp((0.068, -0.153, 1.58))]
     fd.sub(Chain(slot, [hr(0.0024), hr(0.0031), hr(0.0034), hr(0.0031), hr(0.0024)], k=hr(0.003)), hr(0.003))
     fd.paint(Chain(slot, [hr(0.0034), hr(0.0046), hr(0.005), hr(0.0046), hr(0.0034)], k=hr(0.004)), MOUTH)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.073, -0.151, 1.582), 0.014), hr(0.011), SKIN)                        # the grin's cheeks
-    up_lip = [(-0.062, -0.157, 1.572), (-0.033, -0.18, 1.56), (-0.01, -0.186, 1.561), (0.01, -0.186, 1.561),
-              (0.033, -0.18, 1.56), (0.062, -0.157, 1.572)]
-    lo_lip = [(-0.052, -0.161, 1.55), (-0.026, -0.179, 1.531), (0.0, -0.184, 1.527), (0.026, -0.179, 1.531),
-              (0.052, -0.161, 1.55)]
+        fd.add(S((sx * 0.075, -0.149, 1.592), 0.011), hr(0.01), SKIN)                         # the grin's cheeks
+    up_lip = [(-0.066, -0.152, 1.584), (-0.036, -0.179, 1.565), (-0.011, -0.186, 1.563), (0.011, -0.186, 1.563),
+              (0.036, -0.179, 1.565), (0.066, -0.152, 1.584)]
+    lo_lip = [(-0.058, -0.157, 1.564), (-0.03, -0.178, 1.534), (0.0, -0.184, 1.526), (0.03, -0.178, 1.534),
+              (0.058, -0.157, 1.564)]
     fd.add(Chain([hp(p) for p in up_lip], [hr(0.0034), hr(0.0062), hr(0.0068), hr(0.0068), hr(0.0062), hr(0.0034)], k=hr(0.006)), hr(0.009), LIP)
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.0042), hr(0.0078), hr(0.0086), hr(0.0078), hr(0.0042)], k=hr(0.007)), hr(0.009), LIP)
-    gap = Ellipsoid(hp((0.0, -0.19, 1.547)), v3((0.046, 0.032, 0.0072)) * HS)
-    fd.sub(gap, hr(0.003))
-    fd.paint(Ellipsoid(hp((0.0, -0.18, 1.547)), v3((0.05, 0.03, 0.0098)) * HS), MOUTH)
+    gap = Inter(Ellipsoid(hp((0.0, -0.19, 1.548)), v3((0.052, 0.032, 0.0115)) * HS),
+                Func(lambda P: (F(1.5395) + F(3.2) * hinv(P)[:, 0] ** 2 - hinv(P)[:, 2]) * F(HS), (-1, -1, 1.3), (1, 1, 1.8)), hr(0.002))
+    fd.sub(gap, hr(0.003))                                                               # (its lower edge curving up: a smile)
+    fd.paint(Ellipsoid(hp((0.0, -0.18, 1.549)), v3((0.056, 0.03, 0.014)) * HS), MOUTH)
     for sx in (-1, 1):
-        fd.sub(S((sx * 0.077, -0.156, 1.571), 0.0055), hr(0.006))                              # dimples
+        fd.sub(S((sx * 0.08, -0.15, 1.584), 0.0055), hr(0.006))                               # dimples
         fd.add(Ellipsoid(hp((sx * 0.174, 0.035, 1.66)), v3((0.024, 0.043, 0.054)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
     # freckles across her nose and cheeks
     rs = np.random.RandomState(12)
-    for i in range(30):
-        x = rs.uniform(-0.125, 0.125)
-        z = 1.628 + rs.uniform(-0.03, 0.03) - 0.16 * x * x
-        if abs(x) < 0.022 and z < 1.632:
+    for i in range(40):
+        x = rs.uniform(-0.12, 0.12)
+        z = 1.632 + rs.uniform(-0.026, 0.026) - 0.16 * x * x
+        if abs(x) < 0.022 and z < 1.636:
             continue
-        r = rs.uniform(0.0034, 0.0052)
+        r = rs.uniform(0.0024, 0.0036)
         fd.paint(hstripe((x, z), (x + 0.001, z), r, r, y0=-0.5, y1=-0.08), FRECKLE)
 
 
 def teeth_field():
     """Her upper teeth, showing in the grin."""
     fd = Field("Teeth")
-    pts = [hp((-0.033, -0.17, 1.553)), hp((-0.012, -0.18, 1.55)), hp((0.012, -0.18, 1.55)), hp((0.033, -0.17, 1.553))]
+    pts = [hp((-0.04, -0.165, 1.558)), hp((-0.014, -0.179, 1.551)), hp((0.014, -0.179, 1.551)), hp((0.04, -0.165, 1.558))]
     fd.add(Chain(pts, [hr(0.0092)] * 4, k=hr(0.004)), 0.0)
     return fd
 
@@ -158,7 +184,7 @@ def hairline(P):
     """> 0 below her hairline (design units): her forehead, in front of her ears, round the nape."""
     Q = hinv(P)
     y = Q[:, 1]
-    zl = F(1.815) - F(0.09) * smoothstep(-0.13, -0.07, y) - F(0.15) * smoothstep(0.075, 0.14, y)
+    zl = F(1.852) - F(0.1) * smoothstep(-0.14, -0.06, y) - F(0.17) * smoothstep(0.075, 0.14, y)
     return zl - Q[:, 2]
 
 
@@ -178,7 +204,7 @@ def _combed(P):
     e2 = np.cross(BUN_AX, e1)
     q = P - HEAD_C.astype(F)
     a = np.arctan2(q @ e2.astype(F), q @ e1.astype(F))
-    return F(0.0034) * np.abs(np.sin(a * F(15) + F(1.4) * NOISE(P * F(8)))) + F(0.0016) * NOISE(P * F(55))
+    return F(0.0022) * np.abs(np.sin(a * F(11) + F(1.6) * NOISE(P * F(7)))) + F(0.0012) * NOISE(P * F(45)) + F(0.002) * NOISE(P * F(12))
 
 
 def hair_field(seed=4):
@@ -197,11 +223,11 @@ def hair_field(seed=4):
     # the bun: a knot with loops of hair wound round it
     R = rot_from_axes(z_axis=BUN_AX)
     grooves = lambda P: F(0.0025) * np.abs(np.sin((P @ np.array([1.0, 0.6, 0.3], F)) * F(150))) + F(0.0015) * NOISE(P * F(45))
-    fd.add(Ellipsoid(BUN - BUN_AX * 0.012, v3((0.058, 0.054, 0.042)) * HS, R=R, disp=grooves, disp_amp=0.003), 0.02)
+    fd.add(Ellipsoid(BUN - BUN_AX * 0.008, v3((0.07, 0.066, 0.05)) * HS, R=R, disp=grooves, disp_amp=0.003), 0.02)
     for k in range(6):
         tilt = rng.uniform(-0.6, 0.6, 2)
         Rk = R @ euler(tilt[0], tilt[1], rng.uniform(0, 6.28))
-        r0 = hr(0.05) * rng.uniform(0.85, 1.05)
+        r0 = hr(0.062) * rng.uniform(0.85, 1.05)
         a0 = rng.uniform(0, 6.28)
         span = rng.uniform(3.4, 4.6)
         pts, ns = [], []
@@ -210,20 +236,23 @@ def hair_field(seed=4):
             loc = v3((math.cos(a) * r0, math.sin(a) * r0, 0.012 * math.sin(a * 1.7)))
             pts.append(BUN + Rk @ loc)
             ns.append(Rk @ norm(loc + v3((0, 0, 0.02))))
-        fd.add(Lock(pts, [0.03, 0.036, 0.038, 0.036, 0.034, 0.03, 0.022], [0.016, 0.019, 0.02, 0.019, 0.017, 0.015, 0.01], ns, k=0.008,
+        fd.add(Lock(pts, [0.034, 0.04, 0.042, 0.04, 0.038, 0.033, 0.024], [0.018, 0.021, 0.022, 0.021, 0.019, 0.016, 0.011], ns, k=0.008,
                     disp=grooves, disp_amp=0.003), 0.008)
     for k in range(4):                                       # ends sticking out of the bun
         d = norm(BUN_AX * 0.4 + v3((rng.uniform(-1, 1), rng.uniform(-0.6, 0.8), rng.uniform(0.2, 1.0))))
         side = norm(np.cross(d, BUN_AX))
-        p0 = BUN + d * hr(0.045)
+        p0 = BUN + d * hr(0.056)
         L = rng.uniform(0.05, 0.08)
         pts = [p0, p0 + d * L * 0.5 + side * 0.008, p0 + d * L + side * 0.02 + v3((0, 0, -0.01))]
         fd.add(Lock(pts, [0.016, 0.011, 0.004], [0.007, 0.005, 0.002], [side] * 3, k=0.004, disp=grooves, disp_amp=0.002), 0.005)
     # loose wisps at her temples (in front of her ears) and at the nape
     for sx in (-1, 1):
-        top = hp((sx * 0.15, -0.076, 1.748))
-        bot = hp((sx * 0.162, -0.09, 1.6))
-        _ringlet(fd, [top, lerp(top, bot, 0.5) + v3((sx * 0.01, -0.004, 0)), bot], 0.01, 0.0085, 1.6, rng.uniform(0, 6.28))
+        for j, (dy, L) in enumerate(((-0.08, 0.15), (-0.06, 0.12))):
+            top = hp((sx * 0.148, dy, 1.775))
+            pts = [top, top + v3((sx * 0.016, -0.012, -L * 0.45)), top + v3((sx * 0.008, -0.022, -L * 0.85)), top + v3((sx * -0.004, -0.016, -L))]
+            nrm = v3((sx, -0.3, 0.0))
+            fd.add(Lock(pts, [0.016, 0.017, 0.012, 0.004], [0.006, 0.006, 0.005, 0.002], [nrm] * 4, k=0.004,
+                        disp=lambda P: F(0.0012) * NOISE(P * F(80)), disp_amp=0.0015), 0.004)
         top = hp((sx * 0.055, 0.17, 1.605))
         bot = hp((sx * 0.068, 0.183, 1.555))
         _ringlet(fd, [top, bot], 0.007, 0.0065, 1.2, rng.uniform(0, 6.28))
@@ -232,8 +261,8 @@ def hair_field(seed=4):
 
 # the pencil through the bun: its sharpened tip out to her left, the eraser to her right
 PENCIL_D = norm(v3((1.0, -0.18, 0.32)))
-PENCIL_A = BUN - PENCIL_D * 0.09        # the eraser's end
-PENCIL_B = BUN + PENCIL_D * 0.11        # the point
+PENCIL_A = BUN - PENCIL_D * 0.115       # the eraser's end
+PENCIL_B = BUN + PENCIL_D * 0.135       # the point
 
 
 def pencil_field():
@@ -247,14 +276,14 @@ def pencil_field():
     def hexa(P, a=body0, b=body1):
         q = (P - a.astype(F)) @ R.astype(F)
         ang = np.arctan2(q[:, 1], q[:, 0])
-        rr = F(0.0072) / np.cos(np.mod(ang + F(math.pi / 6), F(math.pi / 3)) - F(math.pi / 6))   # a hexagon
+        rr = F(0.0088) / np.cos(np.mod(ang + F(math.pi / 6), F(math.pi / 3)) - F(math.pi / 6))   # a hexagon
         Lb = float(np.linalg.norm(b - a))
         return np.maximum(np.sqrt(q[:, 0] ** 2 + q[:, 1] ** 2) - rr * F(0.97), np.maximum(-q[:, 2], q[:, 2] - F(Lb)))
     fd.add(Func(hexa, np.minimum(body0, body1) - 0.02, np.maximum(body0, body1) + 0.02), 0.0, 5)
-    fd.add(RoundCone(body1 - d * 0.002, PENCIL_B, 0.0068, 0.0012), 0.002, 0)                # the sharpened wood
+    fd.add(RoundCone(body1 - d * 0.002, PENCIL_B, 0.0083, 0.0013), 0.002, 0)                # the sharpened wood
     fd.paint(Sphere(PENCIL_B, 0.008), 6)                                                     # graphite
-    fd.add(Cylinder(PENCIL_A + d * 0.014, 0.0078, 0.016, rr=0.002, R=R), 0.002, 6)          # the ferrule
-    fd.add(Cylinder(PENCIL_A + d * 0.004, 0.0072, 0.012, rr=0.0035, R=R), 0.002, 7)         # the eraser
+    fd.add(Cylinder(PENCIL_A + d * 0.014, 0.0094, 0.016, rr=0.002, R=R), 0.002, 6)          # the ferrule
+    fd.add(Cylinder(PENCIL_A + d * 0.004, 0.0088, 0.012, rr=0.0042, R=R), 0.002, 7)         # the eraser
     return fd
 
 
@@ -707,10 +736,11 @@ def belt_field():
     fd.add(RoundCone(bc + d * 0.006 + v3((0, 0, 0.022)), bc + d * 0.006 + v3((0, 0, -0.022)), 0.0045, 0.0045), 0.002, 6)
     fd.add(RoundCone(bc + d * 0.01, bc + d * 0.01 + v3((0.03, 0, 0.003)), 0.0035, 0.003), 0.002, 6)
     # loops: short leather straps standing off the belt
-    for ang, w in [(WRENCH_ANGLE, 0.03)] + [(a, 0.02) for a in DRIVER_ANGLES] + [(SPANNER_ANGLE, 0.024)]:
+    for ang, w in [(WRENCH_ANGLE, 0.036)] + [(a, 0.02) for a in DRIVER_ANGLES] + [(SPANNER_ANGLE, 0.024)]:
         p, d = belt_point(ang, 0.006)
         side = norm(np.cross(v3((0, 0, 1)), d))
-        fd.add(RoundBox(p + d * 0.004 - v3((0, 0, 0.006)), (w * 0.5, 0.008, BELT_W + 0.008), 0.004, R=np.stack([side, d, v3((0, 0, 1))], 1)), 0.004, 0)
+        deep = 0.022 if ang == WRENCH_ANGLE else 0.008             # (the spanner's loop stands out round its handle)
+        fd.add(RoundBox(p + d * (deep - 0.004) - v3((0, 0, 0.006)), (w * 0.5, deep, BELT_W + 0.008), 0.004, R=np.stack([side, d, v3((0, 0, 1))], 1)), 0.004, 0)
         for s in (-1, 1):
             fd.add(Sphere(p + d * 0.012 + side * (s * w * 0.32) + v3((0, 0, BELT_W - 0.004)), 0.004), 0.002, 6)   # rivets
     # the pouch behind on her left
@@ -747,8 +777,9 @@ def tools_field():
 
 
 # ======================================================================================= the spanner (prop: `wrench`)
-WR_LEN = (0.16, 0.11)          # the grip's middle -> the handle's end (back), -> the jaw's middle (forward)
+WR_LEN = (0.16, 0.11)          # the grip's middle -> the handle's end (back), -> the jaw's middle (forward) (as drawn)
 WR_JAW_R = 0.047
+WR_SCALE = 1.25                # (shipped this much bigger about its grip)
 
 
 def wrench_rest():
@@ -764,7 +795,7 @@ def wrench_rest():
 
 def wrench_jaw():
     G, A, E, N = wrench_rest()
-    return G + A * WR_LEN[1]
+    return G + A * (WR_LEN[1] * WR_SCALE)
 
 
 def wrench_field():
@@ -790,7 +821,7 @@ def wrench_field():
         return np.maximum(np.abs(q @ wd.astype(F)) - F(hw), -(q @ opn.astype(F)) - F(back))
     fd.sub(Func(lambda P: jaw_slot(P, 0.021, 0.005), jc - 0.1, jc + 0.1), 0.003)          # the open jaw
     fd.paint(Func(lambda P: jaw_slot(P, 0.027, 0.012), jc - 0.1, jc + 0.1), 7)               # its bright throat
-    return fd
+    return ScaledField(fd, G, WR_SCALE)
 
 
 # ======================================================================================= the gauntlet (right forearm)
@@ -929,9 +960,17 @@ DRUM_R = 0.072
 N_BOLTS = 8
 
 
-def gl(u, v=0.0, h=0.0):
-    """A point of the launcher (launcher coordinates: u along the barrel, v to its right, h up), where it is at rest."""
+GUN_SCALE = 1.2                           # (drawn at 1, shipped 1.2 times bigger about the grip: it reads from above)
+
+
+def _gr(u, v=0.0, h=0.0):
+    """A point of the launcher as drawn (launcher coordinates: u along the barrel, v to its right, h up)."""
     return GUN_G0 + GUN_A0 * u + GUN_S0 * v + GUN_U0 * h
+
+
+def gl(u, v=0.0, h=0.0):
+    """A point of the launcher (drawing coordinates), where it is at rest (scaled)."""
+    return GUN_G0 + (GUN_A0 * u + GUN_S0 * v + GUN_U0 * h) * GUN_SCALE
 
 
 def grip_axis():
@@ -960,53 +999,53 @@ def launcher_field():
     ga = grip_axis()
     gs = norm(np.cross(ga, S))
     Rgr = np.stack([S, gs, ga], 1)
-    fd.add(RoundBox(gl(0.0, 0.0, -0.006), (0.016, 0.022, 0.062), 0.013, R=Rgr, disp=wood, disp_amp=0.001), 0.0, 0)
-    fd.add(Ellipsoid(gl(0.0) - ga * 0.068, (0.02, 0.026, 0.012), R=Rgr), 0.006, 6)          # its brass cap
+    fd.add(RoundBox(_gr(0.0, 0.0, -0.006), (0.016, 0.022, 0.062), 0.013, R=Rgr, disp=wood, disp_amp=0.001), 0.0, 0)
+    fd.add(Ellipsoid(_gr(0.0) - ga * 0.068, (0.02, 0.026, 0.012), R=Rgr), 0.006, 6)          # its brass cap
     # the receiver
-    fd.add(RoundBox(gl(0.05, 0.0, 0.095), (0.032, 0.115, 0.042), 0.013, R=Rg), 0.012, 6)
+    fd.add(RoundBox(_gr(0.05, 0.0, 0.095), (0.032, 0.115, 0.042), 0.013, R=Rg), 0.012, 6)
     for sv in (-1, 1):
-        fd.add(RoundBox(gl(0.04, sv * 0.03, 0.09), (0.004, 0.07, 0.026), 0.003, R=Rg), 0.003, 8)   # iron side plates
+        fd.add(RoundBox(_gr(0.04, sv * 0.03, 0.09), (0.004, 0.07, 0.026), 0.003, R=Rg), 0.003, 8)   # iron side plates
         for u in (-0.01, 0.03, 0.07, 0.11):
             for hh in (0.068, 0.112):
-                fd.add(Sphere(gl(u, sv * 0.034, hh), 0.0042), 0.0015, 6)
+                fd.add(Sphere(_gr(u, sv * 0.034, hh), 0.0042), 0.0015, 6)
     # a short walnut butt cap behind the receiver (no long stock: she fires from the hip), a brass end plate
-    fd.add(Ellipsoid(gl(-0.08, 0.0, 0.1), (0.03, 0.055, 0.038), R=Rg, disp=wood, disp_amp=0.001), 0.02, 0)
-    fd.add(Cylinder(gl(-0.128, 0.0, 0.1), 0.026, 0.008, rr=0.003, R=rot_from_axes(z_axis=A)), 0.006, 6)
+    fd.add(Ellipsoid(_gr(-0.08, 0.0, 0.1), (0.03, 0.055, 0.038), R=Rg, disp=wood, disp_amp=0.001), 0.02, 0)
+    fd.add(Cylinder(_gr(-0.128, 0.0, 0.1), 0.026, 0.008, rr=0.003, R=rot_from_axes(z_axis=A)), 0.006, 6)
     # the barrel, its bands and the flared muzzle
-    b0, b1 = gl(0.16, 0.0, BAR_H), gl(MUZZLE_U - 0.03, 0.0, BAR_H)
+    b0, b1 = _gr(0.16, 0.0, BAR_H), _gr(MUZZLE_U - 0.03, 0.0, BAR_H)
     fd.add(RoundCone(b0, b1, 0.021, 0.019), 0.006, 7)
     for u in (0.26, 0.42):
-        fd.add(Torus(gl(u, 0.0, BAR_H), 0.021, 0.0055, R=rot_from_axes(z_axis=A)), 0.003, 6)
-    fd.add(RoundCone(gl(MUZZLE_U - 0.05, 0.0, BAR_H), gl(MUZZLE_U, 0.0, BAR_H), 0.021, 0.028), 0.006, 6)
-    fd.add(Torus(gl(MUZZLE_U - 0.004, 0.0, BAR_H), 0.026, 0.005, R=rot_from_axes(z_axis=A)), 0.003, 6)
-    fd.sub(Cylinder(gl(MUZZLE_U, 0.0, BAR_H), 0.011, 0.08, R=rot_from_axes(z_axis=A)), 0.002)
-    fd.add(RoundBox(gl(MUZZLE_U - 0.03, 0.0, BAR_H + 0.026), (0.003, 0.01, 0.008), 0.002, R=Rg), 0.003, 6)    # the sight
+        fd.add(Torus(_gr(u, 0.0, BAR_H), 0.021, 0.0055, R=rot_from_axes(z_axis=A)), 0.003, 6)
+    fd.add(RoundCone(_gr(MUZZLE_U - 0.05, 0.0, BAR_H), _gr(MUZZLE_U, 0.0, BAR_H), 0.021, 0.028), 0.006, 6)
+    fd.add(Torus(_gr(MUZZLE_U - 0.004, 0.0, BAR_H), 0.026, 0.005, R=rot_from_axes(z_axis=A)), 0.003, 6)
+    fd.sub(Cylinder(_gr(MUZZLE_U, 0.0, BAR_H), 0.011, 0.08, R=rot_from_axes(z_axis=A)), 0.002)
+    fd.add(RoundBox(_gr(MUZZLE_U - 0.03, 0.0, BAR_H + 0.026), (0.003, 0.01, 0.008), 0.002, R=Rg), 0.003, 6)    # the sight
     # the copper tank under the barrel
-    t0, t1 = gl(0.135, 0.0, 0.038), gl(0.45, 0.0, 0.038)
+    t0, t1 = _gr(0.135, 0.0, 0.038), _gr(0.45, 0.0, 0.038)
     fd.add(RoundCone(t0, t1, 0.033, 0.033), 0.006, 9)
     for u in (0.18, 0.3, 0.42):
-        fd.add(Torus(gl(u, 0.0, 0.038), 0.034, 0.0045, R=rot_from_axes(z_axis=A)), 0.002, 6)
-        fd.add(RoundBox(gl(u, 0.0, 0.08), (0.007, 0.006, 0.02), 0.003, R=Rg), 0.003, 6)         # straps up to the barrel
+        fd.add(Torus(_gr(u, 0.0, 0.038), 0.034, 0.0045, R=rot_from_axes(z_axis=A)), 0.002, 6)
+        fd.add(RoundBox(_gr(u, 0.0, 0.08), (0.007, 0.006, 0.02), 0.003, R=Rg), 0.003, 6)         # straps up to the barrel
     for u in np.linspace(0.15, 0.44, 8):
-        fd.add(Sphere(gl(u, 0.0, 0.074), 0.0035), 0.0015, 9)                                    # a riveted seam on top
+        fd.add(Sphere(_gr(u, 0.0, 0.074), 0.0035), 0.0015, 9)                                    # a riveted seam on top
     # its gauge, on the outer side
-    gpc = gl(0.25, 0.037, 0.034)
+    gpc = _gr(0.25, 0.037, 0.034)
     fd.add(Cylinder(gpc, 0.022, 0.014, rr=0.004, R=rot_from_axes(z_axis=S)), 0.004, 6)
     fd.add(Cylinder(gpc + S * 0.006, 0.017, 0.005, rr=0.002, R=rot_from_axes(z_axis=S)), 0.0015, 7)
     fd.add(RoundCone(gpc + S * 0.009, gpc + S * 0.009 + norm(A + U * 0.6) * 0.013, 0.0017, 0.0012), 0.001, 8)
     # a valve on the tank's front, a pipe from its back up into the receiver
-    fd.add(RoundCone(gl(0.475, 0.0, 0.038), gl(0.5, 0.0, 0.038), 0.012, 0.009), 0.003, 6)
-    fd.add(Torus(gl(0.504, 0.0, 0.038), 0.014, 0.0035, R=rot_from_axes(z_axis=A)), 0.002, 8)
-    fd.add(Chain([gl(0.11, -0.014, 0.03), gl(0.085, -0.03, 0.04), gl(0.07, -0.03, 0.062)], [0.0065] * 3, k=0.004), 0.003, 9)
+    fd.add(RoundCone(_gr(0.475, 0.0, 0.038), _gr(0.5, 0.0, 0.038), 0.012, 0.009), 0.003, 6)
+    fd.add(Torus(_gr(0.504, 0.0, 0.038), 0.014, 0.0035, R=rot_from_axes(z_axis=A)), 0.002, 8)
+    fd.add(Chain([_gr(0.11, -0.014, 0.03), _gr(0.085, -0.03, 0.04), _gr(0.07, -0.03, 0.062)], [0.0065] * 3, k=0.004), 0.003, 9)
     # the fore-grip
-    fd.add(RoundCone(gl(FORE_U, 0.0, 0.0), gl(FORE_U - 0.01, 0.0, -0.105), 0.017, 0.02, disp=wood, disp_amp=0.001), 0.006, 0)
-    fd.add(Ellipsoid(gl(FORE_U - 0.011, 0.0, -0.11), (0.022, 0.022, 0.011), R=Rg), 0.005, 6)
+    fd.add(RoundCone(_gr(FORE_U, 0.0, 0.0), _gr(FORE_U - 0.01, 0.0, -0.105), 0.017, 0.02, disp=wood, disp_amp=0.001), 0.006, 0)
+    fd.add(Ellipsoid(_gr(FORE_U - 0.011, 0.0, -0.11), (0.022, 0.022, 0.011), R=Rg), 0.005, 6)
     # the trigger and its guard
-    fd.add(RoundCone(gl(0.042, 0.0, 0.052), gl(0.05, 0.0, 0.03), 0.0045, 0.0035), 0.002, 7)
-    fd.add(Chain([gl(0.02, 0.0, 0.058), gl(0.035, 0.0, 0.014), gl(0.07, 0.0, 0.012), gl(0.09, 0.0, 0.05)], [0.0042] * 4, k=0.003), 0.003, 6)
+    fd.add(RoundCone(_gr(0.042, 0.0, 0.052), _gr(0.05, 0.0, 0.03), 0.0045, 0.0035), 0.002, 7)
+    fd.add(Chain([_gr(0.02, 0.0, 0.058), _gr(0.035, 0.0, 0.014), _gr(0.07, 0.0, 0.012), _gr(0.09, 0.0, 0.05)], [0.0042] * 4, k=0.003), 0.003, 6)
     # the pan magazine's collar on the receiver
-    fd.add(Cylinder(gl(DRUM_U, 0.0, 0.147), 0.03, 0.024, rr=0.004, R=rot_from_axes(z_axis=U)), 0.006, 6)
-    return fd
+    fd.add(Cylinder(_gr(DRUM_U, 0.0, 0.147), 0.03, 0.024, rr=0.004, R=rot_from_axes(z_axis=U)), 0.006, 6)
+    return ScaledField(fd, GUN_G0, GUN_SCALE)
 
 
 def bolt_dirs():
@@ -1019,7 +1058,7 @@ def drum_field():
     """The pan magazine (its own bone, `drum`): a flat brass pan (label 6) with a raised rim and a dark iron hub (8), eight
     steel bolts (7) lying in it, radially, their bodkin points out over the rim, brass fletching (6) at the hub."""
     fd = Field("Drum")
-    c, U = drum_center(), GUN_U0
+    c, U = _gr(DRUM_U, 0.0, DRUM_H), GUN_U0
     R = rot_from_axes(z_axis=U)
     fd.add(Cylinder(c, DRUM_R, 0.032, rr=0.008, R=R), 0.0, 6)
     fd.add(Torus(c + U * 0.016, DRUM_R - 0.003, 0.005, R=R), 0.003, 6)
@@ -1033,7 +1072,7 @@ def drum_field():
         fd.add(RoundCone(b, b + d * 0.026, 0.0085, 0.0015), 0.002, 7)                            # the bodkin point
         side = norm(np.cross(U, d))
         fd.add(RoundBox(a + d * 0.008 + U * 0.004, (0.0015, 0.008, 0.007), 0.0012, R=np.stack([side, d, U], 1)), 0.0015, 6)
-    return fd
+    return ScaledField(fd, GUN_G0, GUN_SCALE)
 
 
 # ======================================================================================= brass: buttons
@@ -1079,7 +1118,7 @@ COPPER = ((0.75, 0.35, 0.18), (0.98, 0.66, 0.44))
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_AdaSkin", "base": (0.9, 0.69, 0.56), "ruddy": (0.92, 0.55, 0.46), "lips": (0.78, 0.4, 0.38),
                       "brow": ((0.42, 0.15, 0.06), (0.6, 0.25, 0.11)),
-                      "extra": ((LASH, (0.24, 0.1, 0.05), 0.5), (FRECKLE, (0.66, 0.38, 0.24), 0.55))}),
+                      "extra": ((LASH, (0.24, 0.1, 0.05), 0.5), (FRECKLE, (0.74, 0.47, 0.32), 0.55))}),
     "Hair": ("hair", {"name": "HQ_AdaHair", "base": (0.54, 0.18, 0.06), "hi": (0.9, 0.46, 0.2), "low": (0.24, 0.065, 0.02),
                       "streak": (0.38, 0.11, 0.04), "tint": (0.7, 0.26, 0.08)}),
     "Pencil": ("siege", {"name": "HQ_AdaPencil", "wood": (0.88, 0.72, 0.5), "wood2": (0.74, 0.58, 0.38), "red": (0.96, 0.76, 0.14),
