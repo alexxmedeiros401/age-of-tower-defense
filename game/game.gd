@@ -7423,11 +7423,15 @@ func _drone_heal(did: int, radius: float) -> void:
 # muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
 const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85],
-	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45]}     # (v0.9.64: the Field Gun fires on frame 2 too)
+	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
+	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75]}   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
 	if str(u.type) == "field_gun":
 		_proj_model(root, "shell", "")                       # (a pointed shell, flying nose first)
+	elif str(u.type) == "missile_launcher":
+		_proj_model(root, "missile", "")                     # (nose first, its motor burning, a smoke trail behind it)
+		root.set_meta("rocket", true)
 	else:
 		_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
 	if str(u.type) == "marco":
@@ -7649,7 +7653,11 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 			if go:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
 				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
-				if pn.has_meta("blast"):                     # (the Cannon fires: flash and smoke at the muzzle, a boom)
+				if pn.has_meta("rocket"):                    # (the missile's motor lights: a flash, smoke out of the tube)
+					var dir2 := (yt.basis * Vector3(0, 0.44, 0.9)).normalized()
+					_gun_blast(pn.get_meta("lob_from"), dir2, 1.2)
+					_steam_puff(pn.get_meta("lob_from") - dir2 * 0.3, -dir2)
+				elif pn.has_meta("blast"):                   # (the Cannon fires: flash and smoke at the muzzle, a boom)
 					_gun_blast(pn.get_meta("lob_from"), (yt.basis * Vector3(0, 0.07, 1)).normalized(), 2.0)
 					shake = maxf(shake, 0.12)
 				pn.set_meta("s0", float(pn.get_meta("lob_size")) * yt.basis.get_scale().x)
@@ -9432,6 +9440,11 @@ func _sync_visuals(alpha: float) -> void:
 				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
 		elif pn.has_meta("lob_from"):
 			newp = _torsion_flight(pn, p, alpha)
+			if pn.has_meta("rocket") and pn.visible and _fx_room(1) and time_s - float(pn.get_meta("trail_t", -9.0)) > 0.035:
+				pn.set_meta("trail_t", time_s)              # v0.9.70: the missile's smoke trail
+				var sm := _mi(_fx_mesh("dust"), _puff_mat(Color(0.88, 0.88, 0.86, 0.5)), self, pn.position)
+				sm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": sm, "t": 0.0, "life": 0.7, "kind": "dust", "v": Vector3(0, 0.25, 0)})
 			if pn.has_meta("fire") and pn.visible:
 				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
 		elif pn.has_meta("bolt_hq"):

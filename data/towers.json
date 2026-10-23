@@ -3527,7 +3527,7 @@
   "name": "Missile Launcher",
   "lineage": "Siege",
   "era": "Modern Age",
-  "model_scale": 0.56,
+  "model_scale": 0.68,
   "swing": [
    -0.15,
    2.0
