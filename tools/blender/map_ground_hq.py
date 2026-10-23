@@ -1060,6 +1060,8 @@ if MOD_T or DIG_T:
             k = ~DUP[li] & ~_on_other(Q, T, li, S_, r)
             if skip is not None:
                 k &= ~skip(Q[:, 0], Q[:, 1])
+            if DIG_T and abs(off) > 0.3:         # (an edge line stays at its distance from the road's edge: none cut
+                k &= _smp(ped, Q[:, 0], Q[:, 1]) > abs(off) - HALF - 0.05    # across where the road kinks sharply)
             if dash > 0:
                 k &= (S_ % (dash + gap)) < dash
             for a, b in _runs(k):
@@ -1921,7 +1923,7 @@ if THEME == "lab":
     gr_d = np.full(HX.shape, 9.0, np.float32)
     grm = np.full(X.shape, 9.0)
     for _ in range(600):
-        if len(GRT) >= 15:
+        if len(GRT) >= 11:
             break
         w_, h_ = [(1.2, 0.6), (0.6, 1.2), (1.2, 1.2), (1.8, 0.6)][int(lr_.integers(0, 4))]
         x0_ = round(lr_.uniform(-15.5, 15.5 - w_) / TL) * TL
@@ -1938,7 +1940,7 @@ if THEME == "lab":
     frost = np.zeros(X.shape)
     for k_, (bx, bz, R) in enumerate(TANK):
         d_ = np.hypot(X - bx, Z - bz)
-        reach = R + 0.3 + (fbm(0.3, 3, 621 + k_) - 0.5) * 0.55
+        reach = R + 0.3 + (fbm(0.5, 3, 621 + k_) - 0.5) * 0.32
         frost = np.maximum(frost, np.clip((reach - d_) / 0.18, 0, 1) * np.clip((d_ - R * 0.68) / 0.2, 0, 1))
     IND["frost"] = frost * np.clip((ped - 0.2) / 0.2, 0, 1)
     IND["scuff"] = np.clip((fbm(0.7, 3, 622) - 0.55) / 0.2, 0, 1)
@@ -2118,8 +2120,8 @@ if THEME == "satellite":
     # the desert itself
     IND["pave"] = np.clip((fbm(1.4, 4, 631) - 0.6) / 0.06, 0, 1) * np.clip((ped - 0.4) / 0.3, 0, 1)
     IND["cal"] = np.clip((fbm(2.2, 3, 632) - 0.62) / 0.08, 0, 1) * (1 - IND["pave"])
-    dn = np.clip((fbm(0.5, 3, 633) - 0.46) / 0.12, 0, 1)
-    IND["drift"] = dn * np.exp(-((ped + 0.12 + (fbm(0.25, 2, 634) - 0.5) * 0.3) / 0.26) ** 2) * (1 - gate_m)
+    dn = np.clip((fbm(1.4, 3, 633) - 0.6) / 0.1, 0, 1)                   # (drifts here and there, tongues over the edge)
+    IND["drift"] = dn * np.clip((0.1 - ped + (fbm(0.6, 2, 634) - 0.5) * 0.35) / 0.25, 0, 1) * np.clip((ped + 0.75) / 0.2, 0, 1) * (1 - gate_m)
     IND["berm"] = np.clip(1 - np.abs(ped - 0.17) / 0.17, 0, 1) * (spm > 0.0)
     IND["stain"] = np.clip((fbm(0.45, 3, 635) - 0.62) / 0.08, 0, 1)
     IND["trn"] = trn_m
@@ -3888,7 +3890,7 @@ elif MOD_T or DIG_T:
             lit = band(t, 0.7, 0.8, 0.01)
             pl = nb.mix(lit, pl, colg)
             on = ins(nb.math("SUBTRACT", t, 1.0), 0.01)
-            return nb.mix(on, c_, pl), nb.mix(nb.math("MULTIPLY", lit, on), em_, colg)
+            return nb.mix(on, c_, pl), nb.mix(nb.math("MULTIPLY", lit, on), nb.mix(on, em_, (0.0, 0.0, 0.0)), colg)
 
         if THEME == "lab":
             # a cleanroom hall, lit indoors: bays of white epoxy, anti-static tile (conductive chips, fine seams), raised
@@ -3911,7 +3913,7 @@ elif MOD_T or DIG_T:
             c = nb.mix(I["b_tile"], c, tc)
             rj, rr_ = nb.brick(obj, 0.6, 0.6, 0.008, 0.1, offset=0.0, freq=1)
             rc = nb.mix(rr_, (0.75, 0.76, 0.775), (0.81, 0.82, 0.83))
-            vent = nb.math("MULTIPLY", nb.ramp(rr_, 0.72, 0.74), nb.ramp(nb.math("MINIMUM", sx_, sy_), 0.045, 0.055))
+            vent = nb.math("MULTIPLY", nb.ramp(rr_, 0.87, 0.89), nb.ramp(nb.math("MINIMUM", sx_, sy_), 0.045, 0.055))
             holes = nb.dots(ox_, oy_, 0.045, 0.045, 0.0225, 0.012)
             rc = nb.mix(vent, rc, nb.mix(holes, (0.62, 0.64, 0.66), (0.17, 0.18, 0.21)))
             rc = nb.mix(rj, rc, (0.4, 0.41, 0.43))
@@ -3990,16 +3992,16 @@ elif MOD_T or DIG_T:
             # line, sand drifting over; concrete dish foundations (grout ring, joints, a ring of anchor bolts); gravel
             # beds with a curb, footings, trench lids; the compound's concrete slabs, parking lines, a hatched box
             rip = nb.n("ShaderNodeTexWave", wave_type="BANDS", bands_direction="DIAGONAL")
-            rip.inputs["Scale"].default_value = 2.6
-            rip.inputs["Distortion"].default_value = 5.0
+            rip.inputs["Scale"].default_value = 2.2
+            rip.inputs["Distortion"].default_value = 7.0
             rip.inputs["Detail"].default_value = 3.0
             nb.link(nb.uvn.outputs["Object"], rip.inputs["Vector"])
             rp_ = rip.outputs["Fac"]
             c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.5, 0.3, 0.2), (0.6, 0.38, 0.25))
             c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.75), 0.45), c, (0.66, 0.46, 0.31))
             c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.4), c, (0.42, 0.24, 0.16))
-            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.55, 0.85), 0.32), c, (0.42, 0.25, 0.16))
-            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.15, 0.0), 0.22), c, (0.7, 0.49, 0.33))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.55, 0.85), 0.17), c, (0.42, 0.25, 0.16))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.15, 0.0), 0.12), c, (0.7, 0.49, 0.33))
             c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(45.0, "Distance"), 0.2, 0.08), 0.28), c, (0.3, 0.18, 0.12))
             pvc = nb.mix(nb.ramp(nb.voronoi(22.0, "Color"), 0.2, 0.8), (0.2, 0.13, 0.1), (0.42, 0.3, 0.22))
             pvc = nb.mix(nb.ramp(nb.voronoi(22.0, "Distance", "DISTANCE_TO_EDGE"), 0.05, 0.015), pvc, (0.5, 0.31, 0.21))
@@ -4011,7 +4013,7 @@ elif MOD_T or DIG_T:
             rdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 1, 0.5), 0.7, 0.75), 0.35), rdc, (0.74, 0.66, 0.56))
             tyre = nb.ramp(nb.seam(ral, 0.08), 0.016, 0.009)
             rdc = nb.mix(nb.math("MULTIPLY", rut_m, 0.6), rdc, (0.45, 0.36, 0.29))
-            rdc = nb.mix(nb.math("MULTIPLY", rut_m, nb.math("MULTIPLY", tyre, 0.4)), rdc, (0.34, 0.27, 0.21))
+            rdc = nb.mix(nb.math("MULTIPLY", rut_m, nb.math("MULTIPLY", tyre, nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 2, 0.5), 0.45, 0.65), 0.18))), rdc, (0.38, 0.3, 0.24))
             spd = Pn["sp_d"]
             c = nb.mix(ins(spd, 0.012), c, nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(4.0, 3, 0.6), 0.5, 0.7), 0.4), rdc, (0.5, 0.36, 0.26)))
             berm = nb.mix(nb.ramp(nb.voronoi(30.0, "Distance"), 0.25, 0.1), (0.52, 0.39, 0.29), (0.33, 0.23, 0.17))
@@ -4093,16 +4095,17 @@ elif MOD_T or DIG_T:
             hexc = nb.mix(hid, (0.1, 0.1, 0.14), (0.2, 0.2, 0.26))
             hexc = nb.mix(nb.math("MULTIPLY", grime, 0.3), hexc, (0.06, 0.06, 0.08))
             litc = nb.mix(nb.ramp(nb.math("FRACT", nb.math("MULTIPLY", hid, 37.0)), 0.49, 0.51), CY, MG)
-            lit = nb.math("MULTIPLY", nb.ramp(hid, 0.95, 0.952), nb.ramp(he, 0.012, 0.02))
+            lit = nb.math("MULTIPLY", nb.ramp(hid, 0.982, 0.984), nb.ramp(he, 0.012, 0.02))
             hexc = nb.mix(lit, hexc, litc)
             hseam = nb.ramp(he, 0.01, 0.004)
             hexc = nb.mix(hseam, hexc, nb.mix(onpz, (0.03, 0.03, 0.04), (0.08, 0.38, 0.45)))
             hexm = nb.math("MAXIMUM", I["l_hex"], onpz)
-            c = nb.mix(hexm, c, hexc)
+            c = nb.mix(I["l_hex"], c, hexc)
             c = nb.mix(nb.math("MULTIPLY", grime, 0.35), c, (0.03, 0.03, 0.035))
             c = nb.mix(Pn["g"], c, (0.05, 0.05, 0.06))                                                  # the lots' borders
             c = nb.mix(pr_m, c, MG)
             c = nb.mix(py_m, c, CY)
+            c = nb.mix(onpz, c, hexc)                                                                   # the plazas over them
             pzrim = band(pzd, -0.09, 0.0)
             pzline = band(pzd, -0.06, -0.035, 0.005)
             c = nb.mix(pzrim, c, (0.26, 0.27, 0.32))
@@ -4157,7 +4160,7 @@ elif MOD_T or DIG_T:
             notpit = nb.math("SUBTRACT", 1.0, ins(nb.math("SUBTRACT", t, 1.0), 0.008))
             dry = nb.math("MULTIPLY", notpit, nb.math("SUBTRACT", 1.0, ins(pyd)))
             pud = nb.ramp(I["pud"], 0.45, 0.6)
-            c = nb.mix(nb.math("MULTIPLY", pud, 0.85), c, nb.mix(nb.ramp(nb.noise(1.5, 2, 0.5), 0.3, 0.7), (0.02, 0.02, 0.03), (0.07, 0.05, 0.11)))
+            c = nb.mix(nb.math("MULTIPLY", pud, 0.7), c, nb.mix(nb.ramp(nb.noise(1.5, 2, 0.5), 0.3, 0.7), (0.035, 0.035, 0.05), (0.09, 0.07, 0.14)))
             hk = nb.math("MULTIPLY", dry, nb.mixf(pud, 0.5, 0.95))
             c = nb.mix(nb.math("MULTIPLY", Pn["hc"], hk), c, CY)
             c = nb.mix(nb.math("MULTIPLY", Pn["hm"], hk), c, MG)
@@ -4166,8 +4169,8 @@ elif MOD_T or DIG_T:
             c = nb.mix(Pn["c"], c, CY)
             c = nb.mix(Pn["m"], c, MG)
             for f_, col_ in ((Pn["c"], CY), (Pn["m"], MG), (strip, CY), (sedge, MG), (nb.math("MULTIPLY", lit, hexm), litc),
-                             (pzline, MG), (pring, MG), (nb.math("MULTIPLY", fseam, Pn["fl"]), CY), (nb.math("MULTIPLY", pr_m, 0.7), MG),
-                             (nb.math("MULTIPLY", py_m, 0.6), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", hseam, onpz), 0.4), CY)):
+                             (pzline, MG), (pring, MG), (nb.math("MULTIPLY", fseam, Pn["fl"]), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", pr_m, 0.7), nb.math("SUBTRACT", 1.0, onpz)), MG),
+                             (nb.math("MULTIPLY", nb.math("MULTIPLY", py_m, 0.6), nb.math("SUBTRACT", 1.0, onpz)), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", hseam, onpz), 0.4), CY)):
                 em = nb.mix(f_, em, col_)
             em = nb.mix(nb.math("MULTIPLY", onpit, nb.math("MAXIMUM", nb.math("MULTIPLY", glow, nb.ramp(t, 1.0, 0.99)), lip)), em, (0.2, 1.0, 1.0))
             c, em = gate_plate(c, em, (0.2, 0.21, 0.25), (0.4, 0.42, 0.48))
