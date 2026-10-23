@@ -56,7 +56,7 @@ GRAB = 15          # his hands on the missile in the crate
 LIFT = 19          # lifted out (his right hand comes under it)
 WALK = 24          # carried round behind the pod
 AT_TUBE = 28       # its nose at the empty tube's back
-LET_L = 31         # his left hand lets go and steadies the pod's top
+LET_L = 30         # his left hand lets go and steadies the pod's top
 HOME = 35          # pushed home (its tail flush with the pod's back)
 OFF = 40           # both hands off: at his hips
 RAISE0, RAISE1 = 38, 46     # the pod comes down to its firing angle
@@ -104,7 +104,7 @@ def m_mount(f):
 def m_pod(f, el):
     """The pod's rigid motion (rest -> posed) at elevation el (degrees) plus the kick at frame f."""
     d = math.radians(el + kick(f) - EL0)
-    return m_mount(f) @ Matrix.Translation(TRUN) @ Matrix.Rotation(d, 4, "X") @ Matrix.Translation(-TRUN)
+    return m_mount(f) @ Matrix.Translation(TRUN) @ Matrix.Rotation(-d, 4, "X") @ Matrix.Translation(-TRUN)   # (nose up)
 
 
 def m_cover(Mp, flap):
@@ -169,7 +169,7 @@ def blend_hand(a, b, k, lift=0.0):
 S_XY, S_YAW = (0.13, 0.02), 12.0             # Combat: behind and left of the pod, the tablet held out
 I_XY, I_YAW = (0.19, -0.08), 34.0            # Idle: at ease by the control box
 C_XY, C_YAW = (0.02, 0.1), -90.0             # at the crate (facing it: -X)
-L0_XY, L1_XY, L_YAW = (0.64, 0.5), (0.63, 0.2), 4.0     # loading: behind the pod's near upper tube, facing forward
+L0_XY, L1_XY, L_YAW = (0.64, 0.45), (0.63, 0.2), 4.0     # loading: behind the pod's near upper tube, facing forward
 S_STANCE = (1.08, 0.08, -0.04)
 
 
@@ -299,7 +299,7 @@ K_RO = [(0, _r(S_XY, -0.03)), (SHOT, _r((0.13, 0.035), -0.035)), (STOW1, _r((0.0
         (HOME, _r(L1_XY, -0.06)), (OFF, _r((0.45, 0.28), -0.04)), (TAKE0, _r((0.2, 0.08), -0.03)), (FR, _r(S_XY, -0.03))]
 K_YAW = [(0, S_YAW), (SHOT, S_YAW - 1.0), (STOW1, -40.0), (GRAB, C_YAW), (LIFT, C_YAW + 8.0), (WALK, -30.0),
          (AT_TUBE, L_YAW), (HOME, L_YAW + 2.0), (OFF, 10.0), (TAKE0, 16.0), (FR, S_YAW)]
-K_BEND = [(0, 0.08), (SHOT, 0.06), (STOW1, 0.25), (GRAB, 0.75), (LIFT, 0.2), (WALK, 0.15), (AT_TUBE, 0.42),
+K_BEND = [(0, 0.08), (SHOT, 0.06), (STOW1, 0.25), (GRAB, 0.75), (LIFT, 0.2), (WALK, 0.15), (AT_TUBE, 0.46),
           (HOME, 0.22), (OFF, 0.12), (TAKE0, 0.08), (FR, 0.08)]
 K_CHEST = [(0, 2.0), (SHOT, 0.0), (STOW1, -6.0), (GRAB, 0.0), (LIFT, 0.0), (AT_TUBE, 0.0), (HOME, 4.0), (OFF, 0.0),
            (FR, 2.0)]
@@ -355,7 +355,7 @@ def crate_x():
 def carry_x(ro, yaw):
     """Carried level across his front at his belly, its nose to his left."""
     A = rz(yaw) @ V(1.0, 0.0, 0.0)
-    mid = body_pt(V(0.02, -0.44, 0.97), ro, yaw)
+    mid = body_pt(V(0.04, -0.42, 0.97), ro, yaw)
     return xform(MSL_MID, GD0, GU0, mid, A, Z_)
 
 

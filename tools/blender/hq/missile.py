@@ -892,6 +892,18 @@ def cover_into(fd, i, ang, k=0.0):
     fd.add(Cylinder(H, 0.011, 0.05, rr=0.003, R=rot_from_axes(z_axis=GX_)), 0.003, GREY_L)
 
 
+def _bore_wall(i):
+    """< 0 on tube i's wall (a thin sleeve round its bore: the missile inside it keeps its own paint)."""
+    c = tube_c(i, 0.0).astype(F)
+    ax = GD.astype(F)
+    def fn(P):
+        q = P - c
+        t = q @ ax
+        r = np.sqrt(np.maximum((q * q).sum(1) - t * t, 0))
+        return np.maximum(np.abs(r - F(TUBE_R)) - F(0.004), np.maximum(F(POD_B - 0.01) - t, t - F(POD_F + 0.01)))
+    return fn
+
+
 def pod_bounds(m=0.06, cover=0.0):
     pts = [bpt(s, u, v) for s in (POD_B, POD_F) for u in (-POD_HW, POD_HW) for v in (-POD_HH - cover, POD_HH + cover)]
     return np.min(pts, 0) - m, np.max(pts, 0) + m
@@ -913,7 +925,7 @@ def pod_field():
     # the bores, through the box (the missiles fill them)
     for i in range(4):
         fd.sub(Cylinder(tube_c(i, 0.05), TUBE_R, 1.2, R=rot_from_axes(z_axis=GD)), 0.004)
-        fd.paint(Cylinder(tube_c(i, 0.05), TUBE_R + 0.003, 1.21, R=rot_from_axes(z_axis=GD)), BLACK_L)
+        fd.paint(Func(_bore_wall(i), *pod_bounds(0.05)), BLACK_L)
         for s in (POD_F + 0.006, POD_B - 0.006):
             fd.add(Torus(tube_c(i, s), TUBE_R + 0.011, 0.011, R=rot_from_axes(z_axis=GD)), 0.004, GREY_L)
     # the three other missiles, seated
@@ -1178,7 +1190,7 @@ AO_EXCLUDE = ["Tablet", "Cover", "Missile", "Headset"]
 MACHINE_PARTS = ["Mount", "Pod", "Cover", "Missile", "Crate"]
 # the launcher and the crate are baked 6 m away from him (his rest pose stands close to both)
 BAKE_APART = (MACHINE_PARTS, (6.0, 0.0, 0.0))
-YAW_PIVOT = (0.33, -0.08, 0.0)              # the tower turns about this point (keeps him, the launcher and the crate on the base)
+YAW_PIVOT = (0.36, -0.11, 0.0)              # the tower turns about this point (keeps him, the launcher and the crate on the base)
 
 
 def prop_bones():
@@ -1189,7 +1201,8 @@ def extra_bones():
     """The launcher's bones (none of them deform him): mount (the pedestal: it shudders at the shot), pod (elevating about
     the trunnions; child of the mount), cover (the firing tube's blast cover, hinged on the pod), missile (the firing
     tube's missile, tail -> nose: posed in the world, hidden from the shot until he lifts the next one from the crate),
-    tablet (his fire-control unit), props (the ready crate, still)."""
+    tablet (his fire-control unit), props (the ready crate, still); mouth (child of the pod: its head in the middle of the
+    firing tube's mouth, its tail 0.1 out along the tube: where the game's missile leaves, and which way)."""
     C, X, U, N = tablet_frame()
     tail = seated_tail(FIRE)
     H = hinge_pt(FIRE)
@@ -1197,6 +1210,7 @@ def extra_bones():
         ("mount", v3((MX, BASE_Y, 0.0)), v3((MX, BASE_Y, 0.3)), None),
         ("pod", TRUN, TRUN + GD * 0.3, "mount"),
         ("cover", H, H + GX_ * 0.1, "pod"),
+        ("mouth", tube_c(FIRE, POD_F), tube_c(FIRE, POD_F + 0.1), "pod"),
         ("missile", tail, tail + GD * MSL_L, None),
         ("tablet", C, C + U * 0.12, None),
         ("props", CRATE_C, CRATE_C + v3((0, 0, 0.2)), None),
