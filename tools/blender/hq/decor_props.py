@@ -520,6 +520,9 @@ def KITS(theme):
     if theme in ("military", "metro", "suburb", "bunker_city"):  # the Modern Age kits
         import decor_modern
         return decor_modern.KITS(theme)
+    if theme in ("lab", "satellite", "neon", "lab_city"):  # the Digital Age kits
+        import decor_digital
+        return decor_digital.KITS(theme)
     if theme == "portal":
         return {"Portal": (lambda: portal(23), 3600), "PortalLights": (lambda: portal_lights(), 300)}
     if theme == "meadow":

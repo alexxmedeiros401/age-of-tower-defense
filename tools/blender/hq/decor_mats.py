@@ -1592,3 +1592,167 @@ def radome(name="DK_Radome", base=(0.9, 0.9, 0.87)):
     c = g.mix(g.math("MULTIPLY", g.smooth(streak, 0.6, 0.85), 0.25), c, g.rgb((0.5, 0.48, 0.42)))
     c = g.mix(g.reg(7), c, g.rgb((0.2, 0.21, 0.22)))
     return g.finish(c, 0.5, g.bump(seam, 0.2, 0.003))
+
+
+# ------------------------------------------------------------------------------------------------ Digital Age
+def tech(name, paint, col5=(0.12, 0.16, 0.3), col7=(0.06, 0.06, 0.07), col8=None, col9=(0.92, 0.92, 0.9), rough=0.35, grime=0.12, edge=0.3):
+    """Near-future housings and panels (lab machines, racks, robot covers, pylons, the corps' graphite): smooth paint or
+    enamel, mottled very little, lighter on its worn edges, a little grime in the crevices and down the sides; label 5
+    and 9 more paints (the corps' navy, white markings), 7 black (seals, rubber, trim), 6 bright metal, 8 hazard stripes
+    (yellow and black on the diagonal) unless col8 gives it a paint of its own."""
+    g = new(name)
+    p = g.obj()
+    c = _paint_col(g, p, paint, edge)
+    for k, col in ((5, col5), (9, col9), (7, col7)):
+        c = g.mix(g.reg(k), c, _paint_col(g, p, col, 0.2))
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    if col8 is None:
+        diag = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"]), 0.12))
+        hz = g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.72, 0.08)), g.rgb((0.06, 0.06, 0.06)))
+    else:
+        hz = _paint_col(g, p, col8, 0.2)
+    c = g.mix(g.reg(8), c, hz)
+    pt = g.geo("Pointiness")
+    ch = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb((0.6, 0.62, 0.66)), g.rgb((0.95, 0.96, 1.0)))
+    c = g.mix(g.reg(6), c, ch)
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    side = g.math("SUBTRACT", 1.0, g.smooth(g.math("ABSOLUTE", nz.outputs["Z"]), 0.5, 0.8))
+    streak = g.remap(g.noise(g.scale_vec(p, (10.0, 10.0, 1.2)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    nb = g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.reg(6)), side)
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(streak, 0.6, 0.85), grime), nb), c, g.rgb(tuple(x * 0.62 for x in paint)))
+    rgh = g.mixf(g.reg(6), g.mixf(g.reg(7), rough, 0.8), 0.2)
+    return g.finish(c, rgh, g.bump(g.noise(p, 60.0, 2.0), 0.05, 0.002))
+
+
+def epoxy(name="DK_Epoxy", base=(0.9, 0.91, 0.92)):
+    """A white epoxy floor or plinth: glossy, faintly mottled, scuffed grey in places; label 8 hazard stripes, 5 the
+    walkway's green paint, 7 dark rubber edging, 9 white line paint."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 2.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.95 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 18.0, 3.0), 0.62, 0.72), 0.3), c, g.rgb(tuple(x * 0.78 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.45), c, g.rgb((0.4, 0.41, 0.43)))
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    diag = g.math("FRACT", g.math("DIVIDE", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), 0.16))
+    hz = g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.72, 0.08)), g.rgb((0.07, 0.07, 0.07)))
+    c = g.mix(g.reg(8), c, hz)
+    c = g.mix(g.reg(5), c, g.rgb((0.2, 0.52, 0.34)))
+    c = g.mix(g.reg(7), c, g.rgb((0.1, 0.1, 0.11)))
+    c = g.mix(g.reg(9), c, g.rgb((0.97, 0.97, 0.96)))
+    return g.finish(c, g.mixf(g.reg(7), 0.22, 0.8), g.bump(g.noise(p, 40.0, 2.0), 0.04, 0.002))
+
+
+def lab_glass(name="DK_LabGlass", tint=(0.6, 0.76, 0.8)):
+    """Clean safety glass seen in a bright hall: a pale aqua tint, brighter toward its top edge, soft diagonal
+    reflections; label 5 a frosted white band, 6 the corps' violet stripe."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    c = g.mix(g.smooth(sep.outputs["Z"], 0.0, 1.4), g.rgb(tuple(x * 0.82 for x in tint)), g.rgb(tuple(min(1.0, x * 1.15) for x in tint)))
+    refl = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), g.math("MULTIPLY", sep.outputs["Z"], 1.6)), 0.9))
+    c = g.mix(g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(refl, 0.55, 0.62), g.smooth(refl, 0.8, 0.72)), 0.55), c, g.rgb((0.94, 0.98, 1.0)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.56), 0.5), c, g.rgb((0.95, 0.98, 1.0)))
+    c = g.mix(g.reg(5), c, g.rgb((0.9, 0.93, 0.94)))
+    c = g.mix(g.reg(6), c, g.rgb((0.6, 0.22, 0.78)))
+    return g.finish(c, 0.08)
+
+
+def perforated(name="DK_Perforated", base=(0.14, 0.15, 0.18)):
+    """A server cabinet's perforated door: graphite steel punched with a fine grid of holes, dark behind them."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    u = g.math("ADD", sep.outputs["X"], sep.outputs["Y"])
+    fu = g.math("FRACT", g.math("DIVIDE", u, 0.022))
+    fz = g.math("FRACT", g.math("DIVIDE", sep.outputs["Z"], 0.022))
+    du = g.math("MINIMUM", fu, g.math("SUBTRACT", 1.0, fu))
+    dz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
+    hole = g.smooth(g.math("POWER", g.math("ADD", g.math("MULTIPLY", g.math("SUBTRACT", 0.5, du), g.math("SUBTRACT", 0.5, du)),
+                                              g.math("MULTIPLY", g.math("SUBTRACT", 0.5, dz), g.math("SUBTRACT", 0.5, dz))), 0.5), 0.3, 0.24)
+    c = _paint_col(g, p, base, 0.3)
+    c = g.mix(g.math("MULTIPLY", hole, 0.9), c, g.rgb((0.02, 0.02, 0.025)))
+    return g.finish(c, 0.45, g.bump(g.math("MULTIPLY", hole, -1.0), 0.3, 0.002))
+
+
+def solar(name="DK_Solar", cell=(0.06, 0.1, 0.26), line=(0.62, 0.66, 0.72)):
+    """Solar cells: deep blue panes with a silvery grid between the cells and thin bus bars across each, a glint
+    toward the sky; label 7 the anodised aluminium frame."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    fa = g.math("FRACT", g.math("DIVIDE", sep.outputs["X"], 0.11))
+    fb = g.math("FRACT", g.math("DIVIDE", g.math("ADD", sep.outputs["Y"], sep.outputs["Z"]), 0.11))
+    ga = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fa, g.math("SUBTRACT", 1.0, fa)), 0.03, 0.06))
+    gb = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fb, g.math("SUBTRACT", 1.0, fb)), 0.03, 0.06))
+    fbb = g.math("FRACT", g.math("DIVIDE", sep.outputs["X"], 0.0367))
+    bus = g.math("SUBTRACT", 1.0, g.smooth(g.math("MINIMUM", fbb, g.math("SUBTRACT", 1.0, fbb)), 0.02, 0.05))
+    c = g.mix(g.remap(g.noise(p, 3.0, 2.0), 0.3, 0.7, 0.0, 1.0), g.rgb(cell), g.rgb(tuple(min(1.0, x * 1.5 + 0.03) for x in cell)))
+    c = g.mix(g.math("MULTIPLY", bus, 0.3), c, g.rgb(line))
+    c = g.mix(g.math("MAXIMUM", ga, gb), c, g.rgb(line))
+    c = g.mix(g.math("MULTIPLY", _up(g, 0.5, 0.95), 0.25), c, g.rgb((0.36, 0.46, 0.66)))
+    c = g.mix(g.reg(7), c, _paint_col(g, p, (0.62, 0.64, 0.66), 0.3))
+    return g.finish(c, g.mixf(g.reg(7), 0.18, 0.45), g.bump(g.math("MAXIMUM", ga, gb), 0.15, 0.002))
+
+
+def frost(name="DK_Frost"):
+    """Rime on cryogenic pipes: dense white crystals, cool blue in the hollows, glittering flecks."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb((0.82, 0.88, 0.94)), g.rgb((0.97, 0.98, 1.0)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.48, 0.43), 0.6), c, g.rgb((0.52, 0.66, 0.82)))
+    fl = g.smooth(g.voronoi(p, 70.0, 1.0, "F1", "Distance"), 0.08, 0.02)
+    c = g.mix(g.math("MULTIPLY", fl, 0.5), c, g.rgb((1.0, 1.0, 1.0)))
+    return g.finish(c, 0.55, g.bump(g.math("ADD", g.noise(p, 50.0, 3.0), g.math("MULTIPLY", fl, 0.5)), 0.35, 0.003))
+
+
+def cryo(name="DK_Cryo", base=(0.86, 0.88, 0.9)):
+    """A cryogenic tank's white steel: frost creeping up from its foot and round its fittings in patches; label 6
+    steel bands, 7 the dark skirt, 8 the placard's green, 9 white."""
+    g = new(name)
+    p = g.obj()
+    c = _paint_col(g, p, base, 0.25)
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    low = g.math("SUBTRACT", 1.0, g.smooth(g.math("ADD", sep.outputs["Z"], g.math("MULTIPLY", g.noise(p, 3.0, 3.0), 0.5)), 0.4, 0.9))
+    fr = g.mix(g.noise(p, 30.0, 3.0), g.rgb((0.84, 0.9, 0.97)), g.rgb((0.98, 0.99, 1.0)))
+    c = g.mix(g.math("MULTIPLY", low, 0.85), c, fr)
+    for k, col in ((7, (0.12, 0.12, 0.13)), (8, (0.1, 0.5, 0.26)), (9, (0.95, 0.95, 0.94))):
+        c = g.mix(g.reg(k), c, g.rgb(col))
+    ch = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.5, 0.56), 0.8), g.rgb((0.6, 0.62, 0.66)), g.rgb((0.95, 0.96, 1.0)))
+    c = g.mix(g.reg(6), c, ch)
+    return g.finish(c, g.mixf(low, 0.35, 0.6), g.bump(g.math("MULTIPLY", g.noise(p, 40.0, 3.0), low), 0.2, 0.003))
+
+
+def puddle(name="DK_Puddle"):
+    """Rain on dark asphalt at night: near-black glossy water with smeared reflections of magenta and cyan neon."""
+    g = new(name)
+    p = g.obj()
+    c = g.rgb((0.03, 0.03, 0.05))
+    sm = g.scale_vec(p, (1.0, 4.0, 1.0))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(sm, 2.0, 2.0), 0.55, 0.7), 0.75), c, g.rgb((0.62, 0.12, 0.5)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(g.add_vec(sm, g.rgb((4.0, 1.0, 2.0))), 2.0, 2.0), 0.58, 0.72), 0.7), c, g.rgb((0.1, 0.5, 0.62)))
+    c = g.mix(g.reg(7), c, g.rgb((0.09, 0.085, 0.09)))
+    return g.finish(c, g.mixf(g.reg(7), 0.04, 0.85))
+
+
+def asphalt(name="DK_Asphalt", base=(0.13, 0.13, 0.15)):
+    """Wet dark asphalt and kerbstone at night (planters' and stalls' footings): fine aggregate, a sheen; label 5 the
+    kerb's paint (yellow), 8 hazard stripes, 9 white line paint."""
+    g = new(name)
+    p = g.obj()
+    c = g.mix(g.noise(p, 40.0, 3.0), g.rgb(base), g.rgb(tuple(x * 1.35 for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.voronoi(p, 90.0, 1.0, "F1", "Distance"), 0.08, 0.0), 0.4), c, g.rgb((0.32, 0.32, 0.34)))
+    c = g.mix(g.reg(5), c, _paint_col(g, p, (0.9, 0.7, 0.1), 0.2))
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    diag = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"]), 0.14))
+    c = g.mix(g.reg(8), c, g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.72, 0.08)), g.rgb((0.05, 0.05, 0.05))))
+    c = g.mix(g.reg(9), c, g.rgb((0.9, 0.9, 0.88)))
+    return g.finish(c, 0.3, g.bump(g.noise(p, 80.0, 2.0), 0.15, 0.002))

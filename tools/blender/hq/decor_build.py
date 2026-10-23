@@ -1,7 +1,7 @@
 """HQ map kits: sculpt every prop of a Stone Age theme, bake them all into one texture atlas, export one GLB with one mesh
 per prop (named as game.gd DECOR_V2 expects: Pine_A, Rock_C, Mammoth, Cave, ...), each at the origin, ground at y = 0.
 
-    python3 decor_build.py -- --theme meadow|snow|volcano|...|factory|railyard|smog|factory_city|military|metro|suburb|bunker_city
+    python3 decor_build.py -- --theme meadow|snow|volcano|...|factory|railyard|smog|factory_city|military|metro|suburb|bunker_city|lab|satellite|neon|lab_city
                               --out DIR [--stage sculpt|game|export|all] [--fine]
                               [--tex 2048] [--ao 24] [--only Pine_A,Rock_A] [--shots DIR]
 
@@ -46,7 +46,8 @@ GLB = arg("--glb", {"meadow": "stone_decor", "snow": "stone_decor_snow", "volcan
                    "jungle": "gunpowder_decor_jungle", "harbor": "gunpowder_decor_harbor", "fortress": "gunpowder_decor_fortress",
                    "fort_city": "gunpowder_city", "factory": "industrial_decor_factory", "railyard": "industrial_decor_railyard",
                    "smog": "industrial_decor_smog", "factory_city": "industrial_city", "military": "modern_decor_military",
-                   "metro": "modern_decor_metro", "suburb": "modern_decor_suburb", "bunker_city": "modern_city"}[THEME])
+                   "metro": "modern_decor_metro", "suburb": "modern_decor_suburb", "bunker_city": "modern_city", "lab": "digital_decor_lab",
+                   "satellite": "digital_decor_satellite", "neon": "digital_decor_neon", "lab_city": "digital_city"}[THEME])
 BRONZE = THEME in ("delta", "desert", "canyon", "city")
 IRON = THEME in ("highland", "forge", "bog", "iron_city")
 CLASSICAL = THEME in ("olive", "coast", "acropolis", "classical_city")
@@ -54,6 +55,7 @@ MEDIEVAL = THEME in ("farmland", "darkwood", "castle", "medieval_city")
 GUNPOWDER = THEME in ("jungle", "harbor", "fortress", "fort_city")
 INDUSTRIAL = THEME in ("factory", "railyard", "smog", "factory_city")
 MODERN = THEME in ("military", "metro", "suburb", "bunker_city")
+DIGITAL = THEME in ("lab", "satellite", "neon", "lab_city")
 G0, G1, S0 = 0.05, 0.6, 0.7          # swatch strip: grass gradient rows, then flat colours (as in build_game.base_stage)
 SWATCHES = [(0.97, 0.96, 0.92), (1.0, 0.86, 0.3), (0.72, 0.56, 0.96), (0.96, 0.52, 0.76), (0.3, 0.5, 0.18)]
 # (the flowers' petals take swatches 0, 2 and 3, their hearts 1, their stems 4) the Gunpowder Age's: scarlet, orange
@@ -78,7 +80,8 @@ GRASS = {"meadow": ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)), "snow": ((0.3, 0.27, 
          "harbor": ((0.34, 0.4, 0.16), (0.74, 0.74, 0.4)), "fortress": ((0.24, 0.32, 0.12), (0.6, 0.64, 0.32)),
          "factory": ((0.18, 0.22, 0.1), (0.46, 0.5, 0.26)), "railyard": ((0.2, 0.26, 0.1), (0.5, 0.56, 0.28)),
          "smog": ((0.16, 0.2, 0.1), (0.4, 0.44, 0.24)), "military": ((0.3, 0.3, 0.14), (0.66, 0.62, 0.36)),
-         "metro": ((0.16, 0.26, 0.1), (0.42, 0.52, 0.24)), "suburb": ((0.12, 0.34, 0.08), (0.46, 0.72, 0.24))
+         "metro": ((0.16, 0.26, 0.1), (0.42, 0.52, 0.24)), "suburb": ((0.12, 0.34, 0.08), (0.46, 0.72, 0.24)),
+         "satellite": ((0.34, 0.3, 0.16), (0.7, 0.62, 0.38))
          }.get(THEME, ((0.17, 0.34, 0.09), (0.6, 0.78, 0.3)))
 
 
@@ -103,12 +106,13 @@ def materials():
                                                            labels=[(2, (0.1, 0.1, 0.12), 0.6)], seams=[2], scale=2.0),
         "portal_armor": __import__("robot_mats").armor(name="DK_PortalArmor", labels=[(1, (1.0, 0.47, 0.08), 0.35),
                                                        (2, (0.2, 0.2, 0.22), 0.6), (3, (0.08, 0.08, 0.09), 0.4)], seams=[2], scale=2.0),
-    } if not (BRONZE or IRON or CLASSICAL or MEDIEVAL or GUNPOWDER or INDUSTRIAL or MODERN) else (bronze_materials(dark.mat) if BRONZE else
+    } if not (BRONZE or IRON or CLASSICAL or MEDIEVAL or GUNPOWDER or INDUSTRIAL or MODERN or DIGITAL) else (bronze_materials(dark.mat) if BRONZE else
                                                              (iron_materials(dark.mat) if IRON else
                                                               (classical_materials(dark.mat) if CLASSICAL else
                                                                (medieval_materials(dark.mat) if MEDIEVAL else
                                                                 (gunpowder_materials(dark.mat) if GUNPOWDER else
-                                                                 (industrial_materials(dark.mat) if INDUSTRIAL else modern_materials(dark.mat)))))))
+                                                                 (industrial_materials(dark.mat) if INDUSTRIAL else
+                                                                  (modern_materials(dark.mat) if MODERN else digital_materials(dark.mat))))))))
 
 
 def bronze_materials(dark):
@@ -438,6 +442,89 @@ def modern_materials(dark):
     return m
 
 
+def digital_materials(dark):
+    """The Digital Age kits' materials (decor_mats' Digital Age section): the tech corps' graphite and navy, white lab
+    enamel and epoxy, safety glass, perforated rack doors, cryogenic frost, magnets, solar cells, the desert station's
+    sand, rock, scrub and cacti, the neon city's wet asphalt and puddles, vending machines, food carts and the
+    hover-car; the glows of screens, status lights, neon, holograms, lit windows and warning beacons."""
+    th = THEME
+    T = DM.tech
+    gr, navy = (0.16, 0.17, 0.2), (0.12, 0.16, 0.3)
+    m = {
+        "dark": dark, "rubber": DM.flat("DK_Rubber", (0.06, 0.06, 0.065), 0.85), "turf": DM.turf("DK_Turf", "meadow"),
+        "glass": DM.flat("DK_Glass", (0.1, 0.13, 0.18), 0.12, hi=(0.5, 0.58, 0.66)), "dark_glass": DM.flat("DK_DarkGlass", (0.05, 0.06, 0.09), 0.1, hi=(0.36, 0.4, 0.52)),
+        "lab_glass": DM.lab_glass("DK_LabGlass"), "concrete": DM.concrete("DK_Concrete", base=(0.7, 0.7, 0.68)),
+        "galv": mats.iron("DK_Galv", col=dict(base=(0.6, 0.62, 0.64), hi=(0.9, 0.92, 0.94), dark=(0.3, 0.31, 0.32), rust=(0.5, 0.45, 0.4))),
+        "steel": mats.iron("DK_Steel", col=dict(base=(0.42, 0.43, 0.46), hi=(0.8, 0.82, 0.86), dark=(0.16, 0.16, 0.18), rust=(0.4, 0.38, 0.36))),
+        "chrome": mats.iron("DK_Chrome", col=dict(base=(0.56, 0.58, 0.62), hi=(0.96, 0.97, 0.99), dark=(0.22, 0.23, 0.25), rust=(0.5, 0.5, 0.5))),
+        "brass": mats.bronze("DK_Brass", base=(0.74, 0.58, 0.26), hi=(1.0, 0.9, 0.6), dark=(0.34, 0.24, 0.08), patina=(0.5, 0.42, 0.2)),
+        "graphite": T("DK_Graphite", gr, col5=navy, col9=(0.86, 0.86, 0.88), edge=0.45),
+        "navy": T("DK_Navy", navy, col5=gr, col9=(0.86, 0.86, 0.88), edge=0.45),
+        "white_tech": T("DK_WhiteTech", (0.88, 0.89, 0.9), col5=navy, col7=gr, col9=(0.1, 0.1, 0.12), edge=0.15),
+        "instrument": T("DK_Instrument", (0.66, 0.68, 0.71), col5=navy, col7=(0.1, 0.1, 0.11), edge=0.25),
+        "hazard_yellow": T("DK_HazardYellow", (0.96, 0.74, 0.1), col5=(0.96, 0.74, 0.1), col7=(0.06, 0.06, 0.06), col9=(0.95, 0.95, 0.93), grime=0.2),
+        "cables": DM.multi("DK_Cables", (0.07, 0.07, 0.08), {5: (0.56, 0.22, 0.86), 8: (0.95, 0.48, 0.1), 9: (0.2, 0.44, 0.86)}, 0.55),
+        "epoxy": DM.epoxy("DK_Epoxy"), "asphalt": DM.asphalt("DK_Asphalt"),
+        "glow_violet": DM.glow("DK_GlowViolet", (0.85, 0.25, 0.95), 2.2), "glow_screen": DM.glow("DK_GlowScreen", (0.72, 0.88, 1.0), 2.2),
+        "glow_green": DM.glow("DK_GlowGreen", (0.3, 1.0, 0.45), 2.2), "glow_cyan": DM.glow("DK_GlowCyan", (0.25, 0.85, 1.0), 2.2),
+        "glow_magenta": DM.glow("DK_GlowMagenta", (1.0, 0.2, 0.85), 2.2), "glow_amber": DM.glow("DK_GlowAmber", (1.0, 0.55, 0.1), 2.2),
+        "glow_red": DM.glow("DK_GlowRed", (1.0, 0.12, 0.08), 2.2), "glow_flood": DM.glow("DK_GlowFlood", (0.92, 0.95, 1.0), 2.2),
+        "glow_window": DM.glow("DK_GlowWindow", (1.0, 0.86, 0.58), 2.2), "glow_window_cool": DM.glow("DK_GlowWindowCool", (0.66, 0.84, 1.0), 2.2),
+        "glow_lamp": DM.glow("DK_GlowLamp", (1.0, 0.8, 0.42), 2.2),
+    }
+    if th in ("lab", "lab_city"):
+        m.update({
+            "vials": DM.multi("DK_Vials", (0.78, 0.84, 0.9), {5: (0.9, 0.18, 0.3), 8: (0.2, 0.5, 0.95)}, 0.2),
+            "perforated": DM.perforated("DK_Perforated"), "plywood": mats.siege("DK_Plywood", wood=(0.74, 0.6, 0.4), wood2=(0.62, 0.48, 0.3), metal="iron"),
+            "cable_orange": DM.multi("DK_CableOrange", (0.95, 0.42, 0.08), {7: (0.08, 0.08, 0.09)}, 0.5),
+            "soil": DM.flat("DK_Soil", (0.17, 0.12, 0.09), 0.95, var=0.3),
+            "fern": DM.frond("DK_Fern", base=(0.1, 0.34, 0.1), hi=(0.32, 0.6, 0.2), dry=(0.44, 0.5, 0.2)),
+            "gas": T("DK_Gas", (0.3, 0.32, 0.34), col5=(0.12, 0.42, 0.2), col7=(0.07, 0.07, 0.08), col9=(0.93, 0.93, 0.91), grime=0.25),
+            "magnet": T("DK_Magnet", (0.13, 0.3, 0.64), col5=(0.95, 0.72, 0.1), col7=(0.12, 0.12, 0.13), col8=(0.78, 0.42, 0.2), grime=0.2),
+            "crane_yellow": T("DK_CraneYellow", (0.95, 0.7, 0.08), col5=navy, col7=(0.08, 0.08, 0.08), grime=0.3),
+            "cryo": DM.cryo("DK_Cryo"), "frost": DM.frost("DK_Frost"),
+            "valves": T("DK_Valves", (0.55, 0.57, 0.6), col7=(0.08, 0.08, 0.09), col8=(0.8, 0.1, 0.08), col9=(0.95, 0.95, 0.93)),
+        })
+    if th == "satellite":
+        m.update({
+            "rock": DM.sandstone("DK_Rock", base=(0.74, 0.6, 0.44), dark=(0.54, 0.42, 0.3), bedding=0.22), "sand": DM.sand("DK_Sand", base=(0.78, 0.64, 0.44), hi=(0.88, 0.75, 0.54), shade=(0.64, 0.52, 0.36)),
+            "scrub": DM.leaves("DK_Scrub", base=(0.3, 0.33, 0.19), hi=(0.56, 0.56, 0.36)), "acacia_bark": DM.bark("DK_ScrubBark", "desert"),
+            "saguaro": DM.cactus("DK_Saguaro"),
+            "barrel_cactus": DM.cactus("DK_BarrelCactus", base=(0.22, 0.38, 0.17), hi=(0.78, 0.58, 0.26), groove=(0.06, 0.13, 0.05),
+                                       spine=(0.86, 0.36, 0.16), dots=30.0, dot_r=0.3),
+            "flower_cream": DM.flat("DK_FlowerCream", (0.95, 0.92, 0.8), 0.6, hi=(1.0, 0.98, 0.92)), "flower_gold": DM.flat("DK_FlowerGold", (0.96, 0.76, 0.2), 0.6),
+            "flower_yellow": DM.flat("DK_FlowerYellow", (0.98, 0.84, 0.26), 0.6, hi=(1.0, 0.95, 0.6)),
+            "flower_orange": DM.flat("DK_FlowerOrange", (0.98, 0.56, 0.16), 0.6, hi=(1.0, 0.8, 0.4)),
+            "radome": DM.radome("DK_Radome", base=(0.88, 0.89, 0.9)), "solar": DM.solar("DK_Solar"), "chainlink": DM.chainlink("DK_Chainlink"),
+            "timber": mats.siege("DK_Timber", wood=(0.6, 0.46, 0.3), wood2=(0.46, 0.34, 0.2), metal="iron"),
+            "truck": DM.vehicle("DK_Truck", (0.9, 0.9, 0.88), col5=(0.95, 0.42, 0.08), col8=(0.12, 0.16, 0.3), grime=0.3),
+            "fuel": T("DK_Fuel", (0.86, 0.87, 0.86), col5=(0.72, 0.1, 0.08), col7=(0.12, 0.12, 0.13), col9=(0.1, 0.1, 0.12), grime=0.35),
+            "station": T("DK_Station", (0.74, 0.72, 0.66), col5=navy, col7=(0.12, 0.12, 0.13), col9=(0.92, 0.92, 0.9), grime=0.35, edge=0.2),
+            "brick_rough": DM.concrete("DK_Block", base=(0.66, 0.6, 0.52), board=0.12),
+        })
+    if th == "neon":
+        m.update({
+            "puddle": DM.puddle("DK_Puddle"),
+            "vending_red": T("DK_VendingRed", (0.74, 0.08, 0.12), col5=(0.95, 0.95, 0.93), col7=(0.06, 0.06, 0.07), col9=(0.98, 0.8, 0.1)),
+            "vending_blue": T("DK_VendingBlue", (0.1, 0.3, 0.7), col5=(0.95, 0.95, 0.93), col7=(0.06, 0.06, 0.07), col9=(0.98, 0.8, 0.1)),
+            "stall": T("DK_Stall", (0.6, 0.12, 0.1), col5=(0.9, 0.84, 0.7), col7=(0.08, 0.07, 0.07), col9=(0.95, 0.9, 0.8), grime=0.4),
+            "canvas": mats.linen("DK_Canvas", base=(0.86, 0.22, 0.2), border=(0.95, 0.9, 0.78), stripe=(0.15, 0.15, 0.2)),
+            "wood": mats.siege("DK_Wood", wood=(0.5, 0.34, 0.2), wood2=(0.38, 0.25, 0.14), metal="iron"),
+            "bags": DM.flat("DK_Bags", (0.05, 0.05, 0.06), 0.25, hi=(0.4, 0.42, 0.5)),
+            "hover": T("DK_Hover", (0.82, 0.84, 0.88), col5=(0.12, 0.12, 0.16), col7=(0.05, 0.05, 0.06), col9=(0.85, 0.25, 0.95), rough=0.2, grime=0.1),
+            "street_iron": T("DK_StreetIron", (0.13, 0.14, 0.16), col5=(0.9, 0.7, 0.1), grime=0.3),
+            "pot_metal": T("DK_PotMetal", (0.62, 0.64, 0.66), col7=(0.08, 0.08, 0.09), grime=0.3),
+            "noodles": DM.multi("DK_Noodles", (0.92, 0.8, 0.5), {5: (0.62, 0.32, 0.12), 7: (0.1, 0.32, 0.12)}, 0.5),
+            "paper": DM.multi("DK_Paper", (0.92, 0.88, 0.78), {5: (0.8, 0.12, 0.1)}, 0.8),
+        })
+    if th == "lab_city":
+        m.update({
+            "radome": DM.radome("DK_Radome", base=(0.88, 0.89, 0.9)),
+            "curtain": DM.curtain("DK_Curtain", glass=(0.1, 0.14, 0.26), mullion=(0.24, 0.26, 0.3), spandrel=(0.12, 0.13, 0.16), lit=(0.62, 0.36, 0.9)),
+        })
+    return m
+
+
 def gunpowder_materials(dark):
     """The Gunpowder Age kits' materials (decor_mats' Gunpowder Age section): the jungle's barks, leaves, mossy stone and
     the temple's limestone; the harbour's palms, sea-grape, sand, tarred hull, sails and rigging, contraband and gold;
@@ -550,7 +637,10 @@ GLOW_KEYS = {"glow_lava": ((1.0, 0.45, 0.08), 1.6, 0.6), "glow_cyan": ((0.25, 0.
              # the Modern Age: warning beacons and tail lamps, floodlights, signals, lit offices, neon
              "glow_red": ((1.0, 0.12, 0.08), 1.3, 0.6), "glow_flood": ((0.92, 0.95, 1.0), 1.3, 0.75), "glow_amber": ((1.0, 0.55, 0.1), 1.3, 0.6),
              "glow_window": ((1.0, 0.86, 0.58), 1.1, 0.75), "glow_neon_pink": ((1.0, 0.25, 0.65), 1.45, 0.55),
-             "glow_neon_cyan": ((0.25, 0.9, 1.0), 1.35, 0.55)}
+             "glow_neon_cyan": ((0.25, 0.9, 1.0), 1.35, 0.55),
+             # the Digital Age: the corps' violet, screens, status lights, cool lit windows
+             "glow_violet": ((0.85, 0.25, 0.95), 1.35, 0.5), "glow_screen": ((0.72, 0.88, 1.0), 1.15, 0.7),
+             "glow_green": ((0.3, 1.0, 0.45), 1.3, 0.5), "glow_window_cool": ((0.66, 0.84, 1.0), 1.1, 0.7)}
 
 
 def kit():
@@ -826,7 +916,7 @@ def game_stage():
     kitob = lp.join(low, "Kit")
     kitob.data.validate(clean_customdata=False)
     lp.unwrap(kitob, margin=0.003)
-    if GUNPOWDER or INDUSTRIAL or MODERN:
+    if GUNPOWDER or INDUSTRIAL or MODERN or DIGITAL:
         reproject_collapsed(kitob)
     uv = kitob.data.uv_layers.active.data
     co = np.zeros(len(uv) * 2, np.float32)
@@ -835,8 +925,8 @@ def game_stage():
     uv.foreach_set("uv", co)
     log("uv %.0fs" % (time.time() - T))
     groups = [([pid[o.name]], [o]) for o in bake_hi]
-    # (the Gunpowder, Industrial and Modern Ages' kits: a deeper cage, and the texels no ray reached filled; see fill_misses)
-    deep = GUNPOWDER or INDUSTRIAL or MODERN
+    # (the Gunpowder, Industrial, Modern and Digital Ages' kits: a deeper cage, and the texels no ray reached filled; see fill_misses)
+    deep = GUNPOWDER or INDUSTRIAL or MODERN or DIGITAL
     maps = bk.bake_groups(kitob, groups, TEX, ["DIFFUSE", "NORMAL", "ROUGHNESS", "AO"], ao_samples=AO_SPP, ao_dist=0.35,
                           extrusion=0.035 if deep else 0.02, maxdist=0.08 if deep else 0.06)
     if deep:
@@ -907,7 +997,8 @@ def game_stage():
             objs[p] = g
     rng = np.random.default_rng(3)
     if THEME in ("meadow", "volcano", "delta", "desert", "canyon", "highland", "forge", "bog", "olive", "coast", "acropolis",
-                 "farmland", "darkwood", "castle", "jungle", "harbor", "fortress", "factory", "railyard", "smog", "military", "metro", "suburb"):
+                 "farmland", "darkwood", "castle", "jungle", "harbor", "fortress", "factory", "railyard", "smog", "military", "metro", "suburb",
+                 "satellite"):
         V, F, UV = [], [], []
         for k in range(3):                          # a clump of three tufts
             v, f, u = tuft_geometry(rng)
