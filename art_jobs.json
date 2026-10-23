@@ -1,0 +1,7 @@
+[
+ {
+  "name": "emp_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/emp_p2; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character emp --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character emp --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 4,16 --step 2 --spp 8 --res 500 --tx 0.05 --ty -0.1 --tz 1.3 --dist 3.6 --az 25 --el 22 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Combat --range 0,0 --step 1 --spp 8 --res 500 --tx 0.05 --ty -0.1 --tz 1.3 --dist 3.6 --az 25 --el 22 > $O/poses_Combat.log 2>&1 || tail -20 $O/poses_Combat.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 40,80 --step 40 --spp 8 --res 500 --tx 0.05 --ty -0.1 --tz 1.3 --dist 3.6 --az 25 --el 22 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/emp_p2"
+ }
+]
