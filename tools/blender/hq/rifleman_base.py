@@ -98,8 +98,8 @@ def brick_field():
     fd = Field("Brick")
     def drum(P):
         r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
-        return np.maximum(r - F(PLINTH_R), np.maximum(P[:, 2] - F(TOP_Z), F(-0.05) - P[:, 2]))
-    fd.add(Func(drum, (-1.15, -1.15, -0.1), (1.15, 1.15, TOP_Z + 0.02), disp=lambda P: _course_joints(P) + F(0.0015) * NOISE(P * F(20)), disp_amp=0.006), 0.0)
+        return np.maximum(r - F(PLINTH_R), np.maximum(P[:, 2] - F(TOP_Z - 0.05), F(-0.05) - P[:, 2]))      # (its top under the setts' bed)
+    fd.add(Func(drum, (-1.15, -1.15, -0.1), (1.15, 1.15, TOP_Z - 0.03), disp=lambda P: _course_joints(P) + F(0.0015) * NOISE(P * F(20)), disp_amp=0.006), 0.0)
     # (broken where the track crosses it)
     mid, half = (BED_Y[0] + BED_Y[1]) / 2, (BED_Y[1] - BED_Y[0]) / 2
     ring = ring_func(COPE_R0, COPE_R1, 30, 811, COPE_TOP, 0.03, jitter=0.6, chip=_chip)
@@ -507,8 +507,8 @@ def fields():
 
 
 REGION_PARTS = ("Brick", "Setts", "Track", "Pier", "Lamp", "Sandbags", "Crate")
-LOW_TARGETS = {"Ground": 1500, "Brick": 3000, "Setts": 3600, "Ballast": 1200, "Track": 1900, "Pier": 700, "Lamp": 900,
-               "Glass": 60, "Sandbags": 1300, "Crate": 1800, "Weeds": 900, "Coal": 380}
+LOW_TARGETS = {"Ground": 1500, "Brick": 2200, "Setts": 2800, "Ballast": 900, "Track": 1600, "Pier": 700, "Lamp": 900,
+               "Glass": 60, "Sandbags": 1300, "Crate": 1500, "Weeds": 900, "Coal": 380}
 _TIMBER = {"wood": (0.62, 0.48, 0.32), "wood2": (0.46, 0.34, 0.21), "worn": (0.82, 0.72, 0.56), "stain": (0.36, 0.2, 0.1)}
 MAT_OVERRIDES = {"Ground": ("ground", {"name": "HQ_CinderGround"}),
                  "Brick": ("red_brick", {"name": "HQ_PlinthBrick", "radial": PLINTH_R}),
