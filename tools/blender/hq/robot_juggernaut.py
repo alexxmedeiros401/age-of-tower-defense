@@ -335,8 +335,15 @@ def parts(fine=False):
         u = i / 8.0
         top = top_r + (top_l - top_r) * u
         bot = (bot_r + (tip - bot_r) * (u * 2)) if u <= 0.5 else (tip + (bot_l - tip) * ((u - 0.5) * 2))
-        f.add(RoundBox((top + bot) / 2, (0.03, 0.024, float(np.linalg.norm(top - bot)) / 2), 0.012,
+        f.add(RoundBox((top + bot) / 2, (0.034, 0.03, float(np.linalg.norm(top - bot)) / 2), 0.012,
                        R=rot_from_axes(z_axis=norm(top - bot), x_axis=norm(np.cross(norm(top - bot), (0, 0, 1)) + 1e-6))), k=0.01)
+    from scipy.spatial import ConvexHull                                                     # the wedge behind the bars
+    wp = np.array([top_l, top_r, v3((0, RB_Y[0] - 0.14, 1.32)), bot_l, bot_r, tip,
+                   v3((0.5, -1.5, 0.24)), v3((-0.5, -1.5, 0.24)), v3((0.5, -1.5, 1.32)), v3((-0.5, -1.5, 1.32))])
+    eq = ConvexHull(wp).equations
+    def wedge(P, eq=eq):
+        return (np.max(P.astype(np.float64) @ eq[:, :3].T + eq[:, 3], axis=1) + 0.04).astype(F)
+    f.add(Func(wedge, wp.min(0) - 0.05, wp.max(0) + 0.05), label=5)
     f.add(RoundCone(top_r + v3((0, 0, 0.0)), top_l, 0.04, 0.04), k=0.015)                  # the top rail
     f.add(RoundCone(bot_r, tip, 0.035, 0.035), k=0.015)                                     # the bottom rails
     f.add(RoundCone(tip, bot_l, 0.035, 0.035), k=0.015)
