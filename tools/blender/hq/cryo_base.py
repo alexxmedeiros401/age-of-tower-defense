@@ -26,6 +26,7 @@ TERM_A = math.radians(48.0)    # the terminal: behind him on his left
 COOL_A = math.radians(96.0)    # the cooling unit: behind him
 JUNC_A = math.radians(70.0)    # the junction box on the platform's edge
 PUDDLE_A = math.radians(-28.0) # the frozen puddle: front right
+DEWAR_A = math.radians(-178.0) # the floor dewar on its dolly: on his right
 RIM_Z = TOP_Z - 0.032          # the light strip's height on the platform's edge
 # labels (mats.modern_kit): 0 white epoxy, 5 black, 6 hazard yellow, 7 frost, 8 graphite, 9 gunmetal, 10 steel,
 # 11 glass, 12 rubber, 13 violet
@@ -133,32 +134,33 @@ def rack_into(fd):
     c = ring_pt(RACK_A, PROP_R + 0.01)
     g = FLOOR_TOP
     Rb = np.stack([along, out, Z], axis=1)
-    fd.add(RoundBox(c + Z * (g + 0.02), (0.25, 0.1, 0.02), 0.008, R=Rb), 0.0, BLACK)
+    fd.add(RoundBox(c + Z * (g + 0.02), (0.29, 0.11, 0.02), 0.008, R=Rb), 0.0, BLACK)
     for e in (-1, 1):
-        p = c + along * (e * 0.235)
-        fd.add(RoundBox(p + Z * (g + 0.24), (0.014, 0.05, 0.24), 0.006, R=Rb), 0.004, BLACK)
-    fd.add(RoundBox(c + Z * (g + 0.44) + out * 0.01, (0.25, 0.016, 0.018), 0.006, R=Rb), 0.004, BLACK)
+        p = c + along * (e * 0.275)
+        fd.add(RoundBox(p + Z * (g + 0.28), (0.016, 0.055, 0.28), 0.006, R=Rb), 0.004, BLACK)
+    fd.add(RoundBox(c + Z * (g + 0.52) + out * 0.01, (0.29, 0.018, 0.02), 0.006, R=Rb), 0.004, BLACK)
+    fd.add(RoundBox(c + Z * (g + 0.56), (0.29, 0.03, 0.012), 0.006, R=Rb), 0.004, BLACK)
     rs = np.random.RandomState(31)
-    for k, u in enumerate((-0.15, 0.0, 0.15)):
+    for k, u in enumerate((-0.175, 0.0, 0.175)):
         p = c + along * u
-        hgt = 0.36 + 0.03 * (k % 2)
+        hgt = 0.44 + 0.04 * (k % 2)
         cc = p + Z * (g + 0.04 + hgt / 2)
-        fd.add(Cylinder(cc, 0.062, hgt, rr=0.02), 0.004, STEEL)
-        fd.add(Ellipsoid(p + Z * (g + 0.04 + hgt), (0.062, 0.062, 0.03)), 0.015, STEEL)
-        for zz in (0.1, hgt - 0.07):
-            fd.add(Torus(p + Z * (g + 0.04 + zz), 0.063, 0.008), 0.004, GRAPH)
-        fd.paint(Inter(Shell(Cylinder(cc, 0.062, 0.3), 0.0, 0.01), Func(lambda P, p=p: np.maximum(
+        fd.add(Cylinder(cc, 0.075, hgt, rr=0.024), 0.004, STEEL)
+        fd.add(Ellipsoid(p + Z * (g + 0.04 + hgt), (0.075, 0.075, 0.035)), 0.015, STEEL)
+        for zz in (0.1, hgt - 0.08):
+            fd.add(Torus(p + Z * (g + 0.04 + zz), 0.076, 0.009), 0.004, GRAPH)
+        fd.paint(Inter(Shell(Cylinder(cc, 0.075, 0.3), 0.0, 0.01), Func(lambda P, p=p: np.maximum(
             np.abs(P[:, 2] - F(g + 0.04 + hgt * 0.5)) - F(0.04), F(0.0) - (P - p.astype(F)) @ (-out).astype(F)), p - 0.3, p + 0.4), 0.002), VIOLET)
         # the frosted cap and neck
-        top = p + Z * (g + 0.04 + hgt + 0.02)
+        top = p + Z * (g + 0.04 + hgt + 0.025)
         fd.add(Cylinder(top + Z * 0.02, 0.026, 0.05, rr=0.008), 0.006, GUN)
         for j in range(5):
             a = rs.uniform(0, 2 * math.pi)
             d = v3((math.cos(a), math.sin(a), 0))
-            fd.add(Ellipsoid(top + d * rs.uniform(0.02, 0.05) + Z * rs.uniform(-0.01, 0.04), (0.022, 0.018, 0.012),
+            fd.add(Ellipsoid(top + d * rs.uniform(0.02, 0.06) + Z * rs.uniform(-0.01, 0.04), (0.026, 0.02, 0.014),
                              R=rot_from_axes(z_axis=norm(Z + d)), disp=lambda P: F(0.003) * NOISE(P * F(55)), disp_amp=0.004), 0.01, FROST)
         # a clamp round it on the top rail
-        fd.add(Torus(p + Z * (g + 0.44), 0.068, 0.009), 0.004, BLACK)
+        fd.add(Torus(p + Z * (g + 0.52), 0.082, 0.01), 0.004, BLACK)
     # frost crusted on the floor round the tray
     for j in range(16):
         a = rs.uniform(0, 2 * math.pi)
@@ -299,6 +301,40 @@ def puddle_into(fd):
         fd.add(RoundCone(q + Z * FLOOR_TOP, q + Z * FLOOR_TOP + d * rs.uniform(0.04, 0.07), 0.012, 0.003), 0.006, FROST)
 
 
+def dewar_into(fd):
+    """A big floor dewar on a wheeled dolly on his right (brushed steel 10, a navy-graphite band 8, a yellow hazard label
+    6, a black dolly 5 with rubber wheels 12, a frosted valve head 7), a coiled coolant hose beside it (black rubber)."""
+    out, along = ring_frame(DEWAR_A)
+    c = ring_pt(DEWAR_A, PROP_R - 0.01)
+    g = FLOOR_TOP
+    fd.add(Cylinder(c + Z * (g + 0.03), 0.13, 0.03, rr=0.01), 0.0, BLACK)
+    for k in range(4):
+        a = DEWAR_A + math.pi / 4 + k * math.pi / 2
+        d = v3((math.cos(a), math.sin(a), 0))
+        fd.add(Cylinder(c + d * 0.11 + Z * (g + 0.018), 0.02, 0.024, rr=0.006, R=rot_from_axes(z_axis=np.cross(Z, d))), 0.004, RUBBER)
+    hgt = 0.5
+    fd.add(Cylinder(c + Z * (g + 0.045 + hgt / 2), 0.11, hgt, rr=0.03), 0.006, STEEL)
+    fd.add(Ellipsoid(c + Z * (g + 0.045 + hgt), (0.11, 0.11, 0.05)), 0.02, STEEL)
+    fd.add(Torus(c + Z * (g + 0.2), 0.112, 0.012), 0.004, GRAPH)
+    fd.paint(RoundBox(c - out * 0.108 + Z * (g + 0.33), (0.004, 0.05, 0.05), 0.003, R=rot_from_axes(x_axis=out, z_axis=Z) @ euler(0.785, 0, 0)), HAZ)
+    top = c + Z * (g + 0.045 + hgt + 0.045)
+    fd.add(Cylinder(top + Z * 0.02, 0.03, 0.05, rr=0.008), 0.004, GUN)
+    fd.add(Torus(top + Z * 0.05, 0.04, 0.008), 0.003, HAZ)
+    rs = np.random.RandomState(5)
+    for j in range(7):
+        a = rs.uniform(0, 2 * math.pi)
+        d = v3((math.cos(a), math.sin(a), 0))
+        fd.add(Ellipsoid(top + d * rs.uniform(0.02, 0.06) + Z * rs.uniform(-0.03, 0.03), (0.028, 0.022, 0.014),
+                         R=rot_from_axes(z_axis=norm(Z + d)), disp=lambda P: F(0.003) * NOISE(P * F(55)), disp_amp=0.004), 0.01, FROST)
+    # a handle bar on the dolly
+    fd.add(Chain([c + out * 0.1 + along * 0.08 + Z * (g + 0.04), c + out * 0.13 + along * 0.08 + Z * (g + 0.45),
+                  c + out * 0.13 - along * 0.08 + Z * (g + 0.45), c + out * 0.1 - along * 0.08 + Z * (g + 0.04)], [0.012] * 4, k=0.01), 0.004, BLACK)
+    # the hose coil on the floor before it
+    hc = ring_pt(DEWAR_A + 0.33, PROP_R + 0.02) + Z * (g + 0.012)
+    for k in range(3):
+        fd.add(Torus(hc + Z * (0.022 * k), 0.09 - 0.008 * k, 0.012), 0.006, RUBBER)
+
+
 def _part(name, *fns):
     fd = Field(name)
     for fn in fns:
@@ -312,6 +348,7 @@ def fields():
             ("Rack", _part("Rack", rack_into), 0.0024), ("Terminal", _part("Terminal", terminal_into), 0.0024),
             ("Cable", _part("Cable", lambda fd: junction_into(fd, None)), 0.0028),
             ("Cooler", _part("Cooler", cooler_into), 0.0024), ("Puddle", _part("Puddle", puddle_into), 0.003),
+            ("Dewar", _part("Dewar", dewar_into), 0.0026),
             ("Term", term_field(), 0.003)]
 
 
@@ -324,9 +361,9 @@ def flower_geometry(seed=0):
     return []
 
 
-REGION_PARTS = ("Floor", "Pad", "Rack", "Terminal", "Cable", "Cooler", "Puddle")
+REGION_PARTS = ("Floor", "Pad", "Rack", "Terminal", "Cable", "Cooler", "Puddle", "Dewar")
 LOW_TARGETS = {"Floor": 1600, "Pad": 2600, "Rim": 400, "Rack": 2600, "Terminal": 1500, "Cable": 700, "Cooler": 1300,
-               "Puddle": 500, "Term": 30}
+               "Puddle": 500, "Dewar": 1800, "Term": 30}
 LAB = {"base": (0.88, 0.89, 0.9), "weave": 0.0, "black": (0.06, 0.06, 0.07), "red": (0.95, 0.74, 0.12),
        "white": (0.84, 0.92, 1.0), "olive": (0.22, 0.23, 0.27), "gunmetal": (0.26, 0.27, 0.3), "steel": (0.66, 0.68, 0.72),
        "glass": (0.05, 0.055, 0.08), "rubber": (0.08, 0.08, 0.09), "coyote": _c.VIOLET_C}
@@ -337,6 +374,7 @@ MAT_OVERRIDES = {"Floor": ("modern_kit", dict(LAB, name="HQ_CryoLabFloor")),
                  "Cable": ("modern_kit", dict(LAB, name="HQ_CryoLabKit")),
                  "Cooler": ("modern_kit", dict(LAB, name="HQ_CryoLabKit")),
                  "Puddle": ("modern_kit", dict(LAB, name="HQ_CryoLabKit")),
+                 "Dewar": ("modern_kit", dict(LAB, name="HQ_CryoLabKit")),
                  "Rim": ("glow_ball", {"name": "HQ_CryoRim", "col": _c.GLOW_V, "strength": 1.0}),
                  "Term": ("glow_ball", {"name": "HQ_CryoTerm", "col": (0.78, 0.64, 1.0), "strength": 0.8})}
 GLOW = {"Rim": (_c.GLOW_V, 1.1, 0.5), "Term": ((0.78, 0.64, 1.0), 0.8, 0.5)}

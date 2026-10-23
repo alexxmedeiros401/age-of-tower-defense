@@ -8,9 +8,9 @@ a straight nose, a closed mouth with the faintest smile. Short black hair: cropp
 longer on top and swept back. A slim headset (a black band round his head, a pod over each temple) carrying a smoked HUD
 visor pushed up onto his hairline (a violet light line along its top edge: `VisorGlow`, its own glowing mesh).
 Graphite techwear: a fitted jacket with a high black collar, navy side panels and navy forearms, its sleeves running
-into the cuffs of thick insulated gloves (black, padded, navy gauntlet cuffs, hard knuckle plates); a sleek graphite
+into the cuffs of thick insulated gloves (black, padded, navy gauntlet cuffs, hard knuckle plates); a sleek navy
 chest rig (front and back plates on straps, panel lines, two violet light strips down the front plate: `Strips`, their
-own glowing mesh) and rounded shoulder plates crusted with frost; a black belt; graphite trousers with a navy stripe down
+own glowing mesh) and rounded navy shoulder plates crusted with frost; a black belt; graphite trousers with a navy stripe down
 each leg and black knee plates; black boots. On his left forearm a black wrist display.
 
 The projector (bones `machine`, `mast`, `coils`, `core`, `vapour`): a squat cryogenic tank (brushed steel, navy bands,
@@ -76,26 +76,26 @@ def head(fd):
         fd.add(S((sx * 0.092, -0.142, 1.594), 0.035), 0.04, SKIN)                               # young cheeks
         fd.add(S((sx * 0.117, -0.05, 1.562), 0.045), 0.05, SKIN)                                # jaw corners
         pts = [hp((sx * 0.15, -0.055, 1.742)), hp((sx * 0.114, -0.13, 1.75)), hp((sx * 0.06, -0.172, 1.748)), hp((0.0, -0.182, 1.746))]
-        fd.add(Chain(pts, [hr(0.012), hr(0.019), hr(0.022), hr(0.022)], k=hr(0.022)), hr(0.034), SKIN)     # brow ridge
+        fd.add(Chain(pts, [hr(0.01), hr(0.015), hr(0.017), hr(0.017)], k=hr(0.02)), hr(0.03), SKIN)     # brow ridge
     fd.paint(Func(face_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # level brows with a gentle arch, their inner ends relaxed (a calm look)
     for sx in (-1, 1):
-        pts = [hp((sx * 0.022, -0.213, 1.752)), hp((sx * 0.064, -0.206, 1.768)), hp((sx * 0.107, -0.187, 1.772)), hp((sx * 0.148, -0.146, 1.761))]
-        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.009), hr(0.011), hr(0.01), hr(0.005)], k=hr(0.008)), hr(0.01), BROW)
-        fd.paint(Chain(pts, [hr(0.016), hr(0.018), hr(0.016), hr(0.009)], k=hr(0.01)), BROW)
+        pts = [hp((sx * 0.022, -0.209, 1.763)), hp((sx * 0.064, -0.203, 1.779)), hp((sx * 0.107, -0.184, 1.782)), hp((sx * 0.148, -0.144, 1.769))]
+        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.007), hr(0.0085), hr(0.0075), hr(0.004)], k=hr(0.007)), hr(0.009), BROW)
+        fd.paint(Chain(pts, [hr(0.013), hr(0.015), hr(0.013), hr(0.008)], k=hr(0.01)), BROW)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.024))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.028))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0052)), Plane(ec + v3((0, 0, -hr(0.026))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0225))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0265))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
     # a straight nose
-    fd.add(RoundCone(hp((0, -0.186, 1.726)), hp((0, -0.238, 1.632)), hr(0.014), hr(0.02)), hr(0.016), SKIN)
-    fd.add(S((0, -0.24, 1.614), 0.024), hr(0.014), SKIN)
+    fd.add(RoundCone(hp((0, -0.186, 1.726)), hp((0, -0.231, 1.634)), hr(0.013), hr(0.018)), hr(0.016), SKIN)
+    fd.add(S((0, -0.232, 1.616), 0.022), hr(0.014), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.027, -0.215, 1.603), 0.018), hr(0.012), SKIN)
+        fd.add(S((sx * 0.025, -0.211, 1.604), 0.017), hr(0.012), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.015, -0.231, 1.592)), v3((0.008, 0.01, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     # a closed mouth, the corners lifted a little, a full lower lip
     slot = mouth_slot()
@@ -253,8 +253,8 @@ def pod_frame(sx):
 
 
 VIS_A = 1.16                                 # the visor wraps this far round each side from the front (rad)
-VIS_LIFT = 0.032                             # pushed up: its middle this far over the band at the front
-VIS_W = 0.026                                # its half height
+VIS_LIFT = 0.03                             # pushed up: its middle this far over the band at the front
+VIS_W = 0.034                                # its half height
 
 
 def visor_path(n=17):
@@ -271,7 +271,7 @@ def visor_path(n=17):
         o = norm(q - BAND_C)
         for _ in range(12):
             v = float(hair_outer(q[None, :].astype(F))[0])
-            if v > 0.014:
+            if v > 0.02:
                 break
             q = q + o * 0.003
         out.append(q)
@@ -305,10 +305,10 @@ def headset_field():
         fd.paint(Inter(Shell(Cylinder(c + o * 0.014, 0.0225, 0.03, R=R), 0.0, 0.004), Plane(c + o * 0.01, -o), 0.001), VIOLET)
     vp, fr = visor_path()
     nrm = [f[1] for f in fr]
-    fd.add(Lock(vp, [VIS_W] * len(vp), [0.0045] * len(vp), nrm, k=0.004), 0.0, GLASS)
+    fd.add(Lock(vp, [VIS_W] * len(vp), [0.0065] * len(vp), nrm, k=0.004), 0.0, GLASS)
     for e in (-1, 1):                                            # the rims along its top and bottom edges
         rim = [p + f[2] * (e * (VIS_W - 0.002)) for p, f in zip(vp, fr)]
-        fd.add(Chain(rim, [0.0055] * len(rim), k=0.003), 0.003, BLACK)
+        fd.add(Chain(rim, [0.0075] * len(rim), k=0.003), 0.003, BLACK)
     for sx, k in ((-1, 0), (1, len(vp) - 1)):                    # the end caps and the hinge arms back to the pods
         c, o = pod_frame(sx)
         fd.add(RoundBox(vp[k], (0.007, 0.006, VIS_W), 0.005, R=np.stack([fr[k][0], fr[k][1], fr[k][2]], axis=1)), 0.004, BLACK)
@@ -320,8 +320,8 @@ def visor_glow_field():
     """The violet light line along the visor's top edge (shipped glowing)."""
     fd = Field("VisorGlow")
     vp, fr = visor_path()
-    line = [p + f[2] * (VIS_W - 0.0085) + f[1] * 0.0042 for p, f in zip(vp, fr)][1:-1]
-    fd.add(Chain(line, [0.0026] * len(line), k=0.002), 0.0)
+    line = [p + f[2] * (VIS_W - 0.011) + f[1] * 0.0062 for p, f in zip(vp, fr)][1:-1]
+    fd.add(Chain(line, [0.0034] * len(line), k=0.002), 0.0)
     return fd
 
 
@@ -431,8 +431,8 @@ def strip_line(x, out=0.0):
 
 
 def armor_field():
-    """Sleek graphite polymer (label 0): the chest rig's front and back plates with panel lines, a navy band across the
-    front plate's foot (8), black side straps (5), slots down the front plate for the light strips; a black belt (5)
+    """Sleek navy polymer (label 0 in the armour's material): the chest rig's front and back plates with panel lines, a
+    graphite band across the front plate's foot (8), black side straps (5), slots down the front plate for the light strips; a black belt (5)
     with a steel buckle (10); a small black pack on his back."""
     fd = Field("Armor")
     base = vest_base()
@@ -506,7 +506,8 @@ PAUL_R = 0.158                              # the shoulder plates' radius (from 
 
 
 def pauldrons_field():
-    """Rounded graphite shoulder plates (0) over the jacket, a black lip round each (5), a navy band (8) and a violet
+    """Rounded navy shoulder plates (0 in the armour's material) over the jacket, a black lip round each (5), a graphite
+    band (8) and a violet
     stripe (13) on their outer faces; their tops crusted with frost (7)."""
     fd = Field("Pauldrons")
     rs = np.random.RandomState(17)
@@ -970,11 +971,12 @@ def vapour_field():
     side = norm(np.cross(VENT_DIR, Z))
     up2 = norm(np.cross(side, VENT_DIR))
     puff = lambda P: F(0.008) * NOISE(P * F(14)) + F(0.004) * NOISE(P * F(35))
-    for t, r in ((0.05, 0.04), (0.12, 0.055), (0.21, 0.07), (0.31, 0.08)):
-        fd.add(Sphere(VENT_P + VENT_DIR * t, r, disp=puff, disp_amp=0.012), 0.03)
-        for k in range(2):
-            o = side * rs.uniform(-1, 1) + up2 * rs.uniform(-1, 1)
-            fd.add(Sphere(VENT_P + VENT_DIR * (t + 0.02) + o * r * 0.6, r * 0.7, disp=puff, disp_amp=0.012), 0.03)
+    for t, r in ((0.05, 0.042), (0.12, 0.06), (0.21, 0.08), (0.32, 0.095)):
+        fd.add(Sphere(VENT_P + VENT_DIR * t, r, disp=puff, disp_amp=0.012), 0.025)
+        for k in range(3):
+            a = 2 * math.pi * k / 3 + t * 9
+            o = side * math.cos(a) + up2 * math.sin(a)
+            fd.add(Sphere(VENT_P + VENT_DIR * (t + 0.015) + o * r * rs.uniform(0.7, 0.95), r * rs.uniform(0.6, 0.75), disp=puff, disp_amp=0.012), 0.02)
     return fd
 
 
@@ -992,7 +994,7 @@ LEV_W = -0.045                               # the lever's line across the panel
 LEV_PIV = SLAB_C + SW * LEV_W + SU * -0.075 + SN * (SLAB_HALF[2] + 0.03)       # its pivot (the panel's far half)
 LEV_L = 0.29                                 # pivot -> the grip's middle
 LEV_UP = 58.0                                # its rest (and Combat) angle up from the panel (deg)
-GRIP_HALF = 0.06
+GRIP_HALF = 0.066
 
 
 def slab_pt(w, s, h):
@@ -1081,13 +1083,15 @@ def lever_field():
     collar (6), a black rubber T-grip across its end (12) with black end caps (5)."""
     fd = Field("Lever")
     d = lever_dir(LEV_UP)
-    fd.add(Cylinder(LEV_PIV, 0.024, 0.04, rr=0.008, R=rot_from_axes(z_axis=SW)), 0.0, GUN)
-    fd.add(RoundCone(LEV_PIV, LEV_GRIP - d * 0.012, 0.014, 0.011), 0.006, STEEL)
-    fd.add(Cylinder(LEV_PIV + d * 0.1, 0.017, 0.03, rr=0.006, R=rot_from_axes(z_axis=d)), 0.004, HAZARD)
-    fd.add(Cylinder(LEV_GRIP, 0.019, 2 * GRIP_HALF, rr=0.008, R=rot_from_axes(z_axis=SW),
-                    disp=lambda P: F(0.0012) * np.sin(((P - LEV_GRIP.astype(F)) @ SW.astype(F)) * F(260)), disp_amp=0.0015), 0.006, RUBBER)
+    fd.add(Cylinder(LEV_PIV, 0.03, 0.045, rr=0.01, R=rot_from_axes(z_axis=SW)), 0.0, GUN)
+    fd.add(RoundCone(LEV_PIV, LEV_GRIP - d * 0.015, 0.022, 0.017), 0.006, GUN)
+    fd.add(Cylinder(LEV_PIV + d * 0.11, 0.025, 0.036, rr=0.008, R=rot_from_axes(z_axis=d)), 0.004, BLACK)
+    fd.paint(Inter(Cylinder(LEV_PIV + d * 0.17, 0.03, 0.06, R=rot_from_axes(z_axis=d)),
+                   Func(lambda P: np.abs(np.mod(((P - LEV_PIV.astype(F)) @ d.astype(F)) * F(1.0), F(0.03)) - F(0.015)) - F(0.0075), LEV_PIV - 0.4, LEV_PIV + 0.4)), HAZARD)
+    fd.add(Cylinder(LEV_GRIP, 0.026, 2 * GRIP_HALF, rr=0.011, R=rot_from_axes(z_axis=SW),
+                    disp=lambda P: F(0.0012) * np.sin(((P - LEV_GRIP.astype(F)) @ SW.astype(F)) * F(260)), disp_amp=0.0015), 0.006, HAZARD)
     for e in (-1, 1):
-        fd.add(Cylinder(LEV_GRIP + SW * (e * (GRIP_HALF + 0.004)), 0.022, 0.014, rr=0.006, R=rot_from_axes(z_axis=SW)), 0.003, BLACK)
+        fd.add(Cylinder(LEV_GRIP + SW * (e * (GRIP_HALF + 0.005)), 0.03, 0.016, rr=0.007, R=rot_from_axes(z_axis=SW)), 0.003, BLACK)
     return fd
 
 
@@ -1121,6 +1125,7 @@ ICE = (0.72, 0.92, 1.0)                    # the cryo emitters' icy white-blue
 KIT = {"base": GRAPHITE_C, "black": (0.05, 0.05, 0.06), "olive": NAVY_C, "coyote": VIOLET_C, "white": (0.84, 0.92, 1.0),
        "red": (0.74, 0.1, 0.08), "gunmetal": (0.24, 0.25, 0.28), "steel": (0.62, 0.64, 0.68), "glass": (0.05, 0.055, 0.08),
        "rubber": (0.08, 0.08, 0.09)}
+ARMOR = dict(KIT, weave=0.0, base=NAVY_C, olive=GRAPHITE_C)   # the hard plates: navy (0), graphite trim (8)
 MACHINE = dict(KIT, weave=0.0, red=(0.95, 0.74, 0.12), steel=(0.66, 0.68, 0.72))
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_CryoSkin", "base": (0.86, 0.66, 0.53), "ruddy": (0.86, 0.54, 0.45), "lips": (0.72, 0.45, 0.4),
@@ -1131,10 +1136,10 @@ MAT_OVERRIDES = {
     "Suit": ("modern_kit", dict(KIT, name="HQ_CryoSuit")),
     "Trousers": ("modern_kit", dict(KIT, name="HQ_CryoSuit")),
     "Gloves": ("modern_kit", dict(KIT, name="HQ_CryoSuit")),
-    "Armor": ("modern_kit", dict(KIT, name="HQ_CryoArmor", weave=0.0)),
-    "Pauldrons": ("modern_kit", dict(KIT, name="HQ_CryoArmor", weave=0.0)),
-    "Headset": ("modern_kit", dict(KIT, name="HQ_CryoArmor", weave=0.0)),
-    "Pad": ("modern_kit", dict(KIT, name="HQ_CryoArmor", weave=0.0)),
+    "Armor": ("modern_kit", dict(ARMOR, name="HQ_CryoArmor")),
+    "Pauldrons": ("modern_kit", dict(ARMOR, name="HQ_CryoArmor")),
+    "Headset": ("modern_kit", dict(ARMOR, name="HQ_CryoArmor")),
+    "Pad": ("modern_kit", dict(ARMOR, name="HQ_CryoArmor")),
     "Boots": ("leather_dyed", {"name": "HQ_CryoBoots", "base": (0.06, 0.06, 0.065), "dyed": (0.06, 0.06, 0.065),
                                "worn_c": (0.24, 0.24, 0.26)}),
     "Machine": ("modern_kit", dict(MACHINE, name="HQ_CryoMachine")),
