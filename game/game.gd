@@ -10107,6 +10107,22 @@ func _build_main_menu(root: Control) -> void:
 	srow.add_child(_label("%d / %d" % [stars, map_order.size() * 3], 25, C_COIN, 7))
 	av.add_child(srow)
 	rcol.add_child(age)
+	var age_btn := Button.new()          # the age panel opens the maps
+	for stn in ["normal", "hover", "pressed", "focus", "hover_pressed"]:
+		age_btn.add_theme_stylebox_override(stn, StyleBoxEmpty.new())
+	age_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	age_btn.pressed.connect(func():
+		_sfx("click")
+		title_screen.visible = false
+		map_select.visible = true)
+	age.add_child(age_btn)
+	if Progress.new_age() == era_now:      # a win just opened this age: NEW until the player opens it
+		var ntag := _new_tag("NEW AGE!", 24)
+		ntag.position = Vector2(30, -24)
+		age.add_child(ntag)
+		var ag := age.create_tween().set_loops()
+		ag.tween_property(age, "modulate", Color(1.3, 1.22, 1.0), 0.7).set_trans(Tween.TRANS_SINE)
+		ag.tween_property(age, "modulate", Color.WHITE, 0.7).set_trans(Tween.TRANS_SINE)
 	if Progress.can_new_timeline(map_order):
 		var tl := _medallion(_res("res://assets/ui/menu_portal.png"), "NEW TIMELINE", Color(0.75, 0.45, 1.0), Color(0.25, 0.08, 0.45), 124,
 			func(): _confirm_new_timeline(), {"badge": true, "icon_frac": 0.7, "label_size": 22, "phase": 0.8})
@@ -10154,7 +10170,7 @@ func _build_main_menu(root: Control) -> void:
 			func():
 				title_screen.visible = false
 				map_select.visible = true,
-			{"icon_frac": 0.72, "icon_dy": -0.03, "phase": 0.8}),
+			{"icon_frac": 0.72, "icon_dy": -0.03, "phase": 0.8, "badge": Progress.new_age() != ""}),
 	]
 	for c in bot:
 		c.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -11575,6 +11591,10 @@ func _build_map_select(root: Control) -> void:
 		tbtn.set_meta("open", era_open)
 		tabs.add_child(tbtn)
 		tab_buttons[era_name] = tbtn
+		if era_open and era_name == Progress.new_age():
+			var ntag := _new_tag("NEW!", 22)
+			ntag.position = Vector2(170, -22)
+			tbtn.add_child(ntag)
 		if era_open:
 			if default_tab == "" or not Progress.is_unlocked(_first_map_of(default_tab)):
 				default_tab = era_name
@@ -11584,6 +11604,8 @@ func _build_map_select(root: Control) -> void:
 			var b: Button = tab_buttons[k]
 			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else (Color(0.8, 0.8, 0.8) if b.get_meta("open") else Color(0.55, 0.55, 0.55))
 		Progress.data.tab = era_name
+		if map_select.visible and era_name == Progress.new_age():
+			Progress.clear_new_age()
 	for era_name in tab_buttons:
 		if (tab_buttons[era_name] as Button).get_meta("open"):
 			tab_buttons[era_name].pressed.connect(func():
@@ -11596,6 +11618,9 @@ func _build_map_select(root: Control) -> void:
 	if default_tab == "":
 		default_tab = _eras()[0]
 	show_tab.call(default_tab)
+	map_select.visibility_changed.connect(func():     # opened on the new age's tab: it's been seen
+		if map_select.visible and str(Progress.data.get("tab", "")) == Progress.new_age():
+			Progress.clear_new_age())
 	# hero select
 	var hhead := _label("CHOOSE YOUR HERO", 30, C_GOLD, 8)
 	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -11797,7 +11822,10 @@ func _clear_box(box: Node) -> void:
 ## Rebuild the main-menu screens in place (after buying/unlocking) instead of reloading the
 ## whole scene: no freeze, the 3D hub keeps running.
 func _refresh_menus() -> void:
-	if started or title_screen == null or not is_instance_valid(title_screen):
+	if started:
+		_results_refresh()        # (opened from the results or the new-age reveal)
+		return
+	if title_screen == null or not is_instance_valid(title_screen):
 		return
 	var root := title_screen.get_parent()
 	var ti := title_screen.get_index()
@@ -11869,7 +11897,12 @@ func _start_game() -> void:
 	if not demo:
 		music.play()
 	_sfx("click")
+	if not demo and Progress.new_age() == _era():
+		Progress.clear_new_age()
 	if not demo and not _capture_run() and _first_visit():
+		if map_id == _first_map_of(_era()):          # the first match of an age opens with its title card
+			_era_title_card(_era(), func(): _robot_roster(map_id, true))
+			return
 		_robot_roster(map_id, true)
 		return
 	_toast("Place your hero (free), then pick towers on the right", C_TEXT)
@@ -12109,6 +12142,8 @@ func _show_overlay(won: bool) -> void:
 				for m in Defs.map_list():
 					if str(m.id) == newly:
 						Progress.data.tab = str(m.era)
+						if str(m.era) != _era():
+							Progress.data.new_age = str(m.era)     # the menus mark it NEW until it's opened
 				Progress.save()
 	else:
 		_sfx("defeat")
@@ -12116,7 +12151,9 @@ func _show_overlay(won: bool) -> void:
 	results_pages = [func(box: VBoxContainer): _results_summary_page(box, won, earned)]
 	for r in rewards:
 		results_pages.append(func(box: VBoxContainer): _results_reward_page(box, r))
-	if newly != "":
+	if newly != "" and str(_map_entry(newly).get("era", "")) != _era():
+		results_pages.append(func(box: VBoxContainer): _results_era_page(box, newly))
+	elif newly != "":
 		results_pages.append(func(box: VBoxContainer): _results_unlock_page(box, newly))
 	results_pages.append(func(box: VBoxContainer): _results_actions_page(box, won, newly))
 	results_summary = "%s stars=%d rewards=%d newly=%s" % ["won" if won else "lost", earned, rewards.size(), newly]
@@ -12323,6 +12360,767 @@ func _results_actions_page(box: VBoxContainer, won: bool, newly: String) -> void
 		get_tree().reload_current_scene())
 	if won and not demo and Progress.can_new_timeline(map_order):
 		add.call("BEGIN A NEW TIMELINE", Color(0.5, 0.2, 0.62), func(): _confirm_new_timeline())
+	_results_prep(box, won, newly)
+
+
+# ---------------------------------------------------------------- results: TOWERS / HEROS, the new-age reveal, the age title card
+## Each age's look and the one line that sells it: [bright, deep, tagline]. Used by the new-age reveal and by the title
+## card that opens the first match of an age.
+const ERA_STYLE := {
+	"Stone Age": [Color(1.0, 0.72, 0.38), Color(0.3, 0.14, 0.05), "Sticks, stones and stubbornness. The war starts here."],
+	"Bronze Age": [Color(1.0, 0.8, 0.36), Color(0.34, 0.19, 0.04), "Metal meets machine. Forge your first real army."],
+	"Iron Age": [Color(1.0, 0.56, 0.3), Color(0.17, 0.12, 0.12), "Harder steel, hotter forges. The robots have learned to march."],
+	"Classical Age": [Color(0.58, 0.86, 1.0), Color(0.06, 0.17, 0.4), "Marble, phalanx and fire from the sky. Hold the empire."],
+	"Medieval Age": [Color(1.0, 0.48, 0.42), Color(0.3, 0.04, 0.08), "Raise the walls and lower the gate. Knights to the front!"],
+	"Gunpowder Age": [Color(0.48, 0.96, 0.86), Color(0.03, 0.22, 0.26), "Black powder changes everything. Load, aim, fire!"],
+	"Industrial Age": [Color(1.0, 0.68, 0.32), Color(0.24, 0.12, 0.05), "Steam, steel and smoke. The war becomes a factory."],
+	"Modern Age": [Color(0.72, 0.96, 0.46), Color(0.08, 0.2, 0.08), "Missiles, jets and steel rain. This is total war."],
+	"Digital Age": [Color(0.46, 1.0, 1.0), Color(0.22, 0.04, 0.38), "Lasers and code. The machines fight on their own turf now."],
+	"The Data Center": [Color(1.0, 0.34, 0.38), Color(0.15, 0.0, 0.05), "The source of it all. Shut down the Core and end the war."],
+}
+var era_reveal: Control = null       # the full-screen new-age reveal, while it's open
+var _er_skip := false                # the reveal / title card was tapped: show everything at once
+var _er_auto := ""                   # the age whose reveal already played by itself on this results screen
+
+
+func _era_style(era: String) -> Array:
+	return ERA_STYLE.get(era, [C_GOLD, Color(0.05, 0.1, 0.2), ""])
+
+
+## "the Bronze Age" / "The Data Center"
+func _age_name(era: String) -> String:
+	return era if era.begins_with("The ") else "the " + era
+
+
+## Something to spend on (the main menu's "!" badges): the age's next tower is affordable with its Scrap.
+func _tower_buyable(era: String) -> bool:
+	var nxt := Progress.next_unlock(era)
+	return nxt != "" and Progress.scrap(era) >= Progress.tower_scrap_cost(nxt)
+
+
+## ... or a hero on sale is affordable with Time Shards.
+func _hero_buyable() -> bool:
+	for h in defs.heroes.heroes:
+		var hdx: Dictionary = defs.heroes.heroes[h]
+		if not Progress.hero_owned(h) and Progress.hero_available(hdx) and Progress.shards() >= Progress.hero_cost(hdx, defs.heroes.heroes):
+			return true
+	return false
+
+
+## A red "!" gem on the corner of a button (the main menu's badge), bobbing.
+func _btn_badge(b: Control, w: float) -> void:
+	var bd := TextureRect.new()
+	bd.texture = _res("res://assets/ui/mm_badge.png")
+	bd.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bd.size = Vector2(50, 50)
+	bd.position = Vector2(w - 36, -18)
+	bd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var bl := _label("!", 32, Color.WHITE, 6)
+	bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	bl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bl.offset_top = -2
+	bd.add_child(bl)
+	b.add_child(bd)
+	var bt := bd.create_tween().set_loops()
+	bt.tween_property(bd, "position:y", -26.0, 0.45).set_trans(Tween.TRANS_SINE)
+	bt.tween_property(bd, "position:y", -18.0, 0.45).set_trans(Tween.TRANS_SINE)
+
+
+## A tilted yellow "NEW!" tag that pulses (the robot roster's NEW! sign).
+func _new_tag(text: String, size := 24) -> PanelContainer:
+	var badge := PanelContainer.new()
+	var bs := _style(Color(1.0, 0.82, 0.12), 12, Color(0.55, 0.3, 0.0), 3)
+	bs.set_content_margin_all(3)
+	bs.content_margin_left = 12
+	bs.content_margin_right = 12
+	badge.add_theme_stylebox_override("panel", bs)
+	badge.add_child(_label(text, size, Color(0.75, 0.05, 0.05), 0))
+	badge.rotation = -0.1
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.resized.connect(func(): badge.pivot_offset = badge.size * 0.5)
+	var bt := badge.create_tween().set_loops()
+	bt.tween_property(badge, "scale", Vector2(1.12, 1.12), 0.45).set_trans(Tween.TRANS_SINE)
+	bt.tween_property(badge, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_SINE)
+	return badge
+
+
+## Results, last page: the TOWERS and HEROS screens without a trip to the main menu, with the Scrap and Time Shards to
+## spend and a "!" when something can be bought. After a win that opened a new age, TOWERS opens on the new age.
+## Unlocks and hero picks are saved at once, so PLAY AGAIN / NEXT MAP (a scene reload) play with them; closing the
+## screen refreshes this page and the match's shop (ENDLESS).
+func _results_prep(box: VBoxContainer, won: bool, newly: String) -> void:
+	var era := _era()
+	var ne := str(_map_entry(newly).get("era", "")) if newly != "" else ""
+	var new_age := ne != "" and ne != era
+	if new_age:
+		era = ne
+	var div := HBoxContainer.new()
+	div.add_theme_constant_override("separation", 16)
+	box.add_child(div)
+	var head := "GEAR UP FOR %s" % _age_name(era).to_upper() if new_age else ("GET STRONGER, THEN TRY AGAIN" if not won else "GEAR UP")
+	for i in 3:
+		if i == 1:
+			div.add_child(_label(head, 26, C_GOLD, 7))
+			continue
+		var ln := ColorRect.new()
+		ln.color = Color(C_GOLD, 0.35)
+		ln.custom_minimum_size = Vector2(0, 3)
+		ln.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ln.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		ln.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		div.add_child(ln)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 40)
+	box.add_child(row)
+	# TOWERS: the next tower to unlock is the picture
+	var et: Array = Progress.era_towers(era)
+	var nxt := Progress.next_unlock(era)
+	var t_hot := _tower_buyable(era) or (new_age and _tower_buyable(_era()))
+	var t_cap := "ALL %s TOWERS UNLOCKED" % era.to_upper()
+	if nxt != "" and _tower_buyable(era):
+		t_cap = "READY TO UNLOCK: %s" % str(defs.towers[nxt].name).to_upper()
+	elif nxt != "":
+		t_cap = "NEXT: %s  (%d SCRAP)" % [str(defs.towers[nxt].name).to_upper(), Progress.tower_scrap_cost(nxt)]
+	if new_age and _tower_buyable(_era()):
+		t_cap += "\nAND A %s TOWER IS READY TO UNLOCK" % _era().to_upper()
+	var t_med := _medallion(_icon_tex(nxt if nxt != "" else str(et[0])) if not et.is_empty() else ICON_GOLD, "TOWERS", Color(0.42, 0.7, 1.0), Color(0.08, 0.22, 0.55), 132,
+		func(): _open_workshop(era), {"badge": t_hot, "icon_frac": 0.98, "icon_dy": -0.12, "phase": 0.0, "label_size": 26})
+	_results_cluster(row, t_med, _currency_pill(_scrap_tex(era), str(Progress.scrap(era)), Color(0.86, 0.94, 1.0)), "%s SCRAP" % era.to_upper(), t_cap, t_hot)
+	# HEROS: the hero who plays next
+	var hid := Progress.hero()
+	if not defs.heroes.heroes.has(hid):
+		hid = "ugo"
+	var hcol: Color = _hero_color(hid)
+	var h_hot := _hero_buyable()
+	var h_med := _medallion(_face_tex(hid), "HEROS", hcol.lightened(0.3), hcol.darkened(0.45), 132,
+		func(): _open_heroes(), {"badge": h_hot, "face": true, "icon_frac": 0.94, "phase": 0.2, "label_size": 26})
+	var h_cap := "A NEW HERO IS FOR SALE!" if h_hot else "PLAYING AS %s" % _short_name(str(defs.heroes.heroes[hid].name)).to_upper()
+	_results_cluster(row, h_med, _currency_pill(ICON_SHARD, str(Progress.shards()), Color(0.9, 0.82, 1.0)), "TIME SHARDS", h_cap, h_hot)
+	overlay.set_meta("prep", [t_med, h_med])       # (captures press these)
+	var tip := ""
+	if not won:
+		tip = "Unlock towers with your Scrap (each unlock makes ALL your towers hit harder), then try again."
+	elif new_age:
+		tip = "The first %s tower is free. Win there to earn its Scrap for the rest." % era.trim_prefix("The ")
+	if tip != "":
+		var tl := _label(tip, 22, Color(0.7, 1.0, 0.65) if not won else Color(0.82, 0.88, 0.96), 6)
+		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(tl)
+
+
+## One shortcut on the results: the medallion, then its wallet (pill + caption) and a line on what's waiting.
+func _results_cluster(row: HBoxContainer, med: Control, pill: Control, wallet: String, cap: String, hot: bool) -> void:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 12)
+	row.add_child(h)
+	med.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	h.add_child(med)
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 2)
+	h.add_child(v)
+	v.add_child(pill)
+	var wl := _label(wallet, 16, Color(0.7, 0.76, 0.86), 5)
+	wl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	wl.custom_minimum_size = Vector2(300, 0)
+	v.add_child(wl)
+	var cl := _label(cap, 19, Color(0.6, 1.0, 0.55) if hot else Color(0.8, 0.85, 0.92), 6)
+	cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	cl.custom_minimum_size = Vector2(300, 0)
+	v.add_child(cl)
+	if hot:
+		var tw := cl.create_tween().set_loops()
+		tw.tween_property(cl, "modulate", Color(1.3, 1.3, 1.3), 0.6).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(cl, "modulate", Color.WHITE, 0.6).set_trans(Tween.TRANS_SINE)
+
+
+## TOWERS / HEROS closed during a match (from the results or the new-age reveal): the shop and the tech bonus pick up
+## what was unlocked, and the results' last page shows the new Scrap / Time Shards.
+func _results_refresh() -> void:
+	if overlay == null or not overlay.visible:
+		return
+	_apply_tech()
+	_refresh_shop()
+	if not results_pages.is_empty() and results_page == results_pages.size() - 1:
+		_show_results_page()
+
+
+## A win opened a new age: this results page shows it in the age's colours and the full-screen reveal plays over it.
+func _results_era_page(box: VBoxContainer, newly: String) -> void:
+	var era := str(_map_entry(newly).get("era", ""))
+	var st := _era_style(era)
+	_results_title(box, "NEW AGE UNLOCKED!", st[0], 52)
+	var nm := _label(era.to_upper(), 92, Color.WHITE, 18)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.add_theme_color_override("font_outline_color", Color(st[1]).darkened(0.2))
+	box.add_child(nm)
+	var tg := _label(str(st[2]), 28, st[0], 7)
+	tg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(tg)
+	var again := _button("SEE WHAT'S NEW", Color(st[1]).lightened(0.22), 30)
+	again.custom_minimum_size = Vector2(440, 92)
+	again.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	again.pressed.connect(func():
+		_sfx("click")
+		_era_reveal(era))
+	box.add_child(again)
+	if _er_auto != era:
+		_er_auto = era
+		_era_reveal.call_deferred(era)
+
+
+## What an age brings: its maps, towers, heros, the robots first met there (none of the earlier maps send them) and its
+## bosses.
+func _age_content(era: String) -> Dictionary:
+	var eras := _eras()
+	var ei := eras.find(era)
+	var maps := []
+	var bosses := []
+	var before := {}
+	for m in Defs.map_list():
+		var mid := str(m.id)
+		var mi := eras.find(str(m.era))
+		if mi < ei:
+			for pair in _map_robots(mid):
+				before[str(pair[0])] = true
+		elif mi == ei:
+			maps.append(mid)
+			var b := str(Defs.load_map(mid).get("boss", ""))
+			if b != "" and defs.enemies.has(b) and not b in bosses:
+				bosses.append(b)
+	var robots := []
+	for mid in maps:
+		for pair in _map_robots(mid):
+			var t := str(pair[0])
+			if not before.has(t) and not t in robots and not t in bosses and not bool(defs.enemies[t].get("boss", false)):
+				robots.append(t)
+	var heroes := []
+	for h in defs.heroes.heroes:
+		if str(defs.heroes.heroes[h].get("era", "")) == era:
+			heroes.append(h)
+	return {"maps": maps, "towers": Progress.era_towers(era), "heroes": heroes, "robots": robots.slice(0, 5), "bosses": bosses.slice(0, 2)}
+
+
+## The big moment: a win opened a new age. Full screen in the age's colours: its name crashes in with its tagline, then
+## what it brings pops in a piece at a time (towers, heros, new robots and the boss, its three maps), its Scrap starts
+## fresh, and ENTER (its first map) / TOWERS / HEROS / CONTINUE (back to the results). Tap to skip the animation.
+func _era_reveal(era: String) -> void:
+	if era_reveal != null and is_instance_valid(era_reveal):
+		era_reveal.queue_free()
+	_er_skip = false
+	var st := _era_style(era)
+	var bright: Color = st[0]
+	var deep: Color = st[1]
+	var c := _age_content(era)
+	var vp := ui_root.size
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui_root.add_child(root)
+	era_reveal = root
+	# ---- backdrop: the age's colour over its first map's ground, dark at the edges
+	var bg := ColorRect.new()
+	bg.color = deep.darkened(0.45)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(bg)
+	var gtex = load("res://assets/textures/ground_%s.png" % _first_map_of(era))
+	if gtex != null:
+		var gr := TextureRect.new()
+		gr.texture = gtex
+		gr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		gr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		gr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		gr.modulate = Color(deep.lightened(0.55), 0.3)
+		gr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(gr)
+	root.add_child(_er_radial(Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.8), Vector2.ZERO, vp, 0.45))   # vignette
+	# ---- the stage: laid out at 1640 x 940 and scaled to fit any screen
+	var S := Vector2(1640, 940)
+	var k := minf(vp.x / S.x, vp.y / S.y)
+	var stage := Control.new()
+	stage.size = S
+	stage.scale = Vector2(k, k)
+	stage.position = (vp - S * k) * 0.5
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(stage)
+	# light burst behind the title (follows it up)
+	var burst := Control.new()
+	burst.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(burst)
+	burst.add_child(_er_radial(Color(bright, 0.55), Color(bright, 0.0), Vector2(-760, -560), Vector2(1520, 1120), 0.0))
+	var rays := TextureRect.new()
+	rays.texture = _res("res://assets/ui/mm_rays.png")
+	rays.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rays.size = Vector2(1500, 1500)
+	rays.position = Vector2(-750, -750)
+	rays.pivot_offset = Vector2(750, 750)
+	rays.modulate = Color(bright, 0.35)
+	rays.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	burst.add_child(rays)
+	var rt := rays.create_tween().set_loops()
+	rt.tween_property(rays, "rotation", TAU, 40.0).from(0.0)
+	var title_h := 232.0
+	var y_mid := (S.y - title_h) * 0.5
+	burst.position = Vector2(S.x * 0.5, y_mid + title_h * 0.55)
+	# title block (absolute: it starts in the middle of the screen and slides up)
+	var tb := VBoxContainer.new()
+	tb.position = Vector2(0, y_mid)
+	tb.size = Vector2(S.x, title_h)
+	tb.alignment = BoxContainer.ALIGNMENT_CENTER
+	tb.add_theme_constant_override("separation", -6)
+	tb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(tb)
+	var kick := _label("AGE %d OF %d   -   A NEW AGE BEGINS" % [_eras().find(era) + 1, _eras().size()], 30, bright, 8)
+	kick.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tb.add_child(kick)
+	var ttl := _label(era.to_upper(), 120, Color.WHITE, 22)
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ttl.add_theme_color_override("font_outline_color", deep.darkened(0.3))
+	ttl.add_theme_color_override("font_shadow_color", Color(bright, 0.6))
+	ttl.add_theme_constant_override("shadow_offset_y", 6)
+	ttl.add_theme_constant_override("shadow_offset_x", 0)
+	ttl.add_theme_constant_override("shadow_outline_size", 30)
+	tb.add_child(ttl)
+	var tag := _label(str(st[2]), 34, Color(1, 0.97, 0.9), 9)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tb.add_child(tag)
+	# shockwave when the name lands
+	var wave := _er_radial(Color(bright, 0.0), Color(bright, 0.0), Vector2(-500, -500), Vector2(1000, 1000), 0.0)
+	var wg := Gradient.new()
+	wg.offsets = PackedFloat32Array([0.0, 0.55, 0.7, 0.85, 1.0])
+	wg.colors = PackedColorArray([Color(bright, 0.0), Color(bright, 0.0), Color(1, 1, 0.9, 0.9), Color(bright, 0.0), Color(bright, 0.0)])
+	(wave.texture as GradientTexture2D).gradient = wg
+	wave.pivot_offset = Vector2(500, 500)
+	wave.modulate.a = 0.0
+	burst.add_child(wave)
+	# ---- what the age brings
+	var cv := VBoxContainer.new()
+	cv.position = Vector2(0, title_h + 2)
+	cv.size = Vector2(S.x, S.y - title_h - 2)
+	cv.add_theme_constant_override("separation", 10)
+	cv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(cv)
+	var pops := []          # [node, sound] in reveal order
+	var sections := []      # panels (fade in before their items)
+	var row1 := HBoxContainer.new()
+	row1.alignment = BoxContainer.ALIGNMENT_CENTER
+	row1.add_theme_constant_override("separation", 18)
+	cv.add_child(row1)
+	var row2 := HBoxContainer.new()
+	row2.alignment = BoxContainer.ALIGNMENT_CENTER
+	row2.add_theme_constant_override("separation", 18)
+	cv.add_child(row2)
+	# towers
+	var p := _er_panel(row1, "%d NEW TOWERS" % (c.towers as Array).size(), bright, deep)
+	sections.append([p[0], (c.towers as Array).size()])
+	for tid in c.towers:
+		var it := VBoxContainer.new()
+		it.add_theme_constant_override("separation", 0)
+		it.custom_minimum_size = Vector2(184, 0)
+		var ic := _icon(_icon_tex(str(tid)), 100)
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		it.add_child(ic)
+		var nl := _label(str(defs.towers[tid].name), 22, Color.WHITE, 6)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(nl)
+		var cost := Progress.tower_scrap_cost(str(tid))
+		var cl := _label("FREE" if cost == 0 else "%d SCRAP" % cost, 18, Color(0.6, 1.0, 0.55) if cost == 0 else Color(0.75, 0.82, 0.92), 5)
+		cl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(cl)
+		(p[1] as HBoxContainer).add_child(it)
+		pops.append([it, "place"])
+	# heros
+	p = _er_panel(row1, "%d NEW HEROS" % (c.heroes as Array).size(), bright, deep)
+	sections.append([p[0], (c.heroes as Array).size()])
+	for hid in c.heroes:
+		var hd: Dictionary = defs.heroes.heroes[hid]
+		var hcol := _hero_color(str(hid))
+		var it := VBoxContainer.new()
+		it.add_theme_constant_override("separation", 2)
+		it.custom_minimum_size = Vector2(170, 0)
+		var med := _medallion(_face_tex(str(hid)), "", hcol.lightened(0.3), hcol.darkened(0.45), 104, func(): _open_heroes(),
+			{"face": true, "icon_frac": 0.94, "phase": randf()})
+		med.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		it.add_child(med)
+		var nl := _label(_short_name(str(hd.name)), 23, Color.WHITE, 6)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(nl)
+		var pr := HBoxContainer.new()
+		pr.alignment = BoxContainer.ALIGNMENT_CENTER
+		pr.add_theme_constant_override("separation", 2)
+		if Progress.hero_owned(str(hid)):
+			pr.add_child(_label("OWNED", 18, C_GOLD, 5))
+		else:
+			pr.add_child(_icon(ICON_SHARD, 26))
+			pr.add_child(_label(str(Progress.hero_cost(hd, defs.heroes.heroes)), 19, Color(0.86, 0.78, 1.0), 5))
+		it.add_child(pr)
+		(p[1] as HBoxContainer).add_child(it)
+		pops.append([it, "hero_place"])
+	# robots and the boss
+	var nb := (c.robots as Array).size()
+	p = _er_panel(row2, "NEW ROBOTS" if nb > 0 else "THE BOSS", Color(1.0, 0.55, 0.5), deep)
+	sections.append([p[0], nb + (c.bosses as Array).size()])
+	for t in c.robots + c.bosses:
+		var boss: bool = t in c.bosses
+		var it := VBoxContainer.new()
+		it.add_theme_constant_override("separation", 0)
+		it.custom_minimum_size = Vector2(160 if not boss else 210, 0)
+		var path := "res://assets/ui/icon_%s.png" % t
+		var ic := _icon(_res(path) as Texture2D if ResourceLoader.exists(path) else ICON_WAVE, 110 if boss else 92)
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		it.add_child(ic)
+		var nl := _label(str(defs.enemies[t].name), 22, Color(1.0, 0.62, 0.55) if boss else Color.WHITE, 6)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(nl)
+		if boss:
+			var bp := PanelContainer.new()
+			var bsb := _style(Color(0.62, 0.08, 0.08), 10, Color(1.0, 0.5, 0.4), 2)
+			bsb.set_content_margin_all(1)
+			bsb.content_margin_left = 12
+			bsb.content_margin_right = 12
+			bp.add_theme_stylebox_override("panel", bsb)
+			bp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			bp.add_child(_label("BOSS", 18, Color.WHITE, 5))
+			it.add_child(bp)
+			it.move_child(bp, 0)
+		(p[1] as HBoxContainer).add_child(it)
+		pops.append([it, "boss_roar" if boss else "summon"])
+	# maps
+	p = _er_panel(row2, "%d NEW MAPS" % (c.maps as Array).size(), bright, deep)
+	sections.append([p[0], (c.maps as Array).size()])
+	for mid in c.maps:
+		var it := VBoxContainer.new()
+		it.add_theme_constant_override("separation", 2)
+		var fr := PanelContainer.new()
+		var fs := _style(Color(0, 0, 0, 0.4), 10, Color(bright, 0.8), 3)
+		fs.set_content_margin_all(3)
+		fr.add_theme_stylebox_override("panel", fs)
+		it.add_child(fr)
+		var at := AtlasTexture.new()
+		at.atlas = load("res://assets/textures/ground_%s.png" % mid)
+		at.region = Rect2(312, 234, 1560, 884)
+		var th := TextureRect.new()
+		th.texture = at
+		th.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		th.stretch_mode = TextureRect.STRETCH_SCALE
+		th.custom_minimum_size = Vector2(208, 117)
+		fr.add_child(th)
+		var me := _map_entry(str(mid))
+		var nl := _label("%d. %s" % [map_order.find(str(mid)) + 1, str(me.get("name", mid))], 21, Color.WHITE, 6)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(nl)
+		var dl := _label(str(me.get("difficulty", "")).to_upper(), 16, {"Normal": Color(0.6, 1.0, 0.55), "Hard": Color(1.0, 0.8, 0.4)}.get(str(me.get("difficulty", "")), Color(1.0, 0.5, 0.45)), 5)
+		dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		it.add_child(dl)
+		(p[1] as HBoxContainer).add_child(it)
+		pops.append([it, "upgrade"])
+	# Scrap starts fresh
+	var sr := HBoxContainer.new()
+	sr.alignment = BoxContainer.ALIGNMENT_CENTER
+	sr.add_theme_constant_override("separation", 12)
+	sr.add_child(_icon(_scrap_tex(era), 58))
+	sr.add_child(_label("%s SCRAP STARTS AT %d" % [era.trim_prefix("The ").to_upper(), Progress.scrap(era)], 26, bright, 7))
+	sr.add_child(_label("Win here to earn it and unlock the age's towers.", 24, Color(0.92, 0.95, 1.0), 7))
+	cv.add_child(sr)
+	pops.append([sr, "coin"])
+	# buttons
+	var br := HBoxContainer.new()
+	br.alignment = BoxContainer.ALIGNMENT_CENTER
+	br.add_theme_constant_override("separation", 20)
+	cv.add_child(br)
+	var enter := _button("ENTER %s" % _age_name(era).to_upper(), Color(0.2, 0.6, 0.18), 34)
+	enter.custom_minimum_size = Vector2(600, 92)
+	enter.pressed.connect(func():
+		_sfx("click")
+		Progress.data.tab = era
+		Progress.save()
+		Progress.current_map = _first_map_of(era)
+		get_tree().reload_current_scene())
+	br.add_child(enter)
+	var tbtn := _button("TOWERS", Color(0.18, 0.36, 0.66), 30)
+	tbtn.custom_minimum_size = Vector2(250, 92)
+	tbtn.icon = _scrap_tex(era)
+	tbtn.add_theme_constant_override("icon_max_width", 52)
+	tbtn.pressed.connect(func():
+		_sfx("click")
+		_open_workshop(era))
+	br.add_child(tbtn)
+	var hbtn := _button("HEROS", Color(0.44, 0.24, 0.7), 30)
+	hbtn.custom_minimum_size = Vector2(250, 92)
+	hbtn.icon = ICON_SHARD
+	hbtn.add_theme_constant_override("icon_max_width", 48)
+	hbtn.pressed.connect(func():
+		_sfx("click")
+		_open_heroes())
+	if _hero_buyable():
+		_btn_badge(hbtn, 250)
+	br.add_child(hbtn)
+	var cont := _button("CONTINUE", Color(0.26, 0.32, 0.46), 28)
+	cont.custom_minimum_size = Vector2(240, 92)
+	cont.pressed.connect(func():
+		_sfx("click")
+		_era_reveal_close())
+	br.add_child(cont)
+	root.set_meta("buttons", {"enter": enter, "towers": tbtn, "heroes": hbtn, "continue": cont})
+	# ---- flash, then the animation; a tap anywhere shows everything at once
+	var flash := ColorRect.new()
+	flash.color = Color(1, 0.98, 0.9)
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(flash)
+	var hint := _label("TAP TO SKIP", 22, Color(1, 1, 1, 0.7), 6)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.anchor_left = 0.0
+	hint.anchor_right = 1.0
+	hint.anchor_top = 1.0
+	hint.anchor_bottom = 1.0
+	hint.offset_top = -44
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(hint)
+	var catcher := Control.new()       # swallows taps (and skips) until the buttons are in
+	catcher.set_anchors_preset(Control.PRESET_FULL_RECT)
+	catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(catcher)
+	for n in [kick, ttl, tag, br]:
+		n.modulate.a = 0.0
+	for s in sections:
+		s[0].modulate.a = 0.0
+	for pp in pops:
+		pp[0].modulate.a = 0.0
+	burst.modulate.a = 0.0
+	var tw := root.create_tween()
+	root.set_meta("tween", tw)
+	catcher.gui_input.connect(func(ev: InputEvent):
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			_er_skip = true
+			if tw.is_valid():
+				tw.custom_step(60.0))
+	tw.tween_callback(func(): _sfx("portal_warp"))
+	tw.tween_property(flash, "modulate:a", 0.0, 0.55).from(1.0)
+	tw.parallel().tween_property(burst, "modulate:a", 1.0, 0.7).from(0.0)
+	tw.parallel().tween_property(kick, "modulate:a", 1.0, 0.4).from(0.0).set_delay(0.15)
+	tw.tween_callback(func():
+		ttl.pivot_offset = ttl.size * 0.5
+		_er_sfx("level_up"))
+	tw.tween_property(ttl, "scale", Vector2.ONE, 0.5).from(Vector2.ONE * 2.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(ttl, "modulate:a", 1.0, 0.25).from(0.0)
+	tw.parallel().tween_property(wave, "scale", Vector2.ONE * 2.2, 0.7).from(Vector2.ONE * 0.3).set_delay(0.22).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.parallel().tween_property(wave, "modulate:a", 0.0, 0.7).from(1.0).set_delay(0.22)
+	tw.parallel().tween_property(stage, "position:x", stage.position.x, 0.4).from(stage.position.x + 14.0).set_delay(0.22).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(tag, "visible_ratio", 1.0, 0.75).from(0.0)
+	tw.parallel().tween_property(tag, "modulate:a", 1.0, 0.15).from(0.0)
+	tw.tween_interval(0.8)
+	tw.tween_property(tb, "position:y", 0.0, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(burst, "position:y", title_h * 0.55, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(burst, "modulate:a", 0.55, 0.55)
+	var pi := 0
+	for s in sections:
+		tw.tween_property(s[0], "modulate:a", 1.0, 0.2).from(0.0)
+		for j in int(s[1]):
+			tw.tween_callback(_er_pop.bind(pops[pi][0], str(pops[pi][1])))
+			tw.tween_interval(0.16 if str(pops[pi][1]) != "boss_roar" else 0.45)
+			pi += 1
+	while pi < pops.size():
+		tw.tween_callback(_er_pop.bind(pops[pi][0], str(pops[pi][1])))
+		tw.tween_interval(0.3)
+		pi += 1
+	tw.tween_callback(func():
+		_er_sfx("victory", -4.0)
+		br.pivot_offset = br.size * 0.5)
+	tw.tween_property(br, "modulate:a", 1.0, 0.25).from(0.0)
+	tw.parallel().tween_property(br, "scale", Vector2.ONE, 0.35).from(Vector2(0.8, 0.8)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(hint, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(func():
+		catcher.queue_free()
+		_er_skip = false
+		enter.pivot_offset = enter.size * 0.5
+		var pt := enter.create_tween().set_loops()
+		pt.tween_property(enter, "scale", Vector2.ONE * 1.05, 0.7).set_trans(Tween.TRANS_SINE)
+		pt.tween_property(enter, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE))
+
+
+## A soft radial glow (or vignette): the inner colour out to `start` (0..1 of the radius), fading to the outer colour
+## at the edge.
+func _er_radial(inner: Color, outer: Color, pos: Vector2, size: Vector2, start: float) -> TextureRect:
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([start, 1.0])
+	g.colors = PackedColorArray([inner, outer])
+	gt.gradient = g
+	var tr := TextureRect.new()
+	tr.texture = gt
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.position = pos
+	tr.size = size
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
+
+
+## One section of the reveal: a panel in the age's colours with a header; returns [panel, row for the items].
+func _er_panel(parent: Control, title: String, bright: Color, deep: Color) -> Array:
+	var pc := PanelContainer.new()
+	var sb := _style(Color(deep.darkened(0.25), 0.86), 22, Color(bright, 0.75), 3)
+	sb.content_margin_left = 18
+	sb.content_margin_right = 18
+	sb.content_margin_top = 8
+	sb.content_margin_bottom = 12
+	pc.add_theme_stylebox_override("panel", sb)
+	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(pc)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	pc.add_child(v)
+	var hl := _label(title, 26, bright, 7)
+	hl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(hl)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	v.add_child(row)
+	return [pc, row]
+
+
+## A reveal item pops in (or just appears when the reveal was skipped).
+func _er_pop(n: Control, snd: String) -> void:
+	if not is_instance_valid(n):
+		return
+	if _er_skip:
+		n.modulate.a = 1.0
+		n.scale = Vector2.ONE
+		return
+	_er_sfx(snd, -4.0 if snd == "boss_roar" else 0.0)
+	n.pivot_offset = n.size * 0.5
+	var tw := n.create_tween()
+	tw.tween_property(n, "modulate:a", 1.0, 0.12).from(0.0)
+	tw.parallel().tween_property(n, "scale", Vector2.ONE, 0.32).from(Vector2.ONE * 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _er_sfx(snd: String, vol := 0.0) -> void:
+	if not _er_skip:
+		_sfx(snd, vol)
+
+
+## CONTINUE: the reveal fades and the results go on to "What next?".
+func _era_reveal_close() -> void:
+	if era_reveal == null or not is_instance_valid(era_reveal):
+		return
+	var r := era_reveal
+	era_reveal = null
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tw := r.create_tween()
+	tw.tween_property(r, "modulate:a", 0.0, 0.25)
+	tw.tween_callback(r.queue_free)
+	if overlay.visible and not results_pages.is_empty():
+		results_page = results_pages.size() - 1
+		_show_results_page()
+
+
+## The first match of an age opens with its name and tagline across the screen: about 3 seconds, tap to skip.
+func _era_title_card(era: String, on_done: Callable) -> void:
+	var st := _era_style(era)
+	var bright: Color = st[0]
+	var deep: Color = st[1]
+	var vp := ui_root.size
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_STOP
+	ui_root.add_child(root)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.35)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(dim)
+	var bh := 360.0
+	var band := Control.new()
+	band.position = Vector2(0, (vp.y - bh) * 0.5)
+	band.size = Vector2(vp.x, bh)
+	band.pivot_offset = Vector2(vp.x * 0.5, bh * 0.5)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(band)
+	# the band: the age's deep colour, fading out at both ends, with bright rules top and bottom
+	for part in [[0.0, bh, Color(deep, 0.92)], [0.0, 5.0, bright], [bh - 5.0, 5.0, bright]]:
+		var gt := GradientTexture2D.new()
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.22, 0.78, 1.0])
+		var col: Color = part[2]
+		g.colors = PackedColorArray([Color(col, 0.0), col, col, Color(col, 0.0)])
+		gt.gradient = g
+		gt.fill_from = Vector2(0, 0.5)
+		gt.fill_to = Vector2(1, 0.5)
+		var tr := TextureRect.new()
+		tr.texture = gt
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.position = Vector2(0, float(part[0]))
+		tr.size = Vector2(vp.x, float(part[1]))
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(tr)
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", -4)
+	v.position = Vector2.ZERO
+	v.size = Vector2(vp.x - (float(SIDEBAR_W) if started else 0.0), bh)      # centred over the map, not the sidebar
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.add_child(v)
+	var kick := _label("AGE %d OF %d" % [_eras().find(era) + 1, _eras().size()], 30, bright, 8)
+	kick.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(kick)
+	var ttl := _label(era.to_upper(), 120, Color.WHITE, 22)
+	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ttl.add_theme_color_override("font_outline_color", deep.darkened(0.35))
+	ttl.add_theme_color_override("font_shadow_color", Color(bright, 0.55))
+	ttl.add_theme_constant_override("shadow_offset_y", 6)
+	ttl.add_theme_constant_override("shadow_offset_x", 0)
+	ttl.add_theme_constant_override("shadow_outline_size", 28)
+	v.add_child(ttl)
+	var tag := _label(str(st[2]), 32, Color(1, 0.97, 0.9), 8)
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(tag)
+	var ml := _label("MAP %d   -   %s" % [map_order.find(map_id) + 1, str(map.get("name", map_id)).to_upper()], 24, Color(0.82, 0.88, 0.96), 6)
+	ml.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(ml)
+	for n in [kick, ttl, tag, ml]:
+		n.modulate.a = 0.0
+	var done := [false]
+	var finish := func():
+		if done[0]:
+			return
+		done[0] = true
+		var ft := root.create_tween()
+		ft.tween_property(root, "modulate:a", 0.0, 0.3)
+		ft.tween_callback(root.queue_free)
+		ft.tween_callback(on_done)
+	var tw := root.create_tween()
+	root.set_meta("tween", tw)
+	tw.tween_callback(func():
+		_sfx("portal_warp")
+		ttl.pivot_offset = ttl.size * 0.5)
+	tw.tween_property(band, "scale:y", 1.0, 0.3).from(0.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(dim, "modulate:a", 1.0, 0.3).from(0.0)
+	tw.tween_property(kick, "modulate:a", 1.0, 0.25)
+	tw.tween_callback(func(): _sfx("wave_horn", -3.0))
+	tw.tween_property(ttl, "scale", Vector2.ONE, 0.45).from(Vector2(1.6, 1.6)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(ttl, "modulate:a", 1.0, 0.2)
+	tw.tween_property(tag, "visible_ratio", 1.0, 0.6).from(0.0)
+	tw.parallel().tween_property(tag, "modulate:a", 1.0, 0.15)
+	tw.parallel().tween_property(ml, "modulate:a", 1.0, 0.4)
+	tw.tween_interval(1.9)
+	tw.tween_callback(finish)
+	root.gui_input.connect(func(ev: InputEvent):
+		if (ev is InputEventMouseButton and ev.pressed) or (ev is InputEventScreenTouch and ev.pressed):
+			if tw.is_valid():
+				tw.kill()
+			finish.call())
 
 
 # =================================================================== pause, settings, legacy
@@ -12903,6 +13701,18 @@ func _shoot_menu() -> void:
 		# (v0.9.32: the logo stays still too)
 		print("MENUSTILL buttons=%d max_drift=%.2f px logo=%s logo_drift=%.2f px" % [bodies.size(), moved, str(logo != null),
 			absf(logo.position.y - logo_y) if logo != null else -1.0])
+	if "--shoot-newage" in OS.get_cmdline_user_args():
+		# the age a win just opened: marked on the main menu and the map select until opened
+		print("UI new_age=%s" % Progress.new_age())
+		await _shot("newage_menu.png")
+		title_screen.visible = false
+		map_select.visible = true
+		for i in 6:
+			await get_tree().process_frame
+		await _shot("newage_select.png")
+		print("UI new_age after opening=%s" % Progress.new_age())
+		get_tree().quit()
+		return
 	await _shot("menu_main.png")
 	_open_workshop("")
 	for i in 4:
@@ -13023,6 +13833,91 @@ func _shoot_menu() -> void:
 			await get_tree().process_frame
 		await _test_drag()
 	get_tree().quit()
+
+
+## Results screens (--shoot-results-ui, with --lose for a defeat): every page; a new age's reveal frame by frame, its
+## TOWERS and HEROS screens and CONTINUE; then on the last page TOWERS (an unlock), HEROS, and the page after each.
+func _shoot_results_ui(args: PackedStringArray) -> void:
+	_start_game()
+	_demo_build(4000)
+	sim.start_wave()
+	for i in int(30.0 / TICK):
+		sim.step()
+	_handle_events()
+	demo = false
+	var won := not "--lose" in args
+	waves_cleared = 20 if won else 11
+	if not won:
+		sim.wave = 12
+	sim.hero_kill_xp = 900.0
+	speed = 0
+	_show_overlay(won)
+	print("UI results %s pages=%d" % [results_summary, results_pages.size()])
+	while true:
+		for f in 8:
+			await get_tree().process_frame
+		await _shot("rui_page_%d.png" % results_page)
+		if era_reveal != null and is_instance_valid(era_reveal):
+			await _film_tween(era_reveal.get_meta("tween"), [0.1, 0.45, 0.9, 1.6, 2.6, 3.4, 4.4, 30.0], "rui_reveal")
+			var bt: Dictionary = era_reveal.get_meta("buttons")
+			(bt.towers as Button).pressed.emit()
+			await get_tree().create_timer(0.6).timeout
+			await _shot("rui_reveal_towers.png")
+			(modals.back().get_meta("on_close") as Callable).call()
+			await get_tree().create_timer(0.4).timeout
+			(bt.heroes as Button).pressed.emit()
+			await get_tree().create_timer(0.6).timeout
+			await _shot("rui_reveal_heroes.png")
+			(heroes_panel.get_meta("on_close") as Callable).call()
+			await get_tree().create_timer(0.4).timeout
+			await _shot("rui_reveal_back.png")
+			(bt["continue"] as Button).pressed.emit()
+			await get_tree().create_timer(0.6).timeout
+			print("UI after continue page=%d of %d reveal_open=%s" % [results_page + 1, results_pages.size(), str(era_reveal != null)])
+		if results_page >= results_pages.size() - 1:
+			break
+		results_page += 1
+		_show_results_page()
+	await get_tree().create_timer(0.5).timeout
+	await _shot("rui_last.png")
+	var prep: Array = overlay.get_meta("prep")
+	((prep[0] as Control).get_meta("button") as Button).pressed.emit()
+	await get_tree().create_timer(0.6).timeout
+	await _shot("rui_towers.png")
+	var before := Progress.scrap(_era())
+	var nxt := Progress.next_unlock(_era())
+	if nxt != "" and Progress.unlock_tower(nxt):
+		_open_workshop(_era(), modals.back())
+		await get_tree().create_timer(0.4).timeout
+		await _shot("rui_towers_unlocked.png")
+	print("UI towers unlocked=%s scrap %d -> %d tech=%.2f" % [nxt, before, Progress.scrap(_era()), sim.tech_mult])
+	(modals.back().get_meta("on_close") as Callable).call()
+	await get_tree().create_timer(0.5).timeout
+	print("UI after towers closed: tech=%.2f shop_open=%s" % [sim.tech_mult, str(_tower_open(nxt)) if nxt != "" else "-"])
+	await _shot("rui_last_after_towers.png")
+	prep = overlay.get_meta("prep")
+	((prep[1] as Control).get_meta("button") as Button).pressed.emit()
+	await get_tree().create_timer(0.6).timeout
+	await _shot("rui_heroes.png")
+	(heroes_panel.get_meta("on_close") as Callable).call()
+	await get_tree().create_timer(0.5).timeout
+	await _shot("rui_last_after_heroes.png")
+
+
+## Films a UI tween at set moments (seconds from its start): it's stepped by hand, so the frames don't depend on how
+## fast this machine renders. Tweens it starts (the reveal's pop-ins) get a few frames to move.
+func _film_tween(tw: Tween, times: Array, prefix: String) -> void:
+	tw.pause()
+	var cur := 0.0
+	for at in times:
+		if tw.is_valid():
+			tw.custom_step(float(at) - cur)
+		cur = float(at)
+		for i in 3:
+			await get_tree().process_frame
+		await _shot("%s_%03d.png" % [prefix, int(float(at) * 10)])
+	if tw.is_valid():
+		tw.play()
 
 
 ## Places a tower in each placement mode with simulated pointer input and reports what got built.
@@ -13220,6 +14115,50 @@ func _run_demo() -> void:
 			await _shot("results_%d.png" % i)
 			results_page = mini(results_page + 1, results_pages.size() - 1)
 			_show_results_page()
+		get_tree().quit()
+		return
+	if "--shoot-results-ui" in args:
+		await _shoot_results_ui(args)
+		get_tree().quit()
+		return
+	if "--shoot-reveal" in args:
+		# the new-age reveal alone (no 3D behind it, so it's quick to film): --reveal-age=N picks the age (default 2)
+		var ai := 1
+		for a in args:
+			if a.begins_with("--reveal-age="):
+				ai = clampi(int(a.trim_prefix("--reveal-age=")) - 1, 0, _eras().size() - 1)
+		get_viewport().disable_3d = true
+		title_screen.visible = false
+		_era_reveal(str(_eras()[ai]))
+		await get_tree().process_frame
+		if "--skip" in args:          # a tap during the animation: everything shows at once, the buttons work
+			var ev := InputEventMouseButton.new()
+			ev.button_index = MOUSE_BUTTON_LEFT
+			ev.pressed = true
+			ev.position = ui_root.size * 0.5
+			await _film_tween(era_reveal.get_meta("tween"), [1.0], "reveal_%d_pre" % (ai + 1))
+			Input.parse_input_event(ev)
+			var up := ev.duplicate()
+			up.pressed = false
+			Input.parse_input_event(up)
+			for i in 4:
+				await get_tree().process_frame
+			var tw2: Tween = era_reveal.get_meta("tween")
+			print("UI reveal skipped: tween_running=%s" % str(tw2.is_valid() and tw2.is_running()))
+			await _shot("reveal_%d_skipped.png" % (ai + 1))
+		else:
+			await _film_tween(era_reveal.get_meta("tween"), [0.12, 0.45, 0.8, 1.3, 2.2, 3.0, 3.6, 4.4, 5.4, 30.0], "reveal_%d" % (ai + 1))
+		get_tree().quit()
+		return
+	if "--shoot-era-card" in args:
+		_start_game()
+		_era_title_card(_era(), func(): print("UI eracard done"))
+		await get_tree().process_frame
+		var card: Control = ui_root.get_child(ui_root.get_child_count() - 1)
+		await _film_tween(card.get_meta("tween"), [0.2, 0.5, 1.0, 2.0, 4.0], "eracard")
+		for i in 15:
+			await get_tree().process_frame
+		await _shot("eracard_after.png")
 		get_tree().quit()
 		return
 	if "--shoot-upgrade" in args:
