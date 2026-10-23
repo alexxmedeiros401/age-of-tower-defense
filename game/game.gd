@@ -425,7 +425,7 @@ func _build_world() -> void:
 	elif base_id != "cave":
 		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))
 				or (base_id == "castle" and _medieval_city_kit(end_pt)) or (base_id == "fort" and _gunpowder_city_kit(end_pt))
-				or (base_id == "factory" and _industrial_city_kit(end_pt))):
+				or (base_id == "factory" and _industrial_city_kit(end_pt)) or (base_id == "bunker" and _modern_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
@@ -1555,6 +1555,42 @@ func _industrial_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## v0.9.71: the Modern city: a fortified command bunker (modern_city.glb): the concrete front in its earth berm, blast doors
+## open, sandbag and HESCO walls, floodlights, the radar mast, the flag, a watchtower and a netted vehicle bay.
+func _modern_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/modern_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for sd in [-1, 1]:                                  # the burn barrels before the sandbag walls
+		_campfire(n, Vector3(-0.3, 0.3, sd * 1.12), 1.1, 0.2)
+	_smoke_column(n.position + Vector3(3.15, 2.5, -1.25))   # the generator's exhaust on the roof
+	if Progress.gfx_level() < 2:                        # the floodlights (Godot, prop-local: position, aim)
+		for fl in [[Vector3(0.19, 2.32, 2.15), Vector3(-0.75, -0.6, -0.3)], [Vector3(0.19, 2.32, -2.15), Vector3(-0.75, -0.6, 0.3)],
+				[Vector3(0.7, 1.68, 1.85), Vector3(-0.6, -0.7, -0.2)], [Vector3(0.7, 1.68, -1.85), Vector3(-0.6, -0.7, 0.2)],
+				[Vector3(1.05, 2.48, 4.5), Vector3(-0.8, -0.4, -0.45)]]:
+			var sl := SpotLight3D.new()
+			sl.light_color = Color(0.92, 0.95, 1.0)
+			sl.light_energy = 2.0
+			sl.spot_range = 6.0
+			sl.spot_angle = 35.0
+			sl.position = fl[0]
+			n.add_child(sl)
+			sl.look_at(n.global_transform * (fl[0] + fl[1]), Vector3.UP)
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -1889,6 +1925,59 @@ const DECOR_V2 := {
 			["Chimney", Vector2(14.0, -11.0), 0.9, 0.8], ["Chimney", Vector2(-13.0, -11.2), 0.8, 0.8],
 			["Pub", Vector2(-4.0, 10.9), 0.9, 1.4, {"yaw": 0.0}], ["Lock", Vector2(3.5, 11.1), 0.9, 2.0, {"yaw": 0.0}],
 			["Terrace", Vector2(11.0, 11.0), 0.85, 2.0, {"yaw": 0.0}], ["Terrace", Vector2(-16.8, -10.4), 0.75, 1.6, {"yaw": 0.3}]]},
+	# v0.9.71: the Modern Age kits (decor_modern.py): the Airbase's hangar with a jet nosing out, control tower, parked fighter,
+	# helicopter on its pad, fuel bowser and radar dome; Downtown's glass towers, chrome diner, shop fronts, billboard,
+	# bus and cab; Suburbia's houses (the minivan in the driveway), playground, hoop and treehouse
+	"military": {"kit": "modern_decor_military", "count": 84, "ambient": true,
+		"scatter": [["Hesco_A", 8], ["Hesco_B", 6], ["Sandbags", 7], ["Drums", 5], ["Jerrycans", 4], ["Ammo", 4], ["Cones", 4], ["LightTower", 3],
+			["Fence", 5], ["Barriers", 5], ["Scrub_A", 12], ["Scrub_B", 12], ["Humvee", 2]],
+		"cover": [["Tuft", 4]], "cover_n": 90, "cover_s": 0.9,
+		"marks": [["Hangar", Vector2(-3.5, -11.0), 0.85, 2.6, {"yaw": 0.0}], ["Tower", Vector2(4.5, -10.8), 0.9, 1.6, {"yaw": 0.0}],
+			["Radome", Vector2(10.0, -10.6), 0.9, 1.3], ["Jet", Vector2(-11.0, -10.6), 0.9, 1.8, {"yaw": 0.3}],
+			["LightTower", Vector2(-7.8, -10.3), 0.9, 0.8, {"yaw": 0.0}], ["Heli", Vector2(0.5, 10.9), 0.85, 1.6, {"yaw": 0.0}],
+			["FuelTruck", Vector2(7.5, 10.7), 0.9, 1.3, {"yaw": 0.15}], ["Humvee", Vector2(-6.5, 10.6), 0.95, 0.9, {"yaw": -0.4}],
+			["Hesco_B", Vector2(-17.2, 1.5), 1.0, 0.6], ["Radome", Vector2(-17.0, -9.5), 0.8, 1.2], ["Barriers", Vector2(14.0, -10.4), 1.0, 0.7, {"yaw": 0.0}],
+			# on the ground's helipad and stands (inside the playfield: force)
+			["Helicopter", Vector2(12.4, -7.35), 0.9, 1.3, {"yaw": 0.4, "force": true}],
+			["Jet", Vector2(-5.2, 2.05), 0.8, 1.2, {"yaw": -PI * 0.5, "force": true}], ["Jet", Vector2(-2.6, 2.05), 0.8, 1.2, {"yaw": -PI * 0.5, "force": true}],
+			["Jet", Vector2(3.0, 2.05), 0.8, 1.2, {"yaw": -PI * 0.5, "force": true}], ["Jet", Vector2(5.8, 2.05), 0.8, 1.2, {"yaw": -PI * 0.5, "force": true}],
+			["Jet", Vector2(9.6, 6.9), 0.7, 1.1, {"yaw": PI * 0.5, "force": true}], ["Jet", Vector2(12.2, 6.9), 0.7, 1.1, {"yaw": PI * 0.5, "force": true}],
+			["Jet", Vector2(14.8, 6.9), 0.7, 1.1, {"yaw": PI * 0.5, "force": true}]]},
+	"metro": {"kit": "modern_decor_metro", "count": 84, "ambient": true,
+		"scatter": [["StreetLight", 10], ["TrafficLight", 4], ["Bench", 5], ["BusStop", 2], ["Hydrant", 5], ["NewsBoxes", 3], ["Bollards", 5],
+			["TrashCan", 5], ["Planter", 6], ["Tree_A", 10], ["Tree_B", 8], ["Tree_C", 6]],
+		"cover": [["Tuft", 1]], "cover_n": 25, "cover_s": 0.6,
+		"marks": [["Tower_A", Vector2(-5.0, -11.2), 0.9, 1.6, {"yaw": 0.0}], ["Tower_B", Vector2(9.5, -11.0), 0.9, 1.4, {"yaw": 0.0}],
+			["Billboard", Vector2(0.5, -10.5), 0.9, 1.3, {"yaw": 0.0}], ["MidRise", Vector2(-10.5, -10.9), 0.9, 1.6, {"yaw": 0.0}],
+			["Tower_B", Vector2(-17.3, -7.5), 0.85, 1.3, {"yaw": PI * 0.5}], ["Tower_A", Vector2(-17.4, 6.0), 0.85, 1.5, {"yaw": PI * 0.5}],
+			["Shops", Vector2(-6.0, 10.9), 0.9, 1.8, {"yaw": PI}], ["Diner", Vector2(3.5, 10.9), 0.9, 1.5, {"yaw": PI}],
+			["Bus", Vector2(8.5, 10.5), 0.9, 1.5, {"yaw": 0.0}], ["BusStop", Vector2(11.3, 10.2), 0.95, 0.9, {"yaw": PI}],
+			["Taxi", Vector2(-12.0, 10.4), 0.95, 0.8, {"yaw": 0.1}],
+			# the ground's plaza and raised planters
+			["Fountain", Vector2(0.9, 2.0), 1.0, 1.0, {"yaw": 0.0, "force": true}], ["Tree_C", Vector2(6.3, 0.75), 0.8, 0.7, {"force": true}],
+			["Tree_C", Vector2(6.3, 3.55), 0.8, 0.7, {"force": true}], ["Tree_C", Vector2(-0.2, 4.05), 0.8, 0.7, {"force": true}]]},
+	"suburb": {"kit": "modern_decor_suburb", "count": 100, "ambient": true,
+		"scatter": [["Maple_A", 14], ["Maple_B", 6], ["Oak", 12], ["Hedge", 10], ["Picket", 8], ["Mailbox", 4], ["Gnome", 3], ["Bike", 2],
+			["Bins", 3], ["Chairs", 3], ["Pots", 4]],
+		"cover": [["Tuft", 4], ["Flowers", 2]], "cover_n": 120, "cover_s": 1.0,
+		"marks": [["House_A", Vector2(-6.0, -11.0), 0.9, 2.0, {"yaw": 0.0}], ["House_B", Vector2(3.5, -11.0), 0.9, 1.8, {"yaw": 0.0}],
+			["Treehouse", Vector2(10.5, -10.8), 0.9, 1.5, {"yaw": 0.0}], ["Maple_B", Vector2(-12.0, -10.4), 1.0, 0.9],
+			["Hoop", Vector2(4.0, 10.6), 0.95, 0.8, {"yaw": PI}], ["House_C", Vector2(9.5, 11.0), 0.9, 1.6, {"yaw": PI}],
+			["Minivan", Vector2(12.8, 10.4), 0.95, 0.8, {"yaw": 0.2}], ["Oak", Vector2(15.0, -10.6), 1.0, 1.0],
+			["House_B", Vector2(-17.3, 3.0), 0.85, 1.7, {"yaw": PI * 0.5}],
+			# the houses at the ground's driveways (footprint ~1.3 x 1.2; facing: yaw = PI/2 - the ground's angle from +x toward +z)
+			["House_D", Vector2(-13.40, -6.95), 0.54, 0.7, {"yaw": 0.0, "force": true}], ["House_E", Vector2(-10.20, -6.95), 0.50, 0.7, {"yaw": 0.0, "force": true}],
+			["House_C", Vector2(-7.00, -6.95), 0.68, 0.7, {"yaw": 0.0, "force": true}], ["House_D", Vector2(-3.80, -6.95), 0.54, 0.7, {"yaw": 0.0, "force": true}],
+			["House_E", Vector2(-0.60, -6.95), 0.50, 0.7, {"yaw": 0.0, "force": true}], ["House_C", Vector2(2.40, -6.95), 0.68, 0.7, {"yaw": 0.0, "force": true}],
+			["House_D", Vector2(6.00, -4.30), 0.54, 0.7, {"yaw": 0.0, "force": true}], ["House_E", Vector2(7.80, -4.70), 0.50, 0.7, {"yaw": 0.0, "force": true}],
+			["House_C", Vector2(7.80, 0.75), 0.68, 0.7, {"yaw": PI, "force": true}], ["House_D", Vector2(13.00, -0.40), 0.54, 0.7, {"yaw": 0.0, "force": true}],
+			["House_E", Vector2(14.70, -0.70), 0.50, 0.7, {"yaw": 0.0, "force": true}], ["House_C", Vector2(14.70, 4.30), 0.68, 0.7, {"yaw": PI, "force": true}],
+			["House_D", Vector2(13.35, 4.90), 0.54, 0.7, {"yaw": -PI * 0.5, "force": true}], ["House_E", Vector2(13.20, 6.40), 0.50, 0.7, {"yaw": -PI * 0.5, "force": true}],
+			["House_C", Vector2(-3.35, 7.90), 0.68, 0.7, {"yaw": PI * 0.5, "force": true}], ["House_D", Vector2(2.00, 8.35), 0.54, 0.7, {"yaw": PI, "force": true}],
+			["House_E", Vector2(5.20, 8.35), 0.50, 0.7, {"yaw": PI, "force": true}], ["House_C", Vector2(8.40, 8.35), 0.68, 0.7, {"yaw": PI, "force": true}],
+			["House_D", Vector2(-12.80, -1.70), 0.54, 0.7, {"yaw": PI * 0.5, "force": true}], ["House_E", Vector2(-8.30, 5.60), 0.50, 0.7, {"yaw": PI, "force": true}],
+			["House_C", Vector2(-5.40, 5.60), 0.68, 0.7, {"yaw": PI, "force": true}], ["House_C", Vector2(10.9, -5.2), 0.5, 0.6, {"yaw": 0.0, "force": true}],
+			["Playground", Vector2(-6.5, -0.5), 0.75, 1.1, {"yaw": 0.0, "force": true}]]},
 	# Castle Siege: the besiegers' camp: pavilions and ridge tents, mantlets, a battering ram, a siege tower, supplies, a
 	# pile of catapult stones, a campfire, banners and spears; oaks and boulders
 	"castle": {"kit": "medieval_decor_castle", "count": 92, "ambient": true,
@@ -2057,7 +2146,24 @@ func _pick_weighted(list: Array, r: RandomNumberGenerator) -> String:
 	return str(list[0][0])
 
 
+## v0.9.71: landmarks standing inside the playfield (Suburbia's houses, the Airbase's parked jets, Downtown's fountain):
+## [node, where, radius]. Building a tower or placing the hero on one clears it away in a puff of dust.
+var _yard_marks: Array = []
+func _clear_yard(p: Vector2) -> void:
+	var keep := []
+	for ym in _yard_marks:
+		if not is_instance_valid(ym[0]):
+			continue
+		if (ym[1] as Vector2).distance_to(p) < float(ym[2]) + 0.55:
+			_dust_fx(_v3(ym[1], 0.3), 6, 0.9)
+			(ym[0] as Node).queue_free()
+		else:
+			keep.append(ym)
+	_yard_marks = keep
+
+
 func _build_decor_v2() -> void:
+	_yard_marks = []
 	var dt := _decor_theme()
 	var r := RandomNumberGenerator.new()
 	r.seed = 11
@@ -2078,6 +2184,8 @@ func _build_decor_v2() -> void:
 			var yaw: float = float(opt.yaw) if opt.has("yaw") else jit + (PI if p.y > 0 else 0.0)
 			var n := _decor_single(mk[0], _v3(p), yaw, mk[2])
 			taken.append([p, float(mk[3])])
+			if bool(opt.get("force", false)) and p.x > b[0] and p.x < b[2] and p.y > b[1] and p.y < b[3]:
+				_yard_marks.append([n, p, float(mk[3]) * 0.6])
 			if mk[0] in ["Boat", "Ship"]:         # (rocking gently on the current)
 				effects.append({"node": n, "t": r.randf() * 6.0, "life": INF, "kind": "bob", "y0": n.position.y})
 			elif mk[0] == "Smelter":              # (its furnace burns)
@@ -2280,12 +2388,24 @@ func _export_decor(path: String) -> void:
 var _statue_n := 0                   # (the acropolis' statue zones take turns: a statue, then the lion)
 var _machine_n := 0                  # (v0.9.65: Foundry Row's machines take turns; the Railyard's coal zones too)
 var _coal_n := 0
+var _crater_n := 0                   # (v0.9.71: the Airbase's first crater gets the burnt-out Humvee)
 var _ruins_n := 0                    # (Jungle Outpost's ruins zones: the second gets the pyramid)
 var _building_n := 0                 # (the farmland's building zones take turns: a cottage, then a barn)
 func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) -> bool:
 	var th := str(map.get("theme", "meadow"))
 	match kind:
 		"lake":
+			if th == "suburb":                # a swimming pool (the water, coping and deck are in the ground: water half 1.02 x
+				# 0.62 along the pool, the deck 0.48 wide round it, the deep end +x along the pool); the pool at (13, -6.5) runs
+				# along z with its deep end +z: turn the zone so its local +x runs along the pool
+				if n.position.x > 0.0:
+					n.rotation.y = -PI * 0.5
+				_decor_single("DivingBoard", Vector3(0.98, 0, 0.0), PI, 0.8, n)        # on the deep end's deck, out over the water
+				_decor_single("PoolLadder", Vector3(-0.35, 0, 0.62), PI * 0.5, 1.0, n)  # over the coping of a long side
+				_decor_single("Loungers", Vector3(0.05, 0, -0.86), 0.0, 0.65, n)        # on the far long side's deck
+				_decor_single("Umbrella", Vector3(-1.26, 0, -0.86), 0.0, 0.55, n)       # in the shallow end's corners
+				_decor_single("Pots", Vector3(-1.26, 0, 0.86), r.randf() * TAU, 0.8, n)
+				return true
 			if th == "delta":             # v0.9.28: its water moves in the ground; papyrus and reeds round the shore
 				for k in 9:
 					var a0 := TAU * k / 9.0 + r.randf() * 0.4
@@ -2334,11 +2454,18 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				trio = ["Oak_A", "Oak_C", "Oak_B"]
 			elif th == "jungle":
 				trio = ["Tree_B", "Palm_B", "Tree_C"]
+			elif th == "metro":                 # v0.9.71: street trees, a bench and a street light in the clump
+				trio = ["Tree_A", "Tree_C", "Tree_B"]
+			elif th == "suburb":
+				trio = ["Maple_A", "Oak", "Maple_B"]
 			elif th == "darkwood":
 				trio = ["Spruce_A", "Oak_A", "Spruce_B"]
 			for k in 3:
 				var a10 := TAU * k / 3.0 + r.randf() * 0.5
 				_decor_single(trio[k], Vector3(cos(a10), 0, sin(a10)) * rad * 0.42, r.randf() * TAU, r.randf_range(0.8, 1.0), n)
+			if th == "metro":
+				_decor_single("Bench", Vector3(rad * 0.15, 0, rad * 0.75), r.randf_range(-0.3, 0.3), 0.9, n)
+				_decor_single("StreetLight", Vector3(-rad * 0.7, 0, rad * 0.55), r.randf() * TAU, 0.8, n)
 			return true
 		"slag":                           # a slag heap with ore and smaller heaps round it
 			_decor_single("Slag_A", Vector3.ZERO, r.randf() * TAU, rad / 0.85, n)
@@ -2382,6 +2509,12 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single(sp[0], Vector3(o2.x, 0, o2.y), r.randf() * TAU, sp[2], n)
 			return true
 		"crates":
+			if th == "military":              # supplies on a pallet, the forklift turned to it, jerrycans and ammo by it
+				_decor_single("Pallet", Vector3(-rad * 0.25, 0, -rad * 0.15), r.randf_range(-0.2, 0.2), rad / 1.5, n)
+				_decor_single("Forklift", Vector3(rad * 0.45, 0, rad * 0.35), PI + r.randf_range(-0.3, 0.3), rad / 1.6, n)
+				_decor_single("Jerrycans", Vector3(-rad * 0.55, 0, rad * 0.55), r.randf() * TAU, 0.9, n)
+				_decor_single("Ammo", Vector3(rad * 0.5, 0, -rad * 0.55), r.randf() * TAU, 0.85, n)
+				return true
 			if th == "harbor":                  # v0.9.61: contraband on the painted plank floors
 				_decor_single("Crates", Vector3(-rad * 0.25, 0, -rad * 0.2), r.randf_range(-0.15, 0.15), rad / 1.45, n)
 				_decor_single("Barrels", Vector3(rad * 0.6, 0, rad * 0.45), r.randf_range(-0.3, 0.3), 0.8, n)
@@ -2401,6 +2534,14 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				return true
 			return false
 		"machine":                            # v0.9.65: Foundry Row's machines: a steam hammer, a beam engine, a steam crane
+			if th == "military":              # its trailer, an anti-aircraft gun in its sandbag ring, a generator (smoking)
+				_machine_n += 1
+				var mk3: Array = [["Dish", 1.2], ["AAGun", 1.0], ["Generator", 1.3]][(_machine_n - 1) % 3]
+				var gn := _decor_single(mk3[0], Vector3.ZERO, r.randf_range(-0.4, 0.4), rad / float(mk3[1]), n)
+				if mk3[0] == "Generator":
+					_smoke_column(n.transform * gn.transform * Vector3(-0.35, 1.2, -0.15))
+					_decor_single("Drums", Vector3(-rad * 0.6, 0, rad * 0.55), r.randf() * TAU, 0.8, n)
+				return true
 			if th != "factory":
 				return false
 			_machine_n += 1
@@ -2418,6 +2559,16 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single("CoalTub", Vector3(rad * 0.6, 0, rad * 0.55), PI * 0.5 + r.randf_range(-0.2, 0.2), 0.7, n)
 			return true
 		"crater":                             # v0.9.61: debris round the pit's rim (kept off the +x side: the fort)
+			if th == "military":              # rebar round the rim, the first one with a burnt-out Humvee smoking on it
+				_crater_n += 1
+				var rim3 := ["Rubble_A", "Rubble_B", "Hesco_A", "Wreck" if _crater_n == 1 else "Drums", "Rubble_A"]
+				var rs3 := [0.85, 0.85, 0.7, 0.75, 0.75]
+				for k in 5:
+					var a13 := TAU * k / 5.0 + 0.3 + r.randf_range(-0.15, 0.15)
+					var dn := _decor_single(rim3[k], Vector3(cos(a13), 0, sin(a13)) * rad * 1.08, PI * 0.5 - a13, rs3[k], n)
+					if rim3[k] == "Wreck":
+						_smoke_column(n.transform * dn.transform * Vector3(0.55, 0.42, 0.0))
+				return true
 			if th != "fortress":
 				return false
 			var rim := ["Wheels", "Rock_B", "Fascines", "Rock_A", "Shot"]
@@ -2430,6 +2581,16 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
 			return true
 		"building":                       # the Medieval Age: a cottage and its haystack, or a barn and the hay cart
+			if th == "metro":                 # a mid-rise block (square to the streets), a hydrant and a trash can by it
+				_decor_single("MidRise", Vector3.ZERO, float(r.randi() % 4) * PI * 0.5 + r.randf_range(-0.05, 0.05), rad / 1.45, n)
+				_decor_single("Hydrant", Vector3(rad * 0.9, 0, rad * 0.75), r.randf() * TAU, 1.0, n)
+				_decor_single("TrashCan", Vector3(-rad * 0.85, 0, rad * 0.8), r.randf() * TAU, 0.95, n)
+				return true
+			if th == "suburb":                # a cape-cod house turned to the ground's drive (zone (5.9,-6.6): 130 deg from +x
+				var fa := deg_to_rad(130.0) if n.position.x > 0.0 else 0.0     # toward +z; (-13.4,1.1): 0 deg), its bins by it
+				_decor_single("House_C", Vector3.ZERO, PI * 0.5 - fa, 0.75, n)
+				_decor_single("Bins", Vector3(cos(fa + 0.9), 0, sin(fa + 0.9)) * rad * 0.75, PI * 0.5 - fa, 0.7, n)
+				return true
 			if th == "factory":             # v0.9.65: a workshop under its sawtooth roof, casks or crates by it
 				_building_n += 1
 				_decor_single("Workshop", Vector3.ZERO, r.randf_range(-0.3, 0.3), rad / 1.25, n)
@@ -2500,6 +2661,7 @@ func _build_blockers() -> void:
 	_ruins_n = 0
 	_machine_n = 0
 	_coal_n = 0
+	_crater_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
@@ -4814,8 +4976,12 @@ func _handle_events() -> void:
 		match ev.e:
 			"place":
 				_spawn_tower_node(sim.get_tower(ev.id))
+				if not _yard_marks.is_empty() and sim.get_tower(ev.id) != null:
+					_clear_yard(sim.get_tower(ev.id).pos)
 			"hero_place":
 				_spawn_hero_node()
+				if not _yard_marks.is_empty() and sim.hero != null:
+					_clear_yard(sim.hero.pos)
 			"hero_level":
 				if sim.hero != null:
 					var hn = tower_nodes.get(sim.hero.id)
