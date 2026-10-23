@@ -1,4 +1,4 @@
-"""HQ ground for the Stone Age to Industrial Age maps: the map's ground as a real 3D surface, rendered straight down into
+"""HQ ground for the Stone Age to Modern Age maps: the map's ground as a real 3D surface, rendered straight down into
 its ground texture, so it always matches the simulation's road, lanes and no-build zones.
 
     python3 tools/blender/map_ground_hq.py <map_id> [--px 64] [--samples 32] [--out PATH] [--preview]
@@ -36,9 +36,19 @@ and ballast with turnouts, buffer stops and a turntable whose stalls fan out, le
 cross the packed-cinder roads, granite setts on the fast lanes, flagged goods platforms under the crates (railyard); a
 smoky Victorian city of sett streets between granite kerbs and flagged pavements, gully grates and manholes, yards
 (flags, cobbles, brick, earth, waste ground) between low brick walls, back lanes, dock pools behind coping stones in a
-quay with a flush tramway (smog). Sleepers, rails, buffer stops, walls and bollards are 3D. For highland, bog, coast,
-harbor and smog, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools,
-the inlet, the dock pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
+quay with a flush tramway (smog). Sleepers, rails, buffer stops, walls and bollards are 3D. Modern Age: an airbase of
+mown olive turf, a runway 09/27 between the service roads (thresholds, numbers, touchdown and aiming-point bars, tyre
+rubber, edge lights), taxiways with yellow centre and edge lines and hold-short bars, an apron of concrete slabs with
+parking stands, hazard-striped pads under the machines, the crates' pad, a helipad, a hangar hardstand, craters blasted
+in and scorched round (military); a city centre of asphalt avenues with double yellow lines, red bus lanes on the speed
+lanes, a brick table over the crossroads, zebra crossings, granite kerbs, sidewalks with tree pits, drains and
+manholes, its blocks cut into lots (granite tiles, concrete, brick, slate, parking, lawns with planted beds), a plaza
+with an inlaid compass and planters, polished plinths under the buildings (metro); a suburb of striped lawns, curving
+streets with a yellow centre line, kerbs, verges and sidewalks, two cul-de-sacs, driveways, garden paths, flower beds,
+patios, a park with a playground, and backyard swimming pools (the lake zones) with travertine decks (suburb). Their
+markings are painted at the render's resolution (PIL), so they stay crisp. For highland, bog, coast, harbor, smog and
+suburb, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools, the inlet,
+the dock pools, the swimming pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
 masks without rendering; --dry builds the scene without rendering.
 Output: assets/textures/ground_<map_id>.png (same coverage as tools/gen_ground.py: x -21..19, z -13..13).
 """
@@ -1155,6 +1165,7 @@ if THEME == "military":
         crater_rim = np.maximum(crater_rim, np.exp(-((d_ - r_ * 1.02) / (0.2 * r_)) ** 2))
         gp_d = np.maximum(gp_d, _scorch(bx, bz, r_, d_, pr_))
     paved = np.maximum.reduce([conc, rwy, blast])
+    paved_b = gaussian_filter(paved, 0.3 * MPX)
     for _ in range(800):
         if len(SMALL_CR) >= 5:
             break
@@ -1164,8 +1175,8 @@ if THEME == "military":
                 or any(math.hypot(cx - a_, cz - b_) < 4.0 for a_, b_, _r in SMALL_CR)
                 or _at(np.maximum(pads, heli), cx, cz) > 0 or _at(_rrect(HELI[0], HELI[1], 1.6, 1.6, 0.2), cx, cz) < 0):
             continue
-        if _at(paved, cx, cz) > 0.5 and (_at(hard, cx, cz) < 0.5 or any(_at(hard, a_, b_) > 0.5 for a_, b_, _r in SMALL_CR)):
-            continue                                 # (in the turf, and one in the hangars' hardstand)
+        if _at(paved_b, cx, cz) > 0.02:
+            continue                                 # (in the turf)
         SMALL_CR.append((cx, cz, r_))
         d_ = np.hypot(X - cx, Z - cz) + (fbm(0.3, 2, 600 + len(SMALL_CR)) - 0.5) * 0.45 * r_
         crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
@@ -1529,7 +1540,8 @@ if THEME == "suburb":
             gpath = np.maximum(gpath, np.clip((0.08 - d_) / 0.02, 0, 1))
         fbed = np.maximum(fbed, np.clip(-_box(fx + f_[0] * 0.17, fz + f_[1] * 0.17, 0.7, 0.13, fa + math.pi / 2, 0.06) / 0.02, 0, 1))
         bk = np.array([fx, fz]) - f_ * 1.62                                      # a patio behind the house
-        patio = np.maximum(patio, np.clip(-_box(bk[0] + p_[0] * 0.2 * side, bk[1] + p_[1] * 0.2 * side, 0.42, 0.26, fa + math.pi / 2, 0.03) / 0.02, 0, 1))
+        if all(math.hypot(bk[0] - bx, bk[1] - bz) > br + 0.55 for (bx, bz, br, k_) in BLOCKERS):
+            patio = np.maximum(patio, np.clip(-_box(bk[0] + p_[0] * 0.2 * side, bk[1] + p_[1] * 0.2 * side, 0.42, 0.26, fa + math.pi / 2, 0.03) / 0.02, 0, 1))
         if hi_ % 3 == 1:                                                         # and now and then a vegetable bed
             vb = bk - p_ * 0.55 * side - f_ * 0.2
             veg = np.maximum(veg, np.clip(-_box(vb[0], vb[1], 0.3, 0.17, fa, 0.02) / 0.02, 0, 1))
@@ -2995,7 +3007,7 @@ elif MOD_T:
         c = nb.mix(I["kerb"], c, nb.mix(nb.ramp(nb.noise(8.0, 2, 0.5), 0.3, 0.7), (0.6, 0.6, 0.59), (0.72, 0.72, 0.7)))
         # the carriageway: asphalt, red bus lanes, the brick table, manholes, paint
         asp, seal = asphalt((0.17, 0.17, 0.18), (0.24, 0.24, 0.25))
-        busc = nb.mix(nb.ramp(nb.noise(2.0, 3, 0.6), 0.3, 0.7), (0.38, 0.13, 0.11), (0.47, 0.17, 0.14))
+        busc = nb.mix(nb.ramp(nb.noise(2.0, 3, 0.6), 0.3, 0.7), (0.33, 0.13, 0.115), (0.41, 0.165, 0.14))
         busc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(6.0, 3, 0.6), 0.6, 0.75), 0.6), busc, asp)       # worn through
         busc = nb.mix(nb.math("MULTIPLY", rut_m, 0.35), busc, (0.3, 0.13, 0.11))
         asp = nb.mix(I["bus"], asp, busc)
@@ -3075,7 +3087,7 @@ elif MOD_T:
         c = nb.mix(I["playb"], c, nb.mix(nb.ramp(nb.noise(9.0, 3, 0.6), 0.3, 0.7), (0.38, 0.26, 0.15), (0.5, 0.36, 0.22)))
         c = nb.mix(I["sand"], c, nb.mix(nb.ramp(nb.noise(12.0, 3, 0.6), 0.3, 0.7), (0.78, 0.68, 0.48), (0.88, 0.8, 0.6)))
         asp, seal = asphalt((0.19, 0.19, 0.2), (0.26, 0.26, 0.27), 0.25)
-        c = nb.mix(nb.math("MAXIMUM", road_m, I["cul"]), c, asp)
+        c = nb.mix(nb.math("ADD", road_m, I["cul"]), c, asp)
         c = paint(c, worn=0.3)
         wm = I["water"]
         rough = nb.mixf(wm, nb.mixf(nb.math("MAXIMUM", I["lawn"], I["fbed"]), 0.8, 0.92), 0.08)
