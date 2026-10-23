@@ -228,9 +228,11 @@ def teeth():
     return g.finish(c, 0.3)
 
 
-def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=None, streak=None, tint=None):
+def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=None, streak=None, tint=None, fleck=None,
+         fleck_amt=0.5):
     """Hair: darker where it faces down, light on the ridges of the locks, fine strands. low/streak/tint default to the
-    brown tones the first characters were baked with; light hair (white, grey) passes its own."""
+    brown tones the first characters were baked with; light hair (white, grey) passes its own. `fleck`: a colour for
+    scattered strands through it (grey flecks in a black beard), `fleck_amt` how much of it."""
     g = new(name)
     p = g.obj()
     point = g.geo("Pointiness")
@@ -243,6 +245,10 @@ def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=No
     c = g.mix(g.math("MULTIPLY", ridge, 0.7), c, g.rgb(hi))
     c = g.mix(g.remap(strands, 0.3, 0.7, 0.0, 0.4), c, g.rgb(streak or (0.12, 0.07, 0.045)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 4.0, 2.0), 0.45, 0.7), 0.3), c, g.rgb(tint or (0.36, 0.22, 0.13)))
+    if fleck is not None:
+        fl = g.smooth(g.noise(g.scale_vec(p, (55.0, 55.0, 12.0)), 1.0, 2.0, 0.5), 0.6, 0.66)
+        fl = g.math("MULTIPLY", fl, g.smooth(g.noise(p, 6.0, 2.0), 0.35, 0.6))
+        c = g.mix(g.math("MULTIPLY", fl, fleck_amt), c, g.rgb(fleck))
     nrm = g.bump(strands, 0.35, 0.004)
     return g.finish(c, 0.6, nrm)
 
