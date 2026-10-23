@@ -228,9 +228,11 @@ def teeth():
     return g.finish(c, 0.3)
 
 
-def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=None, streak=None, tint=None):
+def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=None, streak=None, tint=None, fleck=None,
+         fleck_amt=0.5):
     """Hair: darker where it faces down, light on the ridges of the locks, fine strands. low/streak/tint default to the
-    brown tones the first characters were baked with; light hair (white, grey) passes its own."""
+    brown tones the first characters were baked with; light hair (white, grey) passes its own. `fleck`: a colour for
+    scattered strands through it (grey flecks in a black beard), `fleck_amt` how much of it."""
     g = new(name)
     p = g.obj()
     point = g.geo("Pointiness")
@@ -243,6 +245,10 @@ def hair(name="HQ_Hair", base=(0.25, 0.155, 0.095), hi=(0.52, 0.34, 0.2), low=No
     c = g.mix(g.math("MULTIPLY", ridge, 0.7), c, g.rgb(hi))
     c = g.mix(g.remap(strands, 0.3, 0.7, 0.0, 0.4), c, g.rgb(streak or (0.12, 0.07, 0.045)))
     c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 4.0, 2.0), 0.45, 0.7), 0.3), c, g.rgb(tint or (0.36, 0.22, 0.13)))
+    if fleck is not None:
+        fl = g.smooth(g.noise(g.scale_vec(p, (55.0, 55.0, 12.0)), 1.0, 2.0, 0.5), 0.6, 0.66)
+        fl = g.math("MULTIPLY", fl, g.smooth(g.noise(p, 6.0, 2.0), 0.35, 0.6))
+        c = g.mix(g.math("MULTIPLY", fl, fleck_amt), c, g.rgb(fleck))
     nrm = g.bump(strands, 0.35, 0.004)
     return g.finish(c, 0.6, nrm)
 
@@ -1810,3 +1816,45 @@ def sacking(name="HQ_Sacking", base=(0.62, 0.5, 0.33), dark=(0.42, 0.33, 0.2), s
     c = g.mix(g.math("MULTIPLY", g.reg(5), 0.85), c, g.rgb(stencil))
     c = g.mix(g.reg(6), c, g.rgb((0.82, 0.74, 0.56)))
     return g.finish(c, 0.95, g.bump(weave, 0.3, 0.0016))
+
+
+# ======================================================================================= Industrial Age: red brick (the Rifleman)
+def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13), mortar=(0.66, 0.62, 0.55),
+              blue=(0.2, 0.22, 0.27), soot=(0.09, 0.08, 0.075), course=0.07, brick=0.2, radial=0.0):
+    """Fired red brick in stretcher bond: each brick a little lighter or darker than its neighbours, pale mortar joints
+    sunk in the normal map, worn pale edges; label 5 = blue engineering bricks (copings, glossier), 6 = soot and grime.
+    `radial` > 0: the bricks run round a drum of that radius (the courses follow the angle about the z axis, not x + y)."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    z = sep.outputs["Z"]
+    row = g.math("FLOOR", g.math("DIVIDE", z, course))
+    fz = g.math("SUBTRACT", g.math("DIVIDE", z, course), row)
+    if radial > 0:
+        along = g.math("MULTIPLY", g.math("ARCTAN2", sep.outputs["Y"], sep.outputs["X"]), radial)
+    else:
+        along = g.math("ADD", sep.outputs["X"], sep.outputs["Y"])
+    run = g.math("ADD", along, g.math("MULTIPLY", g.math("MODULO", g.math("ADD", row, 1000.0), 2.0), brick * 0.5))
+    col = g.math("FLOOR", g.math("DIVIDE", run, brick))
+    fx = g.math("SUBTRACT", g.math("DIVIDE", run, brick), col)
+    jz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
+    jx = g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx))
+    joint = g.math("MAXIMUM", g.math("SUBTRACT", 1.0, g.smooth(jz, 0.05, 0.13)), g.math("SUBTRACT", 1.0, g.smooth(jx, 0.018, 0.045)))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    joint = g.math("MULTIPLY", joint, g.math("SUBTRACT", 1.0, g.smooth(nz.outputs["Z"], 0.75, 0.92)))
+    rnd = g.math("FRACT", g.math("MULTIPLY", g.math("SINE", g.math("ADD", g.math("MULTIPLY", col, 12.9898), g.math("MULTIPLY", row, 78.233))), 43758.5453))
+    c = g.mix(rnd, g.rgb(base), g.rgb(alt))
+    c = g.mix(g.math("MULTIPLY", g.smooth(rnd, 0.82, 0.9), 0.6), c, g.rgb((0.68, 0.36, 0.22)))
+    c = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 0.35), c, g.rgb(tuple(x * 0.72 for x in alt)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 60.0, 2.0), 0.6, 0.68), 0.35), c, g.rgb(tuple(x * 0.6 for x in alt)))
+    bl = g.mix(g.math("MULTIPLY", rnd, 0.6), g.rgb(blue), g.rgb(tuple(min(1.0, x * 1.3) for x in blue)))
+    c = g.mix(g.reg(5), c, bl)
+    c = g.mix(joint, c, g.rgb(mortar))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.4), c, g.rgb((0.8, 0.6, 0.48)))
+    st = g.math("MULTIPLY", g.reg(6), g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.4, 0.95))
+    c = g.mix(st, c, g.rgb(soot))
+    rough = g.mixf(g.reg(5), 0.86, 0.45)
+    h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
+    return g.finish(c, rough, g.bump(h, 0.4, 0.006))

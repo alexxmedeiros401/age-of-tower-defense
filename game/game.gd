@@ -3318,7 +3318,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4932,7 +4932,7 @@ func _handle_events() -> void:
 						_legion_bash(u2)                        # v0.9.42: the shield's boss slams forward first...
 					_spear_thrust(u2, ev.get("targets", []))    # v0.9.22: a lance of light from the spear's point (Brenna's,
 					                                            # and the Legionary's gladius thrust round his shield, too)
-				elif u2 != null and u2.type == "steam_brawler" and _hq_clips(ev.id):
+				elif u2 != null and u2.type in ["steam_brawler", "jim"] and _hq_clips(ev.id):
 					_brawler_punch(u2, ev.get("targets", []))   # v0.9.64: the piston-driven fist rams out in a burst of steam
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
@@ -5364,7 +5364,7 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # (_gun_blast); it flies flat, a short bright streak settling onto the sim's projectile like the archers' arrows, and
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
-const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048)}   # (v0.9.61: Isla's right pistol)
+const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
@@ -5386,7 +5386,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 		root.look_at(tp, Vector3.UP)
 	if time_s - float(_musket_t.get(int(u.id), -9.0)) > 0.15:
 		_musket_t[int(u.id)] = time_s
-		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), 1.0 if str(u.type) == "musketeer" else 0.7)
+		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), {"musketeer": 1.0, "rifleman": 0.8}.get(str(u.type), 0.7))
 
 
 ## The ball strikes: a small white flash on the robot's plating and a spray of sparks thrown back off it.
@@ -6113,12 +6113,14 @@ func _flare_burn(tid: int) -> void:
 # the iron fist rams out: a burst of steam off the ram and a white flash at the knuckles, and every robot it hits throws
 # sparks with a clang and is knocked back (the sim's hits wait for the blow).
 const BRAWLER_FIST := Vector3(0.020, 1.220, 1.460)
+const BLOW_PTS := {"steam_brawler": BRAWLER_FIST, "jim": Vector3(-0.072, 0.266, 1.270)}   # (v0.9.65: Big Jim's maul face)
 func _brawler_punch(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var tn: Node3D = tower_nodes[uid]
 	var clip := str(tn.get_meta("clip_attack", "Attack"))
 	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
-	var at := float(ATTACK_FRAME.steam_brawler) / CLIP_FPS
+	var at := float(ATTACK_FRAME.get(str(u.type), 11)) / CLIP_FPS
+	var jim := str(u.type) == "jim"
 	var ids := []
 	for tid in targets:
 		if _robot_point(int(tid), 0.0) == Vector3.INF:
@@ -6128,15 +6130,19 @@ func _brawler_punch(u: Dictionary, targets: Array) -> void:
 	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at, at / rate, func() -> void:
 		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
 			var yt := ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform
-			var fist: Vector3 = yt * BRAWLER_FIST
+			var fist: Vector3 = yt * (BLOW_PTS.get(str(u.type), BRAWLER_FIST) as Vector3)
 			var fwd := (yt.basis * Vector3(0, 0, 1)).normalized()
+			if jim:                                      # (the maul comes down on the ground: dust and grit thrown up)
+				_dust_fx(Vector3(fist.x, 0.15, fist.z), 5, 0.8)
+				shake = maxf(shake, 0.1)
 			if _fx_room(1):
 				var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, fist + fwd * 0.1)
 				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.8})
-			_steam_puff(fist - fwd * 0.25, Vector3(fwd.z, 0.4, -fwd.x))
-			_steam_puff(fist - fwd * 0.25, Vector3(-fwd.z, 0.4, fwd.x))
-		_sfx("steam", -10.0, 0.1, 0.2)
+			if not jim:
+				_steam_puff(fist - fwd * 0.25, Vector3(fwd.z, 0.4, -fwd.x))
+				_steam_puff(fist - fwd * 0.25, Vector3(-fwd.z, 0.4, fwd.x))
+		_sfx("hammer_hit" if jim else "steam", -10.0, 0.1, 0.2)
 		var k := 0
 		for t in ids:
 			if k == 0:
@@ -7021,6 +7027,56 @@ func _hammer_strike(fx: Dictionary) -> void:
 	shake = maxf(shake, 0.12)
 	for t in fx.ids:
 		_land_hit(int(t), 0.06)
+
+
+# v0.9.65: Big Jim's Steam Blast (anim_jim.py): he turns to the valve on his base (his Yaw held square to it while the
+# clip plays, as Tarek's to his anvil), heaves the maul and slams it down on the red striker cap at frame 25 (SLAM): the
+# boiler blasts a roaring column of steam and a wave of it rolls out over the field, scalding and stunning every robot
+# as it reaches it.
+const JIM_SLAM := 25
+const JIM_VALVE := Vector3(0.680, 0.204, 0.600)
+const JIM_WAVE := 14.0
+func _jim_blast(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var tn: Node3D = tower_nodes[hid]
+	tn.set_meta("clip_face", ["Ability", (tn.get_meta("yaw") as Node3D).rotation.y, 0.0, 0.3])
+	var at := float(JIM_SLAM) / CLIP_FPS
+	var ids := []
+	for tid in ev.get("ids", []):
+		var t := int(tid)
+		var p := _robot_point(t, 0.0)
+		if p == Vector3.INF:
+			continue
+		_hold_hit(t, at + Vector2(p.x - hp.x, p.z - hp.z).length() / JIM_WAVE)
+		ids.append(t)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void:
+		var valve := hp
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			var model := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).get_parent() as Node3D
+			valve = model.global_transform * JIM_VALVE
+		for i in 10:
+			if not _fx_room(1):
+				break
+			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.97, 0.97, 0.98, 0.72)), self, valve)
+			pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			pf.scale = Vector3.ONE * randf_range(0.7, 1.1)
+			effects.append({"node": pf, "t": -0.04 * i, "life": randf_range(1.2, 1.8), "kind": "dust",
+				"v": Vector3(randf_range(-0.8, 0.8), randf_range(3.5, 6.0), randf_range(-0.8, 0.8))})
+		var g := Vector3(hp.x, 0.3, hp.z)
+		_ring_fx(g, 5.5, Color(0.92, 0.96, 1.0), 0.7)
+		_ring_fx(g, 3.2, Color(1.0, 1.0, 1.0), 0.5)
+		_sfx("steam", 2.0, 0.0, 0.5)
+		shake = maxf(shake, 0.9)
+		for t in ids:
+			var p2 := _robot_point(int(t), 0.4)
+			if p2 == Vector3.INF:
+				_land_hit(int(t))
+				continue
+			var d := Vector2(p2.x - hp.x, p2.z - hp.z).length() / (JIM_WAVE * maxf(float(speed), 0.01))
+			var tt := int(t)
+			_fx_after(d, func() -> void:
+				_steam_puff(_robot_point(tt, 0.4) if _robot_point(tt, 0.4) != Vector3.INF else p2, Vector3.UP)
+				_land_hit(tt))))
 
 
 ## Forge Fury: he turns to his anvil (the clip has it straight in front of him) and the three blows land on its clip
@@ -8675,6 +8731,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			if sim.hero != null and str(sim.hero.type) == "cassia" and _hq_clips(sim.hero.id) and float(sim.hero_def.ability.get("delay", 0.0)) > 0.0:
 				_cassia_order(int(sim.hero.id))             # v0.9.45: the order to charge; the charge lands with the sim (quake_land)
 				_banner(aname, Color(1.0, 0.5, 0.4))
+				return
+			if sim.hero != null and str(sim.hero.type) == "jim" and _hq_clips(sim.hero.id):
+				_jim_blast(ev, hp)                          # v0.9.65: his maul slams the valve and the boiler blasts steam
+				_banner(aname, Color(0.85, 0.92, 1.0))
 				return
 			_quake_fx(hp, ev.get("ids", []))
 			shake = 1.4

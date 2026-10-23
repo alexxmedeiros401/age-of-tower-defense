@@ -640,7 +640,7 @@
     -1.0,
     0.8
    ],
-   "model_scale": 0.55
+   "model_scale": 0.7
   },
   "jim": {
    "legacy_unlock": 27,
@@ -688,7 +688,7 @@
     -0.9,
     1.2
    ],
-   "model_scale": 0.55
+   "model_scale": 0.7
   },
   "maya": {
    "legacy_unlock": 29,
