@@ -204,9 +204,9 @@ def idle_pose(arm, t):
 # ---------------------------------------------------------------------------------------------- combat: ready
 C_YAW = -22.0
 C_FEET = dict(lf=(0.25, -0.12), rf=(-0.24, 0.14), turn=(-2.0, -26.0))
-C_FACE = V(-0.3, -0.32, 1.0)                  # the plate's face at his right hip, toward the robots (body space)
-C_HF, C_HN = V(0.05, -1.0, 0.08), V(0.25, 0.0, 1.0)
-C_POLE = V(-0.5, 1.0, -0.3)
+C_FACE = V(-0.34, -0.3, 1.3)                 # the gauntlet cocked by his right shoulder, the plate to the robots (body space)
+C_HF, C_HN = V(0.08, -1.0, 0.12), V(0.3, 0.0, -1.0)
+C_POLE = V(-1.0, 0.6, -0.7)
 
 
 def combat_state(t):
@@ -219,7 +219,7 @@ def combat_pose(arm, t):
     aims = feet(arm, C_YAW, **C_FEET)
     torso(aims, yaw, bend=0.14, chest=-4.0, look=0.0, pitch=0.04)
     q = rz(yaw)
-    aims.update(tablet_arm(arm, ro, yaw, lift=0.02 + 0.01 * bob, fwd=0.08, turn=0.25))
+    aims.update(tablet_arm(arm, ro, yaw, lift=-0.02 + 0.01 * bob, fwd=0.1, out=0.12, turn=0.35))
     aims.update(plate_at(arm, body_pt(C_FACE + V(0, 0, 0.01 * bob), ro, yaw), q @ C_HF, q @ C_HN, q @ C_POLE))
     return aims, ro, rz(yaw)
 

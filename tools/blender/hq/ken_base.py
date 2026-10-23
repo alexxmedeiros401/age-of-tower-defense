@@ -46,8 +46,8 @@ def _placed(angle_deg, r, turn=0.0):
     return c, inward, tang
 
 
-GEN = _placed(44.0, 1.0, -20.0)
-CASE = _placed(138.0, 1.0, 15.0)
+GEN = _placed(44.0, 1.03, -20.0)
+CASE = _placed(138.0, 1.04, 15.0)
 CRATE = _placed(214.0, 1.03, 30.0)
 DRONE = _placed(-38.0, 1.04, 0.0)
 
@@ -198,7 +198,7 @@ def gen_frame():
     return v3((c[0], c[1], ground_height(c[0], c[1]))), inw, tg, np.stack([tg, inw, v3((0, 0, 1))], 1)
 
 
-GEN_H = (0.2, 0.14, 0.15)              # half sizes of its body (along, across, up)
+GEN_H = (0.22, 0.16, 0.18)              # half sizes of its body (along, across, up)
 
 
 def generator_field():
@@ -248,7 +248,7 @@ def generator_field():
 
 
 # ---------------------------------------------------------------------------------------------- the equipment case
-CASE_H = (0.24, 0.15, 0.075)
+CASE_H = (0.27, 0.17, 0.085)
 
 
 def case_frame():

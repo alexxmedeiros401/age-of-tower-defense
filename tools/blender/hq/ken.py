@@ -142,7 +142,7 @@ def head(fd):
         fd.add(Chain(pts, [hr(0.008), hr(0.014), hr(0.016), hr(0.016)], k=hr(0.02)), hr(0.03), SKIN)   # a soft brow ridge
     # thick black brows, lifted high, lying on the brow (a raised ridge of hair and a painted band)
     for sx in (-1, 1):
-        xz = [(sx * 0.026, 1.771), (sx * 0.064, 1.787), (sx * 0.106, 1.791), (sx * 0.148, 1.777)]
+        xz = [(sx * 0.026, 1.786), (sx * 0.064, 1.797), (sx * 0.106, 1.797), (sx * 0.148, 1.781)]
         on = _on_face(fd, xz, lift=0.001)
         fd.add(Chain(on, [hr(0.0055), hr(0.0068), hr(0.006), hr(0.003)], k=hr(0.006)), hr(0.004), BROW)
         fd.paint(Chain(on, [hr(0.0125), hr(0.0145), hr(0.013), hr(0.007)], k=hr(0.008)), BROW)
@@ -235,7 +235,7 @@ def teeth_field():
     fd = Field("Teeth")
     xs = np.linspace(-0.044, 0.044, 7)
     up_z, lo_z = mouth_curves(xs)
-    pts = [hp((x, -0.186 + 7.0 * x * x, z - 0.0085)) for x, z in zip(xs, up_z)]
+    pts = [hp((x, -0.173 + 7.0 * x * x, z - 0.0085)) for x, z in zip(xs, up_z)]
     fd.add(Chain(pts, [hr(0.0088)] * len(pts), k=hr(0.004)), 0.0)
     return fd
 
@@ -431,6 +431,7 @@ def body_hull(arms=True):
     for p, k in torso_prims():
         b.add(p, k)
     b.add(traps(), 0.06)
+    b.add(neck_prim(), 0.05)                   # (as the skin is built: its smooth unions swell the same way)
     if arms:
         for side in ("R", "L"):
             b.add(deltoid(side), 0.055)
