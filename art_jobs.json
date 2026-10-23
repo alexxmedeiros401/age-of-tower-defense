@@ -1,0 +1,12 @@
+[
+ {
+  "name": "tank_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/tank_p1; mkdir -p $O\npython3 robot_build.py -- --robot steam_tank --out $O --stage sculpt --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot steam_tank --out $O --stage game --tex 512 --ao 4 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot steam_tank --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\nrm -f $O/*_hi.blend; ls -la $O",
+  "out": "out/tank_p1"
+ },
+ {
+  "name": "jugg_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/jugg_p1; mkdir -p $O\npython3 robot_build.py -- --robot juggernaut --out $O --stage sculpt --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot juggernaut --out $O --stage game --tex 512 --ao 4 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot juggernaut --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip_enrage --strip --action Enrage --every 4 > $O/strip2.log 2>&1 || tail -20 $O/strip2.log; done\nrm -f $O/*_hi.blend; ls -la $O",
+  "out": "out/jugg_p1"
+ }
+]
