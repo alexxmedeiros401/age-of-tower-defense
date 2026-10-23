@@ -233,12 +233,13 @@ def tuft_specs():
 
 
 def hair_field():
-    """A shell of white hair round the back and sides of his head (from the temples back; the crown and the forehead
-    bare), below the goggles' strap."""
+    """A thick, lumpy mass of white hair round the back and sides of his head (from the temples back; the crown and the
+    forehead bare), over the goggles' strap."""
     fd = Field("Hair")
     strands = lambda P: F(0.003) * NOISE(P * np.array([60, 60, 18], F)) + F(0.0015) * NOISE(P * F(110))
     keep = Func(lambda P: _hairline(hinv(P)), HEAD_C - 0.4, HEAD_C + 0.4)
-    fd.add(Inter(Shell(Ellipsoid(HEAD_C, HEAD_RAD), hr(0.022), hr(0.03), pad=0.06, disp=strands, disp_amp=0.004), keep, 0.01), 0.0)
+    puff = lambda P: strands(P) + F(0.009) * NOISE(P * F(16)) + F(0.005) * NOISE(P * F(34))
+    fd.add(Inter(Shell(Ellipsoid(HEAD_C, HEAD_RAD), hr(0.034), hr(0.054), pad=0.08, disp=puff, disp_amp=0.016), keep, 0.012), 0.0)
     fd.add(Ellipsoid(hp((0.0, 0.17, 1.65)), v3((0.13, 0.07, 0.07)) * HS, disp=strands, disp_amp=0.003), hr(0.03))   # full at the nape
     return fd
 
