@@ -151,11 +151,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0105))), (sx * 0.28, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0148))), (sx * 0.3, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0155))), (sx * -0.15, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0185))), (sx * -0.15, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.008))), (sx * 0.28, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0125))), (sx * 0.3, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(2):                                                                    # crow's feet
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.676 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.024, 0.012, -0.002 - 0.008 * k)), hr(0.0022), hr(0.0015)), hr(0.003))
@@ -431,7 +431,7 @@ def tunic_neck(P):
     """> 0 above the tunic's neck (round the neck only; it lifts clear of the shoulders)."""
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
     front = np.clip(-(y - F(0.04)) / F(0.18), 0, 1)
-    return z - (F(1.43) - F(0.03) * front + F(0.3) * smoothstep(0.15, 0.22, np.abs(x)))
+    return z - (F(1.415) - F(0.015) * front + F(0.3) * smoothstep(0.15, 0.22, np.abs(x)))
 
 
 def tunic_hem(P):
@@ -455,7 +455,7 @@ POCKETS = ((-0.125, 1.24), (0.125, 1.24))
 
 def tunic_field():
     """Navy wool (0): the body to the upper thigh, its sleeves to the wrists, buttoned down the front with brass buttons
-    (6) on a placket, two breast pockets with buttoned flaps; a scarlet standing collar (5) closed at the throat."""
+    (6) on a placket, two breast pockets with buttoned flaps; a scarlet standing collar (5) hooked at the throat."""
     fd = Field("Tunic")
     base = tunic_hull()
     def folds(P):
@@ -493,26 +493,13 @@ def tunic_field():
     nk.add(neck_prim(), 0.0)
     nk.add(traps(), 0.06)
     def band(P):
-        return np.maximum(F(1.385) - P[:, 2] + F(0.02) * np.clip(P[:, 1] / F(0.1), -1, 1),
+        return np.maximum(F(1.37) - P[:, 2] + F(0.02) * np.clip(P[:, 1] / F(0.1), -1, 1),
                           P[:, 2] - F(1.47) - F(0.01) * np.clip(P[:, 1] / F(0.1), -1, 1))
-    fd.add(Inter(Shell(nk, 0.016, 0.014, pad=0.08), Func(band, (-0.3, -0.3, 1.3), (0.3, 0.3, 1.55)), 0.004), 0.004, FACING)
+    fd.add(Inter(Shell(nk, 0.02, 0.016, pad=0.08), Func(band, (-0.3, -0.3, 1.3), (0.3, 0.3, 1.55)), 0.004), 0.004, FACING)
     h, ok = ray_hit(Func(lambda P: nk.eval(P, margin=0.05) - F(0.024), (-0.3, -0.3, 1.3), (0.3, 0.3, 1.55)),
                     [v3((0.0, -0.6, 1.43))], [v3((0, 1, 0))], tmax=0.7)
     if ok[0]:
         fd.add(Sphere(h[0] + v3((0, -0.002, 0)), 0.008), 0.002, BRASS_L)
-    # shoulder straps: a buff strap along each shoulder with a brass button by the collar
-    for side in ("R", "L"):
-        sx = -1 if side == "R" else 1
-        a = v3((sx * 0.14, 0.055, 1.6))
-        b = J["shoulder_" + side] + v3((sx * 0.02, 0.0, 0.3))
-        p0, ok0 = ray_hit(outer, [a], [v3((0, 0, -1))], tmax=0.5)
-        p1, ok1 = ray_hit(outer, [b], [v3((0, 0, -1))], tmax=0.5)
-        if ok0[0] and ok1[0]:
-            m, okm = ray_hit(outer, [lerp(p0[0], p1[0], 0.5) + v3((0, 0, 0.3))], [v3((0, 0, -1))], tmax=0.5)
-            mid = m[0] if okm[0] else lerp(p0[0], p1[0], 0.5)
-            pts = [p0[0] + v3((0, 0, 0.004)), mid + v3((0, 0, 0.004)), p1[0] + v3((0, 0, 0.004))]
-            fd.add(Lock(pts, [0.026, 0.03, 0.03], [0.004] * 3, [v3((sx * 0.3, 0, 1))] * 3, k=0.004), 0.003, BUFF_L)
-            fd.add(Sphere(p0[0] + v3((0, 0, 0.01)), 0.009), 0.002, BRASS_L)
     return fd
 
 

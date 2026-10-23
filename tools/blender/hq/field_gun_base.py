@@ -17,11 +17,11 @@ from crossbowman_base import _bloom
 
 GROUND_R = 1.45
 TOP_Z = 0.1                    # the pit's floor: where the gun and his feet rest
-FLOOR_R = 1.17                 # the floor's edge (the parapet's inner foot)
+FLOOR_R = 1.19                 # the floor's edge (the parapet's inner foot)
 STAND = v3((-_g.YAW_PIVOT[0], -_g.YAW_PIVOT[1], TOP_Z))
 BANK_Z = 0.07                  # the ground outside the parapet
-BAG = (0.155, 0.085, 0.05)     # a sandbag's half length, depth, height
-BAG_R = (1.3, 1.29)            # the courses' middle radii
+BAG = (0.17, 0.09, 0.052)     # a sandbag's half length, depth, height
+BAG_R = (1.31, 1.3, 1.29)      # the courses' middle radii
 GAPS = {"heap": math.radians(158.0), "box": math.radians(18.0), "marker": math.radians(62.0), "flag": math.radians(112.0)}
 GAP_W = {"heap": 0.2, "box": 0.18, "marker": 0.0, "flag": 0.0}      # (half widths, radians: the pole props stand in the bags)
 SLEEPERS = (-0.56, 0.0, 0.56)  # y of the sleepers (they lie along X)
@@ -44,13 +44,12 @@ def ground_height(x, y):
 
 
 def ground_field():
-    """The pit's floor (packed earth: label 5 paints it trampled) and the bank round it, inside a low edge."""
+    """The ground under the pit's floor and round it (grass outside the parapet; label 5: trampled earth under it)."""
     fd = Field("Ground")
     RE = GROUND_R
     def disc(P):
         r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
-        top = np.where(r < F(FLOOR_R - 0.04), F(TOP_Z),
-                       F(BANK_Z) + F(TOP_Z - BANK_Z) * np.clip((F(FLOOR_R + 0.04) - r) / F(0.08), 0, 1))
+        top = F(BANK_Z) + F(0.02) * np.clip((F(GROUND_R) - r) / F(GROUND_R - FLOOR_R), 0, 1)     # (the setts lie on it)
         dx = r - F(RE)
         dz = np.maximum(P[:, 2] - top, F(-0.12) - P[:, 2])
         q = np.stack([np.maximum(dx + F(0.04), 0), np.maximum(dz + F(0.04), 0)], 1)
@@ -86,33 +85,46 @@ def sleepers_field():
     return fd
 
 
-def cobble_spots(seed=7):
-    rs = np.random.RandomState(seed)
-    out = []
-    step = 0.112
-    for i in range(-10, 11):
-        for j in range(-10, 11):
-            x = i * step + (0.5 * step if j % 2 else 0.0) + rs.uniform(-0.015, 0.015)
-            y = j * step * 0.92 + rs.uniform(-0.015, 0.015)
-            r = math.hypot(x, y)
-            if r > FLOOR_R - 0.08 or r < 0.36:
-                continue
-            if any(abs(y - s) < SLP[0] + 0.07 for s in SLEEPERS):
-                continue
-            a = math.atan2(y, x)
-            if 0.0 < (a % (2 * math.pi)) < 1.6 and r < 0.95:          # a patch of bare earth where the cobbles were lifted
-                continue
-            if rs.rand() < 0.18:                                        # odd ones missing
-                continue
-            out.append((x, y, rs.uniform(0.046, 0.054)))
-    return out
+SETT = (0.105, 0.082)          # a granite sett's length (along X) and width: laid in courses along X, joints staggered
+SETT_ROWS = 40
 
 
-def cobbles_field():
-    """Cobbles set in the earth (rounded granite setts), their tops just proud of the floor."""
-    fd = Field("Cobbles")
-    for k, (x, y, r) in enumerate(cobble_spots()):
-        fd.add(Stone(v3((x, y, TOP_Z - 0.6 * r * 0.55 + 0.006)), r, seed=500 + k, squash=(1.0, 0.92, 0.55), soft=0.3, noise=0.04), 0.0)
+def _sett_cells(P):
+    """Each point's sett: (row, column, distance to the sett's edge (>0 inside), per-sett random)."""
+    v = P[:, 1] / F(SETT[1]) + F(SETT_ROWS / 2)
+    row = np.floor(v)
+    u = P[:, 0] / F(SETT[0]) + F(0.5) * (row % 2) + F(0.37) * np.sin(row * F(2.3))
+    col = np.floor(u)
+    du = (F(0.5) - np.abs(u - col - F(0.5))) * F(SETT[0])
+    dv = (F(0.5) - np.abs(v - row - F(0.5))) * F(SETT[1])
+    rnd = np.abs(np.sin(row * F(12.9898) + col * F(78.233)) * F(43758.5453)) % F(1.0)
+    return row, col, np.minimum(du, dv), rnd
+
+
+def floor_field():
+    """The pit's floor: granite setts in staggered courses, each domed a little and a little proud or sunk on its own,
+    gritty joints between them (label 7: some setts of a browner stone; 6: dark grit and earth where setts are missing,
+    near the parapet)."""
+    fd = Field("Floor")
+    def fn(P):
+        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
+        row, col, e, rnd = _sett_cells(P)
+        dome = F(0.006) * np.clip(e / F(0.022), 0, 1) ** F(0.6) - F(0.006)
+        lost = (rnd > F(0.93)) | ((r > F(FLOOR_R - 0.16)) & (rnd > F(0.72)))
+        top = F(TOP_Z) + dome + (rnd - F(0.5)) * F(0.004) - np.where(lost, F(0.012), F(0.0))
+        d = np.maximum(P[:, 2] - top, F(TOP_Z - 0.06) - P[:, 2])
+        return np.maximum(d * F(0.7), r - F(FLOOR_R + 0.02))
+    R = FLOOR_R + 0.04
+    fd.add(Func(fn, (-R, -R, TOP_Z - 0.08), (R, R, TOP_Z + 0.02), disp=lambda P: F(0.0012) * NOISE(P * F(60)), disp_amp=0.0015), 0.0)
+    def paint(P, which):
+        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
+        row, col, e, rnd = _sett_cells(P)
+        lost = (rnd > F(0.93)) | ((r > F(FLOOR_R - 0.16)) & (rnd > F(0.72)))
+        if which == 6:
+            return np.where(lost, F(-1.0), F(1.0))
+        return np.where((rnd > F(0.55)) & (rnd < F(0.75)) & ~lost, F(-1.0), F(1.0))
+    fd.paint(Func(lambda P: paint(P, 7), (-R, -R, TOP_Z - 0.08), (R, R, TOP_Z + 0.02)), 7)
+    fd.paint(Func(lambda P: paint(P, 6), (-R, -R, TOP_Z - 0.08), (R, R, TOP_Z + 0.02)), 6)
     return fd
 
 
@@ -120,13 +132,13 @@ def bag_specs(seed=3):
     """(centre, yaw, half extents, seed) of every sandbag: two staggered courses round the pit, the gaps left open."""
     rs = np.random.RandomState(seed)
     out = []
-    for course in range(2):
+    for course in range(3):
         rr = BAG_R[course]
         n = int(2 * math.pi * rr / (2 * BAG[0] + 0.012))
         for k in range(n):
             a = 2 * math.pi * (k + 0.5 * course) / n
-            if in_gap(a, 0.02):
-                continue
+            if in_gap(a, 0.02) or (course == 2 and (math.sin(a * 3.0 + 0.7) < -0.2)):
+                continue                                                # (the third course only in stretches)
             z = BANK_Z + BAG[2] * 0.9 + course * (2 * BAG[2] * 0.82) + rs.uniform(-0.004, 0.006)
             c = v3((math.cos(a) * (rr + rs.uniform(-0.012, 0.012)), math.sin(a) * (rr + rs.uniform(-0.012, 0.012)), z))
             yaw = a + math.pi / 2 + rs.uniform(-0.08, 0.08)
@@ -172,24 +184,24 @@ def brass_field():
         fd.add(Cylinder(base + ax * 0.006, _g.RIM_R, 0.012, rr=0.003, R=Rr), k, 6)
         fd.add(Cylinder(base + ax * (L * 0.5), Rc, L - 0.01, rr=0.004, R=Rr), 0.004, 6)
         fd.sub(Cylinder(base + ax * L, Rc - 0.007, 0.06, R=Rr), 0.003)
-    lying = [(-0.12, -0.05, 0.3), (-0.02, -0.08, -0.4), (0.09, -0.04, 0.9), (0.15, 0.06, 2.4), (-0.1, 0.07, 1.7),
-             (0.02, 0.05, 2.9)]
+    lying = [(-0.12, -0.05, 0.3), (-0.02, -0.08, -0.4), (0.09, -0.04, 0.9), (0.17, 0.06, 2.4), (-0.12, 0.07, 1.7),
+             (0.02, 0.05, 2.9), (-0.2, 0.0, 1.1), (0.22, -0.06, 0.2), (0.08, 0.1, 2.0)]
     for k, (u, v, yaw) in enumerate(lying):
         b = c0 + t * u + o * v + v3((0, 0, BANK_Z + Rc + 0.002))
         ax = v3((math.cos(yaw + a0), math.sin(yaw + a0), 0.0))
         case(b - ax * (L * 0.5), ax, 0.0)
-    for k, (u, v) in enumerate(((-0.03, 0.0), (0.05, 0.0))):                      # two lying on top of the others
+    for k, (u, v) in enumerate(((-0.06, 0.0), (0.04, 0.02), (0.13, 0.0))):         # lying on top of the others
         b = c0 + t * u + o * v + v3((0, 0, BANK_Z + 3 * Rc - 0.004))
         ax = v3((math.cos(a0 + 1.2 * k + 0.4), math.sin(a0 + 1.2 * k + 0.4), 0.05))
         case(b - ax * (L * 0.5), ax, 0.0)
-    for k, (u, v) in enumerate(((0.0, 0.11), (0.1, 0.13), (-0.11, 0.14))):        # standing at the back
+    for k, (u, v) in enumerate(((0.0, 0.12), (0.1, 0.14), (-0.11, 0.15), (0.2, 0.12), (-0.21, 0.12))):   # standing at the back
         b = c0 + t * u + o * v + v3((0, 0, BANK_Z - 0.004))
-        case(b, v3((0.05 * (k - 1), 0.03, 1.0)), 0.0)
+        case(b, v3((0.04 * ((k % 3) - 1), 0.03, 1.0)), 0.0)
     return fd
 
 
-MARKER_H = 0.78
-FLAG_H = 1.12
+MARKER_H = 0.95
+FLAG_H = 1.35
 
 
 def marker_foot():
@@ -209,7 +221,7 @@ def ammo_field():
     # the box of rounds, standing nose up
     c, a = _gap_c("box", 1.3)
     R = euler(0, 0, a + math.pi / 2 + 0.1)
-    hx, hy, h = 0.17, 0.12, 0.13
+    hx, hy, h = 0.2, 0.135, 0.15
     z0 = BANK_Z - 0.004
     def box(P):
         q = (P - c.astype(F) - F(np.array([0, 0, z0]))) @ R.astype(F)
@@ -221,9 +233,11 @@ def ammo_field():
     for sx in (-1, 1):
         for sy in (-1, 1):
             fd.add(RoundBox(cz + R @ v3((sx * hx, sy * hy, h - 0.02)), (0.008, 0.008, 0.02), 0.003, R=R), 0.002, 8)
-    for i in range(3):
+    for i in range(4):
         for j in range(2):
-            b = cz + R @ v3((-0.105 + 0.105 * i, -0.055 + 0.11 * j, 0.03))
+            if i == 3 and j == 1:
+                continue                                          # (one gone)
+            b = cz + R @ v3((-0.15 + 0.1 * i, -0.06 + 0.12 * j, 0.03))
             _g.round_into(fd, b, v3((0.02 * (i - 1), 0.015 * (j - 0.5), 1.0)), k=0.002)
     return fd
 
@@ -244,13 +258,13 @@ def marker_field():
     out = v3((math.cos(ma), math.sin(ma), 0.0))
     bc = f1 + v3((0, 0, -0.1)) - out * 0.022
     Rb = rot_from_axes(z_axis=-out, x_axis=side)
-    fd.add(RoundBox(bc, (0.1, 0.07, 0.008), 0.004, R=Rb), 0.003, 13)
+    fd.add(RoundBox(bc, (0.13, 0.09, 0.009), 0.004, R=Rb), 0.003, 13)
     # its number ("4"), painted red on the board's inner face
-    s = 0.04
+    s = 0.055
     for p0, p1 in (((-0.3, 0.9), (-0.3, -0.05)), ((-0.3, -0.05), (0.45, -0.05)), ((0.2, 0.75), (0.2, -0.8))):
         q0 = bc + side * (p0[0] * s) + v3((0, 0, p0[1] * s)) - out * 0.009
         q1 = bc + side * (p1[0] * s) + v3((0, 0, p1[1] * s)) - out * 0.009
-        fd.paint(RoundCone(q0, q1, 0.008, 0.008), 12)
+        fd.paint(RoundCone(q0, q1, 0.011, 0.011), 12)
     return fd
 
 
@@ -267,7 +281,7 @@ def pole_field():
     return fd
 
 
-FLAG_L, FLAG_HT = 0.32, 0.22
+FLAG_L, FLAG_HT = 0.42, 0.28
 
 
 def _flag_coords(P):
@@ -381,18 +395,18 @@ def flower_geometry(seed=53):
 
 
 def fields():
-    return [("Ground", ground_field(), 0.008), ("Sleepers", sleepers_field(), 0.004), ("Cobbles", cobbles_field(), 0.004),
+    return [("Ground", ground_field(), 0.008), ("Sleepers", sleepers_field(), 0.004), ("Floor", floor_field(), 0.0035),
             ("Sandbags", sandbags_field(), 0.004), ("Brass", brass_field(), 0.0024), ("Ammo", ammo_field(), 0.0024),
             ("Marker", marker_field(), 0.0024), ("Pole", pole_field(), 0.0024), ("Flag", flag_field(), 0.0025),
             ("Wedge", wedge_field(), 0.004)]
 
 
-REGION_PARTS = ("Ground", "Sleepers", "Sandbags", "Brass", "Ammo", "Marker", "Pole", "Flag")
-LOW_TARGETS = {"Ground": 1000, "Sleepers": 1000, "Cobbles": 2400, "Sandbags": 4200, "Brass": 900, "Ammo": 1500, "Marker": 500,
+REGION_PARTS = ("Ground", "Floor", "Sleepers", "Sandbags", "Brass", "Ammo", "Marker", "Pole", "Flag")
+LOW_TARGETS = {"Ground": 1000, "Sleepers": 1000, "Floor": 2600, "Sandbags": 4200, "Brass": 900, "Ammo": 1500, "Marker": 500,
                "Pole": 260, "Flag": 400, "Wedge": 300}
 MAT_OVERRIDES = {"Ground": ("ground", {"name": "HQ_PitGround", "dirt_label": 5}),
                  "Sleepers": ("siege", {"name": "HQ_Sleepers", "wood": (0.34, 0.24, 0.16), "wood2": (0.2, 0.13, 0.08), "metal": "iron"}),
-                 "Cobbles": ("stone", {"name": "HQ_Cobbles", "scale": 0.35}),
+                 "Floor": ("flagstone", {"name": "HQ_Setts", "base": (0.44, 0.43, 0.42), "alt": (0.52, 0.45, 0.38)}),
                  "Sandbags": ("sacking", {"name": "HQ_Sandbags"}),
                  "Wedge": ("sacking", {"name": "HQ_Sandbags"}),
                  "Brass": ("fieldgun", {"name": "HQ_PitBrass"}),
