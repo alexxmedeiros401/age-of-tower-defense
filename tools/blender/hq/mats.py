@@ -1858,3 +1858,37 @@ def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13),
     rough = g.mixf(g.reg(5), 0.86, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
     return g.finish(c, rough, g.bump(h, 0.4, 0.006))
+
+
+# ======================================================================================= Modern Age: street asphalt (the Flamethrower)
+def asphalt(name="HQ_Asphalt", base=(0.2, 0.2, 0.205), stone=(0.46, 0.45, 0.43), yellow=(0.9, 0.68, 0.12),
+            white=(0.9, 0.89, 0.85), soot=(0.035, 0.032, 0.03), patch=(0.1, 0.1, 0.105)):
+    """Street asphalt (label 0): dark grey, pale aggregate stones speckled through it, sun-faded lighter in broad patches,
+    black tar in the cracks and hollows; label 5 = scorch (soot: black and dull, a brown burnt halo at its edges), 6 =
+    yellow road paint, 7 = white road paint (both worn through to the asphalt in places), 8 = a newer tar patch (darker,
+    smoother)."""
+    g = new(name)
+    p = g.obj()
+    macro = g.remap(g.noise(p, 1.6, 3.0, 0.55), 0.35, 0.65, 0.0, 1.0)
+    c = g.mix(macro, g.rgb(base), g.rgb(tuple(min(1.0, x * 1.28) for x in base)))
+    agg = g.smooth(g.noise(p, 130.0, 1.0, 0.5), 0.6, 0.66)
+    c = g.mix(g.math("MULTIPLY", agg, 0.55), c, g.rgb(stone))
+    fine = g.noise(p, 300.0, 1.0, 0.5)
+    c = g.mix(g.math("MULTIPLY", g.smooth(fine, 0.35, 0.25), 0.5), c, g.rgb(tuple(x * 0.55 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.85), c, g.rgb((0.04, 0.04, 0.042)))          # tar in the cracks
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.4), c, g.rgb(tuple(min(1.0, x * 1.7) for x in base)))
+    tar = g.reg(8)
+    c = g.mix(tar, c, g.mix(g.math("MULTIPLY", agg, 0.3), g.rgb(patch), g.rgb(tuple(x * 1.6 for x in patch))))
+    worn = g.smooth(g.noise(p, 22.0, 3.0, 0.6), 0.36, 0.52)                                              # paint worn through
+    c = g.mix(g.math("MULTIPLY", g.reg(6), worn), c, g.mix(g.math("MULTIPLY", agg, 0.4), g.rgb(yellow), g.rgb(tuple(x * 0.8 for x in yellow))))
+    c = g.mix(g.math("MULTIPLY", g.reg(7), worn), c, g.mix(g.math("MULTIPLY", agg, 0.4), g.rgb(white), g.rgb(tuple(x * 0.82 for x in white))))
+    sc = g.math("MULTIPLY", g.reg(5), g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.6, 1.0))
+    halo = g.math("MULTIPLY", g.math("SUBTRACT", g.reg(5), g.smooth(g.reg(5), 0.55, 0.9)), 0.8)
+    c = g.mix(halo, c, g.rgb((0.24, 0.15, 0.09)))
+    c = g.mix(sc, c, g.mix(g.noise(p, 30.0, 2.0), g.rgb(soot), g.rgb(tuple(x * 2.4 for x in soot))))
+    rough = g.mixf(g.math("MAXIMUM", g.reg(6), g.reg(7)), g.mixf(tar, 0.92, 0.75), 0.7)
+    rough = g.mixf(sc, rough, 0.97)
+    h = g.math("ADD", g.math("MULTIPLY", agg, 0.5), g.math("MULTIPLY", fine, 0.3))
+    h = g.math("ADD", h, g.math("MULTIPLY", g.noise(p, 8.0, 3.0), 0.3))
+    return g.finish(c, rough, g.bump(h, 0.35, 0.003))
