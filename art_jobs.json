@@ -1,0 +1,7 @@
+[
+ {
+  "name": "sniper_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/sniper_final; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character sniper --fine --out $O/hi/sniper_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module sniper_base --fine --out $O/hi/sniper_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character sniper --char $O/hi/sniper_hi.blend --base $O/hi/sniper_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\npython3 render_asset.py -- --blend $O/final/sniper_hq.blend --out $O/renders --mode game --action Combat --frame 0 --spp 32 --res 900 > $O/r1.log 2>&1 || tail -20 $O/r1.log\npython3 render_asset.py -- --blend $O/final/sniper_hq.blend --out $O/renders --mode hero --action Combat --frame 0 --tz 0.9 --dist 7 --spp 32 --res 900 > $O/r2.log 2>&1 || tail -20 $O/r2.log\npython3 render_asset.py -- --blend $O/final/sniper_hq.blend --out $O/renders --mode frames --action Attack --range 0,30 --step 3 --tz 0.9 --ty -0.3 --dist 5.5 --az -60 --el 20 --spp 16 --res 560 > $O/r3.log 2>&1 || tail -20 $O/r3.log\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/sniper_final"
+ }
+]
