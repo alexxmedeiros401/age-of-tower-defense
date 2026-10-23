@@ -1613,7 +1613,7 @@ def _brass_col(g, pt, base=(0.8, 0.55, 0.22)):
     return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.36, 0.22, 0.07)))
 
 
-def uniform(name="HQ_Uniform", base=(0.05, 0.07, 0.17), facing=(0.62, 0.09, 0.07), brass=(0.8, 0.55, 0.22),
+def uniform(name="HQ_Uniform", base=(0.18, 0.22, 0.42), facing=(0.62, 0.09, 0.07), brass=(0.8, 0.55, 0.22),
             buff=(0.74, 0.6, 0.38), black=(0.06, 0.055, 0.06)):
     """The Industrial Age corps' uniform cloth: navy wool (label 0) with a fine weave, darker in the folds and a lighter
     nap on the ridges; facings (5: a collar, piping, a trouser stripe), polished brass (6: buttons, badges), buff braid or

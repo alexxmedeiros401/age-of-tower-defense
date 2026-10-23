@@ -35,7 +35,7 @@ from torsion import (J, SKIN, NAIL, LIP, MOUTH, BROW, LASH, STUBBLE, HS, DZ, HPI
 from cannon import capped_cone, poly2d, _ring_x, _arm_coord
 
 IRIS = ((0.3, 0.36, 0.42), (0.56, 0.64, 0.7))           # steely grey eyes (prep.paint_eyes)
-NAVY = (0.05, 0.07, 0.17)                               # the corps' wool (the brief's colour)
+NAVY = (0.18, 0.22, 0.42)                               # the corps' navy wool (the lead's ruling: reads navy in game)
 SCARLET = (0.62, 0.09, 0.07)
 BRASS = (0.8, 0.55, 0.22)
 COPPER = (0.75, 0.35, 0.18)
@@ -151,11 +151,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0148))), (sx * 0.3, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.24, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0185))), (sx * -0.15, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0125))), (sx * 0.3, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.018))), (sx * 0.24, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(2):                                                                    # crow's feet
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.676 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.024, 0.012, -0.002 - 0.008 * k)), hr(0.0022), hr(0.0015)), hr(0.003))

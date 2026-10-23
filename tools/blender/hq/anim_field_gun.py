@@ -558,7 +558,7 @@ def palm_to_fist(side, c, R):
 # ---------------------------------------------------------------------------------------------- the attack: the spent case
 CASE_MID = CASE_B0 + GD * (fg.CASE_L * 0.5)
 CASE_OUT = 2                # frames to slide out of the breech
-CASE_V = V(-0.35, 1.3, 1.1)  # m/s once clear: back over the trail, a little out to his side, and up
+CASE_V = V(0.5, 0.36, 0.9)   # m/s once clear: back, out to the gun's left (away from him), and up
 CASE_HIDE = 47
 
 
@@ -582,10 +582,10 @@ def case_track(f, Mb_now):
     else:
         pl = p0 + CASE_V * tl + V(0.0, 0.0, -4.9 * tl * tl)
         k = min(1.0, (t - tl) * FPS / 9.0)
-        lie = Quaternion((0, 0, 1), math.radians(-75.0)) @ Quaternion((1, 0, 0), math.radians(-3.0)) @ R0
+        lie = Quaternion((0, 0, 1), math.radians(18.0)) @ Quaternion((1, 0, 0), math.radians(-3.0)) @ R0
         roll = ease(k)
         hop = 0.035 * math.sin(math.pi * min(1.0, k * 2.5)) if k < 0.4 else 0.0
-        p = V(pl.x - 0.02 * roll, pl.y + 0.08 * roll, fg.CASE_R + 0.004 + hop)
+        p = V(pl.x + 0.07 * roll, pl.y + 0.02 * roll, fg.CASE_R + 0.004 + hop)
         R = (Quaternion((1, 0, 0), 11.0 * tl) @ R0).slerp(lie, ease(min(1.0, k * 3.0))).to_matrix()
     M = R.to_4x4()
     M.translation = p - R @ CASE_MID
