@@ -1,0 +1,22 @@
+[
+ {
+  "name": "mk_q1_military",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_q1_military; mkdir -p $O\npython3 decor_build.py -- --theme military --out $O --tex 512 --ao 4 --only Hesco_A,Hesco_B,Sandbags,Drums,Jerrycans,Ammo,Cones,LightTower,Fence,Barriers,Scrub_A,Scrub_B,Humvee,Hangar,Tower,Jet,Heli,FuelTruck,Radome,Rubble_A,Rubble_B,Wreck,Dish,Generator,AAGun,Pallet,Forklift --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/mk_q1_military"
+ },
+ {
+  "name": "mk_q1_metro",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_q1_metro; mkdir -p $O\npython3 decor_build.py -- --theme metro --out $O --tex 512 --ao 4 --only StreetLight,TrafficLight,Bench,BusStop,Hydrant,NewsBoxes,Bollards,TrashCan,Planter,Tree_A,Tree_B,Tree_C,Tower_A,Tower_B,Diner,Shops,Billboard,Bus,Taxi,MidRise --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/mk_q1_metro"
+ },
+ {
+  "name": "mk_q1_suburb",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_q1_suburb; mkdir -p $O\npython3 decor_build.py -- --theme suburb --out $O --tex 512 --ao 4 --only Mailbox,Picket,Hedge,Gnome,Bike,Bins,Chairs,Maple_A,Maple_B,Oak,Pots,House_A,House_B,Minivan,Playground,Hoop,Treehouse,House_C,Loungers,Umbrella,DivingBoard,PoolLadder --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/mk_q1_suburb"
+ },
+ {
+  "name": "mk_q1_bunker_city",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_q1_bunker_city; mkdir -p $O\npython3 decor_build.py -- --theme bunker_city --out $O --tex 512 --ao 4 --only City --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\nrm -f $O/kit_hi.blend; ls -la $O $O/shots",
+  "out": "out/mk_q1_bunker_city"
+ }
+]
