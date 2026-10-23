@@ -236,9 +236,15 @@ def _drum(fd, c, ax, front, rs):
     e1 = norm(np.cross(ax, v3((0.31, 0.47, 0.82))))
     for o, r in ((0.075, 0.022), (-0.08, 0.014)):
         fd.add(Cylinder(lid + e1 * o - ax * 0.002, r, 0.014, rr=0.004, R=R), 0.003, STEEL)
-    # the band and the placard
+    # the band and the placard (each held to its own drum: the drums touch)
     lo, hi = c - 0.4, c + 0.4
-    fd.paint(Func(lambda P: np.abs((P - c.astype(F)) @ ax.astype(F) - F(DRUM_H * 0.31)) - F(0.028), lo, hi), PAINT2)
+
+    def own(P):
+        q = P - c.astype(F)
+        a = q @ ax.astype(F)
+        r = np.sqrt(np.maximum((q * q).sum(1) - a * a, 0))
+        return np.maximum(r - F(DRUM_R + 0.02), np.abs(a) - F(DRUM_H / 2 + 0.01))
+    fd.paint(Func(lambda P: np.maximum(np.abs((P - c.astype(F)) @ ax.astype(F) - F(DRUM_H * 0.31)) - F(0.028), own(P)), lo, hi), PAINT2)
     f = norm(front - ax * (front @ ax))
     side = np.cross(ax, f)
 
@@ -246,7 +252,7 @@ def _drum(fd, c, ax, front, rs):
         q = P - c.astype(F)
         u = q @ side.astype(F)
         v = q @ ax.astype(F) + F(0.02)
-        return np.maximum((np.abs(u) + np.abs(v)) / F(math.sqrt(2)) - F(size), F(0.02) - q @ f.astype(F))
+        return np.maximum(np.maximum((np.abs(u) + np.abs(v)) / F(math.sqrt(2)) - F(size), F(0.02) - q @ f.astype(F)), own(P))
     # a red flame left in the white (the white is mixed over the red: it leaves the flame out)
     def flame(P):
         q = P - c.astype(F)
