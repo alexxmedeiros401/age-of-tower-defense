@@ -1,0 +1,7 @@
+[
+ {
+  "name": "sniper_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/sniper_p2; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_base.py --module sniper_base --out $O/qbase/base_q.blend --shots $O/qbase/shots > $O/qbase.log 2>&1 & BP=$!\npython3 sculpt_char.py --character sniper --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character sniper --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 0,24 --step 2 --spp 8 --res 500 --tx 0.0 --ty -0.3 --tz 0.75 --dist 4.2 --az -65 --el 16 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,90 --step 30 --spp 8 --res 500 --tx 0.0 --ty -0.3 --tz 0.75 --dist 4.2 --az -65 --el 16 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nwait $BP || tail -40 $O/qbase.log\npython3 sniper_combo.py -- --char $O/qb/char_game.blend --base $O/qbase/base_q.blend --module sniper_base --out $O/combo --poses \"Combat@0,0@1;Attack@2,2@1;Idle@0,0@1\" --cams \"0,55,6.5;150,42,5.5;265,28,5.0;40,20,4.5\" --spp 16 --res 600 > $O/combo.log 2>&1 || tail -30 $O/combo.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/sniper_p2"
+ }
+]
