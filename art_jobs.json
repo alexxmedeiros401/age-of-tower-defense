@@ -1,0 +1,12 @@
+[
+ {
+  "name": "ikits_f2_factory",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_f2_factory; mkdir -p $O\npython3 decor_build.py -- --theme factory --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/ikits_f2_factory"
+ },
+ {
+  "name": "ikits_f2_railyard",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ikits_f2_railyard; mkdir -p $O\npython3 decor_build.py -- --theme railyard --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/ikits_f2_railyard"
+ }
+]
