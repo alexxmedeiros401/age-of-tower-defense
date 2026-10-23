@@ -87,7 +87,7 @@ def ballast_field():
         rim = np.sqrt(x * x + y * y) - F(1.27)
         return np.maximum(np.maximum(np.maximum(side, back), np.maximum(top, bottom)), rim)
     fd.add(Func(bed, (-1.1, -1.35, GROUND_TOP - 0.1), (1.1, 1.25, TOP_Z + 0.02),
-                disp=lambda P: curls(P, 0.026, 0.012) + F(0.002) * NOISE(P * F(9)), disp_amp=0.014), 0.0)
+                disp=lambda P: curls(P, 0.026, 0.007) + F(0.0015) * NOISE(P * F(9)), disp_amp=0.008), 0.0)
     return fd
 
 
@@ -436,8 +436,8 @@ def fields():
 
 
 REGION_PARTS = ("Ground", "Sleepers", "Buffer", "Boiler", "Valve", "Lamp", "Stack")
-LOW_TARGETS = {"Ground": 1400, "Ballast": 3200, "Sleepers": 1400, "Rails": 1600, "Buffer": 1300, "Boiler": 2600, "Valve": 300,
-               "Fire": 120, "Coal": 900, "Lamp": 800, "Lens": 80, "Lens2": 60, "Stack": 700, "Glowmarks": 300, "Cups": 400,
+LOW_TARGETS = {"Ground": 1400, "Ballast": 2400, "Sleepers": 1100, "Rails": 1200, "Buffer": 1000, "Boiler": 2000, "Valve": 300,
+               "Fire": 120, "Coal": 600, "Lamp": 650, "Lens": 80, "Lens2": 60, "Stack": 550, "Glowmarks": 300, "Cups": 400,
                "Cinders": 300}
 CREOSOTE = {"wood": (0.32, 0.22, 0.15), "wood2": (0.2, 0.13, 0.085)}
 MAT_OVERRIDES = {"Ground": ("ground", {"name": "HQ_YardGround", "dirt_label": 5}),
