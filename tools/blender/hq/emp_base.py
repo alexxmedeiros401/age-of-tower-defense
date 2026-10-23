@@ -391,7 +391,7 @@ def fields():
 
 
 REGION_PARTS = ("Pad", "Sandbags", "Kit")
-LOW_TARGETS = {"Ground": 1000, "Pad": 1800, "Sandbags": 3400, "Kit": 6600, "Pebbles": 200}
+LOW_TARGETS = {"Ground": 1000, "Pad": 1800, "Sandbags": 3200, "Kit": 6200, "Pebbles": 200}
 MAT_OVERRIDES = {"Pad": ("field_concrete", {"name": "HQ_EmpPad"}),
                  "Sandbags": ("sacking", {"name": "HQ_EmpSandbags", "base": (0.62, 0.55, 0.4), "dark": (0.42, 0.36, 0.25)}),
                  "Kit": ("fieldgun", dict(_e.MACHINE, name="HQ_EmpPostKit", wood=(0.62, 0.5, 0.34))),

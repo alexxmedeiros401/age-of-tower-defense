@@ -1056,9 +1056,9 @@ MAT_OVERRIDES = {
     "Screen": ("glow_ball", {"name": "HQ_EmpScreen", "col": (0.5, 0.95, 0.62), "strength": 0.8}),
 }
 GLOW = {"Emitter": ((0.72, 0.9, 1.0), 1.3, 0.6), "Charge": ((0.3, 0.9, 1.0), 1.0, 0.5), "Screen": ((0.5, 0.95, 0.62), 0.8, 0.5)}
-LOW_TARGETS = {"Skin": 6000, "Teeth": 60, "Hair": 600, "Cap": 900, "Headset": 1300, "Shirt": 3200, "Trousers": 1500,
-               "Boots": 1300, "Gloves": 1300, "Pad": 300, "Vest": 3000, "Machine": 3000, "Mast": 2800, "Emitter": 260,
-               "Charge": 120, "Console": 2000, "Screen": 40, "Guard": 260, "Button": 160}
+LOW_TARGETS = {"Skin": 5600, "Teeth": 60, "Hair": 600, "Cap": 900, "Headset": 1100, "Shirt": 2900, "Trousers": 1400,
+               "Boots": 1200, "Gloves": 1300, "Pad": 300, "Vest": 2700, "Machine": 2600, "Mast": 2500, "Emitter": 260,
+               "Charge": 120, "Console": 1800, "Screen": 40, "Guard": 260, "Button": 160}
 AO_EXCLUDE = ["Pad", "Guard", "Button"]
 MACHINE_PARTS = ["Machine", "Mast", "Console", "Guard", "Button"]
 # the machine is baked 6 m away from him: his rest pose (his arms out) must leave no shadow on it
