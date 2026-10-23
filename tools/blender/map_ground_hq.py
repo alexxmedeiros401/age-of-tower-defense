@@ -1540,7 +1540,7 @@ if THEME == "suburb":
             gpath = np.maximum(gpath, np.clip((0.08 - d_) / 0.02, 0, 1))
         fbed = np.maximum(fbed, np.clip(-_box(fx + f_[0] * 0.17, fz + f_[1] * 0.17, 0.7, 0.13, fa + math.pi / 2, 0.06) / 0.02, 0, 1))
         bk = np.array([fx, fz]) - f_ * 1.62                                      # a patio behind the house
-        if all(math.hypot(bk[0] - bx, bk[1] - bz) > br + 0.55 for (bx, bz, br, k_) in BLOCKERS):
+        if all(math.hypot(bk[0] - bx, bk[1] - bz) > br + 0.95 for (bx, bz, br, k_) in BLOCKERS):
             patio = np.maximum(patio, np.clip(-_box(bk[0] + p_[0] * 0.2 * side, bk[1] + p_[1] * 0.2 * side, 0.42, 0.26, fa + math.pi / 2, 0.03) / 0.02, 0, 1))
         if hi_ % 3 == 1:                                                         # and now and then a vegetable bed
             vb = bk - p_ * 0.55 * side - f_ * 0.2
