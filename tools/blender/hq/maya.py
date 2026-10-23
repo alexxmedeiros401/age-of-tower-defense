@@ -19,8 +19,8 @@ its front lens coated red). Shoulder-fired.
 
 She has Kira's build (kira.py) with both hands made fists (brenna.py) and Wren's booted feet (wren.py), as Ada (ada.py).
 The rifle rides its own parentless bone (`rifle`: the pistol grip's middle to the muzzle); the smoke grenade its own
-(`smoke`: the grenade's foot to its top; a child of the chest, sitting in its pouch, posed in world space while she
-throws it). The rifle's rest placement floats before her right hip, pointing ahead (-Y); the clips pose it in world
+(`smoke`: the grenade's foot to its top; parentless too: the clips keep it in its pouch by her chest's motion and fly it
+when she throws it). The rifle's rest placement floats before her right hip, pointing ahead (-Y); the clips pose it in world
 space and put her fists on its grips (anim_maya.py)."""
 import math
 import numpy as np
@@ -37,7 +37,7 @@ from isla import _seg_dist_np, _seg_dist, boots_weights as _isla_boots_weights
 from ada import ScaledField, _on_face, arm_prims, legs_hull, boot_hull, boot_top, lace_points
 
 SKIN, NAIL, LIP, MOUTH, BROW, PAINT, LASH = 0, 1, 2, 3, 4, 5, 8
-IRIS = ((0.13, 0.075, 0.045), (0.34, 0.2, 0.1))          # warm dark brown eyes (prep.paint_eyes)
+IRIS = ((0.26, 0.14, 0.06), (0.56, 0.34, 0.13))          # warm brown eyes, light enough to read as irises (prep.paint_eyes)
 
 
 # ======================================================================================= head
@@ -81,11 +81,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0275))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.026))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.018))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0245))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.023))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
         flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.016)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.012), hr(0.006), hr(0.006))), hr(0.0038), hr(0.0014)), hr(0.004), LASH)
     # a straight, broad nose
@@ -552,7 +552,7 @@ def carrier_field():
     def emblem(P, pc=pc, side=side):
         q = P - pc.astype(F)
         u, w = q @ side.astype(F), q[:, 2]
-        border = F(0.006) - np.minimum(F(0.045) - np.abs(u), F(0.032) - np.abs(w))
+        border = F(0.0045) - np.minimum(F(0.045) - np.abs(u), F(0.032) - np.abs(w))
         chev = np.abs(w - F(0.004) + np.abs(u) * F(0.75)) - F(0.0055)
         chev = np.maximum(chev, np.abs(u) - F(0.024))
         return np.minimum(-border, chev)
@@ -944,11 +944,11 @@ BAKE_APART = (["Rifle", "Optic", "Smoke"], (3.0, 0.0, 0.0))     # (the rifle flo
 
 
 def prop_bones():
-    """The rifle rides a parentless bone (every clip poses it in world space, anim_maya.py); the smoke grenade a child of
-    her chest (it sits in its pouch; the Ability poses it in world space while she throws it)."""
+    """The rifle and the smoke grenade ride parentless bones (every clip poses them in world space, anim_maya.py: the
+    grenade follows her chest in its pouch unless she is throwing it; a parented bone could not be moved, only turned)."""
     b, ax = nade_rest()
     return [("rifle", GUN_G0, muzzle(), None),
-            ("smoke", b, b + ax * NADE_L, "chest")]
+            ("smoke", b, b + ax * NADE_L, None)]
 
 
 WC_BONES = TORSO | {"clavicle.R", "clavicle.L"}

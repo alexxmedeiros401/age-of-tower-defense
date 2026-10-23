@@ -21,7 +21,7 @@ Cheer   : (CH_FR = 48) she thrusts the rifle up one-handed (upright in her right
 
 Props are posed in world space: the rifle (parentless) by the rigid motion of its rest placement, her fists put on its
 grips by IK (each fist's length kept in line with its forearm, as Ada's and the Rifleman's); the smoke grenade (a child
-of her chest: it rides its pouch unless a clip poses it) carried in her left fist by her hand's motion, then flown on
+kept in its pouch by her chest's motion) carried in her left fist by her hand's motion, then flown on
 its own arc."""
 import math
 from mathutils import Vector, Quaternion, Matrix
@@ -208,8 +208,9 @@ def body_point(Dr, p):
 def props(P_, T_g, smoke=None):
     """The props' aims: the rifle (world), the smoke grenade (None: in its pouch; a callable(P) -> its rigid motion)."""
     out = {"rifle": lambda P, b: ("world", T_g @ P_.rest["rifle"])}
-    if smoke is not None:
-        out["smoke"] = lambda P, b: ("world", smoke(P) @ P_.rest["smoke"])
+    if smoke is None:
+        smoke = lambda P: P["chest"] @ P_.rest["chest"].inverted()            # in its pouch, riding her chest
+    out["smoke"] = lambda P, b: ("world", smoke(P) @ P_.rest["smoke"])
     return out
 
 
@@ -319,8 +320,8 @@ def make_attack(arm, frames=FR):
 
 
 # ----------------------------------------------------------------------------------------------- idle: a relaxed port
-PORT_G = V(-0.13, -0.38, 0.96)                        # (body frame) the pistol grip at her right hip, before her
-PORT_A = V(0.5, -0.2, 0.62).normalized()            # (body frame) the muzzle up past her left shoulder
+PORT_G = V(-0.13, -0.42, 1.0)                        # (body frame) the pistol grip at her right hip, before her
+PORT_A = V(0.85, -0.1, 0.75).normalized()            # (body frame) the muzzle up past her left shoulder
 
 
 def port_T(Dr, br=0.0, k=0.0):
@@ -373,7 +374,7 @@ def make_idle(arm, frames=120):
 # ----------------------------------------------------------------------------------------------- one-hand holds
 UP_G = V(-0.3, -0.2, 1.06)                          # (body frame) the rifle upright in her right fist at her right side
 UP_A = V(-0.04, -0.12, 1.0).normalized()
-HIGH_G = V(-0.3, -0.1, 1.62)                        # (body frame) ... thrust up high (the Cheer)
+HIGH_G = V(-0.36, -0.12, 1.62)                        # (body frame) ... thrust up high (the Cheer)
 HIGH_A = V(-0.08, -0.05, 1.0).normalized()
 
 
@@ -485,7 +486,7 @@ def make_ability(arm, frames=AB_FR):
             Hd = P0["head"] @ P_.rest["head"].inverted()
             ear = Hd @ CUP_L
             ear_al = (Hd.to_3x3() @ V(0.0, -0.3, 1.0)).normalized()
-            sky = body_point(Dr, V(0.27, -0.3, 1.9))
+            sky = body_point(Dr, V(0.36, -0.42, 2.12))
             sky_al = R @ V(0.0, -0.9, -0.3)
             fol = body_point(Dr, THROW_KEYS[-1][1])
             if f <= 31:
@@ -506,9 +507,9 @@ def make_ability(arm, frames=AB_FR):
                     pos, al, pole = g
             hold_l = fist_at(pos, al, pole)
         # the grenade in flight: an arc from where it left her hand out to the ground ahead, tumbling
-        if RELEASE < f:
+        if RELEASE < f < frames:
             p0, R0 = rel["p"], rel["R"]
-            p1 = body_point(Dr, V(0.22, -2.4, GROUND_Z + cm.NADE_R)) if "p1" not in rel else rel["p1"]
+            p1 = V(0.12, -2.4, GROUND_Z + cm.NADE_R)
             rel["p1"] = p1
             u = min(1.0, (f - RELEASE) / float(LAND - RELEASE))
             pos = p0.lerp(p1, u) + V(0, 0, 0.75 * 4 * u * (1 - u))
@@ -565,18 +566,18 @@ def make_cheer(arm, frames=CH_FR):
         T_mid = upright_T(Dr)
         T_g = path_T(f, [(0, T_aim), (5, T_mid), (10, T_hi)], G0) if f <= 20 else path_T(f, [(33, T_hi), (39, T_mid), (45, T_aim)], G0)
         g = on_gun(T_g, "L", L_POLE)(P0)
-        fist_lo = body_point(Dr, V(0.3, -0.16, 1.62))
-        fist_hi = body_point(Dr, V(0.28, -0.12, 1.98))
+        fist_lo = body_point(Dr, V(0.34, -0.22, 1.86))
+        fist_hi = body_point(Dr, V(0.38, -0.3, 2.2))
         al = R @ V(0.0, -0.4, 1.0)
         top = fist_lo.lerp(fist_hi, pump)
         if f <= 10:
             u = seg(f, 0, 10)
-            pos, a_, pole = g[0].lerp(top, u), g[1].slerp(al, u), L_POLE.lerp(V(1.0, 0.2, -0.3), u)
+            pos, a_, pole = g[0].lerp(top, u) + (R @ V(0.18, -0.06, 0.0)) * math.sin(math.pi * u), g[1].slerp(al, u), L_POLE.lerp(V(1.0, 0.2, -0.3), u)
         elif f < 34:
             pos, a_, pole = top, al, V(1.0, 0.2, -0.3)
         else:
             u = seg(f, 34, 45)
-            pos, a_, pole = top.lerp(g[0], u), al.slerp(g[1], u), V(1.0, 0.2, -0.3).lerp(L_POLE, u)
+            pos, a_, pole = top.lerp(g[0], u) + (R @ V(0.18, -0.06, 0.0)) * math.sin(math.pi * u), al.slerp(g[1], u), V(1.0, 0.2, -0.3).lerp(L_POLE, u)
         holds = {"R": on_gun(T_g, "R", V(-1.0, 0.3, -0.4).lerp(R_POLE, 1.0 - up)), "L": fist_at(pos, a_, pole)}
         ch, P = solve(P_, arm, aims, ro, rr, holds, props(P_, T_g))
         P_.key(ch, f)

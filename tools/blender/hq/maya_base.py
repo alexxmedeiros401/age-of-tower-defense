@@ -41,10 +41,10 @@ def _placed(angle_deg, r):
     return c, inward, tang
 
 
-WALL_A = (52.0, 142.0)            # the sandbag wall behind her (degrees round her: +x her left, +y behind her)
-WALL_R = 1.1
-FLAG = _placed(36.0, 1.08)
-RADIO = _placed(162.0, 1.0)
+WALL_A = (40.0, 150.0)            # the sandbag wall behind her (degrees round her: +x her left, +y behind her)
+WALL_R = 1.08
+FLAG = _placed(27.0, 1.08)
+RADIO = _placed(167.0, 1.0)
 AMMO = _placed(222.0, 1.02)
 CANS = _placed(-42.0, 1.02)
 JERRY = _placed(-12.0, 1.1)
@@ -139,16 +139,16 @@ def bag_specs():
     little shorter at the ends."""
     out = []
     a0, a1 = math.radians(WALL_A[0]), math.radians(WALL_A[1])
-    L = 0.3
+    L = 0.34
     rs = np.random.RandomState(23)
-    for course in range(3):
-        z = GROUND_TOP + 0.05 + course * 0.095
-        r = WALL_R - 0.012 * course
-        span = (a1 - a0) - (0.12 if course == 2 else 0.0)
+    for course in range(4):
+        z = GROUND_TOP + 0.058 + course * 0.108
+        r = WALL_R - 0.014 * course
+        span = (a1 - a0) - 0.1 * max(0, course - 1)
         n = int(round(span * r / L))
         step = span / n
         for k in range(n + (0 if course % 2 == 0 else -1)):
-            a = a0 + (0.06 if course == 2 else 0.0) + step * (k + (0.5 if course % 2 == 0 else 1.0)) + rs.uniform(-0.02, 0.02)
+            a = a0 + 0.05 * max(0, course - 1) + step * (k + (0.5 if course % 2 == 0 else 1.0)) + rs.uniform(-0.02, 0.02)
             c = v3((math.cos(a) * r, math.sin(a) * r, z + rs.uniform(-0.006, 0.006)))
             inward = -norm(v3((c[0], c[1], 0.0)))
             tang = norm(np.cross(v3((0, 0, 1)), inward))
@@ -163,10 +163,10 @@ def sandbags_field():
     lump = lambda P: F(0.004) * NOISE(P * F(14)) + F(0.0015) * NOISE(P * F(45))
     for i, (c, t, inw, L, tw) in enumerate(bag_specs()):
         R = np.stack([t, inw, v3((0, 0, 1))], 1) @ euler(0, 0, tw)
-        fd.add(RoundBox(c, (L * 0.5, 0.09, 0.052), 0.045, R=R, disp=lump, disp_amp=0.005), 0.012)
-        fd.add(Ellipsoid(c + v3((0, 0, 0.012)), (L * 0.42, 0.08, 0.05), R=R), 0.02)               # (the bulge)
+        fd.add(RoundBox(c, (L * 0.5, 0.1, 0.06), 0.05, R=R, disp=lump, disp_amp=0.005), 0.012)
+        fd.add(Ellipsoid(c + v3((0, 0, 0.014)), (L * 0.42, 0.09, 0.056), R=R), 0.02)               # (the bulge)
         if i % 5 == 2:
-            fd.paint(RoundBox(c - inw * 0.09, (0.05, 0.03, 0.022), 0.005, R=R), 5)
+            fd.paint(RoundBox(c - inw * 0.1, (0.05, 0.03, 0.022), 0.005, R=R), 5)
     return fd
 
 
@@ -188,64 +188,65 @@ def crates_field():
     # the long ammunition crate before her on her right
     c, inw, tg = AMMO
     R = np.stack([tg, inw, v3((0, 0, 1))], 1) @ euler(0, 0, 0.35)
-    h = 0.17
+    h = 0.21
     b = c + v3((0, 0, h / 2 - 0.004))
-    _box(fd, b, R, (0.24, 0.12, h / 2), 0.012, 0, planks=(0, 3))
-    fd.add(RoundBox(b + v3((0, 0, h / 2 - 0.006)), (0.245, 0.125, 0.012), 0.006, R=R), 0.003, 0)      # the lid
+    _box(fd, b, R, (0.29, 0.145, h / 2), 0.014, 0, planks=(0, 3))
+    fd.add(RoundBox(b + v3((0, 0, h / 2 - 0.006)), (0.295, 0.15, 0.014), 0.007, R=R), 0.003, 0)      # the lid
     for s in (-1, 1):
-        fd.add(RoundBox(b + R[:, 0] * (s * 0.2), (0.02, 0.126, h / 2 + 0.006), 0.006, R=R), 0.003, 0)    # end battens
-        fd.add(Torus(b + R[:, 0] * (s * 0.255) + v3((0, 0, 0.01)), 0.03, 0.007, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 10)
-        fd.add(RoundBox(b - R[:, 1] * 0.124 + R[:, 0] * (s * 0.12) + v3((0, 0, 0.055)), (0.014, 0.006, 0.02), 0.003, R=R), 0.002, 7)
+        fd.add(RoundBox(b + R[:, 0] * (s * 0.24), (0.024, 0.151, h / 2 + 0.007), 0.007, R=R), 0.003, 0)    # end battens
+        fd.add(Torus(b + R[:, 0] * (s * 0.305) + v3((0, 0, 0.012)), 0.036, 0.008, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 10)
+        fd.add(RoundBox(b - R[:, 1] * 0.149 + R[:, 0] * (s * 0.14) + v3((0, 0, 0.068)), (0.017, 0.007, 0.024), 0.003, R=R), 0.002, 7)
     for k in range(3):                                                                                  # stencils
-        fd.paint(RoundBox(b - R[:, 1] * 0.13 + R[:, 0] * (-0.1 + 0.07 * k) + v3((0, 0, -0.03)), (0.026, 0.02, 0.012), 0.002, R=R), 8)
+        fd.paint(RoundBox(b - R[:, 1] * 0.155 + R[:, 0] * (-0.12 + 0.085 * k) + v3((0, 0, -0.035)), (0.03, 0.02, 0.014), 0.002, R=R), 8)
     # an ammo can on the crate
-    ac = b + v3((0, 0, h / 2 + 0.006)) + R[:, 0] * 0.08
+    ac = b + v3((0, 0, h / 2 + 0.008)) + R[:, 0] * 0.1
     _can(fd, ac, R @ euler(0, 0, -0.5))
     # the radio's crate behind her on her right
     c, inw, tg = RADIO
     R = np.stack([tg, inw, v3((0, 0, 1))], 1) @ euler(0, 0, -0.2)
-    hb = 0.26
+    hb = RADIO_CRATE_H
     b = c + v3((0, 0, hb / 2 - 0.004))
-    _box(fd, b, R, (0.17, 0.15, hb / 2), 0.01, 9, planks=(0, 4))
+    _box(fd, b, R, (0.2, 0.175, hb / 2), 0.012, 9, planks=(0, 4))
     for s in (-1, 1):
         for t in (-1, 1):
-            fd.add(RoundBox(b + R[:, 0] * (s * 0.165) + R[:, 1] * (t * 0.145), (0.012, 0.012, hb / 2 + 0.002), 0.004, R=R), 0.003, 7)
+            fd.add(RoundBox(b + R[:, 0] * (s * 0.195) + R[:, 1] * (t * 0.17), (0.014, 0.014, hb / 2 + 0.002), 0.004, R=R), 0.003, 7)
     # two ammo cans and a jerrycan before her on her left
     c, inw, tg = CANS
     R = np.stack([tg, inw, v3((0, 0, 1))], 1)
-    _can(fd, c + R[:, 0] * -0.07, R @ euler(0, 0, 0.1))
-    _can(fd, c + R[:, 0] * 0.08 + R[:, 1] * 0.03, R @ euler(0, 0, -0.25))
-    _can(fd, c + v3((0, 0, 0.142)) + R[:, 0] * 0.0, R @ euler(0, 0, 0.6))
+    _can(fd, c + R[:, 0] * -0.09, R @ euler(0, 0, 0.1))
+    _can(fd, c + R[:, 0] * 0.1 + R[:, 1] * 0.04, R @ euler(0, 0, -0.25))
+    _can(fd, c + v3((0, 0, 0.165)) + R[:, 0] * 0.0, R @ euler(0, 0, 0.6))
     c, inw, tg = JERRY
     R = np.stack([tg, inw, v3((0, 0, 1))], 1) @ euler(0, 0, 0.4)
-    jb = c + v3((0, 0, 0.17))
-    fd.add(RoundBox(jb, (0.1, 0.055, 0.17), 0.02, R=R), 0.0, 0)
+    jb = c + v3((0, 0, 0.2))
+    fd.add(RoundBox(jb, (0.125, 0.068, 0.2), 0.024, R=R), 0.0, 0)
     for s in (-1, 1):                                                                                   # the X pressings
         for d2 in (R[:, 0] + R[:, 2], R[:, 0] - R[:, 2]):
             dn = norm(d2)
-            fd.sub(RoundBox(jb + R[:, 1] * (s * 0.056), (0.11, 0.004, 0.006), 0.002, R=np.stack([dn, R[:, 1], np.cross(dn, R[:, 1])], 1)), 0.002)
+            fd.sub(RoundBox(jb + R[:, 1] * (s * 0.069), (0.13, 0.004, 0.007), 0.002, R=np.stack([dn, R[:, 1], np.cross(dn, R[:, 1])], 1)), 0.002)
     for k in (-1, 0, 1):                                                                                # the three handles
-        fd.add(Torus(jb + R[:, 0] * (k * 0.045 - 0.01) + v3((0, 0, 0.175)), 0.016, 0.006, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 0)
-    fd.add(Cylinder(jb + R[:, 0] * 0.07 + v3((0, 0, 0.18)), 0.018, 0.03, rr=0.005), 0.004, 7)          # the cap
+        fd.add(Torus(jb + R[:, 0] * (k * 0.055 - 0.012) + v3((0, 0, 0.205)), 0.019, 0.007, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 0)
+    fd.add(Cylinder(jb + R[:, 0] * 0.085 + v3((0, 0, 0.21)), 0.022, 0.035, rr=0.006), 0.004, 7)          # the cap
     return fd
 
 
-def _can(fd, c, R):
-    """An ammo can: an olive steel box (0), its lid's latch and carrying handle (7), a pale stencil band (13)."""
-    h = 0.13
+def _can(fd, c, R, k=1.25):
+    """An ammo can (drawn at k times its first size): an olive steel box (0), its lid's latch and carrying handle (7),
+    a pale stencil band (13)."""
+    h = 0.13 * k
     b = c + v3((0, 0, h / 2))
-    fd.add(RoundBox(b, (0.13, 0.055, h / 2), 0.008, R=R), 0.0, 0)
-    fd.add(RoundBox(b + v3((0, 0, h / 2 - 0.008)), (0.134, 0.06, 0.012), 0.005, R=R), 0.003, 0)
-    fd.add(Torus(b + v3((0, 0, h / 2 + 0.008)), 0.028, 0.005, R=rot_from_axes(z_axis=R[:, 1])), 0.002, 7)
-    fd.add(RoundBox(b + R[:, 0] * 0.135 + v3((0, 0, 0.03)), (0.006, 0.03, 0.02), 0.003, R=R), 0.002, 7)
-    fd.paint(RoundBox(b - R[:, 1] * 0.06 + v3((0, 0, 0.0)), (0.07, 0.012, 0.012), 0.002, R=R), 13)
+    fd.add(RoundBox(b, (0.13 * k, 0.055 * k, h / 2), 0.008 * k, R=R), 0.0, 0)
+    fd.add(RoundBox(b + v3((0, 0, h / 2 - 0.008 * k)), (0.134 * k, 0.06 * k, 0.012 * k), 0.005 * k, R=R), 0.003, 0)
+    fd.add(Torus(b + v3((0, 0, h / 2 + 0.008 * k)), 0.028 * k, 0.005 * k, R=rot_from_axes(z_axis=R[:, 1])), 0.002, 7)
+    fd.add(RoundBox(b + R[:, 0] * (0.135 * k) + v3((0, 0, 0.03 * k)), (0.006 * k, 0.03 * k, 0.02 * k), 0.003, R=R), 0.002, 7)
+    fd.paint(RoundBox(b - R[:, 1] * (0.06 * k), (0.07 * k, 0.012 * k, 0.012 * k), 0.002, R=R), 13)
 
 
 # ---------------------------------------------------------------------------------------------- the radio set
 def radio_frame():
     c, inw, tg = RADIO
     R = np.stack([tg, inw, v3((0, 0, 1))], 1) @ euler(0, 0, -0.2)
-    top = c + v3((0, 0, 0.26 - 0.004))
+    top = c + v3((0, 0, RADIO_CRATE_H - 0.004))
     return top, R
 
 
@@ -254,22 +255,22 @@ def radio_field():
     small display, its whip antenna (8)."""
     fd = Field("Radio")
     top, R = radio_frame()
-    b = top + v3((0, 0, 0.07)) + R[:, 1] * 0.02
-    fd.add(RoundBox(b, (0.13, 0.08, 0.07), 0.012, R=R), 0.0, 8)
-    fp = b + R[:, 1] * 0.08                                                     # its front panel (toward her)
+    b = top + v3((0, 0, 0.085)) + R[:, 1] * 0.02
+    fd.add(RoundBox(b, (0.155, 0.095, 0.085), 0.014, R=R), 0.0, 8)
+    fp = b + R[:, 1] * 0.095                                                     # its front panel (toward her)
     for k, (dx, dz) in enumerate(((-0.08, 0.025), (-0.04, 0.025), (0.0, 0.025), (-0.08, -0.02))):
-        fd.add(Cylinder(fp + R[:, 0] * dx + v3((0, 0, dz)) + R[:, 1] * 0.008, 0.013, 0.018, rr=0.004, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 5)
-    fd.add(RoundBox(fp + R[:, 0] * 0.06 + v3((0, 0, 0.012)) + R[:, 1] * 0.003, (0.045, 0.006, 0.03), 0.004, R=R), 0.002, 7)   # the display
+        fd.add(Cylinder(fp + R[:, 0] * dx + v3((0, 0, dz)) + R[:, 1] * 0.008, 0.016, 0.02, rr=0.004, R=rot_from_axes(z_axis=R[:, 1])), 0.003, 5)
+    fd.add(RoundBox(fp + R[:, 0] * 0.06 + v3((0, 0, 0.012)) + R[:, 1] * 0.003, (0.055, 0.006, 0.036), 0.004, R=R), 0.002, 7)   # the display
     for s in (-1, 1):
         fd.add(RoundBox(b + R[:, 0] * (s * 0.132) + v3((0, 0, 0.0)), (0.006, 0.03, 0.02), 0.003, R=R), 0.002, 7)
     # the antenna from its back corner
-    ab = b + R[:, 0] * 0.09 - R[:, 1] * 0.05 + v3((0, 0, 0.07))
+    ab = b + R[:, 0] * 0.11 - R[:, 1] * 0.06 + v3((0, 0, 0.085))
     fd.add(Cylinder(ab + v3((0, 0, 0.015)), 0.014, 0.03, rr=0.004), 0.003, 8)
     tip = ab + norm(v3((0, 0, 1)) - R[:, 1] * 0.08) * 0.9
     fd.add(RoundCone(ab + v3((0, 0, 0.02)), tip, 0.0075, 0.0055), 0.003, 8)
     fd.add(Sphere(tip, 0.01), 0.003, 8)
     # the handset lying on the crate beside it, its coiled cord
-    hs = top + R[:, 0] * -0.06 + R[:, 1] * 0.11 + v3((0, 0, 0.022))
+    hs = top + R[:, 0] * -0.09 + R[:, 1] * 0.13 + v3((0, 0, 0.022))
     Rh = R @ euler(0, 0, 0.5)
     fd.add(RoundBox(hs, (0.02, 0.05, 0.016), 0.012, R=Rh), 0.004, 5)
     for s in (-1, 1):
@@ -286,7 +287,8 @@ def radio_field():
 
 
 # ---------------------------------------------------------------------------------------------- the flag
-POLE_H = 1.95
+POLE_H = 2.05
+RADIO_CRATE_H = 0.3
 
 
 def metal_field():
@@ -314,7 +316,7 @@ def flag_field():
     top, fly = flag_pts()
     up = v3((0, 0, 1))
     nrm = norm(np.cross(fly, up))
-    W, H = 0.36, 0.22
+    W, H = 0.44, 0.27
     def cloth(P):
         q = P - top.astype(F)
         u = q @ fly.astype(F)
