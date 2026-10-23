@@ -1,4 +1,4 @@
-"""HQ ground for the Stone Age to Gunpowder Age maps: the map's ground as a real 3D surface, rendered straight down into
+"""HQ ground for the Stone Age to Industrial Age maps: the map's ground as a real 3D surface, rendered straight down into
 its ground texture, so it always matches the simulation's road, lanes and no-build zones.
 
     python3 tools/blender/map_ground_hq.py <map_id> [--px 64] [--samples 32] [--out PATH] [--preview]
@@ -28,8 +28,18 @@ its middle, with sandy shallows and surf at its edges, packed-sand roads planked
 floors under the smugglers' crates (harbor); the field before a besieged star fort: trampled grass and churned mud,
 zigzag siege trenches with their spoil heaped on the fort's side, bomb craters (the crater blockers too) scorched round,
 gun-carriage ruts across the turf, spent cannonballs half sunk in it, straw by the supply dumps, gravel military roads,
-meadow round the edges (fortress). For highland, bog, coast and harbor, --watersrc PATH also writes the exact
-water mask (the stream, its fords, the lochans, the bog pools, the inlet) for tools/water_mask.py --src PATH.
+meadow round the edges (fortress); Industrial Age: a foundry district of cinder and slag-black earth, old yards of
+cracked flagstones and cobbles, riveted iron floor plates round the machines and in loading bays, brick aprons round the
+mills, rust stains, oily puddles, coke and scrap, rail spurs on cinder ballast ending at buffer stops, granite-sett roads
+whose fast lanes are laid with steel plates (factory); a railway yard of cinder, weeds and coal dust, tracks on sleepers
+and ballast with turnouts, buffer stops and a turntable whose stalls fan out, level crossings boarded where the tracks
+cross the packed-cinder roads, granite setts on the fast lanes, flagged goods platforms under the crates (railyard); a
+smoky Victorian city of sett streets between granite kerbs and flagged pavements, gully grates and manholes, yards
+(flags, cobbles, brick, earth, waste ground) between low brick walls, back lanes, dock pools behind coping stones in a
+quay with a flush tramway (smog). Sleepers, rails, buffer stops, walls and bollards are 3D. For highland, bog, coast,
+harbor and smog, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools,
+the inlet, the dock pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
+masks without rendering; --dry builds the scene without rendering.
 Output: assets/textures/ground_<map_id>.png (same coverage as tools/gen_ground.py: x -21..19, z -13..13).
 """
 import sys, os, math, time
@@ -798,7 +808,8 @@ if THEME == "smog":
         run = []
         for t_ in np.linspace(0, 1, n_):
             x_, z_ = a_[0] + (b_[0] - a_[0]) * t_, a_[1] + (b_[1] - a_[1]) * t_
-            ok_ = (_in_tex(x_, z_, 0.1) and _at(dist, x_, z_) > HALF + 0.56 and _at(lake_far, x_, z_) > 1.9 and _at(gap_n, x_, z_) > 0.3)
+            ok_ = (_in_tex(x_, z_, 0.1) and _at(dist, x_, z_) > HALF + 0.56 and _at(lake_far, x_, z_) > 1.9 and _at(gap_n, x_, z_) > 0.3
+                   and _at(kinds, x_ + 0.12, z_ + 0.12) != 5 and _at(kinds, x_ - 0.12, z_ - 0.12) != 5)      # (no walls on the quay)
             if ok_:
                 run.append((x_, z_))
             elif len(run) > 3:
@@ -1828,9 +1839,9 @@ elif THEME == "factory":
     c = nb.mix(I["ballast"], c, bal)
     # oily puddles: wet dark earth round them, black water with a rainbow sheen of oil on it
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.6), c, (0.07, 0.065, 0.06))
-    film = nb.cramp(nb.noise(1.3, 3, 0.6, distort=2.0), [(0.0, (0.22, 0.24, 0.27)), (0.4, (0.3, 0.24, 0.34)), (0.47, (0.2, 0.32, 0.32)),
-                                                         (0.54, (0.36, 0.33, 0.2)), (0.62, (0.22, 0.24, 0.27)), (1.0, (0.2, 0.22, 0.25))])
-    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.2, 2, 0.5), 0.35, 0.65), 0.6), (0.24, 0.26, 0.29), film)      # sky, oil
+    film = nb.cramp(nb.noise(1.3, 3, 0.6, distort=2.0), [(0.0, (0.15, 0.16, 0.18)), (0.4, (0.24, 0.17, 0.26)), (0.47, (0.14, 0.24, 0.24)),
+                                                         (0.54, (0.27, 0.24, 0.13)), (0.62, (0.15, 0.16, 0.18)), (1.0, (0.14, 0.15, 0.17))])
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.2, 2, 0.5), 0.35, 0.65), 0.6), (0.15, 0.16, 0.18), film)      # sky, oil
     pud = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.62, 0.5), 0.8), pud, (0.07, 0.065, 0.06))
     pmask = nb.ramp(I["puddle"], 0.45, 0.6)
     c = nb.mix(pmask, c, pud)
@@ -1885,7 +1896,7 @@ elif THEME == "railyard":
     c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.15, 0.14, 0.13), (0.21, 0.19, 0.17)))
     wc = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.17, 0.19, 0.09), (0.28, 0.3, 0.14))
     wc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(14.0, 2, 0.6), 0.55, 0.7), 0.6), wc, (0.24, 0.21, 0.15))   # (dead stems)
-    c = nb.mix(nb.math("MULTIPLY", I["weeds"], nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.35, 0.6), 0.6)), c, wc)
+    c = nb.mix(nb.math("MULTIPLY", I["weeds"], nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.6), 0.75)), c, wc)
     coalc = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.035, 0.035, 0.04), (0.09, 0.09, 0.095))
     c = nb.mix(nb.math("MULTIPLY", I["coal"], 0.93), c, coalc)
     # ballast: broken stone, each its own shade, dark between; oil down the middle; rust along the rails; weeds
@@ -1921,7 +1932,7 @@ elif THEME == "railyard":
     trk = nb.mix(nb.math("MULTIPLY", rut_m, nb.mixf(nb.ramp(nb.noise(2.2, 2, 0.6), 0.3, 0.7), 0.35, 0.6)), trk, (0.29, 0.27, 0.24))
     pmask = nb.ramp(I["puddle"], 0.45, 0.6)
     trk = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.6), trk, (0.22, 0.2, 0.18))
-    pud = nb.mix(nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), (0.27, 0.29, 0.32), (0.4, 0.42, 0.45))         # (the sky in them)
+    pud = nb.mix(nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), (0.19, 0.2, 0.22), (0.29, 0.3, 0.33))         # (the sky in them)
     pud = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.62, 0.5), 0.8), pud, (0.12, 0.11, 0.1))
     trk = nb.mix(pmask, trk, pud)
     # the fast lanes: granite setts
@@ -2041,7 +2052,7 @@ elif THEME == "smog":
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.5, 3, 0.6), 0.5, 0.7), 0.3), c, (0.09, 0.09, 0.08))   # smoke-darkened
     pmask = nb.ramp(I["puddle"], 0.45, 0.6)
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.5), c, (0.1, 0.1, 0.1))
-    pud = nb.mix(nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), (0.25, 0.26, 0.27), (0.37, 0.38, 0.39))     # (the sky in them)
+    pud = nb.mix(nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), (0.17, 0.18, 0.19), (0.27, 0.28, 0.3))      # (the sky in them)
     pud = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.62, 0.5), 0.8), pud, (0.1, 0.1, 0.1))
     c = nb.mix(pmask, c, pud)
     wmask = nb.ramp(I["water"], 0.0, 0.02)
