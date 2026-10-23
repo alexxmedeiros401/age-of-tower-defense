@@ -1,0 +1,17 @@
+[
+ {
+  "name": "ig_fact_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ig_fact_final; mkdir -p $O\npython3 ../map_ground_hq.py foundry_row --px 64 --samples 32 --out $O/ground_foundry_row.png --watersrc $O/water_src_foundry_row.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/ig_fact_final"
+ },
+ {
+  "name": "ig_rail_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ig_rail_final; mkdir -p $O\npython3 ../map_ground_hq.py railyard --px 64 --samples 32 --out $O/ground_railyard.png --watersrc $O/water_src_railyard.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/ig_rail_final"
+ },
+ {
+  "name": "ig_smog_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ig_smog_final; mkdir -p $O\npython3 ../map_ground_hq.py smog_city --px 64 --samples 32 --out $O/ground_smog_city.png --watersrc $O/water_src_smog_city.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/ig_smog_final"
+ }
+]
