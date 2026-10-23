@@ -1604,3 +1604,56 @@ def beach_sand(name="HQ_BeachSand", base=(0.86, 0.75, 0.55), hi=(0.95, 0.88, 0.7
     rough = g.mixf(g.reg(5), 0.95, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", g.math("MULTIPLY", rip, top), 0.6), g.math("MULTIPLY", grains, 0.5))
     return g.finish(c, rough, g.bump(h, 0.3, 0.004))
+
+
+# ======================================================================================= Industrial Age: the Steam Brawler
+def steamworks(name="HQ_Steamworks", iron=(0.13, 0.13, 0.14), brass=(0.8, 0.55, 0.22), copper=(0.75, 0.35, 0.18),
+               leather=(0.36, 0.21, 0.11), enamel=(0.93, 0.89, 0.76), paint=(0.7, 0.1, 0.06), glass=(0.16, 0.36, 0.26)):
+    """Steam-age engineering, hand-painted: soot-black riveted iron (label 0, _iron_col: bright on its edges and ridges,
+    rust in the deepest crevices); polished brass (5); copper (6, a little verdigris in the crevices); bright steel (7: rams,
+    piston rods); black rubber (8, dull, fine ribs); brown leather (9); cream enamel (10: a gauge's dial); red paint (11: its
+    needle, a valve wheel); black leather (12: boots, worn grey on the edges); green glass (13: goggle lenses, glossy)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    hi_ = g.smooth(pt, 0.5, 0.56)
+    lo_ = g.smooth(pt, 0.48, 0.43)
+    c, rs = _iron_col(g, p, base=iron, hi=tuple(min(1.0, x * 3.6) for x in iron), dark=tuple(x * 0.35 for x in iron),
+                      rust=(0.36, 0.17, 0.07))
+    br = g.mix(g.math("MULTIPLY", hi_, 0.8), g.rgb(brass), g.rgb(tuple(min(1.0, x * 1.3 + 0.12) for x in brass)))
+    br = g.mix(g.math("MULTIPLY", lo_, 0.6), br, g.rgb(tuple(x * 0.45 for x in brass)))
+    c = g.mix(g.reg(5), c, br)
+    cu = g.mix(g.remap(g.noise(p, 8.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(copper), g.rgb(tuple(x * 0.82 for x in copper)))
+    cu = g.mix(g.math("MULTIPLY", hi_, 0.75), cu, g.rgb(tuple(min(1.0, x * 1.35 + 0.1) for x in copper)))
+    cu = g.mix(g.math("MULTIPLY", lo_, 0.55), cu, g.rgb(tuple(x * 0.4 for x in copper)))
+    vg = g.math("MULTIPLY", g.smooth(pt, 0.46, 0.41), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+    cu = g.mix(g.math("MULTIPLY", vg, 0.6), cu, g.rgb((0.3, 0.52, 0.42)))
+    c = g.mix(g.reg(6), c, cu)
+    st, _r = _iron_col(g, p, base=(0.58, 0.6, 0.64), hi=(0.96, 0.97, 0.99), dark=(0.22, 0.22, 0.25), rust=(0.42, 0.3, 0.2))
+    c = g.mix(g.reg(7), c, st)
+    rib = g.wave(p, 220.0, 0.5, 0.0, "BANDS", "DIAGONAL")
+    rb = g.mix(g.math("MULTIPLY", rib, 0.4), g.rgb((0.045, 0.043, 0.045)), g.rgb((0.1, 0.095, 0.095)))
+    rb = g.mix(g.math("MULTIPLY", hi_, 0.5), rb, g.rgb((0.22, 0.21, 0.2)))
+    c = g.mix(g.reg(8), c, rb)
+    lea = g.mix(g.noise(p, 9.0, 3.0), g.rgb(leather), g.rgb(tuple(min(1.0, x * 1.3) for x in leather)))
+    lea = g.mix(g.math("MULTIPLY", hi_, 0.5), lea, g.rgb(tuple(min(1.0, x * 1.7) for x in leather)))
+    c = g.mix(g.reg(9), c, lea)
+    en = g.mix(g.noise(p, 30.0, 2.0), g.rgb(enamel), g.rgb(tuple(x * 0.9 for x in enamel)))
+    c = g.mix(g.reg(10), c, en)
+    c = g.mix(g.reg(11), c, g.rgb(paint))
+    bl = g.mix(g.noise(p, 20.0, 2.0), g.rgb((0.05, 0.046, 0.045)), g.rgb((0.1, 0.092, 0.088)))
+    bl = g.mix(g.math("MULTIPLY", hi_, 0.6), bl, g.rgb((0.34, 0.32, 0.3)))
+    c = g.mix(g.reg(12), c, bl)
+    gl = g.mix(g.math("MULTIPLY", hi_, 0.7), g.rgb(glass), g.rgb(tuple(min(1.0, x * 2.4 + 0.2) for x in glass)))
+    c = g.mix(g.reg(13), c, gl)
+    rough = g.mixf(rs, 0.42, 0.8)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(5), g.reg(6)), rough, 0.3)
+    rough = g.mixf(g.reg(7), rough, 0.22)
+    rough = g.mixf(g.reg(8), rough, 0.85)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(9), g.reg(12)), rough, 0.6)
+    rough = g.mixf(g.math("MAXIMUM", g.reg(10), g.reg(11)), rough, 0.35)
+    rough = g.mixf(g.reg(13), rough, 0.08)
+    ham = g.voronoi(p, 80.0, 1.0, "F1", "Distance")
+    h = g.math("ADD", g.math("MULTIPLY", ham, 0.25), g.math("MULTIPLY", g.noise(p, 40.0, 2.0), 0.2))
+    h = g.math("ADD", h, g.math("MULTIPLY", rib, g.math("MULTIPLY", g.reg(8), 0.8)))
+    return g.finish(c, rough, g.bump(h, 0.14, 0.002))
