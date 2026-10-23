@@ -401,6 +401,7 @@ def modern_materials(dark):
             "poster": DM.multi("DK_Poster", (0.25, 0.6, 0.86), {5: (1.0, 0.5, 0.1), 6: (1.0, 0.86, 0.2), 7: (0.08, 0.1, 0.24), 9: (0.97, 0.97, 0.95)}, 0.4),
             "tank_wood": mats.siege("DK_TankWood", wood=(0.42, 0.36, 0.3), wood2=(0.32, 0.27, 0.22), metal="iron"),
             "bus": V("DK_Bus", (0.9, 0.9, 0.88), col5=(0.1, 0.32, 0.72), grime=0.15), "taxi": V("DK_Taxi", (0.96, 0.72, 0.06), rough=0.35, grime=0.15),
+            "fountain_water": DM.flat("DK_FountainWater", (0.36, 0.6, 0.7), 0.08, var=0.3, hi=(0.85, 0.95, 1.0)),
             "street_leaves": DM.leaves("DK_StreetLeaves", base=(0.16, 0.36, 0.12), hi=(0.44, 0.62, 0.22)), "street_bark": DM.plane_bark("DK_StreetBark"),
             "flowers": DM.multi("DK_Flowers", (0.86, 0.1, 0.16), {5: (1.0, 0.82, 0.16), 6: (0.58, 0.3, 0.86), 7: (0.2, 0.42, 0.14)}, 0.6),
         })
@@ -408,6 +409,7 @@ def modern_materials(dark):
         m.update({
             "siding_a": DM.siding("DK_SidingA", (0.6, 0.72, 0.84)), "siding_b": DM.siding("DK_SidingB", (0.93, 0.84, 0.54), shutter=(0.16, 0.3, 0.2)),
             "siding_c": DM.siding("DK_SidingC", (0.58, 0.68, 0.54), shutter=(0.94, 0.93, 0.9), door=(0.1, 0.18, 0.4)),
+            "siding_d": DM.siding("DK_SidingD", (0.9, 0.88, 0.82), shutter=(0.12, 0.3, 0.2), door=(0.12, 0.2, 0.42)),
             "shingles": DM.shingles("DK_Shingles"), "shingles_b": DM.shingles("DK_ShinglesB", (0.4, 0.3, 0.24)),
             "trim": DM.multi("DK_Trim", (0.94, 0.93, 0.9), {}, 0.5, edge=0.1), "picket": DM.multi("DK_Picket", (0.95, 0.94, 0.91), {}, 0.55, edge=0.1),
             "deck": mats.siege("DK_Deck", wood=(0.56, 0.5, 0.42), wood2=(0.44, 0.38, 0.3), metal="iron"),

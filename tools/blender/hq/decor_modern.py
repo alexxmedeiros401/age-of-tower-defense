@@ -783,7 +783,7 @@ def control_tower(seed=0):
     return out
 
 
-def helipad(seed=0):
+def helipad(seed=0, pad=True):
     """A helicopter on its pad: the concrete disc with its yellow ring, the white H and edge lights; a twin-engined
     utility helicopter in olive drab (nose toward +X) on its wheels, the cabin door slid open, four drooping main rotor
     blades, the tail boom with its fin, stabilator and tail rotor."""
@@ -797,7 +797,8 @@ def helipad(seed=0):
         a = 2 * math.pi * i / 10
         pl.add(Sphere((math.cos(a) * 1.27, math.sin(a) * 1.27, 0.04), 0.03), k=0.0)
     ground_cut(pd, -0.03)
-    out += [("Pad", pd, fine(0.01, 0.02), "concrete"), ("PadLights", pl, fine(0.004, 0.008), "glow_lamp")]
+    if pad:
+        out += [("Pad", pd, fine(0.01, 0.02), "concrete"), ("PadLights", pl, fine(0.004, 0.008), "glow_lamp")]
     bd, gl, rt, tf, hf, dk = (Field(n) for n in ("Heli", "HeliGlass", "Rotor", "HeliTyres", "HeliHubs", "Door"))
     zc = 0.5
     box(bd, (0.15, 0, zc), (0.55, 0.28, 0.24), 0.13)
@@ -842,7 +843,7 @@ def helipad(seed=0):
     ground_cut(tf, -0.01)
     heli = [("Heli", bd, fine(0.006, 0.012), "olive"), ("HeliGlass", gl, fine(0.005, 0.01), "glass"), ("Rotor", rt, fine(0.004, 0.008), "gunmetal"),
             ("HeliTyres", tf, fine(0.004, 0.008), "rubber"), ("HeliHubs", hf, fine(0.004, 0.008), "steel"), ("Door", dk, fine(0.005, 0.01), "dark")]
-    place_parts(out, heli, (0.05, 0, 0.035), Rz(0.5))
+    place_parts(out, heli, (0.05, 0, 0.035) if pad else (0.25, 0, 0.0), Rz(0.5) if pad else None)
     return out
 
 
@@ -1629,6 +1630,37 @@ def billboard(seed=0):
     return out
 
 
+def fountain(seed=0):
+    """A plaza fountain: a round stone basin with a moulded rim, its water, a fluted pedestal carrying two bowls, water
+    spilling from the upper bowl and a jet from the top, lights under the water's surface round the rim."""
+    out = []
+    st, wt, lt = Field("Stone"), Field("Water"), Field("Lights")
+    R = 0.78
+    st.add(Cylinder((0, 0, 0.1), R + 0.08, 0.2, rr=0.03), k=0.0)
+    st.add(Torus((0, 0, 0.21), R + 0.03, 0.055), k=0.01)
+    st.sub(Cylinder((0, 0, 0.3), R - 0.02, 0.36), k=0.01)
+    st.add(Cylinder((0, 0, 0.02), R + 0.2, 0.04, rr=0.015), k=0.01)
+    st.add(RoundCone((0, 0, 0.0), (0, 0, 0.55), 0.13, 0.08, disp=lambda P: (F32(0.006) * np.cos(np.arctan2(P[:, 1], P[:, 0]) * F32(12))).astype(F32), disp_amp=0.007), k=0.03)
+    for (z, r) in ((0.55, 0.36), (0.92, 0.2)):
+        st.add(Func(lambda P, z=z, r=r: np.maximum(np.abs(np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2 + ((P[:, 2] - F32(z + r * 0.55)) * F32(1.8)) ** 2) - F32(r)) - F32(0.025),
+                                                  P[:, 2] - F32(z + r * 0.4)).astype(F32), (-r - 0.1, -r - 0.1, z - 0.3), (r + 0.1, r + 0.1, z + 0.4)), k=0.02)
+        wt.add(Cylinder((0, 0, z + r * 0.36), r - 0.03, 0.02), k=0.0)
+    st.add(RoundCone((0, 0, 0.6), (0, 0, 0.95), 0.06, 0.045), k=0.02)
+    wt.add(Cylinder((0, 0, 0.14), R - 0.02, 0.04), k=0.0)
+    for (z, r) in ((0.55, 0.36), (0.92, 0.2)):                       # sheets of water spilling over the bowls' lips
+        wt.add(Func(lambda P, z=z, r=r: np.maximum.reduce([np.abs(np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2) - F32(r + 0.02) - (F32(z + r * 0.38) - P[:, 2]) * F32(0.15)) - F32(0.012),
+                                                          P[:, 2] - F32(z + r * 0.38), F32(0.16 if z < 0.7 else 0.58) - P[:, 2]]).astype(F32),
+                    (-r - 0.2, -r - 0.2, 0.1), (r + 0.2, r + 0.2, z + 0.3)), k=0.0)
+    wt.add(RoundCone((0, 0, 1.0), (0, 0, 1.38), 0.035, 0.012), k=0.02)
+    wt.add(Sphere((0, 0, 1.36), 0.035), k=0.02)
+    for i in range(8):
+        a = 2 * math.pi * i / 8
+        lt.add(Sphere((math.cos(a) * (R - 0.08), math.sin(a) * (R - 0.08), 0.15), 0.03), k=0.0)
+    ground_cut(st, -0.02)
+    out += [("Stone", st, fine(0.006, 0.012), "stone"), ("Water", wt, fine(0.005, 0.01), "fountain_water"), ("Lights", lt, fine(0.004, 0.008), "glow_neon_cyan")]
+    return out
+
+
 def city_bus(seed=0):
     """A city bus (nose toward +X): a long white box with its blue band, the windows lit all along, the windscreen and
     the lit route sign over it, two doors, the roof's air-conditioning pod, six wheels' worth of arches (two axles)."""
@@ -1823,7 +1855,7 @@ def mailbox(seed=0, o=(0, 0, 0), yaw=0.0):
     return place_parts([], parts, o, Rz(yaw))
 
 
-def colonial(seed=0):
+def colonial(seed=0, drive=True, siding="siding_a"):
     """A two-storey house (front toward -Y): pale blue clapboard, white trim, black shutters, a shingled gable roof and
     a brick chimney up its end; a porch on white columns along the front with its steps and a red door; the garage at
     its side with a white panelled door, the minivan parked on the driveway in front, the mailbox at its end."""
@@ -1874,17 +1906,21 @@ def colonial(seed=0):
     dw = Field("Drive")
     dw.add(RoundBox(((GX0 + GX1) / 2, GY0 - 0.95, 0.0), (0.42, 0.95, 0.025), 0.01), k=0.0)
     dw.add(RoundBox((-0.15, PY - 0.55, 0.0), (0.12, 0.42, 0.022), 0.01), k=0.0)
-    for f in (sd, bk, pc, dw):
+    if not drive:                                                   # (where the ground draws the drive: the house alone,
+        dw = None                                                    # centred on its footprint)
+    for f in (sd, bk, pc) + ((dw,) if dw is not None else ()):
         ground_cut(f, -0.03)
-    out += [("Siding", sd, fine(0.008, 0.016), "siding_a"), ("Roof", rf, fine(0.008, 0.016), "shingles"), ("Trim", tr, fine(0.005, 0.01), "trim"),
-            ("Glass", gl, fine(0.006, 0.012), "glass"), ("Chimney", bk, fine(0.006, 0.012), "brick"), ("Porch", pc, fine(0.006, 0.012), "deck"),
-            ("Drive", dw, fine(0.01, 0.02), "concrete")]
+    out += [("Siding", sd, fine(0.008, 0.016), siding), ("Roof", rf, fine(0.008, 0.016), "shingles"), ("Trim", tr, fine(0.005, 0.01), "trim"),
+            ("Glass", gl, fine(0.006, 0.012), "glass"), ("Chimney", bk, fine(0.006, 0.012), "brick"), ("Porch", pc, fine(0.006, 0.012), "deck")]
+    if not drive:
+        return place_parts([], out, (-0.33, 0.17, 0.0))
+    out.append(("Drive", dw, fine(0.01, 0.02), "concrete"))
     car(out, L=1.45, W=0.66, H=0.62, rw=0.13, paint="minivan", seed=seed, kind="van", name="Van", o=((GX0 + GX1) / 2, GY0 - 1.0, 0.0), yaw=math.pi / 2)
     place_parts(out, mailbox(seed), ((GX0 + GX1) / 2 + 0.55, GY0 - 1.75, 0.0), Rz(math.pi))
     return out
 
 
-def ranch(seed=0):
+def ranch(seed=0, drive=True, siding="siding_b"):
     """A ranch house (front toward -Y): one long storey in butter-yellow clapboard under a low hipped roof, a picture
     window and two pairs of windows with shutters, a stoop under a little gable on two columns, the garage door at its
     end, a brick chimney through the roof, a planter of shrubs under the window."""
@@ -1912,15 +1948,16 @@ def ranch(seed=0):
         tr.add(Cylinder((-0.2 + sx * 0.17, -D - 0.32, 0.4), 0.02, 0.62, rr=0.006), k=0.0)
     rf.add(gable((-0.2, -D - 0.2), 0.22, 0.24, 0.7, 0.9, axis="y"), k=0.0)
     _chimney(bk, (0.35, 0.15), H - 0.1, H + 0.6)
-    pc.add(RoundBox((0.78, -D - 0.85, 0.0), (0.36, 0.85, 0.025), 0.01), k=0.0)
-    pc.add(RoundBox((-0.2, -D - 0.75, 0.0), (0.1, 0.32, 0.022), 0.01), k=0.0)
+    if drive:
+        pc.add(RoundBox((0.78, -D - 0.85, 0.0), (0.36, 0.85, 0.025), 0.01), k=0.0)
+        pc.add(RoundBox((-0.2, -D - 0.75, 0.0), (0.1, 0.32, 0.022), 0.01), k=0.0)
     rng = np.random.default_rng(seed)
     for i in range(6):
         q = v3((-0.98 + i * 0.12, -D - 0.12, 0.08))
         sh.add(Ellipsoid(q, (0.08, 0.07, 0.09), **wob(18.0, 0.012, seed + i)), k=0.03)
     for f in (sd, bk, pc, sh):
         ground_cut(f, -0.03)
-    out += [("Siding", sd, fine(0.008, 0.016), "siding_b"), ("Roof", rf, fine(0.008, 0.016), "shingles_b"), ("Trim", tr, fine(0.005, 0.01), "trim"),
+    out += [("Siding", sd, fine(0.008, 0.016), siding), ("Roof", rf, fine(0.008, 0.016), "shingles_b"), ("Trim", tr, fine(0.005, 0.01), "trim"),
             ("Glass", gl, fine(0.006, 0.012), "glass"), ("Chimney", bk, fine(0.006, 0.012), "brick"), ("Stoop", pc, fine(0.008, 0.016), "concrete"),
             ("Shrubs", sh, fine(0.008, 0.016), "hedge")]
     return out
@@ -2768,6 +2805,7 @@ def KITS(theme):
             "Humvee": (lambda: humvee(613), 1400),
             "Hangar": (lambda: hangar(614), 5000), "Tower": (lambda: control_tower(615), 3000), "Jet": (lambda: jet(616), 3400),
             "Heli": (lambda: helipad(617), 3400), "FuelTruck": (lambda: fuel_truck(618), 2400), "Radome": (lambda: radome(619), 2000),
+            "Helicopter": (lambda: helipad(628, pad=False), 2800),
             "Rubble_A": (lambda: rubble(620), 800), "Rubble_B": (lambda: rubble(621, metal=True), 900), "Wreck": (lambda: wreck(622), 1200),
             "Dish": (lambda: radar_dish(623), 1800), "Generator": (lambda: generator(624), 1400), "AAGun": (lambda: aa_gun(625), 2000),
             "Pallet": (lambda: pallet_stack(626), 1100), "Forklift": (lambda: forklift(627), 1500),
@@ -2782,7 +2820,7 @@ def KITS(theme):
             "Tower_A": (lambda: office_tower(643, 0), 4000), "Tower_B": (lambda: office_tower(644, 1), 4000), "Diner": (lambda: diner(645), 3200),
             "Shops": (lambda: shops(646), 4200), "Billboard": (lambda: billboard(647), 1400), "Bus": (lambda: city_bus(648), 2000),
             "Taxi": (lambda: taxi(649), 1300),
-            "MidRise": (lambda: midrise(650), 4200),
+            "MidRise": (lambda: midrise(650), 4200), "Fountain": (lambda: fountain(651), 1500),
         }
     if theme == "suburb":
         return {
@@ -2794,6 +2832,7 @@ def KITS(theme):
             "Playground": (lambda: playground(675), 3000), "Hoop": (lambda: hoop(676), 900), "Treehouse": (lambda: treehouse(677), 3600),
             "House_C": (lambda: cape_cod(678), 3600), "Loungers": (lambda: loungers(679), 700), "Umbrella": (lambda: umbrella(680), 900),
             "DivingBoard": (lambda: diving_board(681), 500), "PoolLadder": (lambda: pool_ladder(682), 300),
+            "House_D": (lambda: colonial(683, drive=False, siding="siding_d"), 4200), "House_E": (lambda: ranch(684, drive=False, siding="siding_a"), 3700),
         }
     if theme == "bunker_city":
         return {"City": (lambda: modern_city(691), 21000)}
