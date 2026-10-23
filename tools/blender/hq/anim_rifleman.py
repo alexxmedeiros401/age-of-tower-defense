@@ -42,7 +42,7 @@ KNOB = mloc(*cm.KNOB)
 _hb, _ht, _w = (float(x[0]) for x in cm.stock_profile(np.array([cm.FORE_GRIP_U], np.float32)))
 FORE = mloc(cm.FORE_GRIP_U, 0.0, (_hb + _ht) / 2 - 0.006)
 BUTT_END = mloc(cm.BUTT_U, 0.0, -0.045)
-LIFT = math.radians(80)                    # the bolt's turn up (radians)
+LIFT = math.radians(68)                    # the bolt's turn up (radians)
 DRAW = 0.085                               # how far it slides back
 
 HAND = {}
@@ -165,11 +165,11 @@ def rifle_props(P_, T_m, lift=0.0, draw=0.0):
 
 # ---------------------------------------------------------------------------------------------- the aim
 YAW = -32.0
-POCKET = (0.05, 0.08, 0.03)         # the butt's place: ahead of his right shoulder joint, in toward his chest, up
+POCKET = (0.05, 0.06, 0.07)         # the butt's place: ahead of his right shoulder joint, in toward his chest, up
 AIM_DOWN = 0.05                     # (radians: the barrel dips a little toward the robots)
 L_POLE = V(0.25, -0.1, -1.0)        # his left elbow under the fore-stock
 R_POLE = V(-0.7, 0.5, -0.6)         # his right elbow out and down
-AIM_BODY = {"yaw": YAW, "lean": 0.2, "side": -0.04, "head_tilt": -0.33, "head_up": -0.42, "neck_side": -0.22,
+AIM_BODY = {"yaw": YAW, "lean": 0.2, "side": -0.04, "head_tilt": -0.38, "head_up": -0.46, "neck_side": -0.26,
             "neck_tw": -0.45 * YAW + 4, "head_tw": -0.55 * YAW + 2, "clav_r": 0.16}
 
 
@@ -290,8 +290,8 @@ ATTACK = {
     13: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),
     14: (0.0, 0.0, 0.0, 0.0, 0.0, "grip", 0.0),
 }
-KNOB_OFF = (0.0, 0.026, 0.012)               # the fist's grip centre from the knob (rifle axes: along, right, up)
-DROP = (0.06, 0.035)                         # the rifle's drop from his cheek while he works the bolt (down, out)
+KNOB_OFF = (-0.004, 0.03, -0.012)              # the fist's grip centre from the knob (rifle axes: along, right, up)
+DROP = (0.075, 0.05)                         # the rifle's drop from his cheek while he works the bolt (down, out)
 R_KNOB_POLE = V(-0.8, 0.3, -0.5)
 
 
