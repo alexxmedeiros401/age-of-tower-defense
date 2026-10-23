@@ -1,0 +1,17 @@
+[
+ {
+  "name": "mk_final3_military",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_final3_military; mkdir -p $O\npython3 decor_build.py -- --theme military --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mk_final3_military"
+ },
+ {
+  "name": "mk_final3_metro",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_final3_metro; mkdir -p $O\npython3 decor_build.py -- --theme metro --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mk_final3_metro"
+ },
+ {
+  "name": "mk_final3_suburb",
+  "cmd": "O=$GITHUB_WORKSPACE/out/mk_final3_suburb; mkdir -p $O\npython3 decor_build.py -- --theme suburb --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/mk_final3_suburb"
+ }
+]
