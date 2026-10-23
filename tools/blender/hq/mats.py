@@ -1510,9 +1510,10 @@ def plume(name="HQ_Plume", col=(0.55, 0.08, 0.08), col2=(0.95, 0.93, 0.87)):
 
 
 # ======================================================================================= Gunpowder Age: Isla (v0.9.5x)
-def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), grip=(0.08, 0.065, 0.06)):
+def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), grip=(0.08, 0.065, 0.06), copper=None):
     """Arms of the Gunpowder Age: walnut stocks with a fine grain and a darker figure, pale where handled, dark in the
-    joints (label 0); black leather or cord (5); polished brass (6); bright steel (7); dark forged iron (8); gun bronze (9)."""
+    joints (label 0); black leather or cord (5); polished brass (6); bright steel (7); dark forged iron (8); gun bronze (9).
+    `copper` = (colour, highlight): label 9 is polished copper instead of gun bronze (no green patina; Industrial Age)."""
     g = new(name)
     p = g.obj()
     grain = g.noise(g.scale_vec(p, (90.0, 90.0, 90.0)), 1.0, 3.0, 0.6)
@@ -1531,10 +1532,12 @@ def armory(name="HQ_Armory", wood=(0.42, 0.23, 0.11), wood2=(0.26, 0.13, 0.06), 
     c = g.mix(g.reg(7), c, st)
     ir, rs = _iron_col(g, p, base=(0.2, 0.2, 0.22), hi=(0.56, 0.57, 0.6), dark=(0.06, 0.06, 0.07), rust=(0.42, 0.2, 0.09))
     c = g.mix(g.reg(8), c, ir)
-    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), g.rgb((0.66, 0.42, 0.18)), g.rgb((0.96, 0.76, 0.44)))
-    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), bz, g.rgb((0.28, 0.16, 0.07)))
-    pat = g.math("MULTIPLY", g.smooth(pt, 0.47, 0.42), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
-    bz = g.mix(g.math("MULTIPLY", pat, 0.6), bz, g.rgb((0.3, 0.52, 0.44)))
+    bz0, bz1 = copper if copper is not None else ((0.66, 0.42, 0.18), (0.96, 0.76, 0.44))
+    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.75), g.rgb(bz0), g.rgb(bz1))
+    bz = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), bz, g.rgb((0.28, 0.16, 0.07) if copper is None else (0.3, 0.11, 0.05)))
+    if copper is None:
+        pat = g.math("MULTIPLY", g.smooth(pt, 0.47, 0.42), g.smooth(g.noise(p, 12.0, 3.0), 0.5, 0.64))
+        bz = g.mix(g.math("MULTIPLY", pat, 0.6), bz, g.rgb((0.3, 0.52, 0.44)))
     c = g.mix(g.reg(9), c, bz)
     metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(6), g.reg(7)), g.math("MAXIMUM", g.reg(8), g.reg(9)))
     rough = g.mixf(metal, g.mixf(g.reg(5), 0.55, 0.7), g.mixf(g.reg(8), 0.25, g.mixf(rs, 0.4, 0.8)))
