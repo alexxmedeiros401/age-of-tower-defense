@@ -67,8 +67,8 @@ class ScaledField(Field):
 # ======================================================================================= head
 def head(fd):
     """Kira's face made younger and rounder: soft apple cheeks lifted by a wide grin, both corners of the mouth drawn up,
-    the lips parted on her upper teeth, dimples; arched brows drawn a touch down at their inner ends (determined); a small
-    upturned nose; freckles across her nose and cheeks."""
+    the lips parted on her upper teeth, dimples, the lower lids lifted by the smile; high arched brows, their inner ends a
+    touch lower (determined, not worried); a small upturned nose; freckles across her nose and cheeks."""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
@@ -82,19 +82,19 @@ def head(fd):
         fd.add(Chain(pts, [hr(0.01), hr(0.014), hr(0.012)], k=hr(0.02)), hr(0.03), SKIN)
     # brows: arched, a little drawn down at their inner ends
     for sx in (-1, 1):
-        pts = [hp((sx * 0.034, -0.202, 1.769)), hp((sx * 0.07, -0.198, 1.787)), hp((sx * 0.11, -0.175, 1.794)),
-               hp((sx * 0.148, -0.135, 1.781))]
+        pts = [hp((sx * 0.034, -0.202, 1.762)), hp((sx * 0.07, -0.198, 1.783)), hp((sx * 0.11, -0.175, 1.791)),
+               hp((sx * 0.149, -0.135, 1.778))]
         fd.add(Chain([p + v3((0, 0.009, 0)) for p in pts], [hr(0.0042), hr(0.0056), hr(0.0048), hr(0.0022)], k=hr(0.006)), hr(0.01), BROW)
         fd.paint(Chain(pts, [hr(0.0105), hr(0.0125), hr(0.0105), hr(0.0055)], k=hr(0.01)), BROW)
     # eyes wide open, lashes on the upper lids flicked out at the corners; the lower lids lifted by the grin
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0245))), (sx * 0.18, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0225))), (sx * 0.2, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0235))), (sx * -0.2, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0205))), (sx * -0.24, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.18, 0.05, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0185))), (sx * 0.2, 0.05, -1.0)), hr(0.002)), LASH)
         flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.016)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.013), hr(0.006), hr(0.006))), hr(0.0042), hr(0.0015)), hr(0.004), LASH)
     # a small, upturned nose
