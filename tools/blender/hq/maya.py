@@ -1,8 +1,8 @@
 """Sgt. Maya Cole, Marine (HQ hero, Modern Age). Rest pose = A-pose, facing -Y, feet at z = 0; right side = -X.
 
 A confident, tough Marine sergeant in her late twenties: dark brown skin, a strong, friendly face (a firm jaw, a rounded
-chin, high cheekbones), warm dark eyes under straight, strong brows, and a determined half-smile (her left corner drawn
-up higher, the lips parted on her upper teeth, a dimple on that side); black hair in tight cornrow braids gathered into a
+chin, high cheekbones, a lean lower face), clear almond eyes under level, strong brows, a short straight nose and a
+closed, confident mouth with a small smile at her left corner; black hair in tight cornrow braids gathered into a
 braided bun at her nape. A high-cut combat helmet in a coyote cover: a raised rim, black accessory rails along its
 sides, a black NVG shroud on its brow, smoke-lensed ballistic goggles on a black strap pushed up onto its front; black
 comms earcups over her ears with a mic boom to the corner of her mouth. Olive-drab fatigues: the blouse's sleeves rolled
@@ -41,97 +41,67 @@ IRIS = ((0.26, 0.14, 0.06), (0.56, 0.34, 0.13))          # warm brown eyes, ligh
 
 
 # ======================================================================================= head
-def mouth_curves(x):
-    """The half-smile (design units): the upper lip's edge and the lower lip's edge at x; both corners drawn up into the
-    cheeks, her left one (+x) higher; the lips parted on her upper teeth, closing at the corners."""
-    x = np.asarray(x, dtype=np.float64)
-    tilt = 0.075 * x + 4.0 * np.maximum(x, 0) ** 2
-    up = 1.5625 + 5.2 * x * x + tilt
-    lo = 1.5625 - 0.019 + 11.2 * x * x + tilt
-    return up, lo
-
-
-MOUTH_W = 0.055                    # half the smile's width (design)
-
-
 def head(fd):
-    """Ada's construction (ada.py: the smile that reads cheerful from the game camera) on a stronger face: Isla's broader
-    jaw and firm chin, high cheekbones, a straight, broad nose; straight strong brows lying on her brow (never knitted);
-    friendly open eyes, the lower lids lifted a little by the smile; a half-smile, her left corner higher, a dimple."""
+    """The house face (Kira's and Brenna's construction) made a strong, attractive woman: a firm jaw and a lean lower
+    face under high cheekbones, a rounded chin; level brows lying on a defined brow ridge, their inner ends set a touch
+    lower (focused, never knitted); clear almond eyes, the lids clear of the irises; a short straight nose; a closed,
+    confident mouth with a small smile at her left corner."""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.06, 1.594), (0.138, 0.13, 0.125)), 0.07, SKIN)                          # a strong jaw
-    fd.add(E((0, -0.13, 1.507), (0.073, 0.064, 0.061)), 0.05, SKIN)                          # a firm, rounded chin
+    fd.add(E((0, -0.056, 1.6), (0.131, 0.126, 0.121)), 0.07, SKIN)                          # a firm, lean jaw
+    fd.add(E((0, -0.132, 1.506), (0.071, 0.063, 0.061)), 0.05, SKIN)                         # a rounded chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.108, -0.04, 1.556), 0.036), 0.05, SKIN)                               # the jaw's angles
-        fd.add(S((sx * 0.108, -0.12, 1.638), 0.041), 0.05, SKIN)                               # high cheekbones
-        fd.add(S((sx * 0.112, -0.05, 1.566), 0.043), 0.05, SKIN)
-        fd.add(S((sx * 0.074, -0.142, 1.612), 0.022), 0.03, SKIN)                               # cheeks, lifted by the smile
-        pts = [hp((sx * 0.15, -0.058, 1.748)), hp((sx * 0.115, -0.124, 1.754)), hp((sx * 0.062, -0.156, 1.752))]
-        fd.add(Chain(pts, [hr(0.007), hr(0.0095), hr(0.008)], k=hr(0.02)), hr(0.03), SKIN)    # a firm brow bone
-    # brows: straight and strong, a gentle lift at the outer ends, lying on her brow (raised hair and a painted band)
+        fd.add(S((sx * 0.102, -0.03, 1.552), 0.032), 0.05, SKIN)                               # the jaw's angles
+        fd.add(S((sx * 0.108, -0.12, 1.643), 0.04), 0.05, SKIN)                                # high cheekbones
+        fd.add(S((sx * 0.106, -0.05, 1.572), 0.036), 0.05, SKIN)
+        pts = [hp((sx * 0.15, -0.06, 1.746)), hp((sx * 0.115, -0.13, 1.752)), hp((sx * 0.062, -0.164, 1.75))]
+        fd.add(Chain(pts, [hr(0.011), hr(0.0155), hr(0.0135)], k=hr(0.02)), hr(0.03), SKIN)  # a defined brow ridge
+    # brows: level, strong, the inner ends set a touch lower
     for sx in (-1, 1):
-        lift = 0.002 if sx > 0 else 0.0
-        xz = [(sx * 0.028, 1.781), (sx * 0.064, 1.79 + lift), (sx * 0.104, 1.794 + lift), (sx * 0.143, 1.781 + lift * 0.5)]
-        on = _on_face(fd, xz, lift=0.001)
-        fd.add(Chain(on, [hr(0.0046), hr(0.0056), hr(0.0048), hr(0.0024)], k=hr(0.006)), hr(0.004), BROW)
-        fd.paint(Chain(on, [hr(0.0115), hr(0.0135), hr(0.0115), hr(0.006)], k=hr(0.008)), BROW)
-    # eyes: open and friendly; the upper lids clear of the irises, the lower lids lifted a little by her cheeks
+        pts = [hp((sx * 0.034, -0.201, 1.75)), hp((sx * 0.072, -0.197, 1.761)), hp((sx * 0.112, -0.174, 1.765)),
+               hp((sx * 0.148, -0.134, 1.757))]
+        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.006), hr(0.0076), hr(0.0064), hr(0.003)], k=hr(0.006)), hr(0.01), BROW)
+        fd.paint(Chain(pts, [hr(0.015), hr(0.017), hr(0.014), hr(0.007)], k=hr(0.01)), BROW)
+    # clear almond eyes: the upper lids just over the irises' tops, the lower lids just under them; lashes along the
+    # upper lids, flicked out at the corners
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.026))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.22, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.018))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
-        fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.023))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.016)))
-        fd.add(RoundCone(flick, flick + v3((sx * hr(0.012), hr(0.006), hr(0.006))), hr(0.0038), hr(0.0014)), hr(0.004), LASH)
-    # a straight, broad nose
-    fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.212, 1.648)), hr(0.012), hr(0.016)), hr(0.016), SKIN)
-    fd.add(S((0, -0.213, 1.639), 0.02), hr(0.013), SKIN)
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0042)), Plane(ec + v3((0, 0, -hr(0.0265))), (sx * -0.14, 0.05, 1.0)), hr(0.004))
+        fd.add(lo, hr(0.005), SKIN)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0155))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.013)))
+        fd.add(RoundCone(flick, flick + v3((sx * hr(0.014), hr(0.006), hr(0.006))), hr(0.0045), hr(0.0015)), hr(0.004), LASH)
+    # a short, straight nose
+    fd.add(RoundCone(hp((0, -0.176, 1.714)), hp((0, -0.205, 1.66)), hr(0.011), hr(0.0145)), hr(0.016), SKIN)
+    fd.add(S((0, -0.206, 1.651), 0.0185), hr(0.013), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.026, -0.195, 1.627), 0.0155), hr(0.01), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.013, -0.208, 1.616)), v3((0.008, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
-    # the half-smile: a narrow crescent between the lips' edges, corners up into the cheeks (her left one higher)
-    xs = np.linspace(-MOUTH_W, MOUTH_W, 9)
-    up_z, lo_z = mouth_curves(xs)
-    upper = _on_face(fd, [(x, z + 0.004) for x, z in zip(xs, up_z)])
-    lower = _on_face(fd, [(x, z - 0.0045) for x, z in zip(xs, lo_z)])
-    def opening(P):
-        Q = hinv(P)
-        x, z = Q[:, 0], Q[:, 2]
-        u, l = mouth_curves(x)
-        dz = np.maximum(z - u.astype(F), l.astype(F) - z)
-        dx = np.abs(x) - F(MOUTH_W)
-        return np.maximum(np.maximum(dz, dx), (Q[:, 1] - F(-0.205)) * F(-1)) * F(HS)
-    cav = Inter(Func(opening, hp((-0.09, -0.24, 1.48)), hp((0.09, -0.12, 1.62))),
-                Ellipsoid(hp((0.0, -0.165, 1.555)), v3((0.075, 0.03, 0.05)) * HS), hr(0.002))
-    fd.sub(cav, hr(0.004))
-    fd.paint(Inter(Func(lambda P: opening(P) - F(0.0025), hp((-0.09, -0.24, 1.48)), hp((0.09, -0.12, 1.62))),
-                   Ellipsoid(hp((0.0, -0.165, 1.555)), v3((0.08, 0.04, 0.06)) * HS), hr(0.002)), MOUTH)
-    # full lips, tapering into the corners
-    ru = [0.0024, 0.0042, 0.0054, 0.006, 0.0062, 0.006, 0.0054, 0.0042, 0.0024]
-    rl = [0.0026, 0.005, 0.0068, 0.0078, 0.0082, 0.0078, 0.0068, 0.005, 0.0026]
-    fd.add(Chain(upper, [hr(r) for r in ru], k=hr(0.005)), hr(0.007), LIP)
-    fd.add(Chain(lower, [hr(r) for r in rl], k=hr(0.006)), hr(0.008), LIP)
+        fd.add(S((sx * 0.022, -0.193, 1.637), 0.0135), hr(0.01), SKIN)
+        fd.sub(Ellipsoid(hp((sx * 0.012, -0.205, 1.626)), v3((0.007, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+    # the closed mouth: a level line, a small smile drawn up at her left corner (+X)
+    slot = [hp((-0.051, -0.165, 1.555)), hp((-0.027, -0.186, 1.546)), hp((0, -0.192, 1.545)), hp((0.027, -0.185, 1.549)),
+            hp((0.054, -0.163, 1.564))]
+    fd.sub(Chain(slot, [hr(0.002), hr(0.0028), hr(0.0032), hr(0.0028), hr(0.0022)], k=hr(0.003)), hr(0.003))
+    fd.paint(Chain(slot, [hr(0.0028), hr(0.0042), hr(0.0046), hr(0.0042), hr(0.0032)], k=hr(0.004)), MOUTH)
+    fd.add(S((0.06, -0.157, 1.566), 0.0105), hr(0.01), SKIN)                                 # the smile's cheek
+    up_lip = [(-0.05, -0.162, 1.558), (-0.027, -0.178, 1.554), (-0.007, -0.182, 1.556), (0.008, -0.182, 1.557),
+              (0.028, -0.177, 1.557), (0.052, -0.161, 1.567)]
+    lo_lip = [(-0.043, -0.164, 1.547), (-0.023, -0.178, 1.536), (0, -0.181, 1.534), (0.024, -0.177, 1.537), (0.045, -0.162, 1.553)]
+    fd.add(Chain([hp(p) for p in up_lip], [hr(0.0032), hr(0.0056), hr(0.006), hr(0.006), hr(0.0054), hr(0.003)], k=hr(0.006)), hr(0.009), LIP)
+    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.0038), hr(0.007), hr(0.0076), hr(0.007), hr(0.0038)], k=hr(0.007)), hr(0.009), LIP)
+    fd.sub(Chain([hp((0.054, -0.16, 1.566)), hp((0.061, -0.152, 1.575))], [hr(0.0018), hr(0.0012)], k=hr(0.002)), hr(0.002))   # the smile's crease
     for sx in (-1, 1):
-        cx = sx * (MOUTH_W + 0.006)
-        cz = float(mouth_curves(cx)[0])
-        fd.add(S((sx * 0.078, -0.15, cz + 0.014 + (0.004 if sx > 0 else 0.0)), 0.01), hr(0.01), SKIN)   # the smile's cheeks
-        if sx > 0:
-            fd.sub(S((sx * (MOUTH_W + 0.016), -0.152, cz + 0.002), 0.0055), hr(0.006))                  # a dimple on her left
         fd.add(Ellipsoid(hp((sx * 0.174, 0.035, 1.66)), v3((0.024, 0.043, 0.054)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
 
 
 def teeth_field():
-    """Her upper teeth, showing under her upper lip in the smile (following its curve, set back in the mouth)."""
+    """Her teeth, behind her closed lips (as Kira's)."""
     fd = Field("Teeth")
-    xs = np.linspace(-0.04, 0.04, 7)
-    up_z, lo_z = mouth_curves(xs)
-    pts = [hp((x, -0.178 + 7.0 * x * x, z - 0.008)) for x, z in zip(xs, up_z)]
-    fd.add(Chain(pts, [hr(0.0085)] * len(pts), k=hr(0.004)), 0.0)
+    for sx in (-1, 1):
+        fd.add(RoundBox(hp((sx * 0.009, -0.17, 1.546)), v3((0.008, 0.006, 0.008)) * HS, hr(0.003)), 0.0)
     return fd
 
 

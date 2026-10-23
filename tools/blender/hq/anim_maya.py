@@ -347,7 +347,7 @@ def idle_pose(arm, P_, t):
     ro = V(0.02 * hip, 0.0, -0.012 + 0.004 * br - 0.006 * abs(hip))
     rr = rz(yaw) @ Quaternion(V(0, 1, 0), math.radians(2.5 * hip))
     check = smooth01((t - 0.55) / 0.07) * (1.0 - smooth01((t - 0.78) / 0.07))       # the radio check
-    look = (0.42 * math.sin(w + 0.6) + 0.12 * math.sin(w * 3)) * (1.0 - check)
+    look = (0.42 * math.sin(w) + 0.12 * math.sin(w * 3)) * (1.0 - check) + 0.16      # (frame 0: her face to the front, for portraits)
     torso(aims, yaw, lean=-0.02, side=-0.05 * hip, spine_tw=0.03 * math.sin(w), chest_tw=0.04 * math.sin(w),
           neck_tw=0.3 * look + 0.12 * check, head_tw=0.65 * look + 0.2 * check, head_tilt=0.04 * hip - 0.12 * check,
           head_up=0.06 + 0.03 * br - 0.1 * check)
