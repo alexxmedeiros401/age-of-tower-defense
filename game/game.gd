@@ -3480,7 +3480,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -3712,13 +3712,14 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"root":                                      # the Druid's roots (vertex colours: bark, moss)
 			m.vertex_color_use_as_albedo = true
 			m.roughness = 0.92
-		"root_flash", "storm_flash":                 # the Druid's stone flaring (green; blue-white on the Storm Druid)
+		"root_flash", "storm_flash", "violet_flash":  # the Druid's stone flaring (green; blue-white on the Storm Druid;
+		                                             # v0.9.74: violet, the Digital tech corps' energy)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 			m.billboard_keep_scale = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-			m.albedo_color = Color(0.5, 1.0, 0.42) if key == "root_flash" else Color(0.75, 0.9, 1.0)
+			m.albedo_color = {"root_flash": Color(0.5, 1.0, 0.42), "violet_flash": Color(0.85, 0.4, 1.0)}.get(key, Color(0.75, 0.9, 1.0))
 			m.albedo_texture = _mote_tex()
 	_atk_cache[key] = m
 	return m
@@ -5100,6 +5101,8 @@ func _handle_events() -> void:
 					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type in ["steam_brawler", "jim"] and _hq_clips(ev.id):
 					_brawler_punch(u2, ev.get("targets", []))   # v0.9.64: the piston-driven fist rams out in a burst of steam
+				elif u2 != null and u2.type == "mech_brawler" and _hq_clips(ev.id):
+					_mech_slam(u2, ev.get("targets", []))       # v0.9.74: both energy fists hammer the deck: a violet shockwave
 				elif u2 != null and u2.type == "flamethrower" and _hq_clips(ev.id):
 					_flame_jet(u2, ev.get("targets", []))       # v0.9.69: a roaring jet of fire swept across in front of him
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
@@ -5274,6 +5277,9 @@ func _handle_events() -> void:
 						if _robot_type(eid0) == "dreadnought":
 							slam = DREAD_EMP / maxf(float(speed), 0.01)
 							_fx_after(slam, func() -> void: _dread_broadside(eid0))
+						elif _robot_type(eid0) == "orbital_uplink":
+							slam = UPLINK_EMP / maxf(float(speed), 0.01)
+							_fx_after(slam, func() -> void: _uplink_flash(eid0))
 				var epos: Vector2 = ev.pos
 				var erad := float(ev.radius)
 				if slam > 0.0:
@@ -6346,6 +6352,47 @@ func _brawler_punch(u: Dictionary, targets: Array) -> void:
 			else:
 				var tt := int(t)
 				_fx_after(0.03 * k, func() -> void: _axe_bite(uid, tt))
+			k += 1))
+
+
+# v0.9.74: the Mech Brawler (anim_mech_brawler.py): it rears up, swings both fists over its head and hammers its glowing
+# knuckles into the ground before it on Attack frame 8 (BLOW): a violet flash at each fist, a shockwave of violet light
+# rolling out over its reach with dust and grit, and every robot it hits throws sparks. The hits wait for the blow.
+const MECH_FISTS := [Vector3(-0.294, 0.078, 0.892), Vector3(0.294, 0.078, 0.892)]
+func _mech_slam(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var tn: Node3D = tower_nodes[uid]
+	var clip := str(tn.get_meta("clip_attack", "Attack"))
+	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
+	var at := float(ATTACK_FRAME.mech_brawler) / CLIP_FPS
+	var R := float(u.stats.get("range", 2.5))
+	var ids := []
+	for tid in targets:
+		if _robot_point(int(tid), 0.0) == Vector3.INF:
+			continue
+		_hold_hit(int(tid), at / rate + 0.04 * ids.size() + 0.05)
+		ids.append(int(tid))
+	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at, at / rate, func() -> void:
+		var c := _v3(u.pos, 0.1)
+		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
+			var yt := ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform
+			for fp in MECH_FISTS:
+				var p: Vector3 = yt * (fp as Vector3)
+				if _fx_room(1):
+					var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, p + Vector3(0, 0.15, 0))
+					f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					effects.append({"node": f, "t": 0.0, "life": 0.2, "kind": "flash", "s": 0.9})
+			c = yt * Vector3(0.0, 0.078, 0.892)
+			c.y = 0.1
+		_ring_fx(c + Vector3(0, 0.15, 0), R, Color(0.8, 0.3, 1.0), 0.45)
+		_ring_fx(c + Vector3(0, 0.15, 0), R * 0.55, Color(0.95, 0.7, 1.0), 0.35)
+		_dust_fx(c + Vector3(0, 0.15, 0), 6, 0.9, Color(0.6, 0.58, 0.62, 0.7))
+		shake = maxf(shake, 0.25)
+		_sfx("hammer_hit", -6.0, 0.1, 0.1)
+		var k := 0
+		for t in ids:
+			var tt := int(t)
+			_fx_after(0.04 * k, func() -> void: _axe_bite(uid, tt))
 			k += 1))
 
 
@@ -7490,7 +7537,8 @@ func _dread_broadside(eid: int) -> void:
 # v0.9.67: the HUNTER-KILLER (robot_hunter_killer.py) launches its Stealth Jets from the bay on its back the same way
 # (its Summon clip's frame 16); a jet's body flies 1.8 over its node (the flying lift plus its own height in its model).
 const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
-	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.329, -0.451), 16.0 / CLIP_FPS, 1.8]}
+	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.329, -0.451), 16.0 / CLIP_FPS, 1.8],
+	"nano_swarm": ["orbital_uplink", [Vector3(0.872, 1.521, 0.0), Vector3(-0.927, 1.552, 0.0)], 18.0 / CLIP_FPS, 0.4]}
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
 	var bl: Array = BAY_LAUNCH[str(e.type)]
 	for b in sim.enemies:
@@ -7499,6 +7547,11 @@ func _bay_launch(n: Node3D, e: Dictionary) -> void:
 			n.set_meta("lift", time_s)
 			n.set_meta("lift_from", int(b.id))
 			n.set_meta("lift_bay", bl)
+			if bl[1] is Array:                       # (v0.9.73: the ORBITAL UPLINK's two flank hatches take turns)
+				var hn: Node3D = enemy_nodes[b.id]
+				var k := int(hn.get_meta("hatch_n", 0))
+				hn.set_meta("hatch_n", k + 1)
+				n.set_meta("bay_pt", (bl[1] as Array)[k % (bl[1] as Array).size()])
 			n.visible = false
 			return
 
@@ -7516,9 +7569,26 @@ func _bay_lift(n: Node3D) -> void:
 		return
 	var k := t / 0.8
 	k = k * k * (3.0 - 2.0 * k)
-	var bay: Vector3 = (enemy_nodes[bid] as Node3D).global_transform * (bl[1] as Vector3) - Vector3(0, float(bl[3]), 0)
+	var bpt: Vector3 = n.get_meta("bay_pt") if n.has_meta("bay_pt") else bl[1]
+	var bay: Vector3 = (enemy_nodes[bid] as Node3D).global_transform * bpt - Vector3(0, float(bl[3]), 0)
 	n.position = bay.lerp(n.position, k)
 	n.scale = Vector3.ONE * lerpf(0.55, 1.0, k)
+
+
+# v0.9.73: the ORBITAL UPLINK (robot_orbital_uplink.py): its Emp clip swings the dish, locks it and fires a ring of
+# light from its feed on frame 22; its Summon drops both flank hatches and a Nano Swarm rolls out of each (frame 18).
+const UPLINK_EMP := 22.0 / CLIP_FPS
+const UPLINK_DISH := Vector3(0.0, 2.74, 0.2)
+func _uplink_flash(eid: int) -> void:
+	if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
+		return
+	var at := (enemy_nodes[eid] as Node3D).global_transform * UPLINK_DISH
+	if _fx_room(2):
+		for s2 in [2.2, 1.1]:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, at)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": s2})
+	shake = maxf(shake, 0.3)
 
 
 ## An EMP: rings of blue light from where it went off (the Colossus' fists: arcs crackle off the ground there too).
@@ -15447,7 +15517,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut", "hunter_killer"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut", "hunter_killer", "orbital_uplink"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			if defs.enemies[type].get("cloak", false):
 				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
@@ -15486,7 +15556,7 @@ func _run_demo() -> void:
 					shake = 0.0
 					await _wait_ticks(int(0.15 / TICK))
 					await _shot("bots_enrage_%d.png" % k)
-			if type == "dreadnought":             # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
+			if type in ["dreadnought", "orbital_uplink"]:   # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
 				be.emp_cd = 99.0
 				be.summon_cd = 0.0
 				for k in 8:
