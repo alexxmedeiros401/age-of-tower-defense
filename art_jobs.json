@@ -1,0 +1,12 @@
+[
+ {
+  "name": "stealth_jet_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/stealth_jet_final; mkdir -p $O\npython3 robot_build.py -- --robot stealth_jet --out $O --stage sculpt --fine --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot stealth_jet --out $O --stage game --tex 2048 --ao 24 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot stealth_jet --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\nrm -f $O/robot_hi.blend $O/robot_game.blend\nls -la $O",
+  "out": "out/stealth_jet_final"
+ },
+ {
+  "name": "hunter_killer_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/hunter_killer_final; mkdir -p $O\npython3 robot_build.py -- --robot hunter_killer --out $O --stage sculpt --fine --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot hunter_killer --out $O --stage game --tex 2048 --ao 24 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot hunter_killer --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip2 --strip --action Summon --every 2 > $O/strip2.log 2>&1 || tail -20 $O/strip2.log; done\nrm -f $O/robot_hi.blend $O/robot_game.blend\nls -la $O",
+  "out": "out/hunter_killer_final"
+ }
+]
