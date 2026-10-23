@@ -61,10 +61,10 @@ def head(fd):
     for sx in (-1, 1):
         pts = [hp((sx * 0.034, -0.201, 1.75)), hp((sx * 0.072, -0.197, 1.761)), hp((sx * 0.112, -0.174, 1.765)),
                hp((sx * 0.148, -0.134, 1.757))]
-        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.006), hr(0.0076), hr(0.0064), hr(0.003)], k=hr(0.006)), hr(0.01), BROW)
+        fd.add(Chain([p + v3((0, 0.009, 0)) for p in pts], [hr(0.0045), hr(0.0058), hr(0.005), hr(0.0024)], k=hr(0.008)), hr(0.014), BROW)
         fd.paint(Chain(pts, [hr(0.015), hr(0.017), hr(0.014), hr(0.007)], k=hr(0.01)), BROW)
-    # clear almond eyes: the upper lids just over the irises' tops, the lower lids just under them; lashes along the
-    # upper lids, flicked out at the corners
+    # clear almond eyes: the upper lids just over the irises' tops, the lower lids just under them; lashes painted along
+    # the upper lids
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
@@ -73,14 +73,12 @@ def head(fd):
         lo = Inter(Sphere(ec, EYE_R + hr(0.0042)), Plane(ec + v3((0, 0, -hr(0.0265))), (sx * -0.14, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0155))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.04), -hr(0.01), hr(0.013)))
-        fd.add(RoundCone(flick, flick + v3((sx * hr(0.014), hr(0.006), hr(0.006))), hr(0.0045), hr(0.0015)), hr(0.004), LASH)
     # a short, straight nose
     fd.add(RoundCone(hp((0, -0.174, 1.722)), hp((0, -0.205, 1.66)), hr(0.0115), hr(0.0145)), hr(0.024), SKIN)
     fd.add(S((0, -0.206, 1.651), 0.0185), hr(0.013), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.022, -0.193, 1.637), 0.0135), hr(0.01), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.012, -0.205, 1.626)), v3((0.007, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+        fd.sub(Ellipsoid(hp((sx * 0.012, -0.203, 1.628)), v3((0.0055, 0.007, 0.0035)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.005))
     # the closed mouth: a level line, a small smile drawn up at her left corner (+X)
     slot = [hp((-0.051, -0.165, 1.555)), hp((-0.027, -0.186, 1.546)), hp((0, -0.192, 1.545)), hp((0.027, -0.185, 1.549)),
             hp((0.054, -0.163, 1.564))]
