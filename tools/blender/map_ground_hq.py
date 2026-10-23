@@ -1164,9 +1164,8 @@ if THEME == "military":
                 or any(math.hypot(cx - a_, cz - b_) < 4.0 for a_, b_, _r in SMALL_CR)
                 or _at(np.maximum(pads, heli), cx, cz) > 0 or _at(_rrect(HELI[0], HELI[1], 1.6, 1.6, 0.2), cx, cz) < 0):
             continue
-        on_pave = _at(paved, cx, cz) > 0.5
-        if on_pave and len([1 for s_ in SMALL_CR if _at(paved, s_[0], s_[1]) > 0.5]) >= 2:
-            continue
+        if _at(paved, cx, cz) > 0.5 and (_at(hard, cx, cz) < 0.5 or any(_at(hard, a_, b_) > 0.5 for a_, b_, _r in SMALL_CR)):
+            continue                                 # (in the turf, and one in the hangars' hardstand)
         SMALL_CR.append((cx, cz, r_))
         d_ = np.hypot(X - cx, Z - cz) + (fbm(0.3, 2, 600 + len(SMALL_CR)) - 0.5) * 0.45 * r_
         crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
@@ -1245,6 +1244,12 @@ if THEME == "military":
             PAINT.line("y", [(bx - h_, bz - h_), (bx + h_, bz - h_), (bx + h_, bz + h_), (bx - h_, bz + h_), (bx - h_, bz - h_)], 0.05)
             for k in range(1, 4):
                 PAINT.line("y", [(bx - h_ + k * h_ / 2, bz - h_), (bx - h_ + k * h_ / 2, bz + h_)], 0.025)
+    PAINT.line("y", [(7.8, 6.45), (19.0, 6.45)], 0.05)                        # the hardstand: a taxi lane, three stands
+    for sx in (9.6, 12.2, 14.8):
+        PAINT.line("y", [(sx, 6.45), (sx, 8.6)], 0.05)
+        PAINT.rect("y", sx, 8.62, 0.08, 0.5, 0.0)
+        for a_, b_ in (((sx - 1.2, 7.0), (sx - 1.2, 9.4)), ((sx + 1.2, 7.0), (sx + 1.2, 9.4))):
+            PAINT.dashed("r", [a_, b_], 0.03, 0.22, 0.14)
     PAINT.ring("w", HELI[0], HELI[1], 0.66, 0.06)
     PAINT.text("w", "H", HELI[0], HELI[1], 0.72, -math.pi / 2, w=0.1)
     hh_ = 0.87
@@ -1323,7 +1328,7 @@ if THEME == "metro":
         kinds_.append(kd)
         sel = (X >= x0) & (X < x1) & (Z >= z0) & (Z < z1)
         lk[sel] = kd
-        pid[sel] = mr_.random()
+        pid[sel] = mr_.uniform(0.0, 0.42) + (0.58 if mr_.random() < 0.5 else 0.0)   # (clear of the swap at 0.5)
         lot_e[sel] = np.minimum.reduce([X[sel] - x0, x1 - X[sel], Z[sel] - z0, z1 - Z[sel]])
     plaza = np.clip(-_rrect((PLAZA[0] + PLAZA[2]) / 2, (PLAZA[1] + PLAZA[3]) / 2, (PLAZA[2] - PLAZA[0]) / 2,
                              (PLAZA[3] - PLAZA[1]) / 2, 0.3) / 0.02, 0, 1)
@@ -1360,7 +1365,7 @@ if THEME == "metro":
             bz0 = bz1 - 0.42
         beds = np.maximum(beds, np.clip(-_rrect((bx0 + bx1) / 2, (bz0 + bz1) / 2, (bx1 - bx0) / 2, (bz1 - bz0) / 2, 0.15) / 0.02, 0, 1))
         hb = [(bx, bz, br) for (bx, bz, br, k_) in BLOCKERS if k_ == "trees" and x0 < bx < x1 and z0 < bz < z1]
-        for _k in range(0 if hb else int(mr_.integers(1, 3))):
+        for _k in range(0 if (hb or min(x1 - x0, z1 - z0) < 2.0) else int(mr_.integers(1, 3))):
             cx_, cz_ = mr_.uniform(x0 + 0.9, x1 - 0.9), mr_.uniform(z0 + 0.9, z1 - 0.9)
             rr_ = mr_.uniform(0.22, 0.4)
             beds = np.maximum(beds, np.clip((rr_ * (1 + 0.15 * np.sin(np.arctan2(Z - cz_, X - cx_) * 5 + _k)) - np.hypot((X - cx_) / 1.3, Z - cz_)) / 0.03, 0, 1))
@@ -1383,7 +1388,7 @@ if THEME == "metro":
     # the plaza: big pale stone slabs with dark granite bands, a round inlaid motif, two raised planters
     PLM = (0.9, 2.0, 1.05)
     dm = np.hypot(X - PLM[0], Z - PLM[1])
-    IND["pl_r"] = np.clip(dm / PLM[2], 0, 1.2) / 1.2 * (dm < PLM[2] * 1.18)
+    IND["pl_r"] = np.where(dm < PLM[2] * 1.18, np.clip(dm / PLM[2], 0, 1.2) / 1.2, 1.0)      # (1 outside it)
     IND["pl_a"] = (np.arctan2(Z - PLM[1], X - PLM[0]) / (2 * math.pi) + 0.5)
     planter = np.zeros(X.shape)
     for (px_, pz_) in ((6.3, 0.75), (6.3, 3.55), (-0.2, 4.05)):
@@ -1491,6 +1496,8 @@ if THEME == "suburb":
            (-12.65, 1.1, 0.0), (-12.2, -1.7, 0.0), (-8.3, 5.0, -math.pi / 2), (-5.4, 5.0, -math.pi / 2),
            (10.9, -4.6, math.pi / 2)]
     drive = np.zeros(X.shape)
+    patio = np.zeros(X.shape)
+    veg = np.zeros(X.shape)
     gpath = np.zeros(X.shape)
     fbed = np.zeros(X.shape)
     lot_a = np.full(X.shape, 0.35)
@@ -1521,6 +1528,11 @@ if THEME == "suburb":
             d_, _a = g.poly_dist([[(dx_, dz_), tuple(end)]], margin=0.4)
             gpath = np.maximum(gpath, np.clip((0.08 - d_) / 0.02, 0, 1))
         fbed = np.maximum(fbed, np.clip(-_box(fx + f_[0] * 0.17, fz + f_[1] * 0.17, 0.7, 0.13, fa + math.pi / 2, 0.06) / 0.02, 0, 1))
+        bk = np.array([fx, fz]) - f_ * 1.62                                      # a patio behind the house
+        patio = np.maximum(patio, np.clip(-_box(bk[0] + p_[0] * 0.2 * side, bk[1] + p_[1] * 0.2 * side, 0.42, 0.26, fa + math.pi / 2, 0.03) / 0.02, 0, 1))
+        if hi_ % 3 == 1:                                                         # and now and then a vegetable bed
+            vb = bk - p_ * 0.55 * side - f_ * 0.2
+            veg = np.maximum(veg, np.clip(-_box(vb[0], vb[1], 0.3, 0.17, fa, 0.02) / 0.02, 0, 1))
         dh = np.hypot(X - (fx - f_[0] * 0.6), Z - (fz - f_[1] * 0.6))
         closer = dh < best
         best = np.where(closer, dh, best)
@@ -1541,7 +1553,9 @@ if THEME == "suburb":
     IND["water"] = np.clip(-(pool_d + 0.07) / 0.02, 0, 1)
     IND["wline"] = np.clip(1 + (pool_d + 0.07) / 0.07, 0, 1) * IND["water"]               # (1 at the water's edge)
     IND["coping"] = np.clip(-pool_d / 0.02, 0, 1) * (1 - IND["water"])
-    IND["deck"] = np.clip(-deck_d / 0.02, 0, 1) * (pool_d > 0)
+    patio *= np.clip((BLK_ANY - 0.1) / 0.05, 0, 1)
+    IND["deck"] = np.maximum(np.clip(-deck_d / 0.02, 0, 1) * (pool_d > 0), patio * (ped > 0.55))
+    IND["veg"] = veg * (ped > 0.55) * (1 - IND["deck"])
     IND["pdepth"] = pdepth
     # the park in the loop: a ring path with paths out to the sidewalks, a playground in the middle, a sandpit, beds
     PK = (-6.5, -0.5)
@@ -1552,6 +1566,7 @@ if THEME == "suburb":
         ppath = np.maximum(ppath, np.clip((0.11 - d_) / 0.02, 0, 1))
     play = np.clip((1.12 - dk) / 0.02, 0, 1)
     IND["play"] = play
+    IND["pk_r"] = np.clip(dk / 1.12, 0, 1)
     IND["playb"] = np.clip(1 - np.abs(dk - 1.15) / 0.05, 0, 1)                   # its timber edging
     sand = np.clip(-_rrect(-8.05, 1.05, 0.42, 0.34, 0.1) / 0.02, 0, 1)
     IND["sand"] = sand
@@ -1568,11 +1583,11 @@ if THEME == "suburb":
     IND["kerb"] = np.clip(1 - np.abs(ped - 0.03) / 0.035, 0, 1)
     IND["cul"] = cul
     IND["fbed"] = fbed * (ped > 0.55) * (1 - hard_) * (1 - IND["gpath"]) * (1 - play) * (1 - sand)
-    lawn = (ped > 0.06) * (1 - IND["side"]) * (1 - hard_) * (1 - IND["gpath"]) * (1 - IND["fbed"]) * (1 - play) * (1 - sand)
+    hard_ = np.maximum(hard_, IND["deck"])
+    lawn = (ped > 0.06) * (1 - IND["side"]) * (1 - hard_) * (1 - IND["gpath"]) * (1 - IND["fbed"]) * (1 - play) * (1 - sand) * (1 - IND["veg"])
     IND["lawn"] = lawn
-    ca_, sa_ = np.cos(lot_a), np.sin(lot_a)
-    IND["mow"] = 0.5 + 0.5 * np.sign(np.sin((X * ca_ + Z * sa_) * 2 * math.pi / 0.62)) * 0.999
-    IND["mow"] = gaussian_filter(IND["mow"], 0.6)
+    IND["mca"], IND["msa"] = 0.5 + 0.5 * np.cos(lot_a), 0.5 + 0.5 * np.sin(lot_a)      # (the shader draws the stripes)
+    IND["lshade"] = np.where(best < 3.6, (np.sin(lot_id * 12.9898) * 43758.5453) % 1.0, 0.5)
     IND["bus"] = bus
     # paint: a yellow dashed centre line (not on the speed lane), stop lines and STOP at the cul-de-sacs' mouths, two
     # zebra crossings by the park, sidewalk joints
@@ -1758,8 +1773,8 @@ if THEME == "military":
     pv_ = np.maximum.reduce([IND["conc"], IND["rwy"], IND["blast"]])
     hf += road * 0.015 + rut * 0.017                                                                    # (asphalt: hardly rutted)
     hf = hf * (1 - 0.85 * pv_) + pv_ * 0.004                                                            # the pavements, flat
-    hf -= IND["crater"] * 0.22
-    hf += IND["rim"] * 0.05
+    hf -= IND["crater"] * 0.3
+    hf += IND["rim"] * 0.07
 if THEME == "metro":                     # all paved and flat: the carriageway a kerb's height down, the brick table up
     hf = (fbm(1.6, 3, 501) - 0.5) * 0.008 - road * 0.04 + tbl * 0.028
     hf += (fbm(0.8, 3, 502) - 0.5) * 0.03 * (IND["l_lawn"] + IND["beds"]) + IND["beds"] * 0.012
@@ -1855,7 +1870,7 @@ INDN = {"factory": ["flags", "cobble", "plates", "puddle", "rust", "slag", "apro
         "metro": ["l_tile", "l_conc", "l_brick", "l_lot", "l_lawn", "l_slate", "pid", "lotb", "plinth", "beds", "bedk", "plaza",
                   "pl_r", "pl_a", "planter", "side", "kerb", "tbl", "bus", "pit", "mh", "oil", "grime", "lpath"],
         "suburb": ["water", "wline", "coping", "deck", "pdepth", "play", "playb", "sand", "drive", "gpath", "side", "kerb", "cul",
-                   "fbed", "lawn", "mow", "bus"]}.get(THEME, [])
+                   "fbed", "lawn", "mca", "msa", "lshade", "bus", "veg", "pk_r"]}.get(THEME, [])
 IND_IMGS = []
 img_paint = to_image("paint", np.stack([PNT["w"], PNT["y"], PNT["r"], PNT["k"]], 2)) if MOD_T else None
 for k_ in range(0, len(INDN), 4):
@@ -2859,7 +2874,7 @@ elif MOD_T:
         c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.33, 0.39, 0.17), (0.42, 0.47, 0.22))
         c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.62, 0.76), 0.55), c, (0.52, 0.5, 0.28))           # dry straw patches
         c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.45), c, (0.27, 0.35, 0.14))         # lush hollows
-        c = nb.mix(nb.math("MULTIPLY", I["mow"], 0.2), c, (0.5, 0.55, 0.28))                          # mower stripes
+        c = nb.mix(nb.math("MULTIPLY", I["mow"], 0.3), c, (0.5, 0.55, 0.28))                          # mower stripes
         clover = nb.ramp(nb.voronoi(9.0, "Distance"), 0.17, 0.07)
         c = nb.mix(nb.math("MULTIPLY", clover, nb.math("MULTIPLY", nb.ramp(big, 0.55, 0.7), 0.3)), c, (0.3, 0.42, 0.16))
         c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.5, 0.52, 0.3))
@@ -2870,7 +2885,7 @@ elif MOD_T:
         cc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.5, 3, 0.6), 0.5, 0.75), 0.4), cc, (0.41, 0.4, 0.37))
         cc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(28.0, 2, 0.5), 0.55, 0.75), 0.22), cc, (0.7, 0.69, 0.66))
         cc = nb.mix(nb.math("MULTIPLY", nb.ramp(sr_, 0.93, 0.95), 0.75), cc, (0.43, 0.43, 0.42))      # patched slabs
-        crack = nb.math("MULTIPLY", nb.ramp(nb.voronoi(2.3, "Distance", "DISTANCE_TO_EDGE"), 0.012, 0.0), nb.ramp(sr_, 0.14, 0.09))
+        crack = nb.math("MULTIPLY", nb.ramp(nb.voronoi(1.2, "Distance", "DISTANCE_TO_EDGE"), 0.009, 0.0), nb.ramp(sr_, 0.1, 0.07))
         cj = nb.math("MAXIMUM", sj, crack)
         cc = nb.mix(cj, cc, (0.16, 0.16, 0.16))
         cc = nb.mix(nb.math("MULTIPLY", I["oil"], nb.ramp(nb.noise(6.0, 3, 0.6), 0.25, 0.6)), cc, (0.17, 0.165, 0.16))
@@ -2888,10 +2903,10 @@ elif MOD_T:
         hz = nb.ramp(nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), math.pi / 0.11)), -0.08, 0.08)
         c = nb.mix(I["haz"], c, nb.mix(hz, (0.07, 0.07, 0.07), (0.86, 0.66, 0.1)))
         c = paint(c)
-        c = nb.mix(nb.math("MULTIPLY", I["scorch"], 0.88), c, nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.06, 0.05, 0.045), (0.14, 0.12, 0.1)))
-        bowl = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.19, 0.14, 0.1), (0.3, 0.23, 0.16))
+        c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["scorch"], 0.0, 0.7), 0.94), c, nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.035, 0.03, 0.028), (0.1, 0.085, 0.07)))
+        bowl = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.15, 0.11, 0.08), (0.26, 0.2, 0.14))
         bowl = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(18.0, "Distance"), 0.2, 0.08), 0.45), bowl, (0.4, 0.33, 0.25))
-        c = nb.mix(nb.math("MULTIPLY", I["rim"], 0.6), c, (0.27, 0.22, 0.16))
+        c = nb.mix(nb.math("MULTIPLY", I["rim"], 0.75), c, (0.33, 0.27, 0.19))
         c = nb.mix(nb.ramp(I["crater"], 0.02, 0.2), c, bowl)
         pave = nb.math("MAXIMUM", I["conc"], nb.math("MAXIMUM", I["rwy"], road_m))
         rough = nb.mixf(pave, 0.92, nb.mixf(nb.math("MULTIPLY", I["oil"], I["conc"]), 0.78, 0.35))
@@ -3008,8 +3023,14 @@ elif MOD_T:
         # surfacing in a timber edging, a sandpit
         c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.26, 0.45, 0.14), (0.35, 0.55, 0.19))
         c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.64, 0.76), 0.45), c, (0.45, 0.52, 0.22))         # sunburnt patches
-        c = nb.mix(nb.math("MULTIPLY", nb.math("SUBTRACT", I["mow"], 0.0), 0.22), c, (0.43, 0.63, 0.25))  # mower stripes
-        c = nb.mix(nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, I["mow"]), 0.12), c, (0.2, 0.38, 0.11))
+        mca = nb.math("SUBTRACT", nb.math("MULTIPLY", I["mca"], 2.0), 1.0)
+        msa = nb.math("SUBTRACT", nb.math("MULTIPLY", I["msa"], 2.0), 1.0)
+        wz_ = nb.math("MULTIPLY", oy_, -1.0)                                     # (world z)
+        mow = nb.ramp(nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", nb.math("MULTIPLY", ox_, mca), nb.math("MULTIPLY", wz_, msa)),
+                                               2 * math.pi / 0.62)), -0.25, 0.25)
+        c = nb.mix(nb.math("MULTIPLY", I["lshade"], 0.35), c, (0.4, 0.5, 0.17))                         # each lot its own
+        c = nb.mix(nb.math("MULTIPLY", mow, 0.24), c, (0.43, 0.63, 0.25))                               # mower stripes
+        c = nb.mix(nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, mow), 0.12), c, (0.2, 0.38, 0.11))
         clover = nb.ramp(nb.voronoi(10.0, "Distance"), 0.16, 0.07)
         c = nb.mix(nb.math("MULTIPLY", clover, nb.math("MULTIPLY", nb.ramp(big, 0.5, 0.7), 0.3)), c, (0.26, 0.48, 0.17))
         c = nb.mix(nb.math("MULTIPLY", fine, 0.18), c, (0.42, 0.6, 0.24))
@@ -3017,6 +3038,9 @@ elif MOD_T:
         mulch = nb.mix(nb.ramp(nb.voronoi(45.0, "Color"), 0.2, 0.8), (0.2, 0.11, 0.06), (0.36, 0.21, 0.11))
         mulch = nb.mix(nb.ramp(nb.voronoi(45.0, "Distance", "DISTANCE_TO_EDGE"), 0.05, 0.015), mulch, (0.12, 0.07, 0.04))
         c = nb.mix(I["fbed"], c, mulch)
+        vrow = nb.ramp(nb.math("ABSOLUTE", nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 28.0))), 0.55, 0.8)
+        vegc = nb.mix(vrow, (0.3, 0.2, 0.12), nb.mix(nb.ramp(nb.noise(20.0, 2, 0.5), 0.4, 0.6), (0.2, 0.42, 0.12), (0.35, 0.58, 0.2)))
+        c = nb.mix(I["veg"], c, nb.mix(nb.ramp(I["veg"], 0.2, 0.0), vegc, (0.55, 0.42, 0.28)))   # (a timber edge)
         conc = lambda lo, hi: nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(25.0, 2, 0.5), 0.55, 0.75), 0.25),
                                      nb.mix(nb.ramp(nb.noise(2.5, 3, 0.6), 0.3, 0.7), lo, hi), tuple(v * 0.85 for v in lo))
         dj, dr_ = nb.brick(obj, 1.0, 1.0, 0.008, 0.2, offset=0.0, freq=1)
@@ -3041,8 +3065,11 @@ elif MOD_T:
         wfl = nb.mix(nb.math("MULTIPLY", cau, 0.4), wfl, (0.75, 0.97, 0.96))
         wfl = nb.mix(nb.ramp(I["wline"], 0.45, 0.55), wfl, (0.08, 0.36, 0.55))        # the waterline tiles
         c = nb.mix(I["water"], c, wfl)
-        rub = nb.mix(nb.ramp(nb.voronoi(0.9, "Color"), 0.33, 0.34), (0.62, 0.28, 0.2), (0.22, 0.42, 0.62))
-        rub = nb.mix(nb.ramp(nb.voronoi(0.9, "Color"), 0.67, 0.68), rub, (0.3, 0.55, 0.25))
+        pkr = I["pk_r"]
+        rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", pkr, 0.72)), 0.1, 0.08), 1.0), (0.66, 0.3, 0.2), (0.2, 0.42, 0.66))
+        rub = nb.mix(nb.ramp(pkr, 0.36, 0.34), rub, (0.32, 0.58, 0.26))
+        rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", pkr, 0.72)), 0.1, 0.08),
+                             nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 1.6)), 0.5)), 0.2, 0.22)), rub, (0.95, 0.8, 0.2))
         rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 2, 0.5), 0.5, 0.7), 0.3), rub, (0.2, 0.2, 0.2))
         c = nb.mix(I["play"], c, rub)
         c = nb.mix(I["playb"], c, nb.mix(nb.ramp(nb.noise(9.0, 3, 0.6), 0.3, 0.7), (0.38, 0.26, 0.15), (0.5, 0.36, 0.22)))
@@ -4174,8 +4201,8 @@ elif THEME == "military":
     pv_s = np.maximum.reduce([IND["conc"], IND["rwy"], IND["blast"], rd_hard])
     edgeb = gaussian_filter(pv_s, 0.12 * MPX)
     turf = lambda x, z: (sample(pv_s, x, z) < 0.03) & (sample(IND["crater"], x, z) < 0.05)
-    turf_b = blade_mat("Turf", (0.24, 0.29, 0.11), (0.37, 0.43, 0.17), (0.56, 0.57, 0.3))
-    pts = scatter(15000 if not PREVIEW else 2000, lambda x, z: turf(x, z) & (rnd(x) < 0.35 + 0.65 * sample(IND["mow"], x, z)))
+    turf_b = blade_mat("Turf", (0.32, 0.37, 0.15), (0.42, 0.47, 0.2), (0.58, 0.59, 0.32))
+    pts = scatter(9000 if not PREVIEW else 1500, lambda x, z: turf(x, z) & (rnd(x) < 0.35 + 0.65 * sample(IND["mow"], x, z)))
     merged("Tufts", tuft_template(8, 0.07, 0.011), place_list(pts, 0.7, 1.3), turf_b)
     pts = scatter(5000 if not PREVIEW else 700, lambda x, z: turf(x, z) & (sample(edgeb, x, z) > 0.06))
     merged("EdgeTufts", tuft_template(7, 0.09, 0.012), place_list(pts, 0.8, 1.3), turf_b)
