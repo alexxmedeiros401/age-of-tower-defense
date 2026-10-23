@@ -94,7 +94,8 @@ def head(fd):
         fd.add(S(c, r), 0.05, SKIN)
         c, r = jaw_corner(sx)
         fd.add(S(c, r), 0.05, SKIN)
-        fd.add(S((sx * 0.08, -0.146, 1.606), 0.031), 0.03, SKIN)                              # round cheeks (the grin)
+        fd.add(S((sx * 0.082, -0.142, 1.61), 0.04), 0.04, SKIN)                               # round cheeks (the grin)
+        fd.add(E((sx * 0.1, -0.1, 1.6), (0.045, 0.05, 0.05)), 0.05, SKIN)                     # full, not hollow
         pts = [hp((sx * 0.154, -0.055, 1.744)), hp((sx * 0.116, -0.133, 1.756)), hp((sx * 0.061, -0.175, 1.754)), hp((0.0, -0.184, 1.75))]
         fd.add(Chain(pts, [hr(0.01), hr(0.017), hr(0.02), hr(0.019)], k=hr(0.022)), hr(0.032), SKIN)   # a soft brow ridge
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
@@ -103,8 +104,8 @@ def head(fd):
         xz = [(sx * 0.024, 1.784), (sx * 0.064, 1.797), (sx * 0.108, 1.799), (sx * 0.15, 1.784)]
         on = _on_face(fd, xz, lift=0.001)
         tuft = lambda P: F(0.0014) * NOISE(P * F(150))
-        fd.add(Chain(on, [hr(0.0062), hr(0.0074), hr(0.0066), hr(0.0034)], k=hr(0.006), disp=tuft, disp_amp=0.002), hr(0.004), BROW)
-        fd.paint(Chain(on, [hr(0.0132), hr(0.0152), hr(0.0136), hr(0.0074)], k=hr(0.008)), BROW)
+        fd.add(Chain(on, [hr(0.0085), hr(0.0102), hr(0.009), hr(0.0048)], k=hr(0.006), disp=tuft, disp_amp=0.002), hr(0.004), BROW)
+        fd.paint(Chain(on, [hr(0.016), hr(0.0185), hr(0.0165), hr(0.009)], k=hr(0.008)), BROW)
     # eyes: open and bright; the upper lids clear of the irises, the lower lids lifted by the cheeks; smile crinkles
     for sx in (-1, 1):
         ec = eye_c(sx)
@@ -114,7 +115,7 @@ def head(fd):
         lo = Inter(Sphere(ec, EYE_R + hr(0.0048)), Plane(ec + v3((0, 0, -hr(0.0165))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
-        for k in range(2):
+        for k in range(1):
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.682 - 0.013 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, 0.004 - 0.009 * k)), hr(0.0019), hr(0.0012)), hr(0.003))
     # a straight nose, a broad soft tip
@@ -149,7 +150,7 @@ def head(fd):
         fd.add(S((sx * 0.084, -0.156, cz + 0.016), 0.012), hr(0.01), SKIN)                 # the grin's cheeks over the corners
         fd.sub(S((sx * (MOUTH_W + 0.017), -0.16, cz + 0.002), 0.0052), hr(0.006))          # dimples
         folds = _on_face(fd, [(sx * 0.048, 1.604), (sx * 0.068, 1.586), (sx * 0.081, 1.562)], lift=-0.002)
-        fd.sub(Chain(folds, [hr(0.0022), hr(0.0026), hr(0.002)], k=hr(0.003)), hr(0.004))   # smile folds
+        fd.sub(Chain(folds, [hr(0.0014), hr(0.0017), hr(0.0012)], k=hr(0.003)), hr(0.004))   # smile folds
 
 
 def body_parts(fd):
@@ -558,7 +559,7 @@ RING_IN, RING_OUT, RING_HW = 0.152, 0.205, 0.034     # the gimbal ring
 YOKE_X = 0.255                             # the yoke plates' middles (x from MX)
 MOUNT_C = v3((MX, -0.22, 0.0))             # the mount's middle on the ground
 TT_Z = (0.15, 0.205)                       # the turntable (z range)
-TT_R = 0.32
+TT_R = 0.29
 CELL_L, CELL_R = 0.2, 0.036                # a plasma cell
 CORE_R, CORE_L = 0.031, 0.124              # its glowing core
 SLOT_D = 0.026                             # its slots go in to here
@@ -571,6 +572,41 @@ RACK_SLOTS = ((-0.046, -0.046), (0.046, -0.046), (-0.046, 0.046), (0.046, 0.046)
 HIS_SLOT = 0                               # the socket nearest him (front, his side): the cell he takes
 PACK_C = v3((MX, -0.43, 0.31))             # the power pack's middle (under the tube's front)
 PACK_HALF = (0.12, 0.075, 0.1)
+
+
+MS = 1.22                                  # the mortar is sculpted at this scale about MO (its foot)
+MO = v3((MX, -0.22, 0.0))
+
+
+def S(p):
+    """A point of the mortar's design (the coordinates above) in the character's space."""
+    return MO + (v3(p) - MO) * MS
+
+
+class ScaledField(Field):
+    """A field sculpted in the mortar's design coordinates, shown scaled by MS about MO."""
+
+    def __init__(self, inner):
+        super().__init__(inner.name)
+        self.inner = inner
+        self.ops = inner.ops
+
+    def _q(self, P):
+        P = np.asarray(P, dtype=F)
+        return MO.astype(F) + (P - MO.astype(F)) / F(MS)
+
+    def bounds(self):
+        lo, hi = self.inner.bounds()
+        return MO + (lo - MO) * MS, MO + (hi - MO) * MS
+
+    def eval(self, P, labels=False, margin=0.0):
+        r = self.inner.eval(self._q(P), labels=labels, margin=margin / MS)
+        if labels:
+            return r[0] * F(MS), r[1]
+        return r * F(MS)
+
+    def paint_dist(self, P, band=0.004):
+        return {k: v * F(MS) for k, v in self.inner.paint_dist(self._q(P), band / MS).items()}
 
 
 def tpt(s, u=0.0, v=0.0):
@@ -603,9 +639,13 @@ def _tube_bounds(s0, s1, r):
     return np.min(pts, 0) - 0.03, np.max(pts, 0) + 0.03
 
 
-def port_top():
-    """The cell port's mouth (the middle of its top face) and its axis (out of the breech)."""
+def _port_local():
     return tpt(S_PORT, 0.0, BREECH_R + 0.052), GU
+
+
+def port_top():
+    """The cell port's mouth (the middle of its top face) and its axis (out of the breech), in the character's space."""
+    return S(tpt(S_PORT, 0.0, BREECH_R + 0.052)), GU
 
 
 def seated_cell():
@@ -676,10 +716,10 @@ def tube_field():
         fd.sub(Func(_ring_sd(s - 0.0025, s + 0.0025, BREECH_R - 0.006, BREECH_R + 0.02, rr=0.0), lo, hi), 0.0015)
     fd.add(Func(_ring_sd(S_BREECH[1] - 0.01, S_BREECH[1] + 0.012, TUBE_R - 0.01, BREECH_R - 0.004), lo, hi), 0.006, GM_L)
     # the cell port: a socket boss on the breech's top, a bore into it for the cell
-    pt, ax = port_top()
+    pt, ax = _port_local()
     Rp = rot_from_axes(z_axis=ax)
     fd.add(Cylinder(pt - ax * 0.034, 0.056, 0.068, rr=0.012, R=Rp), 0.012, GM_L)
-    fd.sub(Cylinder(pt - ax * 0.06, CELL_R + 0.006, 0.14, R=Rp), 0.003)
+    fd.sub(Cylinder(pt - ax * 0.06, (CELL_R + 0.006) / MS, 0.14, R=Rp), 0.003)
     fd.paint(Torus(pt, 0.047, 0.006, R=Rp), VIO_L)
     for s in (-1, 1):                                                                  # its latches
         fd.add(RoundBox(pt - ax * 0.02 + GX_ * (s * 0.058), (0.008, 0.018, 0.024), 0.004, R=rot_from_axes(z_axis=ax, x_axis=GX_)), 0.003, STEEL_L)
@@ -761,22 +801,22 @@ def mount_field():
     rims, three cells in it, the fourth socket empty) with its cable along the ground to the base plate."""
     fd = Field("Mount")
     c0 = v3((MOUNT_C[0], MOUNT_C[1], 0.0))
-    fd.add(Cylinder(c0 + v3((0, 0, 0.026)), 0.36, 0.052, rr=0.018), 0.0, BASE_L)
+    fd.add(Cylinder(c0 + v3((0, 0, 0.022)), 0.3, 0.044, rr=0.016), 0.0, BASE_L)
     def edge_ring(P):
         r = np.sqrt((P[:, 0] - F(c0[0])) ** 2 + (P[:, 1] - F(c0[1])) ** 2)
-        return np.maximum(np.abs(r - F(0.33)) - F(0.016), P[:, 2] - F(0.06))
+        return np.maximum(np.abs(r - F(0.275)) - F(0.016), P[:, 2] - F(0.05))
     fd.paint(Func(edge_ring, c0 - v3((0.4, 0.4, 0.0)), c0 + v3((0.4, 0.4, 0.1))), HAZ_L)
     def stripes(P):
         a = np.arctan2(P[:, 1] - F(c0[1]), P[:, 0] - F(c0[0]))
         r = np.sqrt((P[:, 0] - F(c0[0])) ** 2 + (P[:, 1] - F(c0[1])) ** 2)
-        ph = (a * F(0.33) + (r - F(0.33))) / F(0.032)
+        ph = (a * F(0.275) + (r - F(0.275))) / F(0.032)
         st = np.abs((ph % F(2.0)) - F(1.0)) - F(0.5)
-        return np.maximum(np.maximum(np.abs(r - F(0.33)) - F(0.017), P[:, 2] - F(0.06)), st * F(0.02))
+        return np.maximum(np.maximum(np.abs(r - F(0.275)) - F(0.017), P[:, 2] - F(0.05)), st * F(0.02))
     fd.paint(Func(stripes, c0 - v3((0.4, 0.4, 0.0)), c0 + v3((0.4, 0.4, 0.1))), BLACK_L)
     for k in range(8):
         a = 2 * math.pi * (k + 0.5) / 8
-        fd.add(Cylinder(c0 + v3((math.cos(a) * 0.27, math.sin(a) * 0.27, 0.054)), 0.012, 0.012, rr=0.004), 0.002, GM_L)
-    fd.add(Cylinder(c0 + v3((0, 0, (0.05 + TT_Z[0]) / 2)), 0.13, TT_Z[0] - 0.04, rr=0.01), 0.008, GM_L)
+        fd.add(Cylinder(c0 + v3((math.cos(a) * 0.235, math.sin(a) * 0.235, 0.046)), 0.012, 0.012, rr=0.004), 0.002, GM_L)
+    fd.add(Cylinder(c0 + v3((0, 0, (0.04 + TT_Z[0]) / 2)), 0.13, TT_Z[0] - 0.03, rr=0.01), 0.008, GM_L)
     fd.add(Cylinder(c0 + v3((0, 0, (TT_Z[0] + TT_Z[1]) / 2)), TT_R, TT_Z[1] - TT_Z[0], rr=0.014), 0.006, BASE_L)
     def tt_line(P):
         r = np.sqrt((P[:, 0] - F(c0[0])) ** 2 + (P[:, 1] - F(c0[1])) ** 2)
@@ -838,7 +878,14 @@ def mount_field():
               GRIP_C - GRIP_A * 0.06 + fwd_g * 0.018]
     fd.add(Chain(gd_pts, [0.0065] * 4, k=0.004), 0.003, VIO_L)
     fd.add(RoundBox(GRIP_C + GRIP_A * 0.02 + fwd_g * 0.03, (0.006, 0.01, 0.016), 0.003, R=rot_from_axes(z_axis=GRIP_A, y_axis=fwd_g)), 0.002, STEEL_L)
-    # the charging rack
+    return fd
+
+
+def rack_field():
+    """The charging rack (at the mortar's own scale: its cells are the one he loads): a gunmetal stand (9) on four legs,
+    a graphite (0) socket block with violet rims, three cells in it, the fourth socket empty (his); its cable along the
+    ground to the mortar's base plate."""
+    fd = Field("Rack")
     rc = RACK_C
     fd.add(RoundBox(rc + v3((0, 0, 0.014)), (0.13, 0.13, 0.014), 0.008), 0.0, GM_L)
     fd.add(Cylinder(rc + v3((0, 0, 0.29)), 0.04, 0.54, rr=0.01), 0.006, GM_L)
@@ -857,24 +904,33 @@ def mount_field():
     fd.paint(RoundBox(blk + v3((0, -0.105, -0.02)), (0.07, 0.01, 0.012), 0.004), WHITE_L)
     # the rack's cable along the ground to the base plate
     a = rc + v3((0.04, -0.1, 0.018))
-    e = c0 + v3((0.08, 0.33, 0.03))
+    e = S(MO + v3((0.08, 0.3, 0.0))) + v3((0, 0, 0.03))
     fd.add(Chain([a, a + v3((0.01, -0.08, -0.004)), (a + e) * 0.5 + v3((0.04, 0.0, -0.006)), e], [0.014] * 4, k=0.02), 0.004, RUBBER_L)
     return fd
 
 
 def mountglow_field():
     """The mount's glows (one emissive mesh): the charging cells' cores in the rack, the power pack's window."""
+    win = Field("PackWindow")
+    fw = PACK_C + v3((0, -PACK_HALF[1], 0.012))
+    win.add(RoundBox(fw + v3((0, -0.002, 0)), (PACK_HALF[0] - 0.034, 0.006, PACK_HALF[2] - 0.048), 0.004), 0.0)
+    sw = ScaledField(win)
+    lo, hi = sw.bounds()
     fd = Field("MountGlow")
+    fd.add(Func(lambda P: sw.eval(P, margin=0.02), lo - 0.02, hi + 0.02), 0.0)
     for i in range(4):
         if i != HIS_SLOT:
             mid, ax = rack_slot(i)
             core_into(fd, mid, ax)
-    fw = PACK_C + v3((0, -PACK_HALF[1], 0.012))
-    fd.add(RoundBox(fw + v3((0, -0.002, 0)), (PACK_HALF[0] - 0.034, 0.006, PACK_HALF[2] - 0.048), 0.004), 0.0)
     return fd
 
 
 # ======================================================================================= painting
+TRUN_W = S(TRUN)                            # (the character's space) the trunnions
+GRIP_W = S(GRIP_C)                          # the firing grip's middle
+GRIP_CAP_W = S(GRIP_C + GRIP_A * 0.072)     # its cap's middle
+
+
 def warm_points():
     pts = [(hp((0, -0.25, 1.618)), 0.045, 0.5)]
     for sx in (-1, 1):
@@ -891,8 +947,8 @@ MESH_NAME = "PlasmaMortar"
 BASE_MODULE = "plasma_mortar_base"
 ANIM_MODULE = "anim_plasma_mortar"
 PARTS = ["Skin", "Eyes", "Teeth", "Hair", "Helmet", "Suit", "Vest", "Strips", "Trousers", "Boots", "Gloves",
-         "Mount", "MountGlow", "Cradle", "Tube", "Coils", "Cell", "CellCore"]
-REGION_PARTS = ("Skin", "Helmet", "Suit", "Vest", "Trousers", "Boots", "Mount", "Cradle", "Tube", "Cell")
+         "Mount", "Rack", "MountGlow", "Cradle", "Tube", "Coils", "Cell", "CellCore"]
+REGION_PARTS = ("Skin", "Helmet", "Suit", "Vest", "Trousers", "Boots", "Mount", "Rack", "Cradle", "Tube", "Cell")
 KIT = dict(red=VIOLET_P, white=WHITE, olive=NAVY, gunmetal=GUNMETAL, steel=(0.62, 0.64, 0.68), glass=(0.05, 0.05, 0.08),
            rubber=(0.09, 0.09, 0.1), coyote=HAZARD, black=(0.05, 0.05, 0.06))
 MAT_OVERRIDES = {
@@ -909,19 +965,20 @@ MAT_OVERRIDES = {
     "Boots": ("leather_dyed", {"name": "HQ_PmBoots", "base": (0.07, 0.068, 0.075), "dyed": (0.05, 0.048, 0.055), "worn_c": (0.3, 0.29, 0.31)}),
     "Gloves": ("leather_dyed", {"name": "HQ_PmGloves", "base": (0.08, 0.08, 0.09), "dyed": (0.08, 0.08, 0.09), "worn_c": (0.28, 0.28, 0.3)}),
     "Mount": ("modern_kit", dict(KIT, name="HQ_PmMortar", base=HOUSING, weave=0.0)),
+    "Rack": ("modern_kit", dict(KIT, name="HQ_PmMortar", base=HOUSING, weave=0.0)),
     "Cradle": ("modern_kit", dict(KIT, name="HQ_PmMortar", base=HOUSING, weave=0.0)),
     "Tube": ("modern_kit", dict(KIT, name="HQ_PmMortar", base=HOUSING, weave=0.0)),
     "Cell": ("modern_kit", dict(KIT, name="HQ_PmMortar", base=HOUSING, weave=0.0)),
 }
 GLOW = {"Strips": (VIOLET, 1.1, 0.5), "Coils": (VIOLET, 1.3, 0.5), "CellCore": (VIOLET, 1.2, 0.5), "MountGlow": (VIOLET, 1.1, 0.5)}
 LOW_TARGETS = {"Skin": 5200, "Teeth": 120, "Hair": 380, "Helmet": 1700, "Suit": 3000, "Vest": 2800, "Strips": 160,
-               "Trousers": 1900, "Boots": 1100, "Gloves": 900, "Mount": 3600, "MountGlow": 260, "Cradle": 700, "Tube": 3200,
+               "Trousers": 1900, "Boots": 1100, "Gloves": 900, "Mount": 3000, "Rack": 1100, "MountGlow": 260, "Cradle": 700, "Tube": 3200,
                "Coils": 520, "Cell": 360, "CellCore": 80}
 AO_EXCLUDE = ["Cell", "Helmet"]
-MACHINE_PARTS = ["Mount", "Cradle", "Tube", "Cell"]
+MACHINE_PARTS = ["Mount", "Rack", "Cradle", "Tube", "Cell"]
 # the mortar is baked 6 m away from him (his rest pose stands close to it)
 BAKE_APART = (MACHINE_PARTS, (6.0, 0.0, 0.0))
-YAW_PIVOT = (0.24, -0.02, 0.0)             # the tower turns about this point (keeps him, the mortar and the rack on the base)
+YAW_PIVOT = (0.26, -0.04, 0.0)             # the tower turns about this point (keeps him, the mortar and the rack on the base)
 
 
 def prop_bones():
@@ -938,10 +995,10 @@ def extra_bones():
     mid, ax = seated_cell()
     return [
         ("mount", v3((MOUNT_C[0], MOUNT_C[1], 0.0)), v3((MOUNT_C[0], MOUNT_C[1], 0.3)), None),
-        ("cradle", TRUN, TRUN + GD * 0.3, "mount"),
-        ("tube", TRUN, TRUN + GD * 0.3, None),
-        ("coils", TRUN, TRUN + GD * 0.3, "tube"),
-        ("mouth", tpt(S_MOUTH), tpt(S_MOUTH + 0.1), "tube"),
+        ("cradle", TRUN_W, TRUN_W + GD * 0.3, "mount"),
+        ("tube", TRUN_W, TRUN_W + GD * 0.3, None),
+        ("coils", TRUN_W, TRUN_W + GD * 0.3, "tube"),
+        ("mouth", S(tpt(S_MOUTH)), S(tpt(S_MOUTH)) + GD * 0.1, "tube"),
         ("cell", mid, mid + ax * 0.1, None),
         ("cellcore", mid, mid + ax * 0.1, "cell"),
     ]
@@ -957,7 +1014,7 @@ def weight_rules():
         "Trousers": ("custom", trousers_weights),
         "Boots": ("transfer", {"shin.R", "shin.L", "foot.R", "foot.L"}, None),
         "Gloves": ("transfer", {"forearm.R", "forearm.L", "hand.R", "hand.L"}, None),
-        "Mount": ("rigid", "mount"), "MountGlow": ("rigid", "mount"), "Cradle": ("rigid", "cradle"),
+        "Mount": ("rigid", "mount"), "Rack": ("rigid", "mount"), "MountGlow": ("rigid", "mount"), "Cradle": ("rigid", "cradle"),
         "Tube": ("rigid", "tube"), "Coils": ("rigid", "coils"), "Cell": ("rigid", "cell"), "CellCore": ("rigid", "cellcore"),
     }
 
@@ -970,7 +1027,7 @@ def uv_boost(c, part):
         return 1.9
     if part in ("Cell",):
         return 1.3
-    if part in ("Mount",):
+    if part in ("Mount", "Rack"):
         return 0.75
     if part in ("Tube",):
         return 1.0
@@ -990,11 +1047,12 @@ def sculpt_parts(fine=True):
         ("Trousers", trousers_field(), 0.0026 if fine else 0.0036),
         ("Boots", boots_field(), 0.0024 if fine else 0.0034),
         ("Gloves", gloves_field(), 0.0018 if fine else 0.0026),
-        ("Mount", mount_field(), 0.0028 if fine else 0.004),
+        ("Mount", ScaledField(mount_field()), 0.003 if fine else 0.0042),
+        ("Rack", rack_field(), 0.0022 if fine else 0.003),
         ("MountGlow", mountglow_field(), 0.0018 if fine else 0.0026),
-        ("Cradle", cradle_field(), 0.0024 if fine else 0.0034),
-        ("Tube", tube_field(), 0.0024 if fine else 0.0034),
-        ("Coils", coils_field(), 0.0018 if fine else 0.0026),
+        ("Cradle", ScaledField(cradle_field()), 0.0026 if fine else 0.0036),
+        ("Tube", ScaledField(tube_field()), 0.0026 if fine else 0.0036),
+        ("Coils", ScaledField(coils_field()), 0.002 if fine else 0.0028),
         ("Cell", cell_field(), 0.0014 if fine else 0.002),
         ("CellCore", cellcore_field(), 0.0016 if fine else 0.0022),
     ]

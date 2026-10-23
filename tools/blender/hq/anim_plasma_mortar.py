@@ -32,15 +32,15 @@ vec = lambda a: Vector((float(a[0]), float(a[1]), float(a[2])))
 ROOT = vec(J["root"])
 X_, Z_ = V(1.0, 0.0, 0.0), V(0.0, 0.0, 1.0)
 
-TRUN = vec(pm.TRUN)
+TRUN = vec(pm.TRUN_W)
 GD0, GU0 = vec(pm.GD), vec(pm.GU)
 _mid, _ax = pm.seated_cell()
 CELL_MID0, CELL_AX0 = vec(_mid), vec(_ax)            # (rest) the seated cell
 CELL_SIDE0 = X_
 _pt, _pa = pm.port_top()
 PORT0 = vec(_pt)
-GRIP_C, GRIP_A = vec(pm.GRIP_C), vec(pm.GRIP_A)
-GRIP_CAP = GRIP_C + GRIP_A * 0.072
+GRIP_C, GRIP_A = vec(pm.GRIP_W), vec(pm.GRIP_A)
+GRIP_CAP = vec(pm.GRIP_CAP_W)
 _rm, _ra = pm.rack_slot(pm.HIS_SLOT)
 RACK_MID = vec(_rm)
 HOLD = 0.075                    # his fist round the cell: this far up its axis from its middle
@@ -60,7 +60,7 @@ OFF = 35           # his hand off the cell
 BACK = 45          # back at the grip
 FR = 52            # = the 2.2 s cooldown (52.8 frames)
 
-REC = 0.075        # the tube's slam back (m)
+REC = 0.09        # the tube's slam back (m)
 DIM = 0.86         # the coils' scale across the tube when dark (their bands below the grooves' bottoms)
 CORE_DIM = 0.7     # a spent cell's core
 
@@ -189,8 +189,8 @@ def cell_fist(M, yaw):
 
 
 # ---------------------------------------------------------------------------------------------- stations
-S_XY, S_YAW = (0.0, 0.18), 16.0              # Combat: beside the breech, his left fist on the grip
-I_XY, I_YAW = (0.03, 0.22), 22.0             # Idle: at ease by the grip
+S_XY, S_YAW = (-0.06, 0.22), 16.0              # Combat: beside the breech, his left fist on the grip
+I_XY, I_YAW = (-0.04, 0.25), 22.0             # Idle: at ease by the grip
 L_XY = (0.28, 0.43)                          # loading: behind the breech, between the rack and the port
 R_YAW, P_YAW = 110.0, 58.0                    # ... facing the rack, facing the port
 S_STANCE = (1.12, 0.12, -0.06)
@@ -304,7 +304,7 @@ def _r(xy, z=0.0):
     return wroot(xy[0], xy[1], ROOT.z + z)
 
 
-K_RO = [(0, _r(S_XY, -0.045)), (SHOT, _r(S_XY, -0.05)), (6, _r((-0.01, 0.23), -0.03)), (LET_GO, _r((0.0, 0.24), -0.03)),
+K_RO = [(0, _r(S_XY, -0.045)), (SHOT, _r(S_XY, -0.05)), (6, _r((-0.07, 0.27), -0.03)), (LET_GO, _r((-0.06, 0.28), -0.03)),
         (13, _r(L_XY, -0.07)), (GRAB, _r(L_XY, -0.12)), (LIFT, _r(L_XY, -0.07)), (AT_PORT, _r((0.33, 0.37), -0.13)),
         (SEAT, _r((0.35, 0.35), -0.17)), (OFF, _r((0.33, 0.37), -0.11)), (40, _r((0.15, 0.3), -0.05)),
         (BACK, _r(S_XY, -0.045)), (FR, _r(S_XY, -0.045))]
@@ -320,7 +320,7 @@ K_LOOK = [(0, S_YAW - 6.0), (SHOT, S_YAW - 4.0), (5, S_YAW - 26.0), (LET_GO, S_Y
 K_PITCH = [(0, -0.1), (SHOT, -0.05), (5, 0.25), (LET_GO, 0.1), (13, -0.3), (GRAB, -0.5), (LIFT, -0.35), (AT_PORT, -0.45),
            (SEAT, -0.5), (OFF, -0.3), (40, -0.05), (BACK, -0.1), (FR, -0.1)]
 _sS = stance(S_XY, S_YAW, *S_STANCE)
-_sF = stance((-0.01, 0.23), S_YAW - 4.0, 1.1, 0.06, -0.12)
+_sF = stance((-0.07, 0.27), S_YAW - 4.0, 1.1, 0.06, -0.12)
 _sR = stance(L_XY, R_YAW - 10.0, 1.12, 0.08, -0.06)
 _sP = stance((0.33, 0.38), P_YAW + 4.0, 1.16, 0.14, -0.12)
 _sB = stance((0.15, 0.3), 24.0, 1.05, 0.04, -0.02)
