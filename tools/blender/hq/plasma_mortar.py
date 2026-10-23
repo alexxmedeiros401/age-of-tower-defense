@@ -104,15 +104,15 @@ def head(fd):
         xz = [(sx * 0.024, 1.784), (sx * 0.064, 1.797), (sx * 0.108, 1.799), (sx * 0.15, 1.784)]
         on = _on_face(fd, xz, lift=0.001)
         tuft = lambda P: F(0.0014) * NOISE(P * F(150))
-        fd.add(Chain(on, [hr(0.0085), hr(0.0102), hr(0.009), hr(0.0048)], k=hr(0.006), disp=tuft, disp_amp=0.002), hr(0.004), BROW)
-        fd.paint(Chain(on, [hr(0.016), hr(0.0185), hr(0.0165), hr(0.009)], k=hr(0.008)), BROW)
+        fd.add(Chain(on, [hr(0.0068), hr(0.0082), hr(0.0072), hr(0.0038)], k=hr(0.006), disp=tuft, disp_amp=0.002), hr(0.004), BROW)
+        fd.paint(Chain(on, [hr(0.0145), hr(0.0165), hr(0.015), hr(0.008)], k=hr(0.008)), BROW)
     # eyes: open and bright; the upper lids clear of the irises, the lower lids lifted by the cheeks; smile crinkles
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         up = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, hr(0.0215))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0048)), Plane(ec + v3((0, 0, -hr(0.0165))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0048)), Plane(ec + v3((0, 0, -hr(0.0195))), (sx * -0.25, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
         for k in range(1):
@@ -953,7 +953,7 @@ KIT = dict(red=VIOLET_P, white=WHITE, olive=NAVY, gunmetal=GUNMETAL, steel=(0.62
            rubber=(0.09, 0.09, 0.1), coyote=HAZARD, black=(0.05, 0.05, 0.06))
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_PmSkin", "base": (0.8, 0.58, 0.46), "ruddy": (0.84, 0.46, 0.38), "lips": (0.7, 0.4, 0.36),
-                      "brow": ((0.16, 0.1, 0.06), (0.3, 0.19, 0.11)),
+                      "brow": ((0.22, 0.14, 0.08), (0.38, 0.25, 0.15)),
                       "extra": ((LASH, (0.08, 0.05, 0.035), 0.5), (STUBBLE, (0.45, 0.32, 0.24), 0.45, 0.4))}),
     "Hair": ("hair", {"name": "HQ_PmHair", "base": (0.2, 0.13, 0.08), "hi": (0.38, 0.25, 0.15), "low": (0.1, 0.065, 0.04),
                       "streak": (0.15, 0.1, 0.06), "tint": (0.24, 0.16, 0.09)}),
