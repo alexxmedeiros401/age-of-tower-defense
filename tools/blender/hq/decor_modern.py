@@ -962,7 +962,7 @@ def rubble(seed=0, metal=False):
 def wreck(seed=0):
     """A burnt-out Humvee: blackened and rusting, its glass gone, slumped on its rims, the bonnet sprung, a scorch on
     the ground round it."""
-    out = humvee(seed, paint="burnt", wreck=True)
+    out = humvee(seed, paint="rust", wreck=True)
     out = [(n, f, vxs, m) for (n, f, vxs, m) in out]
     sc = Field("Scorch")
     sc.add(Ellipsoid((0, 0, -0.02), (1.05, 0.7, 0.04), **wob(4.0, 0.03, seed)), k=0.0)
@@ -2556,6 +2556,8 @@ def modern_city(seed=0):
         sandbag_run(sb, (0.15, sy * 1.62, 0), (-0.6, sy * 1.75, 0), layers=3, seed=seed + 10 + sy, rows=2)
         sandbag_run(sb, (-0.6, sy * 1.75, 0), (-0.85, sy * 2.5, 0), layers=3, seed=seed + 20 + sy, rows=2)
         sandbag_run(sb, (BX0 - 0.35, sy * (BY + 1.55), 0), (-0.3, sy * (BY + 1.3), 0), layers=2, seed=seed + 30 + sy, rows=1)
+        sandbag_run(sb, (BX0 + 0.12, sy * 0.35, 0), (BX0 + 0.12, sy * (BY - 0.3), 0), layers=2, seed=seed + 40 + sy, z0=BH + 0.22)
+        sandbag_run(sb, (BX0 + 0.3, sy * (BY - 0.05), 0), (BX0 + 0.95, sy * (BY - 0.05), 0), layers=2, seed=seed + 50 + sy, z0=BH + 0.22)
     ground_cut(sb, -0.01)
     out.append(("Sandbags", sb, fine(0.006, 0.012), "sandbag"))
     br, cl = Field("Barrels"), Field("Coals")
@@ -2685,25 +2687,22 @@ def modern_city(seed=0):
         top = NZ + (0.3 if i == 4 else 0.0)
         pole(np_, (x, y, -0.03), (x, y, top), 0.022)
 
-    def net_h(x, y):
-        u = (x - F32((NX0 + NX1) / 2)) / F32((NX1 - NX0) / 2)
-        w = (y - F32((NY0 + NY1) / 2)) / F32((NY1 - NY0) / 2)
-        sag = F32(0.12) * (np.cos(u * F32(math.pi)) * F32(0.5) + F32(0.5)) * (np.cos(w * F32(math.pi)) * F32(0.5) + F32(0.5))
-        peak = F32(0.3) * np.exp(-(u * u + w * w) * F32(3.0))
-        return F32(NZ) - F32(0.1) + peak + sag * F32(0.0) - F32(0.08) * (np.abs(np.sin(u * F32(math.pi))) + np.abs(np.sin(w * F32(math.pi)))) * F32(0.5)
+    CX, CY, HX, HY = (NX0 + NX1) / 2, (NY0 + NY1) / 2, (NX1 - NX0) / 2 + 0.2, (NY1 - NY0) / 2 + 0.18
 
     def net(P):
         x, y, z = P[:, 0], P[:, 1], P[:, 2]
-        h = net_h(x, y) + NOISE.fbm(P * F32(7.0), 2) * F32(0.035)
-        edge = NOISE.fbm(P * F32(3.0) + F32(5.0), 2) * F32(0.12)
-        rect = np.maximum(np.abs(x - F32((NX0 + NX1) / 2)) - F32((NX1 - NX0) / 2 + 0.25), np.abs(y - F32((NY0 + NY1) / 2)) - F32((NY1 - NY0) / 2 + 0.2)) + edge
-        drape = np.maximum(rect, F32(0.0))
-        hz = h - drape * F32(1.6)
-        return np.maximum(np.abs(z - hz) - F32(0.018), rect - F32(0.35)).astype(F32) * F32(0.8)
+        Q = np.stack([x, y, np.zeros_like(x)], 1)
+        u, w = (x - F32(CX)) / F32(HX), (y - F32(CY)) / F32(HY)
+        # draped over the poles: a peak on the middle one, sagging between the corners, the garnish lumpy
+        h = (F32(NZ - 0.06) + F32(0.3) * np.exp(-(u * u + w * w) * F32(2.5)) - F32(0.06) * (np.abs(np.sin(u * F32(math.pi))) + np.abs(np.sin(w * F32(math.pi))))
+             + NOISE.fbm(Q * F32(5.0), 2) * F32(0.025))
+        rect = np.maximum(np.abs(u) * F32(HX) - F32(HX), np.abs(w) * F32(HY) - F32(HY)) + NOISE.fbm(Q * F32(2.5) + F32(5.0), 2) * F32(0.1)
+        hz = h - np.maximum(rect + F32(0.25), F32(0.0)) * F32(1.2)          # its skirts hang down beyond the poles
+        return (np.maximum(np.abs(z - hz) - F32(0.03), rect) * F32(0.7)).astype(F32)
     nt.add(Func(net, (NX0 - 0.8, NY0 - 0.8, 0.0), (NX1 + 0.8, NY1 + 0.8, NZ + 0.45)), k=0.0)
     nt.inter(Plane((0, 0, 0.04), (0, 0, -1)))
     ground_cut(np_, -0.02)
-    out += [("Net", nt, fine(0.012, 0.022), "camo"), ("NetPoles", np_, fine(0.005, 0.01), "timber")]
+    out += [("Net", nt, fine(0.01, 0.02), "camo"), ("NetPoles", np_, fine(0.005, 0.01), "timber")]
     # ---- behind the berm: a container, a big satellite dish, a second mast
     ct = Field("Container")
     _container(ct, (5.55, -2.0, 0.0), 0.3)
@@ -2761,7 +2760,7 @@ def KITS(theme):
             "Cones": (lambda: cones(607), 300), "LightTower": (lambda: light_tower(608), 1100), "Fence": (lambda: chainlink(609), 700),
             "Barriers": (lambda: barriers(610), 400), "Scrub_A": (lambda: dry_scrub(611, 0.8), 500), "Scrub_B": (lambda: dry_scrub(612, 0.6), 400),
             "Humvee": (lambda: humvee(613), 1400),
-            "Hangar": (lambda: hangar(614), 5000), "Tower": (lambda: control_tower(615), 3000), "Jet": (lambda: jet(616), 3400),
+            "Hangar": (lambda: hangar(614), 4400), "Tower": (lambda: control_tower(615), 3000), "Jet": (lambda: jet(616), 3400),
             "Heli": (lambda: helipad(617), 3400), "FuelTruck": (lambda: fuel_truck(618), 2400), "Radome": (lambda: radome(619), 2000),
             "Rubble_A": (lambda: rubble(620), 800), "Rubble_B": (lambda: rubble(621, metal=True), 900), "Wreck": (lambda: wreck(622), 1200),
             "Dish": (lambda: radar_dish(623), 1800), "Generator": (lambda: generator(624), 1400), "AAGun": (lambda: aa_gun(625), 2000),
