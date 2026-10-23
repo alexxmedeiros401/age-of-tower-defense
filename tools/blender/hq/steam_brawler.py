@@ -150,11 +150,11 @@ def head(fd):
     # small eyes, crinkled by his grin
     for sx in (-1, 1):
         ec = eye_c(sx)
-        top = 0.021 if sx < 0 else 0.024
+        top = 0.015 if sx < 0 else 0.018
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(top))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.014))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0062)), Plane(ec + v3((0, 0, -hr(0.009))), (sx * -0.16, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(top - 0.003))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(2):                                                                      # laughter lines
@@ -180,9 +180,8 @@ def head(fd):
     for c, r in (((0.205, 0.02, 1.7), 0.016), ((0.21, 0.05, 1.672), 0.014), ((0.2, 0.034, 1.636), 0.013)):   # cauliflower ear
         fd.add(S(c, r), hr(0.008), SKIN)
     # soot on his nose and right cheek, a smear along his left jaw
-    fd.paint(Ellipsoid(hp((-0.112, -0.152, 1.648)), v3((0.036, 0.02, 0.018)) * HS * 1.5, R=euler(0.2, 0.0, -0.45)), SOOT)
-    fd.paint(Ellipsoid(hp((0.0, -0.21, 1.7)), v3((0.02, 0.02, 0.014)) * HS * 1.4), SOOT)
-    fd.paint(Ellipsoid(hp((0.13, -0.08, 1.52)), v3((0.03, 0.04, 0.012)) * HS * 1.5, R=euler(0.3, 0.0, 0.6)), SOOT)
+    fd.paint(Ellipsoid(hp((-0.1, -0.165, 1.652)), v3((0.026, 0.016, 0.012)) * HS * 1.4, R=euler(0.2, 0.0, -0.45)), SOOT)
+    fd.paint(Ellipsoid(hp((0.06, -0.19, 1.79)), v3((0.022, 0.012, 0.008)) * HS * 1.3, R=euler(0.2, 0.0, 0.3)), SOOT)
 
 
 def biceps(side):
@@ -288,7 +287,7 @@ def hair_field():
 def moustache_path(sx):
     """The moustache's middle line on one side (design units): from under his nose, out over the corner of the grin and
     up along the cheek into the whiskers."""
-    return [(sx * 0.004, -0.234, 1.594), (sx * 0.046, -0.224, 1.585), (sx * 0.09, -0.2, 1.58), (sx * 0.132, -0.17, 1.588),
+    return [(sx * 0.004, -0.236, 1.598), (sx * 0.046, -0.226, 1.589), (sx * 0.09, -0.202, 1.582), (sx * 0.132, -0.17, 1.588),
             (sx * 0.17, -0.138, 1.606), (sx * 0.198, -0.11, 1.63)]
 
 
@@ -318,10 +317,10 @@ def moustache_field():
     for sx in (-1, 1):
         pts = [hp(p) for p in moustache_path(sx)]
         n = len(pts)
-        ws = [hr(w) for w in (0.017, 0.021, 0.021, 0.019, 0.017, 0.013)]
-        ts = [hr(t) for t in (0.017, 0.019, 0.018, 0.016, 0.013, 0.01)]
+        ws = [hr(w) for w in (0.022, 0.027, 0.026, 0.023, 0.019, 0.014)]
+        ts = [hr(t) for t in (0.02, 0.024, 0.023, 0.02, 0.016, 0.012)]
         ns = [norm(v3((sx * (0.15 + 0.7 * i / (n - 1)), -1.0, 0.25))) for i in range(n)]
-        fd.add(Lock(pts, ws, ts, ns, k=hr(0.008), disp=strands, disp_amp=0.003), hr(0.008))
+        fd.add(Lock(pts, ws, ts, ns, k=hr(0.008), disp=lambda P: curls(P, 0.012, 0.004) + strands(P) * F(0.5), disp_amp=0.005), hr(0.008))
     return fd
 
 
