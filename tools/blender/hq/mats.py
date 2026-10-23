@@ -1604,3 +1604,89 @@ def beach_sand(name="HQ_BeachSand", base=(0.86, 0.75, 0.55), hi=(0.95, 0.88, 0.7
     rough = g.mixf(g.reg(5), 0.95, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", g.math("MULTIPLY", rip, top), 0.6), g.math("MULTIPLY", grains, 0.5))
     return g.finish(c, rough, g.bump(h, 0.3, 0.004))
+
+
+# ======================================================================================= Industrial Age (the Field Gun)
+def _brass_col(g, pt, base=(0.8, 0.55, 0.22)):
+    """Polished brass: bright on edges and ridges, dark in the recesses."""
+    br = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.8), g.rgb(base), g.rgb((1.0, 0.9, 0.58)))
+    return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.6), br, g.rgb((0.36, 0.22, 0.07)))
+
+
+def uniform(name="HQ_Uniform", base=(0.05, 0.07, 0.17), facing=(0.62, 0.09, 0.07), brass=(0.8, 0.55, 0.22),
+            buff=(0.74, 0.6, 0.38), black=(0.06, 0.055, 0.06)):
+    """The Industrial Age corps' uniform cloth: navy wool (label 0) with a fine weave, darker in the folds and a lighter
+    nap on the ridges; facings (5: a collar, piping, a trouser stripe), polished brass (6: buttons, badges), buff braid or
+    a cap band (7), black patent leather (8: a cap's peak and chin strap, glossy)."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 300.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 300.0, 0.0, 0.0, "BANDS", "Z"))
+    pt = g.geo("Pointiness")
+    def cloth(col):
+        c = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.8 for x in col)))
+        c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.6), c, g.rgb(tuple(x * 0.5 for x in col)))
+        return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.45), c, g.rgb(tuple(min(1.0, x * 1.5 + 0.06) for x in col)))
+    c = cloth(base)
+    c = g.mix(g.reg(5), c, cloth(facing))
+    c = g.mix(g.reg(7), c, cloth(buff))
+    blk = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.5, 0.56), 0.7), g.rgb(black), g.rgb((0.36, 0.36, 0.4)))
+    c = g.mix(g.reg(8), c, blk)
+    c = g.mix(g.reg(6), c, _brass_col(g, pt, brass))
+    rough = g.mixf(g.reg(6), g.mixf(g.reg(8), 0.9, 0.22), 0.28)
+    h = g.math("MULTIPLY", weave, g.math("SUBTRACT", 1.0, g.math("MAXIMUM", g.reg(6), g.reg(8))))
+    return g.finish(c, rough, g.bump(h, 0.16, 0.0014))
+
+
+def fieldgun(name="HQ_FieldGun", olive=(0.33, 0.34, 0.2), grey=(0.3, 0.32, 0.34), brass=(0.8, 0.55, 0.22),
+             wood=(0.55, 0.38, 0.22), copper=(0.75, 0.35, 0.18), red=(0.72, 0.1, 0.07), white=(0.9, 0.88, 0.82)):
+    """A steel field gun of about 1900: olive-drab paint (label 0) and gunmetal-grey paint (5), both chipped back to the
+    steel on the edges and grimy in the recesses, rivet heads catching the light; polished brass (6); bright machined
+    steel (7: a breech face, worn tyres); black enamel and dark iron (8); oiled wood (9); cord (10); copper (11); red (12)
+    and white (13) paint (a range marker's bands)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    brush = g.remap(g.noise(g.scale_vec(p, (60.0, 60.0, 60.0)), 1.0, 2.0), 0.3, 0.7, 0.0, 1.0)
+    def paint(col):
+        c = g.mix(g.math("MULTIPLY", brush, 0.25), g.rgb(col), g.rgb(tuple(x * 0.8 for x in col)))
+        c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.45, 0.7), 0.25), c, g.rgb(tuple(x * 0.72 for x in col)))
+        return g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.4), c, g.rgb(tuple(min(1.0, x * 1.35 + 0.04) for x in col)))
+    steel, rs = _iron_col(g, p, base=(0.42, 0.43, 0.46), hi=(0.82, 0.84, 0.88), dark=(0.14, 0.14, 0.16), rust=(0.45, 0.24, 0.12))
+    chip = g.math("MULTIPLY", g.smooth(pt, 0.535, 0.6), g.smooth(g.noise(p, 26.0, 2.0), 0.45, 0.56))
+    c = g.mix(chip, paint(olive), steel)
+    c = g.mix(g.reg(5), c, g.mix(chip, paint(grey), steel))
+    c = g.mix(g.reg(12), c, g.mix(chip, paint(red), steel))
+    c = g.mix(g.reg(13), c, g.mix(chip, paint(white), steel))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.55), c, g.rgb((0.1, 0.09, 0.07)))            # grime in the recesses
+    c = g.mix(g.reg(7), c, steel)
+    blk, _r = _iron_col(g, p, base=(0.07, 0.07, 0.075), hi=(0.4, 0.41, 0.44), dark=(0.02, 0.02, 0.02), rust=(0.2, 0.12, 0.07))
+    c = g.mix(g.reg(8), c, blk)
+    wd = g.mix(g.noise(g.scale_vec(p, (60.0, 60.0, 6.0)), 1.0, 3.0), g.rgb(wood), g.rgb(tuple(x * 0.7 for x in wood)))
+    c = g.mix(g.reg(9), c, wd)
+    tw = g.wave(p, 260.0, 1.0, 0.0, "BANDS", "DIAGONAL")
+    c = g.mix(g.reg(10), c, g.mix(g.math("MULTIPLY", tw, 0.5), g.rgb((0.8, 0.7, 0.5)), g.rgb((0.52, 0.42, 0.28))))
+    c = g.mix(g.reg(6), c, _brass_col(g, pt, brass))
+    c = g.mix(g.reg(11), c, _brass_col(g, pt, copper))
+    metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(6), g.reg(11)), g.reg(7))
+    rough = g.mixf(metal, g.mixf(chip, g.mixf(g.math("MAXIMUM", g.reg(9), g.reg(10)), 0.62, 0.8), 0.35), 0.26)
+    rough = g.mixf(g.reg(8), rough, 0.35)
+    h = g.math("ADD", g.math("MULTIPLY", brush, 0.3), g.math("MULTIPLY", g.noise(p, 90.0, 2.0), 0.25))
+    h = g.math("ADD", h, g.math("MULTIPLY", tw, g.math("MULTIPLY", g.reg(10), 1.5)))
+    return g.finish(c, rough, g.bump(h, 0.12, 0.002))
+
+
+def sacking(name="HQ_Sacking", base=(0.62, 0.5, 0.33), dark=(0.42, 0.33, 0.2), stencil=(0.12, 0.1, 0.08)):
+    """Sandbags: coarse jute sacking, a loose open weave, dusty and pale on the bulges, dark and damp in the creases and
+    between the bags; label 5 = a stencilled mark (dark), 6 = twine (pale)."""
+    g = new(name)
+    p = g.obj()
+    weave = g.math("ADD", g.wave(p, 170.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 170.0, 0.0, 0.0, "BANDS", "Z"))
+    weave = g.math("ADD", weave, g.wave(p, 170.0, 0.0, 0.0, "BANDS", "Y"))
+    c = g.mix(g.remap(g.noise(p, 6.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(base), g.rgb(tuple(x * 0.86 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.49, 0.43), 0.75), c, g.rgb(dark))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.56), 0.4), c, g.rgb(tuple(min(1.0, x * 1.25) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 3.0, 2.0), 0.55, 0.7), 0.3), c, g.rgb((0.38, 0.3, 0.2)))   # earth stains
+    c = g.mix(g.math("MULTIPLY", g.reg(5), 0.85), c, g.rgb(stencil))
+    c = g.mix(g.reg(6), c, g.rgb((0.82, 0.74, 0.56)))
+    return g.finish(c, 0.95, g.bump(weave, 0.3, 0.0016))
