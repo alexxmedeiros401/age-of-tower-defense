@@ -1,0 +1,12 @@
+[
+ {
+  "name": "flame_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/flame_final; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character flamethrower --fine --out $O/hi/flamethrower_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module flamethrower_base --fine --out $O/hi/flamethrower_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character flamethrower --char $O/hi/flamethrower_hi.blend --base $O/hi/flamethrower_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/flame_final"
+ },
+ {
+  "name": "flame_p3h",
+  "cmd": "O=$GITHUB_WORKSPACE/out/flame_p3h; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character flamethrower --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character flamethrower --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Combat --range 0,0 --step 1 --spp 8 --res 500 --tx -0.05 --ty -0.15 --tz 1.45 --dist 1.9 --az 25 --el 22 > $O/poses_Combat.log 2>&1 || tail -20 $O/poses_Combat.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 54,54 --step 1 --spp 8 --res 500 --tx -0.05 --ty -0.15 --tz 1.45 --dist 1.9 --az 25 --el 22 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/flame_p3h"
+ }
+]
