@@ -63,7 +63,7 @@ FUN_TOP = 3.45
 FUN_MOUTH = v3((0.0, FUN_Y, FUN_TOP + 0.01))
 DOME_Y = -0.5
 EMIT = v3((0.0, -0.02, BZ + BR - 0.04))    # the emitter's foot on the boiler
-ORB = EMIT + v3((0.0, 0.0, 0.52))          # its orb
+ORB = EMIT + v3((0.0, 0.0, 0.56))          # its orb
 WHISTLE = v3((0.2, 0.4, 2.9))              # the whistle's mouth
 CAB_Y = (0.62, 1.32)
 CAB_Z = (1.66, 2.88)
@@ -120,14 +120,14 @@ MATS = {
 GLOW = {"Eye": (RED_GLOW, 1.5, 0.5), "Windows": (RED_GLOW, 1.4, 0.5), "Furnace": (FIRE, 1.4, 0.5), "Ember": (EMBER, 1.3, 0.5),
         "Orb": (CYAN, 1.3, 0.55), "Coils": (CYAN, 1.2, 0.55)}
 
-LOW_TARGETS = {"Boiler": 1500, "Bands": 700, "Smokebox": 500, "Brow": 260, "Bezel": 260, "Eye": 120, "Funnel": 520, "Ember": 50,
-               "Dome": 260, "Whistle": 140, "Mast": 420, "Collar": 260, "Orb": 100, "Coils": 120, "Cab": 1200, "Windows": 90,
-               "Furnace": 90, "Board": 900, "Beam": 420, "Cowcatcher": 700}
+LOW_TARGETS = {"Boiler": 1100, "Bands": 420, "Smokebox": 380, "Brow": 240, "Bezel": 220, "Eye": 110, "Funnel": 400, "Ember": 50,
+               "Dome": 180, "Whistle": 120, "Mast": 320, "Collar": 200, "Orb": 100, "Coils": 110, "Cab": 900, "Windows": 90,
+               "Furnace": 90, "Board": 700, "Beam": 300, "Cowcatcher": 520}
 for k in LEGS:
-    LOW_TARGETS.update({"Thigh" + k: 160, "ThighPlate" + k: 240, "Knee" + k: 320, "Shin" + k: 380, "Foot" + k: 360, "Spat" + k: 160,
-                        "Cyl" + k: 200, "Prod" + k: 70})
+    LOW_TARGETS.update({"Thigh" + k: 130, "ThighPlate" + k: 200, "Knee" + k: 280, "Shin" + k: 300, "Foot" + k: 240, "Spat" + k: 120,
+                        "Cyl" + k: 150, "Prod" + k: 60})
 for s in "LR":
-    LOW_TARGETS["Rod" + s] = 200
+    LOW_TARGETS["Rod" + s] = 180
 X_AX = rot_from_axes(z_axis=(1, 0, 0))
 Y_AX = rot_from_axes(z_axis=(0, 1, 0))
 
@@ -255,7 +255,7 @@ def parts(fine=False):
     for i in range(4):
         a = i * math.pi / 2 + math.pi / 4
         u = v3((math.cos(a), math.sin(a), 0))
-        f.add(RoundCone(EMIT + v3((0, 0, 0.42)) + u * 0.08, ORB + u * 0.13 + v3((0, 0, 0.06)), 0.015, 0.01), k=0.005)   # prongs
+        f.add(RoundCone(EMIT + v3((0, 0, 0.42)) + u * 0.08, ORB + u * 0.16 + v3((0, 0, 0.04)), 0.017, 0.011), k=0.005)   # prongs
     f.paint(Cylinder(EMIT + v3((0, 0, 0.06)), 0.25, 0.04), 1)
     out.append(("Mast", f, vs, "root", "frame"))
     f = Field("Collar")
@@ -263,16 +263,16 @@ def parts(fine=False):
     for i in range(3):
         a = i * 2 * math.pi / 3
         u = v3((math.cos(a), math.sin(a), 0))
-        f.add(RoundBox(EMIT + v3((0, 0, 0.36)) + u * 0.13, (0.06, 0.012, 0.035), 0.01,
+        f.add(RoundBox(EMIT + v3((0, 0, 0.36)) + u * 0.14, (0.075, 0.014, 0.045), 0.01,
                        R=rot_from_axes(x_axis=u, z_axis=(0, 0, 1))), k=0.008)
         f.paint(Sphere(EMIT + v3((0, 0, 0.36)) + u * 0.19, 0.04), 1)
     out.append(("Collar", f, vs, "emitter", "frame"))
     f = Field("Orb")
-    f.add(Sphere(ORB, 0.12))
+    f.add(Sphere(ORB, 0.15))
     out.append(("Orb", f, vs, "orb", "glow"))
     f = Field("Coils")
-    for i, (z, r) in enumerate(((0.2, 0.115), (0.28, 0.115))):
-        f.add(Torus(EMIT + v3((0, 0, z)), r, 0.011))
+    for i, (z, r) in enumerate(((0.2, 0.125), (0.28, 0.125))):
+        f.add(Torus(EMIT + v3((0, 0, z)), r, 0.016))
     out.append(("Coils", f, vs, "emitter", "glow"))
     # ---- the cab: white armour, a gunmetal roof, window slits and furnace windows (glowing), a hazard-striped skirt
     f = Field("Cab")
@@ -328,9 +328,9 @@ def parts(fine=False):
         f.add(Cylinder((sx * 0.42, RB_Y[0] - 0.235, 1.5), 0.1, 0.035, rr=0.014, R=Y_AX), k=0.01, label=5)
     out.append(("Beam", f, vs, "root", "armor"))
     f = Field("Cowcatcher")
-    tip = v3((0, -2.08, 0.22))
-    top_l, top_r = v3((0.55, RB_Y[0] - 0.08, 1.33)), v3((-0.55, RB_Y[0] - 0.08, 1.33))
-    bot_l, bot_r = v3((0.5, -1.6, 0.2)), v3((-0.5, -1.6, 0.2))
+    tip = v3((0, -2.3, 0.2))
+    top_l, top_r = v3((0.56, RB_Y[0] - 0.08, 1.32)), v3((-0.56, RB_Y[0] - 0.08, 1.32))
+    bot_l, bot_r = v3((0.55, -1.74, 0.2)), v3((-0.55, -1.74, 0.2))
     for i in range(9):
         u = i / 8.0
         top = top_r + (top_l - top_r) * u
@@ -354,43 +354,43 @@ def parts(fine=False):
         Rt = rot_from_axes(z_axis=tax, y_axis=(0, -1, 0))
         Rs = rot_from_axes(z_axis=sax, y_axis=(0, -1, 0))
         f = Field("Thigh" + k)
-        f.add(RoundCone(hp, kn, 0.13, 0.11))
+        f.add(RoundCone(hp, kn, 0.17, 0.14))
         te = thigh_eye(k)
         f.add(Cylinder(te + v3((sx * 0.0, 0, 0)), 0.045, 0.26, rr=0.012, R=X_AX), k=0.02)    # the piston rod's eye pin
         out.append(("Thigh" + k, f, vx, "thigh." + k, "frame"))
         f = Field("ThighPlate" + k)                                                         # armour over its outside
         tc = hp + (kn - hp) * 0.58
-        f.add(RoundBox(tc + Rt @ v3((sx * 0.07, 0.03, 0.0)), (0.1, 0.14, 0.2), 0.06, R=Rt))
+        f.add(RoundBox(tc + Rt @ v3((sx * 0.08, 0.03, 0.0)), (0.12, 0.17, 0.21), 0.07, R=Rt))
         f.paint(_axial_band(hp + (kn - hp) * 0.42, tax, 0.03), 1)
         f.paint(_axial_band(hp + (kn - hp) * 0.75, tax, 0.004), 2)
         out.append(("ThighPlate" + k, f, vx, "thigh." + k, "armor"))
         f = Field("Knee" + k)                                                               # a locomotive wheel at the knee
         kw = kn + v3((sx * 0.12, 0, 0))
         f.add(Cylinder(kn, 0.11, 0.3, rr=0.03, R=X_AX))                                    # the axle
-        f.add(Cylinder(kw, 0.22, 0.05, rr=0.015, R=X_AX), k=0.01)                          # the web
-        f.add(Torus(kw + v3((sx * 0.012, 0, 0)), 0.205, 0.035, R=X_AX), k=0.01)              # the tyre
+        f.add(Cylinder(kw, 0.26, 0.05, rr=0.015, R=X_AX), k=0.01)                          # the web
+        f.add(Torus(kw + v3((sx * 0.012, 0, 0)), 0.245, 0.038, R=X_AX), k=0.01)              # the tyre
         for i in range(10):
             a = i * 2 * math.pi / 10
             d = v3((0, math.cos(a), math.sin(a)))
-            f.add(RoundCone(kw + v3((sx * 0.03, 0, 0)) + d * 0.06, kw + v3((sx * 0.025, 0, 0)) + d * 0.18, 0.016, 0.013), k=0.006)
+            f.add(RoundCone(kw + v3((sx * 0.03, 0, 0)) + d * 0.06, kw + v3((sx * 0.025, 0, 0)) + d * 0.22, 0.019, 0.015), k=0.006)
         f.add(Cylinder(kw + v3((sx * 0.035, 0, 0)), 0.07, 0.05, rr=0.015, R=X_AX), k=0.01)    # the hub
         f.add(RoundBox(kw + v3((sx * 0.06, 0, 0)), (0.025, 0.05, 0.1), 0.015, R=rot_from_axes(x_axis=(1, 0, 0), z_axis=(0, 0.6, 1))), k=0.01)   # the crank boss
         f.add(Cylinder(kn + v3((sx * (KNEE_X - 0.02), 0, 0)), 0.03, 0.08, rr=0.008, R=X_AX), k=0.006)   # the side rod's pin
-        f.paint(Torus(kw + v3((sx * 0.012, 0, 0)), 0.205, 0.04, R=X_AX), 5)
+        f.paint(Torus(kw + v3((sx * 0.012, 0, 0)), 0.245, 0.043, R=X_AX), 5)
         f.paint(Cylinder(kw + v3((sx * 0.06, 0, 0)), 0.05, 0.03, R=X_AX), 1)
         out.append(("Knee" + k, f, vs, "shin." + k, "frame"))
         f = Field("Shin" + k)                                                               # a boxy armoured shin, a ridge
         sc = kn + (an - kn) * 0.55
-        f.add(RoundBox(sc + Rs @ v3((0, 0.0, 0)), (0.15, 0.14, 0.22), 0.06, R=Rs))
-        f.add(RoundBox(sc + Rs @ v3((0, 0.15, 0.0)), (0.03, 0.035, 0.18), 0.02, R=Rs), k=0.03)
-        f.add(RoundCone(kn, sc, 0.1, 0.1), k=0.03)
+        f.add(RoundBox(sc + Rs @ v3((0, 0.0, 0)), (0.19, 0.17, 0.25), 0.07, R=Rs))
+        f.add(RoundBox(sc + Rs @ v3((0, 0.18, 0.0)), (0.035, 0.035, 0.2), 0.02, R=Rs), k=0.03)
+        f.add(RoundCone(kn, sc, 0.13, 0.13), k=0.03)
         f.paint(_axial_band(kn + (an - kn) * 0.82, sax, 0.03), 1)
         f.paint(_axial_band(kn + (an - kn) * 0.38, sax, 0.004), 2)
         if k[0] == "F":
             _hazard(f, sc - v3((0.25, 0.3, 0.12)), sc + v3((0.25, -0.08, 0.12)), w=0.07, d=(1, 0, 1))
         out.append(("Shin" + k, f, vx, "shin." + k, "armor"))
         f = Field("Foot" + k)                                                               # a broad iron foot, three toes
-        f.add(RoundBox(an + v3((0, -0.08, -0.19)), (0.24, 0.33, 0.09), 0.07))
+        f.add(RoundBox(an + v3((0, -0.08, -0.19)), (0.27, 0.35, 0.09), 0.07))
         for dx in (-0.15, 0.0, 0.15):
             f.add(Ellipsoid(an + v3((dx, -0.42, -0.18)), (0.085, 0.11, 0.085)), k=0.03)
             f.paint(Ellipsoid(an + v3((dx, -0.49, -0.17)), (0.1, 0.08, 0.1)), 1)
@@ -399,7 +399,7 @@ def parts(fine=False):
         f.paint(Func(lambda P, z=an[2] - 0.255: P[:, 2] - F(z), an - 0.6, an + 0.6), 5)
         out.append(("Foot" + k, f, vx, "foot." + k, "frame"))
         f = Field("Spat" + k)
-        f.add(Ellipsoid(an + v3((0, -0.15, -0.08)), (0.2, 0.26, 0.09)))
+        f.add(Ellipsoid(an + v3((0, -0.15, -0.08)), (0.23, 0.28, 0.1)))
         f.sub(Sphere(an + v3((0, 0.02, 0.0)), 0.15), k=0.03)
         f.paint(RoundBox(an + v3((0, -0.15, -0.08)), (0.004, 0.4, 0.3)), 2)
         out.append(("Spat" + k, f, vs, "foot." + k, "armor"))
@@ -516,7 +516,7 @@ def walk(arm):
             Quaternion(V(1, 0, 0), 0.012 * math.sin(2 * w - 0.5))
         aims["emitter"] = _spin_z(2 * math.pi / 3 * t)
         puff = max(0.0, c) ** 8
-        sc = {"ember": (1.0 + 0.2 * puff, 1.0 + 0.7 * puff, 1.0 + 0.2 * puff), "eye": 1.0 + 0.03 * math.sin(2 * w),
+        sc = {"ember": (1.0, 1.0 + 0.9 * puff, 1.0), "eye": 1.0 + 0.03 * math.sin(2 * w),
               "orb": 1.0 + 0.06 * math.sin(4 * w), "furnace": 1.0}
         P.key(_solve2(P, arm, aims, root_off, root_rot, sc), f)
     ra.finish_action(arm, act, WALK_FRAMES, True)
@@ -544,7 +544,7 @@ def enrage(arm):
             Quaternion(V(0, 1, 0), 0.03 * math.sin(w - 0.4) + 0.5 * shud)
         aims["emitter"] = _spin_z(2 * math.pi / 3 * t * 2)
         flare = blast
-        sc = {"ember": (1.0 + 0.5 * flare, 1.0 + 1.6 * flare, 1.0 + 0.5 * flare), "eye": 1.0 + 0.16 * flare + 0.06 * charge,
+        sc = {"ember": (1.0, 1.0 + 2.0 * flare, 1.0), "eye": 1.0 + 0.16 * flare + 0.06 * charge,
               "orb": 1.0 + 0.15 * flare, "furnace": (1.0, 1.0 + 0.25 * flare, 1.0 + 0.25 * flare)}
         P.key(_solve2(P, arm, aims, root_off, root_rot, sc), f)
     ra.finish_action(arm, act, ENRAGE_FRAMES, False)

@@ -143,13 +143,13 @@ MATS = {
 }
 GLOW = {"Visor": (RED_GLOW, 1.5, 0.5), "Core": (FIRE, 1.4, 0.5), "Ember": (EMBER, 1.3, 0.5)}
 
-LOW_TARGETS = {"Chassis": 420, "Hull": 1500, "Turret": 700, "Visor": 50, "Gun": 360, "Boiler": 520, "Bands": 520,
-               "Firebox": 420, "Core": 120, "Funnel": 360, "Ember": 40, "Dome": 280, "Pipes": 220}
+LOW_TARGETS = {"Chassis": 240, "Hull": 850, "Turret": 420, "Visor": 50, "Gun": 200, "Boiler": 300, "Bands": 240,
+               "Firebox": 240, "Core": 100, "Funnel": 220, "Ember": 40, "Dome": 120, "Pipes": 110}
 for s in "LR":
-    LOW_TARGETS.update({"Belt" + s: 520, "Frame" + s: 260, "LugsF" + s: 260, "LugsB" + s: 260, "Idler" + s: 200,
-                        "Sprocket" + s: 260, "Rod" + s: 120, "Piston" + s: 120, "Cylinder" + s: 380})
+    LOW_TARGETS.update({"Belt" + s: 280, "Frame" + s: 120, "LugsF" + s: 140, "LugsB" + s: 140, "Idler" + s: 110,
+                        "Sprocket" + s: 140, "Rod" + s: 90, "Piston" + s: 90, "Cylinder" + s: 180})
     for i in range(3):
-        LOW_TARGETS["Wheel%s%d" % (s, i)] = 200
+        LOW_TARGETS["Wheel%s%d" % (s, i)] = 90
 X_AX = rot_from_axes(z_axis=(1, 0, 0))
 Y_AX = rot_from_axes(z_axis=(0, 1, 0))
 
@@ -268,14 +268,15 @@ def parts(fine=False):
         x1 = xhead_at(s, 0.0)
         u = u_cyl(s)
         f = Field("Rod" + s)
-        f.add(RoundCone(p0, x1, 0.02, 0.017))
-        f.add(Cylinder(p0, 0.03, 0.03, rr=0.008, R=X_AX), k=0.008)                        # big end
-        f.add(Cylinder(x1, 0.024, 0.028, rr=0.007, R=X_AX), k=0.008)                      # small end
+        f.add(RoundBox((p0 + x1) / 2, (0.012, float(np.linalg.norm(x1 - p0)) / 2, 0.026), 0.01,
+                       R=rot_from_axes(x_axis=(1, 0, 0), y_axis=norm(x1 - p0))))
+        f.add(Cylinder(p0, 0.036, 0.034, rr=0.01, R=X_AX), k=0.01)                         # big end
+        f.add(Cylinder(x1, 0.028, 0.032, rr=0.008, R=X_AX), k=0.01)                        # small end
         out.append(("Rod" + s, f, vs, "rod." + s, "chrome"))
         f = Field("Piston" + s)
         Ru = rot_from_axes(z_axis=u, x_axis=(1, 0, 0))
-        f.add(RoundBox(x1 + u * 0.015, (0.026, 0.026, 0.04), 0.01, R=Ru))                   # the crosshead
-        f.add(RoundCone(x1 + u * 0.04, x1 + u * 0.32, 0.013, 0.013), k=0.006)              # the piston rod
+        f.add(RoundBox(x1 + u * 0.015, (0.03, 0.03, 0.045), 0.01, R=Ru))                    # the crosshead
+        f.add(RoundCone(x1 + u * 0.04, x1 + u * 0.32, 0.016, 0.016), k=0.006)              # the piston rod
         out.append(("Piston" + s, f, vs, "piston." + s, "chrome"))
         f = Field("Cylinder" + s)
         cc = crank_centre(s)
@@ -316,7 +317,7 @@ def parts(fine=False):
         f.add(RoundBox((sx * (TX + 0.0), -0.005, 0.428), (TW / 2 + 0.035, 0.545, 0.018), 0.014), k=0.02)   # the guard
         rivet_row(f, (sx * (TX + TW / 2 + 0.025), -0.5, 0.446), (sx * (TX + TW / 2 + 0.025), 0.5, 0.446), 9, 0.009, 0.003)
         _hazard(f, (sx * TX - 0.16, -0.62, 0.36), (sx * TX + 0.16, -0.47, 0.46), w=0.06, d=(1, 0, 0.6))  # guards' fronts
-        f.paint(RoundBox((sx * TX, 0.0, 0.448), (TW / 2 + 0.05, 0.47, 0.004)), 2)        # a seam along each guard
+        f.paint(RoundBox((sx * (TX - 0.02), 0.0, 0.448), (0.004, 0.5, 0.03)), 2)          # a seam along each guard
     # the glacis: hazard stripes along its lower edge, a seam, a red-rimmed hatch; the deck plates, side seams
     _hazard(f, (-0.4, -0.66, 0.4), (0.4, -0.5, 0.525), w=0.065, d=(1, 0, 0.6))
     f.paint(RoundBox((0, -0.5, 0.565), (0.4, 0.2, 0.004)), 2)                           # a seam across the glacis
@@ -429,8 +430,8 @@ def parts(fine=False):
         cc = crank_centre(s)
         top = cc + U_CYL * (CYL_S[0] + CYL_S[1]) / 2 + v3((0, 0, 0.05))
         cb = cc + U_CYL * CYL_S[0]
-        pts = [v3((sx * 0.17, 0.24, BOIL_Z - 0.06)), v3((sx * 0.3, 0.2, 0.66)), v3((sx * 0.4, 0.08, 0.6)),
-               v3((sx * 0.56, -0.02, 0.48)), v3((sx * (XR - 0.01), cb[1] + 0.01, cb[2] + 0.05))]
+        pts = [v3((sx * 0.17, 0.2, BOIL_Z - 0.07)), v3((sx * 0.29, 0.08, 0.655)), v3((sx * 0.4, 0.0, 0.61)),
+               v3((sx * 0.56, -0.06, 0.5)), v3((sx * (XR - 0.01), cb[1] + 0.01, cb[2] + 0.05))]
         for i in range(len(pts) - 1):
             f.add(RoundCone(pts[i], pts[i + 1], 0.017, 0.017), k=0.012)
         f.add(Torus(pts[2], 0.02, 0.008, R=rot_from_axes(z_axis=pts[3] - pts[2])), k=0.003)
