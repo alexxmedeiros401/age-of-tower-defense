@@ -1,0 +1,22 @@
+[
+ {
+  "name": "dk_lab_f1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dk_lab_f1; mkdir -p $O\npython3 decor_build.py -- --theme lab --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dk_lab_f1"
+ },
+ {
+  "name": "dk_sat_f1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dk_sat_f1; mkdir -p $O\npython3 decor_build.py -- --theme satellite --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dk_sat_f1"
+ },
+ {
+  "name": "dk_neon_f1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dk_neon_f1; mkdir -p $O\npython3 decor_build.py -- --theme neon --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dk_neon_f1"
+ },
+ {
+  "name": "dk_city_f1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dk_city_f1; mkdir -p $O\npython3 decor_build.py -- --theme lab_city --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dk_city_f1"
+ }
+]
