@@ -114,7 +114,7 @@ if zf["tunnel"]:
     td, tun_al = g.poly_dist(zf["tunnel"])
     tun = np.exp(-(td / 0.3) ** 2) * np.clip((dist - HALF - 0.1) / 0.1, 0, 1)
 blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore", "trees", "stones", "slag",
-                                         "statue", "building", "tents", "crates", "crater")}
+                                         "statue", "building", "tents", "crates", "crater", "machine", "coal")}
 BLOCKERS = []
 for bl in m.get("blockers", []):
     bx, bz, br = bl[0], bl[1], bl[2]
@@ -182,25 +182,28 @@ SKY = {"meadow": (0.62, 0.74, 0.95), "snow": (0.66, 0.78, 1.0), "volcano": (0.6,
        "desert": (0.72, 0.78, 0.92), "canyon": (0.74, 0.7, 0.72), "highland": (0.62, 0.72, 0.9), "forge": (0.56, 0.42, 0.36),
        "bog": (0.64, 0.72, 0.78), "olive": (0.66, 0.76, 0.95), "coast": (0.64, 0.77, 0.96), "acropolis": (0.66, 0.76, 0.95),
        "farmland": (0.62, 0.74, 0.95), "darkwood": (0.46, 0.56, 0.52), "castle": (0.62, 0.7, 0.86),
-       "jungle": (0.5, 0.62, 0.55), "harbor": (0.64, 0.78, 0.97), "fortress": (0.62, 0.7, 0.86)}[THEME]
+       "jungle": (0.5, 0.62, 0.55), "harbor": (0.64, 0.78, 0.97), "fortress": (0.62, 0.7, 0.86),
+       "factory": (0.6, 0.57, 0.55), "railyard": (0.62, 0.66, 0.72), "smog": (0.6, 0.6, 0.56)}[THEME]
 wd.node_tree.nodes["Background"].inputs["Color"].default_value = SKY + (1,)
 wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1.05, "snow": 1.0, "volcano": 0.8, "delta": 1.05,
                                                                     "desert": 1.0, "canyon": 0.95, "highland": 1.0, "forge": 0.82,
                                                                     "bog": 0.98, "olive": 1.05, "coast": 1.05, "acropolis": 1.05,
                                                                     "farmland": 1.05, "darkwood": 0.85, "castle": 1.0,
-                                                                    "jungle": 0.92, "harbor": 1.05, "fortress": 1.0}[THEME]
+                                                                    "jungle": 0.92, "harbor": 1.05, "fortress": 1.0,
+                                                                    "factory": 0.92, "railyard": 0.98, "smog": 0.95}[THEME]
 # the game's sun: Godot rotation (-52, -36, 0) -> light travelling (0.362, -0.788, -0.498) in Godot = (x, y_b, z_b)
 # (0.362, 0.498, -0.788) in Blender (y_b = -z_godot)
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
 sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6, "highland": 2.6, "forge": 2.3,
                    "bog": 2.5, "olive": 2.8, "coast": 2.75, "acropolis": 2.8, "farmland": 2.75, "darkwood": 2.2, "castle": 2.6,
-                   "jungle": 2.45, "harbor": 2.8, "fortress": 2.6}[THEME]
+                   "jungle": 2.45, "harbor": 2.8, "fortress": 2.6, "factory": 2.4, "railyard": 2.55, "smog": 2.2}[THEME]
 sun.data.angle = math.radians(8)
 sun.data.color = {"meadow": (1.0, 0.95, 0.86), "snow": (1.0, 0.98, 0.96), "volcano": (1.0, 0.75, 0.55), "delta": (1.0, 0.95, 0.86),
                   "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78), "highland": (1.0, 0.95, 0.87), "forge": (1.0, 0.8, 0.62),
                   "bog": (0.98, 0.96, 0.86), "olive": (1.0, 0.95, 0.84), "coast": (1.0, 0.96, 0.88), "acropolis": (1.0, 0.95, 0.85),
                   "farmland": (1.0, 0.95, 0.86), "darkwood": (0.92, 0.96, 0.82), "castle": (1.0, 0.93, 0.84),
-                  "jungle": (1.0, 0.95, 0.8), "harbor": (1.0, 0.96, 0.88), "fortress": (1.0, 0.93, 0.83)}[THEME]
+                  "jungle": (1.0, 0.95, 0.8), "harbor": (1.0, 0.96, 0.88), "fortress": (1.0, 0.93, 0.83),
+                  "factory": (1.0, 0.88, 0.74), "railyard": (1.0, 0.92, 0.8), "smog": (1.0, 0.9, 0.74)}[THEME]
 d = Vector((0.362, 0.498, -0.788))
 sun.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 sc.collection.objects.link(sun)
@@ -512,11 +515,340 @@ if THEME == "fortress":
         gp_c = np.exp(-(wd_ / 0.06) ** 2) * np.clip((dist - HALF - 0.1) / 0.2, 0, 1) * np.clip((fbm(0.7, 3, 223) - 0.3) / 0.15, 0, 1)
     log("fortress: craters", n_cr, "+ blockers; parallels", len(par), [(round(c_[1], 2), round(c_[2], 1), round(c_[3], 1)) for c_ in chosen],
         "saps", len(saps), "rut lines", len(tracks))
-if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor"):
+
+# ------------------------------------------------------------------------------------------------ Industrial Age features
+# IND holds each Industrial theme's own feature masks (they go to the material in mask11..mask14, named per theme below);
+# rc_al / rc_sd are the road's own coordinates (distance along it, signed distance across it), so setts, flags and kerbs
+# follow the road round its bends; TRACKS is the railway (railyard, factory): each track's centre line, its sleepers and
+# rails built in 3D further down; tk_* the distance to the nearest track, along it and across it.
+IND_T = THEME in ("factory", "railyard", "smog")
+IND = {}
+TRACKS = []                # {"pts": N x 2 world (x, z) 0.05 apart, "buf": a buffer stop at its end}
+TURNTABLE = None           # (x, z, radius, the bridge's angle in degrees)
+WALLS = []                 # smog: the yards' low brick walls, runs of (x, z) points
+POOLS = []                 # smog: the dock pools (x, z, half width, half height, corner radius)
+MANHOLES = []
+rc_al = rc_sd = tk_al = tk_sd = np.zeros(X.shape)
+tk_d = np.full(X.shape, 1e9)
+
+
+def _trk(x, z, a_deg, *ops, buf=False, step=0.05):
+    """A track's centre line from (x, z) heading a_deg (0 = +x, 90 = +z), built of ("L", length), ("A", radius, degrees;
+    + turns toward +z when heading +x), ("X", x) / ("Z", z) (straight on until x / z reaches that value)."""
+    a = math.radians(a_deg)
+    pts = [(x, z)]
+    for op in ops:
+        if op[0] in ("L", "X", "Z"):
+            L = op[1] if op[0] == "L" else ((op[1] - x) / math.cos(a) if op[0] == "X" else (op[1] - z) / math.sin(a))
+            n = max(1, int(abs(L) / step))
+            for _ in range(n):
+                x, z = x + math.cos(a) * L / n, z + math.sin(a) * L / n
+                pts.append((x, z))
+        else:
+            R, da = op[1], math.radians(op[2])
+            n = max(2, int(abs(da) * R / step))
+            for _ in range(n):
+                a += da / n / 2
+                x, z = x + math.cos(a) * abs(da) * R / n, z + math.sin(a) * abs(da) * R / n
+                a += da / n / 2
+                pts.append((x, z))
+    TRACKS.append({"pts": np.array(pts), "buf": buf})
+    return x, z
+
+
+def _scurve(R, off):
+    """The angle (degrees) of each of the two arcs of radius R of an S-curve that shifts a track sideways by off."""
+    return math.degrees(math.acos(1 - abs(off) / (2 * R)))
+
+
+def _rrect(cx, cz, hw, hh, rc):
+    """Signed distance to a rounded rectangle (< 0 inside)."""
+    qx, qz = np.abs(X - cx) - (hw - rc), np.abs(Z - cz) - (hh - rc)
+    return np.hypot(np.maximum(qx, 0), np.maximum(qz, 0)) + np.minimum(np.maximum(qx, qz), 0) - rc
+
+
+if IND_T:
+    _rd, rc_al, rc_sd = g.poly_dist(legs, signed=True)
+    rd_hard = np.clip((HALF - dist) / 0.03, 0, 1)                      # the road itself, a crisp edge (no wobble)
+    if THEME in ("factory", "smog"):                                   # (paved roads: straight edges, kerbs)
+        road = rd_hard
+        edge = np.exp(-((dist - HALF) / 0.1) ** 2)
+        rut = np.exp(-((dist - 0.36) / 0.09) ** 2) * road
+    S12 = _scurve(5.0, 1.2)                                            # (sidings 1.2 apart)
+if THEME == "railyard":
+    # the yard: a running line along its top; two goods sidings off it to the crates, a third from the east; a coal road
+    # past two coal heaps to a staithe at the third; a line right across the yard (level crossings over both roads) to a
+    # turntable whose stalls fan out toward the bottom-right corner (for the engine shed); a siding to the crates bottom
+    # left, a dead-end siding along the right edge
+    _trk(-21.5, -7.75, 0, ("X", 19.5))
+    _trk(-6.0, -7.75, 0, ("A", 5.0, S12), ("A", 5.0, -S12), ("X", 6.85), buf=True)
+    _trk(-0.9, -6.55, 0, ("A", 5.0, S12), ("A", 5.0, -S12), ("X", 6.45), buf=True)
+    _trk(15.6, -7.75, 180, ("A", 5.0, -S12), ("A", 5.0, S12), ("X", 9.6), buf=True)
+    _trk(19.5, -4.3, 180, ("X", 9.8), buf=True)
+    _trk(-21.5, -3.6, 0, ("X", -0.62), buf=True)
+    TURNTABLE = (10.6, 4.0, 1.3, 28.0)
+    _trk(-21.5, 4.0, 0, ("X", TURNTABLE[0] - TURNTABLE[2] - 0.02))
+    _trk(-19.6, 4.0, 0, ("A", 5.0, S12), ("A", 5.0, -S12), ("X", -10.9), buf=True)
+    _trk(19.5, 0.1, 180, ("X", 5.7), buf=True)
+    for ang in (-28, 0, 28, 56, 84):
+        ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+        r0 = TURNTABLE[2] + 0.04
+        _trk(TURNTABLE[0] + ca * r0, TURNTABLE[1] + sa * r0, ang, ("L", {84: 3.9, 56: 4.0}.get(ang, 3.6)), buf=True)
+if THEME == "factory":
+    # rail spurs: along the top to the machine, turning down the middle of the second bend; from the east to the
+    # machine's other side; along the bottom to the last mill; from the east between the two mills
+    _trk(-21.5, -7.8, 0, ("X", 5.0), buf=True)
+    _trk(-6.6, -7.8, 0, ("A", 2.6, 90), ("Z", 3.3), buf=True)
+    _trk(19.5, -6.4, 180, ("X", 9.1), buf=True)
+    _trk(-21.5, 7.85, 0, ("X", 10.4), buf=True)
+    _trk(19.5, 4.15, 180, ("X", 10.45), buf=True)
+if TRACKS:
+    tk_d, tk_al, tk_sd = g.poly_dist([t["pts"][::2] for t in TRACKS], margin=1.8, signed=True)
+    log("tracks", len(TRACKS), "length %.1f" % sum(float(np.hypot(*np.diff(t["pts"], axis=0).T).sum()) for t in TRACKS))
+if IND_T:
+    on_road = np.clip((HALF + 0.08 - dist) / 0.06, 0, 1)
+    wob_t = (fbm(0.5, 3, 401) - 0.5) * 0.22
+    IND["ballast"] = np.clip((0.7 + wob_t - tk_d) / 0.08, 0, 1) * (1 - on_road)
+    puddle_n = fbm(1.1, 3, 402) + (fbm(0.25, 2, 403) - 0.5) * 0.08
+    pud_t = lambda q: np.quantile(puddle_n, q)
+if THEME == "factory":
+    # a foundry district's ground: cinder and slag-black earth; patches of cracked flagstones and of cobbles (old yards);
+    # iron floor plates round the machines and in loading bays; brick aprons under the mills; rust stains; oily puddles;
+    # drifts of coke dust; the rail spurs' cinder ballast
+    fr3 = np.random.default_rng(61)
+    off_rd = np.clip((dist - HALF - 0.3) / 0.15, 0, 1)
+    clear = off_rd * np.clip((BLK_ANY - 0.15) / 0.2, 0, 1) * (1 - IND["ballast"])
+    fn1, fn2 = fbm(3.2, 3, 411) + (fbm(0.3, 2, 412) - 0.5) * 0.1, fbm(3.0, 3, 413) + (fbm(0.3, 2, 414) - 0.5) * 0.1
+    IND["flags"] = np.clip((fn1 - np.quantile(fn1, 0.85)) / 0.015, 0, 1) * clear
+    IND["cobble"] = np.clip((fn2 - np.quantile(fn2, 0.87)) / 0.015, 0, 1) * clear * (1 - IND["flags"])
+    plates = np.zeros(X.shape)
+    for (bx, bz, br, kind) in BLOCKERS:              # the machines stand on iron floors (square, on the plate grid)
+        if kind == "machine":
+            h_ = math.ceil((br + 0.2) / 0.35) * 0.35
+            x0_, z0_ = round((bx - h_) / 0.35) * 0.35, round((bz - h_) / 0.35) * 0.35
+            plates = np.maximum(plates, ((X > x0_) & (X < x0_ + 2 * h_) & (Z > z0_) & (Z < z0_ + 2 * h_)).astype(float))
+    n_pl = 0
+    for _ in range(400):                             # loading bays: a few more plate floors, off the roads and spurs
+        if n_pl >= 7:
+            break
+        w_, h_ = fr3.integers(2, 5) * 0.7, fr3.integers(2, 4) * 0.7
+        x0_, z0_ = round(fr3.uniform(-15, 15 - w_) / 0.7) * 0.7, round(fr3.uniform(-8.5, 8.5 - h_) / 0.7) * 0.7
+        sub = (X > x0_ - 0.4) & (X < x0_ + w_ + 0.4) & (Z > z0_ - 0.4) & (Z < z0_ + h_ + 0.4)
+        if dist[sub].min() < HALF + 0.35 or tk_d[sub].min() < 0.75 or BLK_ANY[sub].min() < 0.1 or plates[sub].max() > 0:
+            continue
+        plates = np.maximum(plates, ((X > x0_) & (X < x0_ + w_) & (Z > z0_) & (Z < z0_ + h_)).astype(float))
+        n_pl += 1
+    IND["plates"] = plates * (1 - on_road)
+    IND["flags"] *= 1 - plates
+    IND["cobble"] *= 1 - plates
+    apron = np.zeros(X.shape)
+    for (bx, bz, br, kind) in BLOCKERS:              # brick aprons round the mills (a rounded square inside the zone)
+        if kind == "building":
+            apron = np.maximum(apron, np.clip(-_rrect(bx, bz, br * 0.84 + 0.12, br * 0.84 + 0.12, 0.45) / 0.03, 0, 1))
+    IND["apron"] = apron * (1 - on_road)
+    IND["puddle"] = np.clip((pud_t(0.035) - puddle_n) / 0.02, 0, 1) * (1 - IND["ballast"]) * (1 - apron) * np.clip(BLK_ANY / 0.2, 0, 1)
+    IND["rust"] = np.clip((fbm(0.7, 3, 415) - 0.56) / 0.1, 0, 1)
+    IND["slag"] = np.clip((fbm(1.2, 4, 416) - 0.64) / 0.04, 0, 1) * off_rd * (1 - plates) * (1 - apron)
+    IND["coke"] = np.clip((fbm(0.9, 3, 417) - 0.6) / 0.08, 0, 1) * (1 - on_road)
+    for (bx, bz, br, kind) in BLOCKERS:              # coke and soot dust round the machines
+        if kind == "machine":
+            IND["coke"] = np.maximum(IND["coke"], np.clip((1.2 + (fbm(0.4, 2, 418) - 0.5) * 0.8 - blk["machine"]) / 0.8, 0, 1) * (1 - plates) * (1 - on_road))
+    log("factory: plate bays", n_pl, "flags px", int((IND["flags"] > 0.5).sum()), "cobble px", int((IND["cobble"] > 0.5).sum()),
+        "puddle px", int((IND["puddle"] > 0.5).sum()))
+if THEME == "railyard":
+    tt = TURNTABLE
+    dtt = np.hypot(X - tt[0], Z - tt[1])
+    IND["pit"] = np.clip((tt[2] - dtt) / 0.03, 0, 1)
+    IND["coping"] = np.clip((tt[2] + 0.16 - dtt) / 0.03, 0, 1) * (1 - IND["pit"])
+    IND["ballast"] *= 1 - np.clip((tt[2] + 0.12 - dtt) / 0.05, 0, 1)
+    IND["xing"] = road * np.clip((0.6 - tk_d) / 0.03, 0, 1)                            # the level crossings' boards
+    IND["tt_u"] = (np.arctan2(Z - tt[1], X - tt[0]) / (2 * math.pi) + 0.5) * 24       # (the coping's 24 stones)
+    coal = np.clip((fbm(1.0, 3, 421) - 0.64) / 0.08, 0, 1) * 0.6
+    for (bx, bz, br, kind) in BLOCKERS:
+        if kind == "coal":
+            coal = np.maximum(coal, np.clip((1.05 + (fbm(0.35, 2, 422) - 0.5) * 0.9 - blk["coal"]) / 0.7, 0, 1))
+    IND["coal"] = coal * (1 - rd_hard) * (1 - IND["pit"])
+    pads = np.zeros(X.shape)
+    for (bx, bz, br, kind) in BLOCKERS:              # the goods platforms under the crates: flagged, kerbed with stone
+        if kind == "crates":
+            pads = np.maximum(pads, np.clip(-_rrect(bx, bz, br * 0.86, br * 0.8, 0.3) / 0.2, 0, 1))
+    IND["pads"] = pads
+    IND["weeds"] = np.clip((fbm(0.9, 4, 423) - 0.56) / 0.12, 0, 1)
+    IND["drip"] = np.exp(-(tk_sd / 0.07) ** 2) * IND["ballast"]                          # oil dripped down the track's middle
+    IND["puddle"] = np.clip((pud_t(0.08) - puddle_n) / 0.02, 0, 1) * np.clip((rut * 1.2 + 0.4) * rd_hard, 0, 1) * (1 - IND["xing"])
+    log("railyard: ballast px", int((IND["ballast"] > 0.5).sum()), "crossing px", int((IND["xing"] > 0.5).sum()))
+if THEME == "smog":
+    # a smog-choked Victorian city: the streets' carriageways of setts between granite kerbs and flagged pavements; the
+    # ground between them cut into little yards (flagged, cobbled, brick-paved, bare earth, cinder waste ground) by low
+    # brick walls, back lanes between some of them; dock pools (the lake zones) edged with coping stones in a quay
+    sr = np.random.default_rng(53)
+    RL = []                                          # the streets' straight runs: (axis, value, lo, hi)
+    for sp in specs:
+        P_ = sp["pts"]
+        for (a0, b0), (a1, b1) in zip(P_[:-1], P_[1:]):
+            if abs(a0 - a1) < 1e-6 and abs(b1 - b0) > 0.3:
+                RL.append((0, a0, min(b0, b1), max(b0, b1)))
+            elif abs(b0 - b1) < 1e-6 and abs(a1 - a0) > 0.3:
+                RL.append((1, b0, min(a0, a1), max(a0, a1)))
+    LEAVES = []
+
+    def _split(x0, z0, x1, z1, depth):
+        w, h = x1 - x0, z1 - z0
+        if max(w, h) < 2.3 or (max(w, h) < 3.6 and sr.random() < 0.4):
+            LEAVES.append((x0, z0, x1, z1, 0))
+            return
+        axes = [0, 1] if abs(w - h) < 0.8 else ([0] if w > h else [1])
+        for ax in sr.permutation(axes):
+            lo, hi = (x0, x1) if ax == 0 else (z0, z1)
+            plo, phi = (z0, z1) if ax == 0 else (x0, x1)
+            cands = sorted((-(min(hg, phi) - max(l, plo)), v) for (a, v, l, hg) in RL
+                           if a == ax and lo + 0.9 < v < hi - 0.9 and min(hg, phi) - max(l, plo) > min(1.6, 0.45 * (phi - plo)))
+            if cands:                               # a street runs along here: split the block on its centre line
+                s, lane = cands[0][1], False
+                break
+            s = None
+            for _ in range(40 if hi - lo > 2.4 else 0):
+                q = sr.uniform(lo + 1.1, hi - 1.1)
+                if all(abs(q - v) > HALF + 1.2 for (a, v, l, hg) in RL if a == ax and min(hg, phi) > max(l, plo) - 0.5):
+                    s = q
+                    break
+            if s is not None:
+                lane = depth <= 4 and phi - plo > 2.6 and sr.random() < 0.5
+                break
+        else:
+            LEAVES.append((x0, z0, x1, z1, 0))
+            return
+        if s is None:
+            LEAVES.append((x0, z0, x1, z1, 0))
+            return
+        lw = 0.22 if lane else 0.0
+        if ax == 0:
+            _split(x0, z0, s - lw, z1, depth + 1)
+            if lane:
+                LEAVES.append((s - lw, z0, s + lw, z1, 1))
+            _split(s + lw, z0, x1, z1, depth + 1)
+        else:
+            _split(x0, z0, x1, s - lw, depth + 1)
+            if lane:
+                LEAVES.append((x0, s - lw, x1, s + lw, 1))
+            _split(x0, s + lw, x1, z1, depth + 1)
+
+    _split(G.X0, G.Z0, G.X0 + G.W, G.Z0 + G.H, 0)
+    # the dock pools in the lake zones: rounded rectangles of water inside a ring of coping stones, all inside the zone
+    lakes = [(bx, bz, br) for (bx, bz, br, kind) in BLOCKERS if kind == "lake"]
+    pool_d = np.full(X.shape, 1e9)
+    cope_u = np.zeros(X.shape)
+    for k, (bx, bz, br) in enumerate(lakes):
+        hw, hh = (0.84 * br, 0.74 * br) if k % 2 == 0 else (0.74 * br, 0.84 * br)
+        POOLS.append((bx, bz, hw, hh, 0.36 * br))
+        d_ = _rrect(bx, bz, hw, hh, 0.36 * br)
+        side_x = np.abs(X - bx) / hw > np.abs(Z - bz) / hh          # (nearer a side that runs along z)
+        cope_u = np.where(d_ < pool_d, np.where(side_x, Z, X), cope_u)
+        pool_d = np.minimum(pool_d, d_)
+    in_dock = lambda x0, z0, x1, z1: any(max(x0 - bx, 0, bx - x1) ** 2 + max(z0 - bz, 0, bz - z1) ** 2 < (br + 1.6) ** 2 for (bx, bz, br) in lakes)
+    kinds = np.zeros(X.shape, np.int8)               # 0 flags, 1 cobbles, 2 cinder waste, 3 brick, 4 earth, 5 quay setts, 9 lane
+    pid = np.zeros(X.shape, np.float32)
+    lane_c = np.zeros(X.shape)
+    for (x0, z0, x1, z1, is_lane) in LEAVES:
+        j0, j1 = int(round((x0 - G.X0) * MPX)), int(round((x1 - G.X0) * MPX))
+        i0, i1 = int(round((z0 - G.Z0) * MPX)), int(round((z1 - G.Z0) * MPX))
+        if is_lane:
+            kinds[i0:i1, j0:j1] = 9
+            if x1 - x0 < z1 - z0:
+                lane_c[i0:i1, j0:j1] = np.clip(1 - np.abs(X[i0:i1, j0:j1] - (x0 + x1) / 2) / 0.22, 0, 1)
+            else:
+                lane_c[i0:i1, j0:j1] = np.clip(1 - np.abs(Z[i0:i1, j0:j1] - (z0 + z1) / 2) / 0.22, 0, 1)
+            continue
+        kinds[i0:i1, j0:j1] = 5 if in_dock(x0, z0, x1, z1) else sr.choice([0, 1, 2, 3, 4], p=[0.27, 0.22, 0.2, 0.14, 0.17])
+        pid[i0:i1, j0:j1] = sr.random()
+    # walls: each leaf's left and top edges (every inner border is one of those), not along a lane's ends, broken off at
+    # the pavements, the docks and here and there
+    segs = []
+    for (x0, z0, x1, z1, is_lane) in LEAVES:
+        long_x = (x1 - x0) > (z1 - z0)
+        if x0 > G.X0 + 0.01 and not (is_lane and long_x):
+            segs.append(((x0, z0), (x0, z1)))
+        if z0 > G.Z0 + 0.01 and not (is_lane and not long_x):
+            segs.append(((x0, z0), (x1, z0)))
+    lake_far = np.min([np.hypot(X - bx, Z - bz) - br for (bx, bz, br) in lakes], axis=0) if lakes else np.full(X.shape, 1e9)
+    gap_n = fbm(0.6, 2, 431)
+    for (a_, b_) in segs:
+        L_ = math.hypot(b_[0] - a_[0], b_[1] - a_[1])
+        n_ = max(2, int(L_ / 0.05))
+        run = []
+        for t_ in np.linspace(0, 1, n_):
+            x_, z_ = a_[0] + (b_[0] - a_[0]) * t_, a_[1] + (b_[1] - a_[1]) * t_
+            ok_ = (_in_tex(x_, z_, 0.1) and _at(dist, x_, z_) > HALF + 0.56 and _at(lake_far, x_, z_) > 1.9 and _at(gap_n, x_, z_) > 0.3)
+            if ok_:
+                run.append((x_, z_))
+            elif len(run) > 3:
+                WALLS.append(run)
+                run = []
+            else:
+                run = []
+        if len(run) > 3:
+            WALLS.append(run)
+    wall_d = g.poly_dist(WALLS, margin=0.5)[0] if WALLS else np.full(X.shape, 1e9)
+    street = np.clip((HALF + 0.5 - dist) / 0.03, 0, 1)                     # carriageway and pavement
+    pave = street * (1 - rd_hard)
+    IND["kerb"] = np.clip(1 - np.abs(dist - HALF - 0.04) / 0.055, 0, 1)
+    IND["pave"] = pave
+    IND["gutter"] = rd_hard * np.clip(1 - np.abs(dist - (HALF - 0.1)) / 0.07, 0, 1)
+    gph = np.abs((rc_al % 2.7) - 1.35)
+    IND["grate"] = ((gph < 0.15) & (dist > HALF - 0.22) & (dist < HALF - 0.02)).astype(float)
+    IND["lane"] = lane_c * (1 - street)
+    lane_any = (kinds == 9) * (1 - street)
+    for k_, nm in enumerate(("y_flags", "y_cobble", "y_waste", "y_brick", "y_earth", "y_quay")):
+        IND[nm] = (kinds == k_) * (1 - street) * (1 - lane_any)
+    IND["pid"] = pid
+    IND["wall"] = np.clip((0.09 - wall_d) / 0.03, 0, 1)
+    IND["water"] = np.clip(-(pool_d + 0.14) / 0.03, 0, 1)
+    IND["coping"] = np.clip(-pool_d / 0.03, 0, 1) * (1 - IND["water"])
+    IND["cope_u"] = cope_u
+    quay = np.clip(-(lake_far - 0.15) / 0.05, 0, 1) * (1 - IND["coping"]) * (1 - IND["water"])
+    IND["y_quay"] = np.maximum(IND["y_quay"], quay * (1 - street))
+    for k_ in ("y_flags", "y_cobble", "y_waste", "y_brick", "y_earth"):
+        IND[k_] = IND[k_] * (1 - quay) * np.clip(pool_d / 0.03, 0, 1)
+    # manhole covers: down the middle of the streets now and then, a few in the yards
+    mh = np.zeros(X.shape)
+    for lg in legs:
+        P_ = np.asarray(lg, np.float64)
+        cum = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P_, axis=0).T))])
+        for s_ in np.arange(sr.uniform(1.5, 4.0), cum[-1] - 1.0, 6.3):
+            cx_, cz_ = np.interp(s_, cum, P_[:, 0]), np.interp(s_, cum, P_[:, 1])
+            if _in_tex(cx_, cz_, 1.0):
+                MANHOLES.append((cx_ + sr.uniform(-0.25, 0.25), cz_ + sr.uniform(-0.25, 0.25), 0.15))
+    for _ in range(14):
+        x_, z_ = sr.uniform(-15, 15), sr.uniform(-8.5, 8.5)
+        if _at(dist, x_, z_) > HALF + 0.8 and _at(BLK_ANY, x_, z_) > 0.4 and _at(wall_d, x_, z_) > 0.4:
+            MANHOLES.append((x_, z_, 0.12))
+    for (mx_, mz_, mr_) in MANHOLES:
+        mh = np.maximum(mh, np.clip(1 - np.hypot(X - mx_, Z - mz_) / mr_, 0, 1))
+    IND["manhole"] = mh
+    IND["puddle"] = np.clip((pud_t(0.05) - puddle_n) / 0.02, 0, 1) * (1 - IND["water"]) * (1 - IND["coping"]) * (1 - mh) * \
+        np.clip(1 - IND["kerb"] * 2, 0, 1) * (rd_hard * np.clip(1 - np.abs(dist - HALF + 0.12) / 0.3, 0, 1) * 1.4 +
+                                             (1 - street) * (IND["y_flags"] + IND["y_cobble"] + IND["y_earth"]) * 0.8)
+    IND["puddle"] = np.clip(IND["puddle"], 0, 1)
+    IND["soot"] = np.clip((fbm(0.8, 4, 432) - 0.5) / 0.15, 0, 1)
+    log("smog: plots", len(LEAVES), "lanes", sum(l[4] for l in LEAVES), "wall runs", len(WALLS), "pools", len(POOLS),
+        "manholes", len(MANHOLES))
+if arg("--maskdump"):                    # quick look at the masks (no render): python3 map_ground_hq.py MAP --maskdump DIR
+    from PIL import Image as _Im
+    os.makedirs(arg("--maskdump"), exist_ok=True)
+    for k_, v_ in list(IND.items()) + [("road", road), ("tk_d", np.clip(1 - tk_d / 2, 0, 1)), ("outside", outside)]:
+        v_ = np.asarray(v_, np.float64)
+        if v_.max() > 1.01 or v_.min() < -0.01:
+            v_ = (v_ - v_.min()) / max(1e-6, v_.max() - v_.min())
+        _Im.fromarray((np.clip(v_, 0, 1) * 255).astype(np.uint8)).save(os.path.join(arg("--maskdump"), k_ + ".png"))
+    log("masks dumped ->", arg("--maskdump"))
+    sys.exit(0)
+if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor", "smog"):
     from PIL import Image as _Im
     _w = np.maximum(np.clip(-riv / 0.12, 0, 1), np.clip(-blk["lake"] / 0.15, 0, 1))
     if THEME == "harbor":
         _w = _w * (1 - gp_b)                  # (not under the plank decks: the planks don't ripple)
+    if THEME == "smog":
+        _w = IND["water"]                     # (the dock pools inside their coping, not the whole lake zone)
     _Im.fromarray((np.clip(_w, 0, 1) * 255).astype(np.uint8)).save(arg("--watersrc"))
     log("water source ->", arg("--watersrc"))
 
@@ -631,6 +963,22 @@ if THEME == "fortress":
     hf += gp_b * 0.07                                                                               # their spoil heaps
     hf -= gp_c * 0.014                                                                              # wheel ruts across the field
     hf -= rut * 0.012                                                                               # (deeper in the military roads)
+if THEME == "factory":
+    hf += (fbm(0.6, 3, 441) - 0.5) * 0.04 * (1 - road) + (fbm(0.2, 2, 442) - 0.5) * 0.012 * (1 - road)   # lumpy cinder
+    hf += IND["slag"] * (0.012 + (fbm(0.22, 2, 443) - 0.5) * 0.04)                                      # slag crusts
+    hf += IND["plates"] * 0.012 + (IND["flags"] + IND["cobble"]) * 0.006 + IND["apron"] * 0.014
+    hf -= IND["puddle"] * 0.012
+    hf += np.clip((0.95 - tk_d) / 0.4, 0, 1) * 0.025 * (1 - on_road)                                    # the spurs' ballast
+if THEME == "railyard":
+    hf += (fbm(0.5, 3, 451) - 0.5) * 0.03 * (1 - road)
+    hf += np.clip((0.95 - tk_d + wob_t * 0.5) / 0.35, 0, 1) ** 0.8 * 0.035 * (1 - on_road)             # the ballast beds
+    hf += np.clip(IND["pads"] / 0.15, 0, 1) * 0.03                                                       # goods platforms
+    hf = np.where(IND["pit"] > 0.5, -0.11, hf) + IND["coping"] * 0.012                                  # the turntable pit
+if THEME == "smog":
+    hf += rut * 0.017                                                                                   # (setts: hardly rutted)
+    hf += (fbm(0.5, 3, 461) - 0.5) * 0.025 * (IND["y_waste"] + IND["y_earth"])                           # waste ground
+    hf -= IND["puddle"] * 0.008 + IND["gutter"] * 0.008
+    hf = np.where(IND["water"] > 0.5, -0.09, hf) + IND["coping"] * 0.014                                # the dock pools
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
 H_MESH = sample(hf, MX, MZ)
@@ -706,6 +1054,17 @@ img6 = to_image("mask6", np.stack([fld_wheat, fld_plough, fld_stripe, hedge], 2)
 img7 = to_image("mask7", np.stack([fld_hay, fld_barley, crater, crater_rim], 2))
 img8 = to_image("mask8", np.stack([gp_a, gp_b, gp_c, gp_d], 2))
 img9 = to_image("mask9", np.stack([gp_e, gp_f, gp_g, gp_h], 2))
+# Industrial Age: the road's and the tracks' own coordinates, then each theme's feature masks four to an image
+img10 = to_image("mask10", np.stack([rc_al, rc_sd, tk_al, tk_sd], 2))
+INDN = {"factory": ["flags", "cobble", "plates", "puddle", "rust", "slag", "apron", "ballast", "coke"],
+        "railyard": ["ballast", "xing", "coal", "pit", "coping", "pads", "weeds", "drip", "puddle", "tt_u"],
+        "smog": ["y_flags", "y_cobble", "y_waste", "y_brick", "y_earth", "y_quay", "lane", "wall", "pave", "kerb", "gutter", "grate",
+                 "water", "coping", "cope_u", "manhole", "puddle", "soot", "pid"]}.get(THEME, [])
+IND_IMGS = []
+for k_ in range(0, len(INDN), 4):
+    grp = INDN[k_:k_ + 4]
+    IND_IMGS.append((grp, to_image("ind%d" % k_, np.stack([np.asarray(IND[n_], np.float64) for n_ in grp] +
+                                                          [np.zeros(X.shape)] * (4 - len(grp)), 2))))
 
 
 # ------------------------------------------------------------------------------------------------ ground material
@@ -797,6 +1156,77 @@ class NB:
                 self.link(v, s_)
         return [s for s in nd.outputs if s.type == "VALUE"][0]
 
+    def vec(self, x, y, z=0.0):
+        nd = self.n("ShaderNodeCombineXYZ")
+        for i, v in enumerate((x, y, z)):
+            if isinstance(v, (int, float)):
+                nd.inputs[i].default_value = v
+            else:
+                self.link(v, nd.inputs[i])
+        return nd.outputs[0]
+
+    def xyz(self):
+        """Object coordinates as (x, y) sockets (y = -world z)."""
+        sp = self.n("ShaderNodeSeparateXYZ")
+        self.link(self.uvn.outputs["Object"], sp.inputs[0])
+        return sp.outputs[0], sp.outputs[1]
+
+    def brick(self, vec, w, h, mortar=0.012, smooth=0.2, offset=0.5, freq=2):
+        """Bricks, setts, flags or plates on the coordinates vec (x across a brick's width, y across its rows): returns
+        (the joints, 1 in the mortar; a random value per brick in 0..1)."""
+        nd = self.n("ShaderNodeTexBrick", offset=offset, offset_frequency=freq)
+        nd.inputs["Color1"].default_value = (0.0, 0.0, 0.0, 1.0)
+        nd.inputs["Color2"].default_value = (1.0, 1.0, 1.0, 1.0)
+        nd.inputs["Mortar"].default_value = (0.5, 0.5, 0.5, 1.0)
+        nd.inputs["Scale"].default_value = 1.0
+        nd.inputs["Mortar Size"].default_value = mortar
+        nd.inputs["Mortar Smooth"].default_value = smooth
+        nd.inputs["Bias"].default_value = 0.0
+        nd.inputs["Brick Width"].default_value = w
+        nd.inputs["Row Height"].default_value = h
+        self.link(vec, nd.inputs["Vector"])
+        sep = self.n("ShaderNodeSeparateColor")
+        self.link(nd.outputs["Color"], sep.inputs["Color"])
+        return nd.outputs["Fac"], sep.outputs["Red"]
+
+    def cramp(self, x, stops):
+        """A colour ramp: stops [(position, colour)...]."""
+        nd = self.n("ShaderNodeValToRGB")
+        els = nd.color_ramp.elements
+        els[0].position, els[0].color = stops[0][0], lin(stops[0][1])
+        els[1].position, els[1].color = stops[-1][0], lin(stops[-1][1])
+        for p_, col in stops[1:-1]:
+            e = els.new(p_)
+            e.color = lin(col)
+        self.link(x, nd.inputs["Fac"])
+        return nd.outputs["Color"]
+
+    def noise_v(self, vec, scale, detail=3.0, rough=0.55):
+        nd = self.n("ShaderNodeTexNoise")
+        nd.inputs["Scale"].default_value = scale
+        nd.inputs["Detail"].default_value = detail
+        nd.inputs["Roughness"].default_value = rough
+        self.link(vec, nd.inputs["Vector"])
+        return nd.outputs["Fac"]
+
+    def voronoi_v(self, vec, scale, out="Distance", feature="F1"):
+        nd = self.n("ShaderNodeTexVoronoi", feature=feature)
+        nd.inputs["Scale"].default_value = scale
+        self.link(vec, nd.inputs["Vector"])
+        return nd.outputs[out]
+
+    def seam(self, v, p):
+        """Distance from v to the nearest multiple of p."""
+        f = self.math("FRACT", self.math("DIVIDE", v, p))
+        return self.math("MULTIPLY", self.math("SUBTRACT", 0.5, self.math("ABSOLUTE", self.math("SUBTRACT", f, 0.5))), p)
+
+    def dots(self, u, v, pu, pv, off, r):
+        """Bolt heads: 1 in a dot of radius r set in by off from each corner of a pu x pv grid on (u, v)."""
+        du = self.math("SUBTRACT", self.seam(u, pu), off)
+        dv = self.math("SUBTRACT", self.seam(v, pv), off)
+        d = self.math("SQRT", self.math("ADD", self.math("MULTIPLY", du, du), self.math("MULTIPLY", dv, dv)))
+        return self.ramp(d, r, r * 0.6)
+
 
 nb = NB("GroundMat")
 road_m, edge_m, rut_m, out_m = nb.tex(img1)
@@ -808,6 +1238,12 @@ wheat_m, plough_m, stripe_m, hedge_m = nb.tex(img6)
 hay_m, barley_m, crater_m, rim_m = nb.tex(img7)
 gpa_m, gpb_m, gpc_m, gpd_m = nb.tex(img8)
 gpe_m, gpf_m, gpg_m, gph_m = nb.tex(img9)
+I = {}                                   # Industrial Age: the theme's feature masks by name
+if IND_T:
+    ral, rsd, tal, tsd = nb.tex(img10)
+    for grp, im_ in IND_IMGS:
+        for n_, o_ in zip(grp, nb.tex(im_)):
+            I[n_] = o_
 big = nb.noise(0.35, 4, 0.6)
 mid = nb.noise(1.6, 4, 0.6)
 fine = nb.noise(14.0, 2, 0.5)
@@ -1312,6 +1748,276 @@ elif THEME == "fortress":
     c = nb.mix(road_m, c, grav)
     rough = 0.9
     bump_h = nb.math("MULTIPLY", road_m, nb.math("MULTIPLY", nb.ramp(peb, 0.24, 0.1), 0.6))
+elif THEME == "factory":
+    # a foundry district: cinder and slag-black earth, ash grains and black clinker in it, rusty patches; old yards of
+    # cracked flagstones and of cobbles; riveted iron floor plates round the machines and in loading bays; brick aprons
+    # round the mills; oily puddles; coke dust; the rail spurs' cinder ballast. The roads granite setts edged with a
+    # course of long stones, the fast lanes laid with worn riveted steel plates
+    obj = nb.uvn.outputs["Object"]
+    ox_, oy_ = nb.xyz()
+    c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.14, 0.125, 0.115), (0.21, 0.185, 0.165))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.5), c, (0.27, 0.19, 0.13))                 # browner, rusty earth
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(34.0, "Distance"), 0.24, 0.07), 0.4), c, (0.36, 0.33, 0.3))   # ash grains
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(15.0, "Color"), 0.8, 0.97), 0.55), c, (0.06, 0.055, 0.05))    # black clinker
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.11, 0.1, 0.095), (0.16, 0.145, 0.13)))
+    c = nb.mix(nb.math("MULTIPLY", I["coke"], 0.75), c, nb.mix(nb.ramp(fine, 0.3, 0.7), (0.045, 0.045, 0.045), (0.1, 0.095, 0.09)))
+    slagc = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.04, 0.045, 0.05), (0.09, 0.1, 0.11))
+    slagc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 2, 0.5, distort=1.5), 0.62, 0.72), 0.55), slagc, (0.13, 0.19, 0.21))
+    c = nb.mix(nb.math("MULTIPLY", I["slag"], 0.92), c, slagc)                                            # glassy slag crusts
+    rustc = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.34, 0.16, 0.07), (0.5, 0.27, 0.11))
+    c = nb.mix(nb.math("MULTIPLY", I["rust"], 0.5), c, rustc)
+    # old yards: big flagstones (some cracked, a few gone), cobbles; soot ground into both
+    fj, fr_ = nb.brick(obj, 0.62, 0.44, 0.013, 0.15)
+    fl = nb.mix(fr_, (0.34, 0.31, 0.27), (0.48, 0.44, 0.38))
+    fl = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(4.0, 3, 0.6), 0.5, 0.75), 0.55), fl, (0.17, 0.155, 0.14))
+    fl = nb.mix(nb.math("MULTIPLY", I["rust"], 0.35), fl, (0.42, 0.25, 0.14))
+    crack = nb.math("MULTIPLY", nb.ramp(nb.voronoi(3.4, "Distance", "DISTANCE_TO_EDGE"), 0.012, 0.0), nb.ramp(fr_, 0.5, 0.62))
+    fl = nb.mix(nb.math("MAXIMUM", fj, crack), fl, (0.07, 0.065, 0.06))
+    flm = nb.math("MULTIPLY", I["flags"], nb.ramp(fr_, 0.05, 0.08))                                      # (a few flags gone)
+    c = nb.mix(flm, c, fl)
+    cbd = nb.voronoi(9.5, "Distance", "DISTANCE_TO_EDGE")
+    cob = nb.mix(nb.ramp(nb.voronoi(9.5, "Color"), 0.2, 0.8), (0.28, 0.27, 0.26), (0.44, 0.42, 0.39))
+    cob = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.5, 0.75), 0.5), cob, (0.16, 0.15, 0.14))
+    cob = nb.mix(nb.ramp(cbd, 0.06, 0.015), cob, (0.06, 0.055, 0.05))
+    c = nb.mix(I["cobble"], c, cob)
+    # iron floor plates: a grid of 0.7 plates, each its own shade, rust blooms on some, oil stains, a tread of lozenges,
+    # dark seams, a bolt near each corner
+    pj, prd = nb.brick(obj, 0.7, 0.7, 0.01, 0.1, offset=0.0, freq=1)
+    plc = nb.mix(prd, (0.16, 0.16, 0.17), (0.27, 0.27, 0.28))
+    bloom = nb.math("MULTIPLY", nb.ramp(prd, 0.55, 0.85), nb.ramp(nb.noise(6.0, 3, 0.6), 0.4, 0.65))
+    plc = nb.mix(nb.math("MULTIPLY", bloom, 0.85), plc, (0.4, 0.2, 0.09))
+    plc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.5, 3, 0.6), 0.6, 0.72), 0.6), plc, (0.06, 0.06, 0.065))
+    tread = nb.ramp(nb.math("ABSOLUTE", nb.math("MULTIPLY", nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 52.0)),
+                                                     nb.math("SINE", nb.math("MULTIPLY", nb.math("SUBTRACT", ox_, oy_), 52.0)))), 0.72, 0.95)
+    plc = nb.mix(nb.math("MULTIPLY", tread, 0.22), plc, (0.38, 0.38, 0.39))
+    plc = nb.mix(pj, plc, (0.04, 0.04, 0.045))
+    bolts = nb.dots(ox_, oy_, 0.7, 0.7, 0.07, 0.022)
+    plc = nb.mix(bolts, plc, (0.44, 0.42, 0.4))
+    c = nb.mix(I["plates"], c, plc)
+    # brick aprons round the mills, sooty
+    aj, ar = nb.brick(obj, 0.24, 0.08, 0.008, 0.2)
+    apc = nb.mix(ar, (0.29, 0.15, 0.1), (0.43, 0.22, 0.14))
+    apc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.45, 0.7), 0.6), apc, (0.14, 0.1, 0.085))
+    apc = nb.mix(aj, apc, (0.11, 0.095, 0.085))
+    c = nb.mix(I["apron"], c, apc)
+    # the spurs' ballast: cinder and broken stone
+    bsd = nb.voronoi(30.0, "Distance", "DISTANCE_TO_EDGE")
+    bal = nb.mix(nb.ramp(nb.voronoi(30.0, "Color"), 0.2, 0.8), (0.19, 0.18, 0.17), (0.33, 0.31, 0.29))
+    bal = nb.mix(nb.ramp(bsd, 0.05, 0.01), bal, (0.06, 0.055, 0.05))
+    bal = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", tsd), 0.14, 0.04), 0.5), bal, (0.08, 0.07, 0.065))   # oil drips
+    c = nb.mix(I["ballast"], c, bal)
+    # oily puddles: wet dark earth round them, black water with a rainbow sheen of oil on it
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.6), c, (0.07, 0.065, 0.06))
+    film = nb.cramp(nb.noise(1.3, 3, 0.6, distort=2.0), [(0.0, (0.07, 0.07, 0.08)), (0.38, (0.3, 0.16, 0.36)), (0.48, (0.12, 0.34, 0.34)),
+                                                         (0.58, (0.42, 0.36, 0.1)), (0.7, (0.07, 0.07, 0.08)), (1.0, (0.06, 0.06, 0.07))])
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), 0.55), (0.05, 0.055, 0.06), film)
+    pmask = nb.ramp(I["puddle"], 0.45, 0.6)
+    c = nb.mix(pmask, c, pud)
+    # the roads: granite setts in courses across the road, polished where the wheels run, sooty toward the edges, a
+    # course of long edge stones each side
+    rvec = nb.vec(rsd, ral)
+    sj, sr_ = nb.brick(rvec, 0.21, 0.115, 0.014, 0.35)
+    ars = nb.math("ABSOLUTE", rsd)
+    st = nb.mix(sr_, (0.37, 0.37, 0.39), (0.53, 0.52, 0.52))
+    st = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(30.0, 2, 0.5), 0.55, 0.75), 0.3), st, (0.62, 0.6, 0.58))
+    st = nb.mix(nb.math("MULTIPLY", rut_m, 0.4), st, (0.58, 0.58, 0.58))
+    st = nb.mix(nb.math("MULTIPLY", nb.ramp(ars, HALF - 0.45, HALF - 0.05), 0.45), st, (0.2, 0.19, 0.18))
+    kj, kr = nb.brick(nb.vec(ral, ars), 0.42, 10.0, 0.014, 0.3, offset=0.0, freq=1)
+    kst = nb.mix(kr, (0.42, 0.41, 0.4), (0.55, 0.54, 0.52))
+    kst = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(4.0, 3, 0.6), 0.5, 0.75), 0.45), kst, (0.24, 0.23, 0.22))
+    kmask = nb.ramp(ars, HALF - 0.17, HALF - 0.15)
+    st = nb.mix(kmask, st, kst)
+    sjo = nb.math("MAXIMUM", nb.mixf(kmask, sj, kj), nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", ars, HALF - 0.16)), 0.014, 0.004))
+    st = nb.mix(sjo, st, (0.09, 0.085, 0.08))
+    # the fast lanes: steel plates right across the road (two to a width), worn bright, rust at their seams, bolted
+    lu = nb.math("ADD", rsd, HALF)
+    lj, lr = nb.brick(nb.vec(lu, ral), HALF, 0.8, 0.012, 0.1, offset=0.0, freq=1)
+    lc = nb.mix(lr, (0.34, 0.35, 0.37), (0.47, 0.47, 0.49))
+    lc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("MINIMUM", nb.seam(lu, HALF), nb.seam(ral, 0.8)), 0.09, 0.02), 0.6), lc, (0.38, 0.2, 0.1))
+    ltr = nb.ramp(nb.math("ABSOLUTE", nb.math("MULTIPLY", nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", lu, ral), 52.0)),
+                                                   nb.math("SINE", nb.math("MULTIPLY", nb.math("SUBTRACT", lu, ral), 52.0)))), 0.72, 0.95)
+    lc = nb.mix(nb.math("MULTIPLY", ltr, 0.25), lc, (0.56, 0.56, 0.57))
+    lc = nb.mix(lj, lc, (0.06, 0.06, 0.065))
+    lc = nb.mix(nb.dots(lu, ral, HALF, 0.8, 0.07, 0.024), lc, (0.62, 0.6, 0.56))
+    st = nb.mix(lane_m, st, lc)
+    st = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.45, 0.6), nb.math("SUBTRACT", 1.0, lane_m)), st, pud)     # puddles on the setts
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.45), c, (0.07, 0.065, 0.06))
+    c = nb.mix(road_m, c, st)
+    rough = nb.mixf(pmask, nb.mixf(nb.math("MULTIPLY", road_m, lane_m), nb.mixf(I["plates"], nb.mixf(I["slag"], 0.92, 0.4), 0.6), 0.45), 0.06)
+    bump_h = nb.math("ADD", nb.math("MULTIPLY", road_m, nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, nb.mixf(lane_m, sjo, lj)), 0.7)),
+                     nb.math("ADD", nb.math("MULTIPLY", flm, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", fj, crack))),
+                             nb.math("ADD", nb.math("MULTIPLY", I["cobble"], nb.ramp(cbd, 0.0, 0.07)),
+                                     nb.math("MULTIPLY", I["plates"], nb.math("SUBTRACT", nb.math("MULTIPLY", tread, 0.3), pj)))))
+    bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, pmask))
+elif THEME == "railyard":
+    # a railway yard: cinder ground with ash grains and clinker, weeds in patches, black coal dust round the staithes;
+    # ballast beds under the tracks (the oil drips down their middle, rust beside the rails); flagged goods platforms
+    # under the crates; a turntable pit ringed with coping stones; the roads packed ash and cinder, rutted, puddled in
+    # the ruts, planked across where the tracks cross them, the fast lanes cobbled with granite setts
+    obj = nb.uvn.outputs["Object"]
+    c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.19, 0.175, 0.16), (0.27, 0.245, 0.22))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.45), c, (0.3, 0.25, 0.19))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(34.0, "Distance"), 0.24, 0.07), 0.4), c, (0.4, 0.37, 0.33))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(15.0, "Color"), 0.82, 0.97), 0.5), c, (0.08, 0.075, 0.07))
+    c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.15, 0.14, 0.13), (0.21, 0.19, 0.17)))
+    wc = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.2, 0.24, 0.1), (0.33, 0.36, 0.16))
+    c = nb.mix(nb.math("MULTIPLY", I["weeds"], 0.6), c, wc)
+    coalc = nb.mix(nb.ramp(fine, 0.3, 0.7), (0.035, 0.035, 0.04), (0.09, 0.09, 0.095))
+    c = nb.mix(nb.math("MULTIPLY", I["coal"], 0.93), c, coalc)
+    # ballast: broken stone, each its own shade, dark between; oil down the middle; rust along the rails; weeds
+    bsd = nb.voronoi(28.0, "Distance", "DISTANCE_TO_EDGE")
+    bal = nb.mix(nb.ramp(nb.voronoi(28.0, "Color"), 0.2, 0.8), (0.33, 0.31, 0.28), (0.52, 0.49, 0.45))
+    bal = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 3, 0.6), 0.5, 0.7), 0.4), bal, (0.25, 0.22, 0.19))
+    bal = nb.mix(nb.ramp(bsd, 0.05, 0.01), bal, (0.12, 0.11, 0.1))
+    bal = nb.mix(nb.math("MULTIPLY", I["drip"], 0.75), bal, (0.09, 0.08, 0.075))
+    rr = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("ABSOLUTE", tsd), 0.31)), 0.09, 0.02)
+    bal = nb.mix(nb.math("MULTIPLY", rr, 0.45), bal, (0.36, 0.2, 0.12))
+    bal = nb.mix(nb.math("MULTIPLY", I["weeds"], 0.35), bal, wc)
+    bal = nb.mix(nb.math("MULTIPLY", I["coal"], 0.6), bal, coalc)
+    c = nb.mix(I["ballast"], c, bal)
+    # goods platforms: big flags, a kerb of long stones round their edge
+    pj_, pr_ = nb.brick(obj, 0.5, 0.42, 0.012, 0.2)
+    pdc = nb.mix(pr_, (0.4, 0.38, 0.34), (0.52, 0.49, 0.44))
+    pdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.5, 0.75), 0.45), pdc, (0.22, 0.2, 0.18))
+    pdc = nb.mix(pj_, pdc, (0.1, 0.095, 0.09))
+    pdc = nb.mix(nb.ramp(I["pads"], 0.62, 0.55), pdc, (0.58, 0.56, 0.52))
+    pdc = nb.mix(nb.ramp(I["pads"], 0.1, 0.03), pdc, (0.1, 0.095, 0.09))
+    c = nb.mix(nb.ramp(I["pads"], 0.0, 0.06), c, pdc)
+    # the turntable: dressed coping stones round a dark wet pit
+    cj, cr_ = nb.brick(nb.vec(I["tt_u"], 0.5), 1.0, 10.0, 0.04, 0.2, offset=0.0, freq=1)
+    cpc = nb.mix(cr_, (0.46, 0.44, 0.4), (0.58, 0.55, 0.5))
+    cpc = nb.mix(cj, cpc, (0.12, 0.11, 0.1))
+    c = nb.mix(I["coping"], c, cpc)
+    pitc = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.08, 0.075, 0.07), (0.14, 0.13, 0.12))
+    c = nb.mix(I["pit"], c, pitc)
+    # the roads: packed ash and cinder, gravel in it, rutted; puddles in the ruts
+    trk = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.4, 0.38, 0.35), (0.49, 0.46, 0.42))
+    trk = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(32.0, "Distance"), 0.22, 0.08), 0.35), trk, (0.27, 0.25, 0.23))
+    trk = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(13.0, "Color"), 0.85, 0.97), 0.4), trk, (0.56, 0.53, 0.48))
+    trk = nb.mix(nb.math("MULTIPLY", rut_m, nb.mixf(nb.ramp(nb.noise(2.2, 2, 0.6), 0.3, 0.7), 0.35, 0.6)), trk, (0.29, 0.27, 0.24))
+    pmask = nb.ramp(I["puddle"], 0.45, 0.6)
+    trk = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.6), trk, (0.22, 0.2, 0.18))
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), 0.4), (0.08, 0.08, 0.085), (0.2, 0.21, 0.23))
+    trk = nb.mix(pmask, trk, pud)
+    # the fast lanes: granite setts
+    sj, sr_ = nb.brick(nb.vec(rsd, ral), 0.21, 0.115, 0.014, 0.35)
+    st = nb.mix(sr_, (0.4, 0.4, 0.41), (0.55, 0.54, 0.53))
+    st = nb.mix(nb.math("MULTIPLY", rut_m, 0.4), st, (0.6, 0.6, 0.6))
+    st = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", rsd), HALF - 0.4, HALF), 0.4), st, (0.22, 0.21, 0.2))
+    st = nb.mix(sj, st, (0.1, 0.095, 0.09))
+    trk = nb.mix(lane_m, trk, st)
+    # level crossings: timber boards laid along the track, inside and outside the rails
+    bj, br2 = nb.brick(nb.vec(tal, nb.math("ADD", tsd, 0.065)), 2.6, 0.13, 0.01, 0.1)
+    bdc = nb.mix(br2, (0.3, 0.24, 0.18), (0.45, 0.37, 0.28))
+    bdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.5, 0.72), 0.5), bdc, (0.5, 0.47, 0.42))
+    bdc = nb.mix(bj, bdc, (0.08, 0.07, 0.06))
+    trk = nb.mix(I["xing"], trk, bdc)
+    c = nb.mix(nb.math("MULTIPLY", edge_m, 0.5), c, (0.13, 0.12, 0.11))
+    c = nb.mix(road_m, c, trk)
+    rough = nb.mixf(nb.math("MULTIPLY", pmask, road_m), nb.mixf(I["pit"], 0.9, 0.5), 0.08)
+    bump_h = nb.math("ADD", nb.math("MULTIPLY", I["ballast"], nb.ramp(bsd, 0.0, 0.06)),
+                     nb.math("ADD", nb.math("MULTIPLY", nb.math("MULTIPLY", road_m, lane_m), nb.math("SUBTRACT", 1.0, sj)),
+                             nb.math("MULTIPLY", I["xing"], nb.math("SUBTRACT", 1.0, bj))))
+elif THEME == "smog":
+    # a smog-choked Victorian city: setts between granite kerbs, flagged pavements, gully grates in the gutters, manhole
+    # covers; yards (flags, cobbles, brick paving, bare earth, cinder waste ground with weeds) between low brick walls;
+    # back lanes cobbled with a gutter down the middle; dock pools of murky water behind coping stones in a quay of
+    # setts; soot over everything, puddles
+    obj = nb.uvn.outputs["Object"]
+    ox_, oy_ = nb.xyz()
+    pid = I["pid"]
+    swap = nb.ramp(pid, 0.49, 0.51)                                  # (half the yards laid the other way)
+    pv = nb.vec(nb.math("ADD", nb.mixf(swap, ox_, oy_), nb.math("MULTIPLY", pid, 7.3)),
+                nb.math("ADD", nb.mixf(swap, oy_, ox_), nb.math("MULTIPLY", pid, 3.1)))
+    grime = nb.ramp(nb.noise(3.5, 3, 0.6), 0.45, 0.75)
+    # waste ground: cinder, rubble, weeds
+    c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.17, 0.16, 0.15), (0.24, 0.22, 0.2))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(34.0, "Distance"), 0.24, 0.07), 0.35), c, (0.36, 0.33, 0.3))
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.6, 3, 0.6), 0.55, 0.68), 0.7), c,
+               nb.mix(nb.ramp(nb.noise(7.0, 3, 0.6), 0.3, 0.7), (0.17, 0.21, 0.09), (0.27, 0.31, 0.13)))   # weeds
+    # flagged yards
+    fj, fr_ = nb.brick(pv, 0.56, 0.42, 0.012, 0.2)
+    flc = nb.mix(fr_, (0.37, 0.35, 0.31), (0.49, 0.46, 0.41))
+    flc = nb.mix(nb.math("MULTIPLY", grime, 0.5), flc, (0.2, 0.19, 0.17))
+    flc = nb.mix(fj, flc, (0.09, 0.085, 0.08))
+    c = nb.mix(I["y_flags"], c, flc)
+    # cobbled yards
+    cbd = nb.voronoi(10.0, "Distance", "DISTANCE_TO_EDGE")
+    cbc = nb.mix(nb.ramp(nb.voronoi(10.0, "Color"), 0.2, 0.8), (0.26, 0.25, 0.25), (0.4, 0.38, 0.36))
+    cbc = nb.mix(nb.math("MULTIPLY", grime, 0.45), cbc, (0.15, 0.14, 0.13))
+    cbc = nb.mix(nb.ramp(cbd, 0.06, 0.015), cbc, (0.07, 0.065, 0.06))
+    c = nb.mix(I["y_cobble"], c, cbc)
+    # brick-paved yards
+    bj_, br_ = nb.brick(pv, 0.23, 0.08, 0.008, 0.2)
+    bkc = nb.mix(br_, (0.3, 0.16, 0.11), (0.44, 0.23, 0.15))
+    bkc = nb.mix(nb.math("MULTIPLY", grime, 0.6), bkc, (0.15, 0.11, 0.09))
+    bkc = nb.mix(bj_, bkc, (0.13, 0.11, 0.1))
+    c = nb.mix(I["y_brick"], c, bkc)
+    # bare trodden earth
+    ec = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.24, 0.2, 0.16), (0.32, 0.27, 0.21))
+    ec = nb.mix(nb.math("MULTIPLY", grime, 0.5), ec, (0.14, 0.12, 0.1))
+    c = nb.mix(I["y_earth"], c, ec)
+    # quays: granite setts, square to the world
+    qj, qr = nb.brick(obj, 0.21, 0.12, 0.012, 0.3)
+    qc = nb.mix(qr, (0.36, 0.36, 0.37), (0.5, 0.49, 0.48))
+    qc = nb.mix(nb.math("MULTIPLY", grime, 0.45), qc, (0.2, 0.19, 0.19))
+    qc = nb.mix(qj, qc, (0.09, 0.085, 0.08))
+    c = nb.mix(I["y_quay"], c, qc)
+    # back lanes: small cobbles, a gutter of setts down the middle
+    lnd = nb.voronoi(13.0, "Distance", "DISTANCE_TO_EDGE")
+    lnc = nb.mix(nb.ramp(nb.voronoi(13.0, "Color"), 0.2, 0.8), (0.26, 0.25, 0.24), (0.38, 0.36, 0.34))
+    lnc = nb.mix(nb.ramp(lnd, 0.06, 0.015), lnc, (0.07, 0.065, 0.06))
+    lnc = nb.mix(nb.ramp(I["lane"], 0.8, 0.86), lnc, (0.14, 0.135, 0.13))
+    c = nb.mix(nb.ramp(I["lane"], 0.0, 0.04), c, lnc)
+    c = nb.mix(nb.math("MULTIPLY", I["wall"], 0.45), c, (0.08, 0.075, 0.07))                    # soot at the walls' feet
+    # the docks: coping stones round murky water
+    cj, cr_ = nb.brick(nb.vec(I["cope_u"], 0.5), 0.42, 10.0, 0.012, 0.2, offset=0.0, freq=1)
+    cpc = nb.mix(cr_, (0.46, 0.44, 0.4), (0.57, 0.54, 0.49))
+    cpc = nb.mix(nb.math("MULTIPLY", grime, 0.35), cpc, (0.26, 0.25, 0.23))
+    cpc = nb.mix(cj, cpc, (0.1, 0.095, 0.09))
+    c = nb.mix(I["coping"], c, cpc)
+    wat = nb.mix(nb.ramp(nb.noise(1.2, 3, 0.6), 0.3, 0.7), (0.09, 0.13, 0.12), (0.14, 0.19, 0.17))
+    wat = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(2.5, 2, 0.5, distort=2.0), 0.62, 0.72), 0.3), wat, (0.24, 0.22, 0.26))   # oil on it
+    c = nb.mix(I["water"], c, wat)
+    # the streets: granite kerbs, flagged pavements (rows parallel to the kerb), setts, the gutter and its grates
+    ars = nb.math("ABSOLUTE", rsd)
+    pj, pr2 = nb.brick(nb.vec(ral, nb.math("SUBTRACT", ars, 0.15)), 0.52, 0.4, 0.012, 0.2)
+    pvc = nb.mix(pr2, (0.44, 0.42, 0.38), (0.56, 0.53, 0.48))
+    pvc = nb.mix(nb.math("MULTIPLY", grime, 0.45), pvc, (0.26, 0.25, 0.23))
+    pvc = nb.mix(pj, pvc, (0.12, 0.115, 0.11))
+    c = nb.mix(I["pave"], c, pvc)
+    kj, kr = nb.brick(nb.vec(ral, ars), 0.62, 10.0, 0.012, 0.2, offset=0.0, freq=1)
+    kbc = nb.mix(kr, (0.55, 0.54, 0.51), (0.64, 0.62, 0.58))
+    kbc = nb.mix(kj, kbc, (0.18, 0.17, 0.16))
+    c = nb.mix(nb.ramp(I["kerb"], 0.3, 0.5), c, kbc)
+    sj, sr_ = nb.brick(nb.vec(rsd, ral), 0.2, 0.11, 0.013, 0.35)
+    st = nb.mix(sr_, (0.3, 0.29, 0.29), (0.43, 0.41, 0.4))
+    st = nb.mix(nb.math("MULTIPLY", rut_m, 0.35), st, (0.46, 0.45, 0.44))
+    st = nb.mix(nb.math("MULTIPLY", grime, 0.4), st, (0.16, 0.15, 0.15))
+    st = nb.mix(sj, st, (0.07, 0.065, 0.06))
+    st = nb.mix(nb.math("MULTIPLY", I["gutter"], 0.6), st, (0.13, 0.125, 0.12))
+    grc = nb.mix(nb.ramp(nb.seam(ral, 0.05), 0.012, 0.006), (0.05, 0.05, 0.055), (0.2, 0.2, 0.21))
+    st = nb.mix(I["grate"], st, grc)
+    c = nb.mix(road_m, c, st)
+    # manhole covers: an iron disc, rings cast in it, a dark rim
+    mh = I["manhole"]
+    mhc = nb.mix(nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", mh, 4.0)), 0.5)), 0.12, 0.25),
+                 (0.24, 0.24, 0.25), (0.12, 0.12, 0.13))
+    mhc = nb.mix(nb.ramp(mh, 0.12, 0.06), mhc, (0.05, 0.05, 0.05))
+    c = nb.mix(nb.ramp(mh, 0.0, 0.03), c, mhc)
+    # soot and puddles over everything
+    c = nb.mix(nb.math("MULTIPLY", I["soot"], 0.35), c, (0.06, 0.06, 0.06))
+    pmask = nb.ramp(I["puddle"], 0.45, 0.6)
+    c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["puddle"], 0.0, 0.45), 0.5), c, (0.1, 0.1, 0.1))
+    pud = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(0.8, 2, 0.5), 0.3, 0.7), 0.4), (0.07, 0.07, 0.075), (0.2, 0.2, 0.21))
+    c = nb.mix(pmask, c, pud)
+    rough = nb.mixf(nb.math("MAXIMUM", pmask, I["water"]), nb.mixf(I["manhole"], 0.88, 0.5), 0.07)
+    bump_h = nb.math("ADD", nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 1.0, sj)),
+                     nb.math("ADD", nb.math("MULTIPLY", I["pave"], nb.math("SUBTRACT", 1.0, pj)),
+                             nb.math("ADD", nb.math("MULTIPLY", I["y_flags"], nb.math("SUBTRACT", 1.0, fj)),
+                                     nb.math("ADD", nb.math("MULTIPLY", I["y_cobble"], nb.ramp(cbd, 0.0, 0.07)),
+                                             nb.math("MULTIPLY", I["y_quay"], nb.math("SUBTRACT", 1.0, qj))))))
+    bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", pmask, I["water"])))
 else:   # volcano
     c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.11), (0.24, 0.2, 0.18))
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.36, 0.22, 0.15))         # rusty ash
@@ -1625,6 +2331,182 @@ def root_mesh(name, roots, mat, sides=6):
     me2.materials.append(mat)
     log(name, len(roots), "roots,", len(F), "quads")
     return ob
+
+
+def _mesh_obj(name, V, F, mat):
+    me2 = bpy.data.meshes.new(name)
+    me2.from_pydata([tuple(v) for v in V], [], [tuple(int(i) for i in f) for f in F])
+    me2.update()
+    bm = bmesh.new()
+    bm.from_mesh(me2)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me2)
+    bm.free()
+    ob = bpy.data.objects.new(name, me2)
+    sc.collection.objects.link(ob)
+    me2.materials.append(mat)
+    return ob
+
+
+def boxes_mesh(name, boxes, mat):
+    """Boxes on the ground, one mesh: (x, z, yaw (world: from +x toward +z), length (along yaw), width, height, the
+    height of its bottom)."""
+    if not boxes:
+        log("(no %s)" % name)
+        return None
+    B = np.asarray(boxes, np.float64)
+    cx, cz, yaw, L, W, Hh, b0 = B.T
+    ca, sa = np.cos(yaw)[:, None], np.sin(yaw)[:, None]
+    u = np.array([-1, 1, 1, -1, -1, 1, 1, -1])[None] * 0.5 * L[:, None]
+    v = np.array([-1, -1, 1, 1, -1, -1, 1, 1])[None] * 0.5 * W[:, None]
+    hh = b0[:, None] + np.array([0, 0, 0, 0, 1, 1, 1, 1])[None] * Hh[:, None]
+    V = np.stack([cx[:, None] + u * ca - v * sa, -(cz[:, None] + u * sa + v * ca), hh], -1).reshape(-1, 3)
+    F0 = np.array([(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)])
+    F = (F0[None] + 8 * np.arange(len(B))[:, None, None]).reshape(-1, 4)
+    log(name, len(B), "boxes")
+    return _mesh_obj(name, V, F, mat)
+
+
+def strip_mesh(name, strips, mat):
+    """Bars along world paths (rails): (points N x 2 (x, z), half width, bottom heights N, top heights N)."""
+    if not strips:
+        log("(no %s)" % name)
+        return None
+    V, F = [], []
+    for P, w, bot, top in strips:
+        P = np.asarray(P, np.float64)
+        T = np.gradient(P, axis=0)
+        T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+        Nn = np.stack([-T[:, 1], T[:, 0]], 1)
+        k0 = len(V)
+        for (x, z), (nx_, nz_), b_, t_ in zip(P, Nn, bot, top):
+            V += [(x + nx_ * w, -(z + nz_ * w), b_), (x + nx_ * w, -(z + nz_ * w), t_), (x - nx_ * w, -(z - nz_ * w), t_),
+                  (x - nx_ * w, -(z - nz_ * w), b_)]
+        for i in range(len(P) - 1):
+            a_, b2 = k0 + i * 4, k0 + (i + 1) * 4
+            F += [(a_ + 1, a_ + 2, b2 + 2, b2 + 1), (a_, a_ + 1, b2 + 1, b2), (a_ + 2, a_ + 3, b2 + 3, b2 + 2)]
+        e_ = k0 + (len(P) - 1) * 4
+        F += [(k0, k0 + 1, k0 + 2, k0 + 3), (e_, e_ + 1, e_ + 2, e_ + 3)]
+    log(name, len(strips), "strips")
+    return _mesh_obj(name, V, F, mat)
+
+
+def box_template(lx, ly, lz):
+    V = [(sx * lx / 2, sy * ly / 2, h * lz) for h in (0, 1) for (sx, sy) in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    return V, [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+
+
+def cyl_template(r, h, sides=10, cap=1.25):
+    """A bollard: a short post with a wider cap on its top."""
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=sides, radius1=r, radius2=r, depth=h * 0.8)
+    bmesh.ops.translate(bm, vec=(0, 0, h * 0.4), verts=bm.verts[:])
+    m2 = bmesh.ops.create_cone(bm, cap_ends=True, segments=sides, radius1=r * cap, radius2=r * cap * 0.8, depth=h * 0.25)
+    bmesh.ops.translate(bm, vec=(0, 0, h * 0.86), verts=m2["verts"])
+    V = [tuple(v.co) for v in bm.verts]
+    F = [tuple(v.index for v in f.verts) for f in bm.faces]
+    bm.free()
+    return V, F
+
+
+def build_tracks(sl_col, sl_var, gauge=0.31, sl_len=1.02, sl_gap=0.27):
+    """The railway in 3D: sleepers (laid long under both tracks where a turnout's tracks run close, the branch's own
+    sleepers starting where they part; none on a road, where the rails run flush in the crossing's boards), rails with
+    bright heads, a buffer stop at each dead end, the turntable's bridge, race rail and pivot."""
+    if not TRACKS:
+        return
+    td = []
+    for t in TRACKS:
+        P = t["pts"]
+        T = np.gradient(P, axis=0)
+        T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+        cum = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+        td.append((P, T, np.stack([-T[:, 1], T[:, 0]], 1), cum))
+    sl, rails, heads, beams, posts = [], [], [], [], []
+    tr = np.random.default_rng(71)
+    for k, (P, T, Nn, cum) in enumerate(td):
+        for s_ in np.arange(sl_gap * 0.5, cum[-1] - 0.04, sl_gap):
+            c_ = np.array([np.interp(s_, cum, P[:, 0]), np.interp(s_, cum, P[:, 1])])
+            t_ = np.array([np.interp(s_, cum, T[:, 0]), np.interp(s_, cum, T[:, 1])])
+            t_ /= np.linalg.norm(t_)
+            n_ = np.array([-t_[1], t_[0]])
+            if _at(dist, c_[0], c_[1]) < HALF + 0.2:
+                continue
+            if TURNTABLE and math.hypot(c_[0] - TURNTABLE[0], c_[1] - TURNTABLE[1]) < TURNTABLE[2] + 0.25:
+                continue
+            lo, hi, skip = -sl_len / 2, sl_len / 2, False
+            for j, (Pj, Tj, Nj, cj) in enumerate(td):
+                if j == k:
+                    continue
+                v_ = Pj - c_
+                al_, sd_ = v_ @ t_, v_ @ n_
+                sel = np.flatnonzero((np.abs(al_) < 0.04) & (np.abs(sd_) < 1.0))
+                if not len(sel):
+                    continue
+                i_ = sel[np.argmin(np.abs(al_[sel]))]
+                sv = sd_[i_]
+                if abs(Tj[i_] @ t_) > 0.82:
+                    if abs(sv) < 0.95:
+                        if j < k:
+                            skip = True
+                            break
+                        lo, hi = min(lo, sv - sl_len / 2), max(hi, sv + sl_len / 2)
+                elif abs(sv) < 0.55 and j < k:
+                    skip = True
+                    break
+            if skip:
+                continue
+            mid_ = c_ + n_ * (lo + hi) / 2 + t_ * tr.normal(0, 0.008)
+            yaw = math.atan2(n_[1], n_[0]) + tr.normal(0, 0.025)
+            sl.append((mid_[0], mid_[1], yaw, hi - lo, 0.13, 0.04, float(hgt(mid_[0], mid_[1])) - 0.012))
+        hc = hgt(P[:, 0], P[:, 1])
+        rr = np.clip(sample(on_road, P[:, 0], P[:, 1]) * 1.5, 0, 1)
+        bot = hc + 0.026 * (1 - rr) - 0.03 * rr
+        top = bot + 0.046 - 0.008 * rr
+        for sg in (-1, 1):
+            Q = P + Nn * gauge * sg
+            rails.append((Q, 0.024, bot, top))
+            heads.append((Q, 0.012, top - 0.004, top + 0.004))
+        if TRACKS[k]["buf"]:
+            e_, te = P[-1], T[-1]
+            ne = np.array([-te[1], te[0]])
+            h_ = float(hgt(e_[0], e_[1]))
+            yaw = math.atan2(ne[1], ne[0])
+            b_ = e_ + te * 0.12
+            beams.append((b_[0], b_[1], yaw, 0.88, 0.1, 0.075, h_ + 0.075))
+            for sg in (-1, 1):
+                q_ = e_ + te * 0.14 + ne * gauge * sg
+                posts.append((q_[0], q_[1], yaw, 0.08, 0.08, 0.16, h_ - 0.01))
+                q_ = e_ - te * 0.14 + ne * gauge * sg                   # (the struts behind, leaning on the rails)
+                posts.append((q_[0], q_[1], yaw + 1.5708, 0.3, 0.05, 0.05, h_ + 0.05))
+    boxes_mesh("Sleepers", sl, simple_mat("Sleeper", sl_col, 0.85, var=sl_var))
+    iron = simple_mat("RailSide", (0.24, 0.15, 0.1), 0.6, var=(0.32, 0.2, 0.12), metal=0.3)
+    strip_mesh("Rails", rails, iron)
+    strip_mesh("RailHeads", heads, simple_mat("RailHead", (0.62, 0.62, 0.64), 0.28, metal=0.85))
+    boxes_mesh("BufferBeams", beams, simple_mat("BufferBeam", (0.62, 0.11, 0.07), 0.6, var=(0.7, 0.16, 0.1)))
+    boxes_mesh("BufferPosts", posts, simple_mat("BufferPost", (0.2, 0.16, 0.12), 0.8, var=(0.28, 0.22, 0.16)))
+    if TURNTABLE:
+        cx_, cz_, R_, ang = TURNTABLE
+        a_ = math.radians(ang)
+        d_, n_ = np.array([math.cos(a_), math.sin(a_)]), np.array([-math.sin(a_), math.cos(a_)])
+        floor = float(hgt(cx_, cz_))
+        gnd = float(np.mean([hgt(cx_ + math.cos(q) * (R_ + 0.4), cz_ + math.sin(q) * (R_ + 0.4)) for q in np.linspace(0, 6.28, 12)]))
+        th = np.linspace(0, 2 * math.pi, 97)
+        ring = np.stack([cx_ + np.cos(th) * (R_ - 0.1), cz_ + np.sin(th) * (R_ - 0.1)], 1)
+        dk = gnd + 0.02
+        strip_mesh("TTRace", [(ring, 0.022, np.full(97, floor), np.full(97, floor + 0.04))], iron)
+        boxes_mesh("TTDeck", [(cx_, cz_, a_, 2 * R_ - 0.1, 0.66, dk - floor, floor)],
+                   simple_mat("TTDeck", (0.3, 0.24, 0.18), 0.85, var=(0.42, 0.35, 0.27)))
+        gird = [(cx_ + n_[0] * 0.37 * sg, cz_ + n_[1] * 0.37 * sg, a_, 2 * R_ - 0.06, 0.08, dk + 0.045 - floor, floor) for sg in (-1, 1)]
+        gird.append((cx_, cz_, a_, 0.2, 0.2, dk + 0.012 - floor, floor))
+        boxes_mesh("TTGirders", gird, simple_mat("TTIron", (0.16, 0.16, 0.17), 0.5, var=(0.22, 0.2, 0.19), metal=0.5))
+        line = np.array([cx_, cz_]) + np.outer(np.linspace(-R_ + 0.06, R_ - 0.06, 40), d_)
+        br_ = []
+        for sg in (-1, 1):
+            Q = line + n_ * 0.31 * sg
+            br_.append((Q, 0.012, np.full(40, dk + 0.04), np.full(40, dk + 0.05)))
+            strip_mesh("TTRail%d" % sg, [(Q, 0.024, np.full(40, dk), np.full(40, dk + 0.045))], iron)
+        strip_mesh("TTRailHeads", br_, simple_mat("TTHead", (0.62, 0.62, 0.64), 0.28, metal=0.85))
 
 
 def scatter(n, accept, jitter_seed=0):
@@ -2101,6 +2983,153 @@ elif THEME == "fortress":
     merged("Gravel", blob_template(1), place_list(pts, 0.01, 0.026, sink=0.35), grav)
     pts = scatter(100, lambda x, z: (np.abs(rd(x, z) - HALF - 0.3) < 0.3) & open_f(x, z))
     merged("Stones", blob_template(2), place_list(pts, 0.05, 0.12, sink=0.45), simple_mat("Stone", (0.48, 0.47, 0.44), 0.8, var=(0.62, 0.6, 0.56)))
+elif THEME == "factory":
+    build_tracks((0.15, 0.12, 0.1), (0.26, 0.22, 0.18))
+    offr = lambda x, z, m_: (rd(x, z) > HALF + m_) & (sample(BLK_ANY, x, z) > 0.1) & (sample(IND["puddle"], x, z) < 0.3)
+    rnd = lambda x: RNG.random(np.shape(x))
+    pts = scatter(3200 if not PREVIEW else 500, lambda x, z: offr(x, z, 0.08) & (rnd(x) < 0.12 + 0.88 * sample(IND["coke"], x, z)) &
+                  (sample(IND["plates"], x, z) < 0.5))
+    merged("Coke", blob_template(1), place_list(pts, 0.018, 0.045, sink=0.3, tilt=0.5),
+           simple_mat("Coke", (0.06, 0.06, 0.065), 0.5, var=(0.15, 0.15, 0.16), metal=0.25))
+    pts = scatter(3500 if not PREVIEW else 500, lambda x, z: offr(x, z, 0.05) & (sample(IND["plates"], x, z) < 0.5) &
+                  (sample(IND["flags"], x, z) < 0.5))
+    merged("Cinders", blob_template(1), place_list(pts, 0.01, 0.028, sink=0.3),
+           simple_mat("Cinder", (0.13, 0.12, 0.11), 0.85, var=(0.32, 0.29, 0.26)))
+    pts = scatter(700 if not PREVIEW else 120, lambda x, z: offr(x, z, 0.1) & (sample(IND["slag"], x, z) > 0.4))
+    merged("Slag", blob_template(2), place_list(pts, 0.03, 0.085, sink=0.45, tilt=0.4),
+           simple_mat("SlagLump", (0.05, 0.055, 0.065), 0.3, var=(0.12, 0.17, 0.19), metal=0.2))
+    # scrap in heaps near the machines, the mills and the plate floors: rusty bars, offcuts of plate, hoops
+    centres = scatter(55, lambda x, z: offr(x, z, 0.5) & ((sample(BLK_ANY, x, z) < 1.4) | (sample(IND["plates"], x, z) > 0.5) | (rnd(x) < 0.2)))
+    pts = []
+    for cx, cz in centres:
+        for _ in range(int(RNG.integers(3, 9))):
+            pts.append((cx + RNG.normal(0, 0.16), cz + RNG.normal(0, 0.16)))
+    pts = [p_ for p_ in pts if _at(dist, p_[0], p_[1]) > HALF + 0.15 and _at(BLK_ANY, p_[0], p_[1]) > 0.05]
+    rusty = simple_mat("Scrap", (0.33, 0.16, 0.07), 0.7, var=(0.5, 0.28, 0.12), metal=0.3)
+    third = len(pts) // 3
+    merged("ScrapBars", stick_template(0.34, 0.016), place_list(pts[:third], 0.8, 1.3, tilt=0.05), rusty)
+    merged("ScrapPlate", box_template(0.18, 0.13, 0.012), place_list(pts[third:2 * third], 0.7, 1.4, tilt=0.15), rusty)
+    merged("ScrapHoops", tube_template([(0.075 * math.cos(q), 0.075 * math.sin(q)) for q in np.linspace(0, 2 * math.pi, 17)], 0.01),
+           place_list(pts[2 * third:], 0.8, 1.3, tilt=0.1), simple_mat("Hoop", (0.2, 0.19, 0.19), 0.5, var=(0.4, 0.22, 0.1), metal=0.5))
+    dry = blade_mat("DryWeed", (0.17, 0.17, 0.08), (0.3, 0.3, 0.12), (0.5, 0.47, 0.24))
+    pts = scatter(2200 if not PREVIEW else 300, lambda x, z: offr(x, z, 0.12) & (sample(IND["plates"], x, z) < 0.3) &
+                  ((sample(IND["flags"], x, z) + sample(IND["cobble"], x, z) + sample(IND["ballast"], x, z) + sample(IND["apron"], x, z) > 0.3) |
+                   (rnd(x) < 0.3)) & (sample(IND["slag"], x, z) < 0.3))
+    merged("Weeds", tuft_template(7, 0.08, 0.01), place_list(pts, 0.6, 1.2), dry)
+    pts = scatter(2600 if not PREVIEW else 400, lambda x, z: sample(IND["ballast"], x, z) > 0.4)
+    merged("Ballast", blob_template(1), place_list(pts, 0.012, 0.026, sink=0.35),
+           simple_mat("BallastStone", (0.2, 0.19, 0.18), 0.85, var=(0.38, 0.36, 0.33)))
+    pts = scatter(260 if not PREVIEW else 60, lambda x, z: (rd(x, z) < HALF - 0.1) & (sample(lane, x, z) < 0.5))
+    merged("RoadCoke", blob_template(1), place_list(pts, 0.012, 0.03, sink=0.35),
+           simple_mat("RoadCoke", (0.06, 0.06, 0.065), 0.5, var=(0.15, 0.15, 0.16)))
+elif THEME == "railyard":
+    build_tracks((0.2, 0.15, 0.11), (0.38, 0.33, 0.28))
+    rnd = lambda x: RNG.random(np.shape(x))
+    tt_out = lambda x, z: np.hypot(x - TURNTABLE[0], z - TURNTABLE[1]) > TURNTABLE[2] + 0.2
+    pts = scatter(9000 if not PREVIEW else 1500, lambda x, z: (sample(IND["ballast"], x, z) > 0.35) & tt_out(x, z))
+    merged("Ballast", blob_template(1), place_list(pts, 0.012, 0.027, sink=0.35),
+           simple_mat("BallastStone", (0.32, 0.3, 0.27), 0.85, var=(0.56, 0.53, 0.48)))
+    wd_ = blade_mat("Weeds", (0.17, 0.22, 0.08), (0.3, 0.4, 0.13), (0.52, 0.58, 0.26))
+    pts = scatter(5500 if not PREVIEW else 800, lambda x, z: (rd(x, z) > HALF + 0.08) & (sample(BLK_ANY, x, z) > 0.15) & tt_out(x, z) &
+                  (rnd(x) < 0.08 + 0.92 * sample(IND["weeds"], x, z)) & (sample(IND["coal"], x, z) < 0.4) & (sample(IND["pads"], x, z) < 0.01))
+    merged("Weeds", tuft_template(8, 0.1, 0.011), place_list(pts, 0.6, 1.3), wd_)
+    # rosebay willowherb, the railway weed: tall tufts in clumps at the yard's margins, pink spikes in them
+    centres = scatter(70 if not PREVIEW else 20, lambda x, z: (rd(x, z) > HALF + 0.4) & (sample(IND["ballast"], x, z) < 0.2) & tt_out(x, z) &
+                      (sample(BLK_ANY, x, z) > 0.4) & (sample(IND["weeds"], x, z) > 0.3) & (sample(IND["pads"], x, z) < 0.01))
+    pts, fl_ = [], []
+    for cx, cz in centres:
+        for _ in range(int(RNG.integers(4, 10))):
+            pts.append((cx + RNG.normal(0, 0.12), cz + RNG.normal(0, 0.12)))
+            if RNG.random() < 0.6:
+                fl_.append((pts[-1][0] + RNG.normal(0, 0.02), pts[-1][1] + RNG.normal(0, 0.02)))
+    merged("Willowherb", tuft_template(10, 0.17, 0.012), place_list(pts, 0.8, 1.2), wd_)
+    merged("WillowFlowers", flower_template(6, 0.03), [((p_[0], p_[1], p_[2] + 0.06), y, s_, t) for (p_, y, s_, t) in place_list(fl_, 0.8, 1.2)],
+           simple_mat("Willow", (0.85, 0.33, 0.6), 0.5, var=(0.95, 0.45, 0.72)))
+    coalm = simple_mat("Coal", (0.035, 0.035, 0.04), 0.3, var=(0.11, 0.11, 0.12), metal=0.2)
+    pts = scatter(2200 if not PREVIEW else 300, lambda x, z: (rd(x, z) > HALF) & (sample(blk["coal"], x, z) > -0.25) & tt_out(x, z) &
+                  (rnd(x) < np.clip(sample(IND["coal"], x, z) * 1.2, 0, 1) * 0.9))
+    merged("Coal", blob_template(1), place_list(pts, 0.016, 0.042, sink=0.3, tilt=0.5), coalm)
+    pts = scatter(4000 if not PREVIEW else 600, lambda x, z: (rd(x, z) < HALF - 0.05) & (sample(lane, x, z) < 0.5) & (sample(IND["xing"], x, z) < 0.2))
+    merged("Gravel", blob_template(1), place_list(pts, 0.01, 0.024, sink=0.35),
+           simple_mat("Gravel", (0.4, 0.38, 0.34), 0.8, var=(0.6, 0.57, 0.52)))
+    # spare rails and old sleepers lying beside the tracks
+    spares, stack = [], []
+    tr2 = np.random.default_rng(73)
+    for t in TRACKS:
+        P = t["pts"]
+        if len(P) < 120:
+            continue
+        for _ in range(2):
+            i_ = int(tr2.integers(30, len(P) - 60))
+            d_ = P[i_ + 20] - P[i_]
+            d_ /= np.linalg.norm(d_)
+            n_ = np.array([-d_[1], d_[0]]) * tr2.choice([-1, 1])
+            q_ = P[i_] + n_ * 0.85
+            if _at(dist, q_[0], q_[1]) < HALF + 1.5 or _at(BLK_ANY, q_[0], q_[1]) < 0.6 or _at(tk_d, q_[0], q_[1]) < 0.75:
+                continue
+            yaw = math.atan2(d_[1], d_[0])
+            if tr2.random() < 0.5:
+                for sg in (-1, 1):
+                    spares.append((q_[0] + n_[0] * 0.05 * sg, q_[1] + n_[1] * 0.05 * sg, yaw + tr2.normal(0, 0.02), 2.2, 0.045, 0.04,
+                                   float(hgt(q_[0], q_[1])) - 0.005))
+            else:
+                for lay in range(int(tr2.integers(1, 3))):
+                    for k_ in range(int(tr2.integers(3, 6))):
+                        o_ = (k_ - 2) * 0.14
+                        stack.append((q_[0] + d_[0] * o_, q_[1] + d_[1] * o_, yaw + 1.5708 + tr2.normal(0, 0.05) + lay * 0.0, 0.95, 0.12, 0.04,
+                                      float(hgt(q_[0], q_[1])) - 0.005 + lay * 0.04))
+    boxes_mesh("SpareRails", spares, simple_mat("SpareRail", (0.3, 0.16, 0.08), 0.6, var=(0.42, 0.24, 0.12), metal=0.3))
+    boxes_mesh("OldSleepers", stack, simple_mat("OldSleeper", (0.24, 0.19, 0.14), 0.85, var=(0.4, 0.35, 0.29)))
+elif THEME == "smog":
+    rnd = lambda x: RNG.random(np.shape(x))
+    wr = np.random.default_rng(79)
+    walls, cope = [], []
+    for run in WALLS:
+        P = np.asarray(run)
+        a_, b_ = P[0], P[-1]
+        L_ = float(np.hypot(*(b_ - a_)))
+        if L_ < 0.15:
+            continue
+        mid_ = (a_ + b_) / 2
+        yaw = math.atan2(b_[1] - a_[1], b_[0] - a_[0])
+        base = float(hgt(P[:, 0], P[:, 1]).min()) - 0.01
+        hw_ = wr.uniform(0.055, 0.085)
+        walls.append((mid_[0], mid_[1], yaw, L_ + 0.075, 0.075, hw_, base))
+        cope.append((mid_[0], mid_[1], yaw, L_ + 0.09, 0.095, 0.014, base + hw_))
+    boxes_mesh("Walls", walls, simple_mat("WallBrick", (0.27, 0.15, 0.11), 0.85, var=(0.4, 0.23, 0.16)))
+    boxes_mesh("WallCoping", cope, simple_mat("WallCoping", (0.3, 0.28, 0.26), 0.8, var=(0.44, 0.41, 0.37)))
+    bol = []
+    for (bx, bz, hw, hh, rc) in POOLS:                               # bollards round the dock pools
+        for k_ in range(10):
+            q = 2 * math.pi * k_ / 10 + 0.3
+            dx, dz = math.cos(q), math.sin(q)
+            sx_ = hw + 0.17
+            sz_ = hh + 0.17
+            t_ = min(sx_ / max(abs(dx), 1e-6), sz_ / max(abs(dz), 1e-6))
+            x_, z_ = bx + dx * t_ * 0.97, bz + dz * t_ * 0.97
+            if math.hypot(x_ - bx, z_ - bz) < hw + 0.6 and _at(dist, x_, z_) > HALF + 0.6:
+                bol.append((x_, z_))
+    merged("Bollards", cyl_template(0.045, 0.1), place_list(bol, 1.0, 1.0), simple_mat("Bollard", (0.06, 0.06, 0.07), 0.45, metal=0.4))
+    yard = lambda x, z: (sample(IND["pave"], x, z) < 0.1) & (rd(x, z) > HALF + 0.5) & (sample(BLK_ANY, x, z) > 0.15) & \
+        (sample(IND["water"], x, z) < 0.1) & (sample(IND["coping"], x, z) < 0.1)
+    wd_ = blade_mat("Weeds", (0.13, 0.17, 0.07), (0.25, 0.32, 0.11), (0.44, 0.48, 0.22))
+    pts = scatter(3200 if not PREVIEW else 500, lambda x, z: yard(x, z) & (sample(IND["y_waste"], x, z) > 0.5) & (sample(IND["wall"], x, z) < 0.5))
+    merged("Weeds", tuft_template(8, 0.1, 0.011), place_list(pts, 0.6, 1.3), wd_)
+    pts = scatter(1600 if not PREVIEW else 300, lambda x, z: yard(x, z) & (np.abs(sample(IND["wall"], x, z) - 0.25) < 0.2) &
+                  (sample(IND["y_quay"], x, z) < 0.5))
+    merged("WallWeeds", tuft_template(6, 0.07, 0.009), place_list(pts, 0.6, 1.2), wd_)
+    pts = scatter(700 if not PREVIEW else 150, lambda x, z: yard(x, z) & ((sample(IND["y_flags"], x, z) + sample(IND["y_cobble"], x, z) +
+                                                                          sample(IND["lane"], x, z)) > 0.5) & (rnd(x) < 0.5))
+    merged("CrackWeeds", tuft_template(5, 0.05, 0.008), place_list(pts, 0.6, 1.1), wd_)
+    pts = scatter(650 if not PREVIEW else 120, lambda x, z: yard(x, z) & (sample(IND["y_waste"], x, z) > 0.5))
+    merged("Bricks", box_template(0.07, 0.034, 0.024), place_list(pts, 0.7, 1.3, sink=0.2, tilt=0.4),
+           simple_mat("Brickbat", (0.32, 0.16, 0.11), 0.85, var=(0.48, 0.26, 0.17)))
+    pts = scatter(900 if not PREVIEW else 150, lambda x, z: (yard(x, z) & (rnd(x) < 0.5)) | ((sample(IND["gutter"], x, z) > 0.4) & (rnd(x) < 0.4)))
+    merged("Soot", blob_template(1), place_list(pts, 0.01, 0.026, sink=0.35),
+           simple_mat("SootLump", (0.05, 0.05, 0.055), 0.6, var=(0.14, 0.14, 0.15)))
+    pts = scatter(350 if not PREVIEW else 60, lambda x, z: yard(x, z) & (sample(IND["y_waste"], x, z) + sample(IND["y_earth"], x, z) > 0.5))
+    merged("Stones", blob_template(1), place_list(pts, 0.02, 0.05, sink=0.4, tilt=0.3),
+           simple_mat("Stone", (0.3, 0.29, 0.27), 0.8, var=(0.46, 0.44, 0.4)))
 else:
     cinder = simple_mat("Cinder", (0.16, 0.13, 0.12), 0.8, var=(0.3, 0.25, 0.22))
     pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
@@ -2114,6 +3143,8 @@ else:
     pts = scatter(110, lambda x, z: (np.abs(rd(x, z) - HALF - 0.4) < 0.4) & no_blk(x, z))
     merged("Basalt", blob_template(2), place_list(pts, 0.06, 0.16, sink=0.4, tilt=0.3), simple_mat("Basalt", (0.12, 0.11, 0.11), 0.6, var=(0.22, 0.19, 0.18)))
 log("scatter done")
+if "--dry" in A:                         # (build the scene only: a quick check that it builds, no render)
+    sys.exit(0)
 
 if arg("--crop"):        # test renders: x0,y0,x1,y1 as fractions of the frame (y from the bottom)
     c0 = [float(v) for v in arg("--crop").split(",")]
@@ -2132,7 +3163,7 @@ im = np.asarray(Image.open(OUT + ".raw.png").convert("RGB")).astype(np.float32) 
 # brightness: the game lights this plane again, so bring the playfield's mean to the old painted level
 TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4, "highland": 0.4, "forge": 0.26,
           "bog": 0.33, "olive": 0.5, "coast": 0.53, "acropolis": 0.56, "farmland": 0.44, "darkwood": 0.26, "castle": 0.4,
-          "jungle": 0.3, "harbor": 0.56, "fortress": 0.4}[THEME]
+          "jungle": 0.3, "harbor": 0.56, "fortress": 0.4, "factory": 0.31, "railyard": 0.36, "smog": 0.33}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()
