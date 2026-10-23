@@ -70,8 +70,8 @@ def head(fd):
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
         up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.22, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0042)), Plane(ec + v3((0, 0, -hr(0.0265))), (sx * -0.14, 0.05, 1.0)), hr(0.004))
-        fd.add(lo, hr(0.005), SKIN)
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.021))), (sx * -0.2, 0.05, 1.0)), hr(0.004))
+        fd.add(lo, hr(0.007), SKIN)
         fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0155))), (sx * 0.22, 0.05, -1.0)), hr(0.002)), LASH)
     # a short, straight nose
     fd.add(RoundCone(hp((0, -0.174, 1.722)), hp((0, -0.205, 1.66)), hr(0.0115), hr(0.0145)), hr(0.024), SKIN)
