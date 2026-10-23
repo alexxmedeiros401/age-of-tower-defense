@@ -26,8 +26,8 @@ from tarek import (J, HS, DZ, HPIV, hp, hr, hinv, HEAD_C, HEAD_RAD, EYE_R, eye_c
 
 SKIN, NAIL, LIP, MOUTH, BROW, PAINT, LASH, SOOT, GLOVE = 0, 1, 2, 3, 4, 5, 8, 9, 11
 
-NAVY = (0.05, 0.07, 0.17)             # the Industrial corps' navy wool (his shirt; the cap's ticking)
-DENIM = (0.2, 0.34, 0.56)             # his overalls
+NAVY = (0.18, 0.22, 0.42)             # the Industrial corps' navy wool (his shirt; the cap's ticking)
+DENIM = (0.34, 0.5, 0.72)             # his overalls (a faded denim, lighter than the navy)
 STITCH = (0.86, 0.56, 0.22)           # their orange top-stitching
 TICK_W = (0.9, 0.9, 0.85)             # the ticking's white stripes
 KERCHIEF = (0.72, 0.09, 0.06)
