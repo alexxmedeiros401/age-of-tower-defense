@@ -619,6 +619,7 @@ func use_ability() -> bool:
 				var c: Dictionary = alive2[i]
 				var at: Vector2 = c.pos
 				hit_pos.append(at)
+				hit_ids.append(c.id)
 				_damage(c, dmg, "energy", src)
 				if splash > 0.0:
 					for o in enemies.duplicate():

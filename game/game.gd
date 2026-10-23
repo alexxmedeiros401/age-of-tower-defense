@@ -3318,7 +3318,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4798,7 +4798,7 @@ func _handle_events() -> void:
 					_atk_pending[int(t0)] = true
 		elif ev0.e == "ability" and (str(ev0.get("type", "")) in ["rain", "quake"] or (str(ev0.get("type", "")) == "flare"
 				and sim.hero != null and _hq_clips(sim.hero.id)) or (str(ev0.get("type", "")) == "strike" and sim.hero != null
-				and str(sim.hero.type) == "aldric" and _hq_clips(sim.hero.id))):
+				and str(sim.hero.type) in ["aldric", "maya"] and _hq_clips(sim.hero.id))):
 			for t0 in ev0.get("ids", []):                # Stone Rain's boulders and the Earthquake's spikes
 				_atk_pending[int(t0)] = true
 		elif ev0.e == "impact" and _javs.has(int(ev0.pid)) and not bool(_javs[int(ev0.pid)].landed):
@@ -5367,7 +5367,8 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # (_gun_blast); it flies flat, a short bright streak settling onto the sim's projectile like the archers' arrows, and
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
-const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197)}   # (v0.9.61: Isla's right pistol)
+const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197),
+	"maya": Vector3(-0.199, 1.290, 0.946)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
@@ -5390,6 +5391,30 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	if time_s - float(_musket_t.get(int(u.id), -9.0)) > 0.15:
 		_musket_t[int(u.id)] = time_s
 		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), {"musketeer": 1.0, "rifleman": 0.8}.get(str(u.type), 0.7))
+		if str(u.type) == "maya":                    # v0.9.69: Maya's three-round burst: two more tracers on frames 2 and 3
+			for k in [1, 2]:
+				_fx_after(float(k) / CLIP_FPS / maxf(float(speed), 0.01), func() -> void: _burst_tracer(int(u.id), tp))
+
+
+## v0.9.69: one of the burst's later rounds (cosmetic: the first carries the hit): a flash at the muzzle and a tracer
+## streaking to near the target.
+func _burst_tracer(uid: int, tp: Vector3) -> void:
+	if not tower_nodes.has(uid) or not is_instance_valid(tower_nodes[uid]) or not (tower_nodes[uid] as Node3D).has_meta("yaw"):
+		return
+	if not _fx_room(2):
+		return
+	var yaw: Node3D = (tower_nodes[uid] as Node3D).get_meta("yaw")
+	var from: Vector3 = yaw.global_transform * (MUSKET_TIPS["maya"] as Vector3)
+	var fwd := (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized()
+	_gun_blast(from, fwd, 0.45)
+	var to := tp + Vector3(randf_range(-0.15, 0.15), randf_range(-0.1, 0.15), randf_range(-0.15, 0.15))
+	var tr := _mi(_box(0.05, 0.05, 0.5), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), self, from)
+	tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if (to - from).length() > 0.05 and absf((to - from).normalized().y) < 0.98:
+		tr.look_at(to, Vector3.UP)
+	var tw := create_tween()
+	tw.tween_property(tr, "position", to, maxf((to - from).length() / 26.0, 0.04) / maxf(float(speed), 0.01))
+	tw.tween_callback(tr.queue_free)
 
 
 ## The ball strikes: a small white flash on the robot's plating and a spray of sparks thrown back off it.
@@ -8098,6 +8123,164 @@ func _ken_grenade(ev: Dictionary, hp: Vector3) -> void:
 			_sfx("emp", 0.0, 0.0, 0.5))))
 
 
+# v0.9.69: Sgt. Maya Cole's Airstrike (anim_maya.py): she throws a red smoke grenade out ahead (it lands at frame 33,
+# LAND, and pours red smoke), calls it in on her headset and flings her fist at the sky at frame 45 (SIGNAL): a pair of
+# the task force's jets screams in low over the field, ripple-firing a rocket at each target; each one bursts in fire.
+# The damage waits for the rockets.
+const MAYA_LAND := 33
+const MAYA_SIGNAL := 45
+const MAYA_SMOKE := Vector3(0.120, -0.170, 2.400)
+const MAYA_FIST := Vector3(0.501, 1.863, 0.414)
+const MAYA_JET_T := 1.3             # the jets' pass, end to end (s)
+const MAYA_JET_RUN := 26.0          # ... and its length either side of the target area
+const MAYA_ROCKET_T := 0.32         # a rocket's flight
+func _maya_strike(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var ids: Array = ev.get("ids", [])
+	var pts: Array = ev.get("hits", [])
+	var at_l := float(MAYA_LAND) / CLIP_FPS
+	var at_s := float(MAYA_SIGNAL) / CLIP_FPS
+	for k in ids.size():
+		if int(ids[k]) >= 0:
+			_hold_hit(int(ids[k]), at_s + MAYA_JET_T * 0.3 + 0.1 * k + MAYA_ROCKET_T + 0.1)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_l, at_l, func() -> void:
+		var g := hp + Vector3(0, 0, 1.8)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			g = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * MAYA_SMOKE
+		_red_smoke(Vector3(g.x, 0.1, g.z))))
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at_s, at_s, func() -> void:
+		var fist := hp + Vector3(0, 1.8, 0)
+		var smoke := hp + Vector3(0, 0, 1.8)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			var yt := ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform
+			fist = yt * MAYA_FIST
+			smoke = yt * MAYA_SMOKE
+		if _fx_room(1):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, fist)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": 0.5})
+		_maya_jets(smoke, ids, pts)))
+
+
+## Red marker smoke pouring from the grenade for a few seconds, drifting up and downwind.
+func _red_smoke(at: Vector3) -> void:
+	var spd := maxf(float(speed), 0.01)
+	var n: int = [16, 10, 5][clampi(Progress.gfx_level(), 0, 2)]
+	var flare := _mi(_sph(0.09, 8), _mat("smoke_flare", Color(1.0, 0.3, 0.2), {"emit": Color(1.0, 0.25, 0.15), "emit_e": 3.0}), self, at + Vector3(0, 0.05, 0))
+	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_fx_after(3.2 / spd, flare.queue_free)
+	for i in n:
+		_fx_after(i * 3.0 / n / spd, func() -> void:
+			if not _fx_room(1):
+				return
+			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.92, 0.3, 0.25, 0.6) if i % 3 else Color(0.98, 0.5, 0.42, 0.55)), self, at + Vector3(0, 0.2, 0))
+			pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			pf.scale = Vector3.ONE * randf_range(0.55, 0.8)
+			effects.append({"node": pf, "t": 0.0, "life": randf_range(1.6, 2.2), "kind": "dust",
+				"v": Vector3(randf_range(0.1, 0.45), randf_range(0.7, 1.1), randf_range(-0.25, 0.25))}))
+
+
+## The pass: two jets in echelon, low and fast over the robots, along the line from her smoke to the targets; on the
+## run-in the lead ripple-fires a rocket at each target in turn.
+func _maya_jets(smoke: Vector3, ids: Array, pts: Array) -> void:
+	var spd := maxf(float(speed), 0.01)
+	var c := Vector3.ZERO
+	for p in pts:
+		c += _v3(p, 0.0)
+	c = c / float(pts.size()) if not pts.is_empty() else Vector3(smoke.x, 0.0, smoke.z)
+	var dir := Vector3(c.x - smoke.x, 0.0, c.z - smoke.z)
+	dir = dir.normalized() if dir.length() > 0.5 else Vector3(1, 0, 0)
+	var side := dir.cross(Vector3.UP).normalized()
+	var alt := 4.2
+	var jets: Array = []
+	var path := "res://assets/decor/ally_jet.glb"
+	for j in 2:
+		var jn: Node3D
+		if ResourceLoader.exists(path):
+			jn = _inst(path)
+			add_child(jn)
+		else:
+			jn = Node3D.new()
+			add_child(jn)
+			_mi(_box(0.5, 0.15, 2.8), _mat("jet_grey", Color(0.45, 0.48, 0.52)), jn)
+		jn.scale = Vector3.ONE * 0.75
+		jets.append(jn)
+	var offs := [Vector3.ZERO, -dir * 1.6 + side * 1.5 + Vector3(0, 0.4, 0)]
+	var a0 := c - dir * MAYA_JET_RUN + Vector3(0, alt, 0)
+	var a1 := c + dir * MAYA_JET_RUN + Vector3(0, alt, 0)
+	_sfx("airstrike", 0.0, 0.0, 0.5)
+	var trail_t := [0.0]
+	var tw := create_tween()
+	tw.tween_method(func(k: float) -> void:
+		var base := a0.lerp(a1, k)
+		for j in jets.size():
+			var jn: Node3D = jets[j]
+			if not is_instance_valid(jn):
+				continue
+			var pos: Vector3 = base + offs[j]
+			jn.look_at_from_position(pos, pos + dir, Vector3.UP)
+			jn.rotate_object_local(Vector3(0, 0, 1), 0.25 * sin(k * PI) * (1.0 if j == 0 else -1.0))
+		if k - float(trail_t[0]) > 0.02 and _fx_room(2):          # contrails off the wing tips
+			trail_t[0] = k
+			for j in jets.size():
+				var jn: Node3D = jets[j]
+				if is_instance_valid(jn):
+					for sx in [-1.0, 1.0]:
+						var tp := jn.global_transform * Vector3(sx * 1.3, -0.02, 0.6)
+						var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.97, 0.97, 0.97, 0.5)), self, tp)
+						pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+						pf.scale = Vector3.ONE * 0.22
+						effects.append({"node": pf, "t": 0.0, "life": 0.7, "kind": "dust", "v": Vector3(0, 0.15, 0)}),
+		0.0, 1.0, MAYA_JET_T / spd)
+	tw.tween_callback(func() -> void:
+		for jn in jets:
+			if is_instance_valid(jn):
+				(jn as Node3D).queue_free())
+	for k in pts.size():
+		var tid := int(ids[k]) if k < ids.size() else -1
+		var p: Vector2 = pts[k]
+		var t_fire := MAYA_JET_T * 0.3 + 0.1 * k
+		_fx_after(t_fire / spd, func() -> void:
+			var from := a0.lerp(a1, t_fire / MAYA_JET_T) + Vector3(0, -0.2, 0)
+			var to := _robot_point(tid, 0.0) if tid >= 0 else Vector3.INF
+			if to == Vector3.INF:
+				to = _v3(p, 0.0)
+			_maya_rocket(from, Vector3(to.x, 0.0, to.z)))
+
+
+func _maya_rocket(from: Vector3, land: Vector3) -> void:
+	var spd := maxf(float(speed), 0.01)
+	var rk := Node3D.new()
+	add_child(rk)
+	rk.position = from
+	_mi(_cyl(0.05, 0.05, 0.4, 8), _mat("rocket", Color(0.85, 0.85, 0.82), {"metal": 0.3}), rk, Vector3.ZERO, Vector3(PI * 0.5, 0, 0))
+	var glow := _mi(_sph(0.08, 6), _mat("rocket_glow", Color(1, 0.6, 0.2), {"emit": Color(1, 0.55, 0.15), "emit_e": 4.0, "unshaded": true}), rk, Vector3(0, 0, 0.24))
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if (land - from).length() > 0.05:
+		rk.look_at(land, Vector3.UP if absf((land - from).normalized().y) < 0.98 else Vector3.RIGHT)
+	_sfx("missile", -4.0, 0.0, 0.25)
+	var last := [0.0]
+	var tw := create_tween()
+	tw.tween_method(func(k: float) -> void:
+		if not is_instance_valid(rk):
+			return
+		rk.position = from.lerp(land, k)
+		if k - float(last[0]) > 0.12 and _fx_room(1):
+			last[0] = k
+			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.9, 0.9, 0.88, 0.55)), self, rk.position)
+			pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			pf.scale = Vector3.ONE * 0.3
+			effects.append({"node": pf, "t": 0.0, "life": 0.6, "kind": "dust", "v": Vector3(0, 0.2, 0)}),
+		0.0, 1.0, MAYA_ROCKET_T / spd)
+	tw.tween_callback(func() -> void:
+		if is_instance_valid(rk):
+			rk.queue_free()
+		_shell_burst(land, 1.4)
+		_fire_splash(land, 1.0)
+		_sfx("explosion", -2.0, 0.0, 0.3)
+		shake = maxf(shake, 0.6))
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -8879,6 +9062,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
 			return
 		"strike":
+			if sim.hero != null and str(sim.hero.type) == "maya" and _hq_clips(sim.hero.id):
+				_maya_strike(ev, hp)                        # v0.9.69: her red smoke marks it, she calls it in, the jets strike
+				_banner(aname, Color(1, 0.85, 0.5))
+				return
 			if sim.hero != null and str(sim.hero.type) == "aldric" and _hq_clips(sim.hero.id):
 				_aldric_lance(ev, aname)                    # v0.9.56: the light gathers on his raised blade, then falls
 				return

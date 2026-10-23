@@ -1,4 +1,4 @@
-"""HQ ground for the Stone Age to Industrial Age maps: the map's ground as a real 3D surface, rendered straight down into
+"""HQ ground for the Stone Age to Modern Age maps: the map's ground as a real 3D surface, rendered straight down into
 its ground texture, so it always matches the simulation's road, lanes and no-build zones.
 
     python3 tools/blender/map_ground_hq.py <map_id> [--px 64] [--samples 32] [--out PATH] [--preview]
@@ -36,9 +36,19 @@ and ballast with turnouts, buffer stops and a turntable whose stalls fan out, le
 cross the packed-cinder roads, granite setts on the fast lanes, flagged goods platforms under the crates (railyard); a
 smoky Victorian city of sett streets between granite kerbs and flagged pavements, gully grates and manholes, yards
 (flags, cobbles, brick, earth, waste ground) between low brick walls, back lanes, dock pools behind coping stones in a
-quay with a flush tramway (smog). Sleepers, rails, buffer stops, walls and bollards are 3D. For highland, bog, coast,
-harbor and smog, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools,
-the inlet, the dock pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
+quay with a flush tramway (smog). Sleepers, rails, buffer stops, walls and bollards are 3D. Modern Age: an airbase of
+mown olive turf, a runway 09/27 between the service roads (thresholds, numbers, touchdown and aiming-point bars, tyre
+rubber, edge lights), taxiways with yellow centre and edge lines and hold-short bars, an apron of concrete slabs with
+parking stands, hazard-striped pads under the machines, the crates' pad, a helipad, a hangar hardstand, craters blasted
+in and scorched round (military); a city centre of asphalt avenues with double yellow lines, red bus lanes on the speed
+lanes, a brick table over the crossroads, zebra crossings, granite kerbs, sidewalks with tree pits, drains and
+manholes, its blocks cut into lots (granite tiles, concrete, brick, slate, parking, lawns with planted beds), a plaza
+with an inlaid compass and planters, polished plinths under the buildings (metro); a suburb of striped lawns, curving
+streets with a yellow centre line, kerbs, verges and sidewalks, two cul-de-sacs, driveways, garden paths, flower beds,
+patios, a park with a playground, and backyard swimming pools (the lake zones) with travertine decks (suburb). Their
+markings are painted at the render's resolution (PIL), so they stay crisp. For highland, bog, coast, harbor, smog and
+suburb, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools, the inlet,
+the dock pools, the swimming pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
 masks without rendering; --dry builds the scene without rendering.
 Output: assets/textures/ground_<map_id>.png (same coverage as tools/gen_ground.py: x -21..19, z -13..13).
 """
@@ -193,27 +203,31 @@ SKY = {"meadow": (0.62, 0.74, 0.95), "snow": (0.66, 0.78, 1.0), "volcano": (0.6,
        "bog": (0.64, 0.72, 0.78), "olive": (0.66, 0.76, 0.95), "coast": (0.64, 0.77, 0.96), "acropolis": (0.66, 0.76, 0.95),
        "farmland": (0.62, 0.74, 0.95), "darkwood": (0.46, 0.56, 0.52), "castle": (0.62, 0.7, 0.86),
        "jungle": (0.5, 0.62, 0.55), "harbor": (0.64, 0.78, 0.97), "fortress": (0.62, 0.7, 0.86),
-       "factory": (0.6, 0.57, 0.55), "railyard": (0.62, 0.66, 0.72), "smog": (0.6, 0.6, 0.56)}[THEME]
+       "factory": (0.6, 0.57, 0.55), "railyard": (0.62, 0.66, 0.72), "smog": (0.6, 0.6, 0.56),
+       "military": (0.64, 0.74, 0.92), "metro": (0.6, 0.66, 0.8), "suburb": (0.62, 0.75, 0.96)}[THEME]
 wd.node_tree.nodes["Background"].inputs["Color"].default_value = SKY + (1,)
 wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1.05, "snow": 1.0, "volcano": 0.8, "delta": 1.05,
                                                                     "desert": 1.0, "canyon": 0.95, "highland": 1.0, "forge": 0.82,
                                                                     "bog": 0.98, "olive": 1.05, "coast": 1.05, "acropolis": 1.05,
                                                                     "farmland": 1.05, "darkwood": 0.85, "castle": 1.0,
                                                                     "jungle": 0.92, "harbor": 1.05, "fortress": 1.0,
-                                                                    "factory": 0.92, "railyard": 0.98, "smog": 0.95}[THEME]
+                                                                    "factory": 0.92, "railyard": 0.98, "smog": 0.95,
+                                                                    "military": 1.0, "metro": 0.95, "suburb": 1.05}[THEME]
 # the game's sun: Godot rotation (-52, -36, 0) -> light travelling (0.362, -0.788, -0.498) in Godot = (x, y_b, z_b)
 # (0.362, 0.498, -0.788) in Blender (y_b = -z_godot)
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
 sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6, "highland": 2.6, "forge": 2.3,
                    "bog": 2.5, "olive": 2.8, "coast": 2.75, "acropolis": 2.8, "farmland": 2.75, "darkwood": 2.2, "castle": 2.6,
-                   "jungle": 2.45, "harbor": 2.8, "fortress": 2.6, "factory": 2.4, "railyard": 2.55, "smog": 2.2}[THEME]
+                   "jungle": 2.45, "harbor": 2.8, "fortress": 2.6, "factory": 2.4, "railyard": 2.55, "smog": 2.2,
+                   "military": 2.7, "metro": 2.5, "suburb": 2.75}[THEME]
 sun.data.angle = math.radians(8)
 sun.data.color = {"meadow": (1.0, 0.95, 0.86), "snow": (1.0, 0.98, 0.96), "volcano": (1.0, 0.75, 0.55), "delta": (1.0, 0.95, 0.86),
                   "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78), "highland": (1.0, 0.95, 0.87), "forge": (1.0, 0.8, 0.62),
                   "bog": (0.98, 0.96, 0.86), "olive": (1.0, 0.95, 0.84), "coast": (1.0, 0.96, 0.88), "acropolis": (1.0, 0.95, 0.85),
                   "farmland": (1.0, 0.95, 0.86), "darkwood": (0.92, 0.96, 0.82), "castle": (1.0, 0.93, 0.84),
                   "jungle": (1.0, 0.95, 0.8), "harbor": (1.0, 0.96, 0.88), "fortress": (1.0, 0.93, 0.83),
-                  "factory": (1.0, 0.88, 0.74), "railyard": (1.0, 0.92, 0.8), "smog": (1.0, 0.9, 0.74)}[THEME]
+                  "factory": (1.0, 0.88, 0.74), "railyard": (1.0, 0.92, 0.8), "smog": (1.0, 0.9, 0.74),
+                  "military": (1.0, 0.95, 0.86), "metro": (1.0, 0.96, 0.9), "suburb": (1.0, 0.96, 0.88)}[THEME]
 d = Vector((0.362, 0.498, -0.788))
 sun.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 sc.collection.objects.link(sun)
@@ -531,7 +545,8 @@ if THEME == "fortress":
 # rc_al / rc_sd are the road's own coordinates (distance along it, signed distance across it), so setts, flags and kerbs
 # follow the road round its bends; TRACKS is the railway (railyard, factory): each track's centre line, its sleepers and
 # rails built in 3D further down; tk_* the distance to the nearest track, along it and across it.
-IND_T = THEME in ("factory", "railyard", "smog")
+IND_T = THEME in ("factory", "railyard", "smog", "military", "metro", "suburb")
+MOD_T = THEME in ("military", "metro", "suburb")              # (the Modern Age: its own features further down)
 IND = {}
 TRACKS = []                # {"pts": N x 2 world (x, z) 0.05 apart, "buf": a buffer stop at its end}
 TURNTABLE = None           # (x, z, radius, the bridge's angle in degrees)
@@ -595,7 +610,7 @@ if IND_T:
     _rd, rc_al, rc_sd = g.poly_dist([_round(lg) for lg in legs], margin=1.8, signed=True)
     rc_sd = np.where(rc_sd < 0, -1.0, 1.0) * np.minimum(dist, _rd)
     rd_hard = np.clip((HALF - dist) / 0.03, 0, 1)                      # the road itself, a crisp edge (no wobble)
-    if THEME in ("factory", "smog"):                                   # (paved roads: straight edges, kerbs)
+    if THEME in ("factory", "smog") or MOD_T:                         # (paved roads: straight edges, kerbs)
         road = rd_hard
         edge = np.exp(-((dist - HALF) / 0.1) ** 2)
         rut = np.exp(-((dist - 0.36) / 0.09) ** 2) * road
@@ -863,23 +878,779 @@ if THEME == "smog":
     IND["soot"] = np.clip((fbm(0.8, 4, 432) - 0.5) / 0.15, 0, 1)
     log("smog: plots", len(LEAVES), "lanes", sum(l[4] for l in LEAVES), "wall runs", len(WALLS), "pools", len(POOLS),
         "manholes", len(MANHOLES))
+# ------------------------------------------------------------------------------------------------ Modern Age features
+# The Modern Age's grounds are paved and painted. Their areas (the runway, aprons and pads; sidewalks, plazas and lots;
+# lawns, driveways and pools) are masks in IND like the Industrial themes'. Their painted markings are drawn with PIL at
+# the render's own resolution into PAINT (white, yellow, red, and a dark channel for joints, tyre rubber and grates),
+# supersampled, so a centre line, a zebra crossing or a runway number stays crisp. A road's lines follow its legs
+# (smoothed through their points) and stop where another road joins or crosses it; a stretch of street that two legs
+# (or two passes of one leg) share is painted once. ped: the signed distance to the edge of the paved carriageway (its
+# inner corners filleted), < 0 on it; sidewalks, kerbs and verges are bands of it.
+PAINT = None
+LIGHTS = []                # military: edge lights (x, z, kind: 0 white, 1 blue, 2 green, 3 red)
+SMALL_CR = []              # military: the small craters (x, z, radius) besides the crater blockers
+HOUSES = []                # suburb: houses (x, z of the front's centre, the way it faces (radians, from +x toward +z))
+POOLS_S = []               # suburb: each pool's water (x, z, half width, half height, corner radius)
+ped = dist - HALF
+GLYPH = {"0": [[(0, 0), (1, 0), (1, 2), (0, 2), (0, 0)]], "1": [[(0.2, 1.6), (0.55, 2), (0.55, 0)], [(0.1, 0), (1, 0)]],
+         "2": [[(0, 2), (1, 2), (1, 1), (0, 1), (0, 0), (1, 0)]], "3": [[(0, 2), (1, 2), (1, 0), (0, 0)], [(0.25, 1), (1, 1)]],
+         "4": [[(0, 2), (0, 0.8), (1, 0.8)], [(0.75, 1.5), (0.75, 0)]], "5": [[(1, 2), (0, 2), (0, 1), (1, 1), (1, 0), (0, 0)]],
+         "6": [[(1, 2), (0, 2), (0, 0), (1, 0), (1, 1), (0, 1)]], "7": [[(0, 2), (1, 2), (0.35, 0)]],
+         "8": [[(0, 0), (1, 0), (1, 2), (0, 2), (0, 0)], [(0, 1), (1, 1)]], "9": [[(1, 1), (0, 1), (0, 2), (1, 2), (1, 0), (0, 0)]],
+         "S": [[(1, 2), (0, 2), (0, 1), (1, 1), (1, 0), (0, 0)]], "O": [[(0, 0), (1, 0), (1, 2), (0, 2), (0, 0)]],
+         "T": [[(0, 2), (1, 2)], [(0.5, 2), (0.5, 0)]], "P": [[(0, 0), (0, 2), (1, 2), (1, 1), (0, 1)]],
+         "H": [[(0, 0), (0, 2)], [(1, 0), (1, 2)], [(0, 1), (1, 1)]], "L": [[(0, 2), (0, 0), (1, 0)]],
+         "A": [[(0, 0), (0, 2), (1, 2), (1, 0)], [(0, 1), (1, 1)]], "W": [[(0, 2), (0.15, 0), (0.5, 1.1), (0.85, 0), (1, 2)]],
+         "X": [[(0, 0), (1, 2)], [(0, 2), (1, 0)]], "B": [[(0, 0), (0, 2), (0.8, 2), (0.8, 1), (0, 1)], [(0.8, 1), (1, 1), (1, 0), (0, 0)]],
+         "U": [[(0, 2), (0, 0), (1, 0), (1, 2)]], "C": [[(1, 2), (0, 2), (0, 0), (1, 0)]], "E": [[(1, 2), (0, 2), (0, 0), (1, 0)], [(0, 1), (0.75, 1)]],
+         "R": [[(0, 0), (0, 2), (1, 2), (1, 1), (0, 1), (1, 0)]], "Y": [[(0, 2), (0.5, 1), (1, 2)], [(0.5, 1), (0.5, 0)]],
+         "N": [[(0, 0), (0, 2), (1, 0), (1, 2)]], "I": [[(0.5, 0), (0.5, 2)]], "K": [[(0, 0), (0, 2)], [(1, 2), (0, 1), (1, 0)]]}
+if MOD_T:
+    from PIL import Image as _PIm, ImageDraw as _PId
+    from scipy.spatial import cKDTree
+    from scipy.ndimage import gaussian_filter, distance_transform_edt
+
+    class Painter:
+        """Paint on the ground at the render's resolution (drawn at twice it, then averaged down): channels w (white),
+        y (yellow), r (red), k (dark: joints, rubber, slots)."""
+        CH = ("w", "y", "r", "k")
+
+        def __init__(self, px, ss=2):
+            self.s = float(px * ss)
+            self.out = (int(round(G.W * px)), int(round(G.H * px)))
+            self.im = {c: _PIm.new("L", (self.out[0] * ss, self.out[1] * ss), 0) for c in self.CH}
+            self.dr = {c: _PId.Draw(self.im[c]) for c in self.CH}
+
+        def P(self, x, z):
+            return ((x - G.X0) * self.s, (z - G.Z0) * self.s)
+
+        def poly(self, ch, pts, v=255):
+            self.dr[ch].polygon([self.P(x, z) for x, z in pts], fill=v)
+
+        def disc(self, ch, x, z, r, v=255):
+            (a, b), (c, d) = self.P(x - r, z - r), self.P(x + r, z + r)
+            self.dr[ch].ellipse([a, b, c, d], fill=v)
+
+        def ring(self, ch, x, z, r, w, v=255):
+            (a, b), (c, d) = self.P(x - r - w / 2, z - r - w / 2), self.P(x + r + w / 2, z + r + w / 2)
+            self.dr[ch].ellipse([a, b, c, d], outline=v, width=max(1, int(round(w * self.s))))
+
+        def rect(self, ch, cx, cz, L, W, ang=0.0, v=255):
+            """A rectangle L long (along ang, radians from +x toward +z) and W wide, centred on (cx, cz)."""
+            u, n = (math.cos(ang), math.sin(ang)), (-math.sin(ang), math.cos(ang))
+            self.poly(ch, [(cx + u[0] * a * L / 2 + n[0] * b * W / 2, cz + u[1] * a * L / 2 + n[1] * b * W / 2)
+                           for a, b in ((-1, -1), (1, -1), (1, 1), (-1, 1))], v)
+
+        def seg(self, ch, a, b, w, v=255):
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            if L > 1e-6:
+                self.rect(ch, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, L, w, math.atan2(b[1] - a[1], b[0] - a[0]), v)
+
+        def line(self, ch, pts, w, v=255):
+            pts = [tuple(p) for p in np.asarray(pts, np.float64)]
+            for a, b in zip(pts[:-1], pts[1:]):
+                self.seg(ch, a, b, w, v)
+            for p in pts[1:-1]:
+                self.disc(ch, p[0], p[1], w / 2, v)
+
+        def dashed(self, ch, pts, w, dash, gap, v=255):
+            P = np.asarray(pts, np.float64)
+            cum = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+            s = 0.0
+            while s < cum[-1]:
+                t = np.arange(s, min(s + dash, cum[-1]) + 1e-9, 0.03)
+                if len(t) >= 2:
+                    self.line(ch, np.stack([np.interp(t, cum, P[:, 0]), np.interp(t, cum, P[:, 1])], 1), w, v)
+                s += dash + gap
+
+        def text(self, ch, s, cx, cz, h, ang, w=None, gap=0.35, v=255):
+            """Block letters h tall, their up pointing along ang (so they read from that way round), centred on (cx, cz)."""
+            U, R = (math.cos(ang), math.sin(ang)), (-math.sin(ang), math.cos(ang))
+            w = w or h * 0.12
+            cw = h * 0.52
+            tot = len(s) * cw + (len(s) - 1) * gap * cw
+            for i, ch_ in enumerate(s):
+                x0 = -tot / 2 + i * cw * (1 + gap)
+                for stroke in GLYPH.get(ch_, []):
+                    pts = []
+                    for gx, gy in stroke:
+                        a_ = x0 + w / 2 + gx * (cw - w)
+                        b_ = -h / 2 + w / 2 + gy / 2 * (h - w)
+                        pts.append((cx + R[0] * a_ + U[0] * b_, cz + R[1] * a_ + U[1] * b_))
+                    self.line(ch, pts, w, v)
+                    for p in (pts[0], pts[-1]):
+                        self.disc(ch, p[0], p[1], w / 2, v)
+
+        def arrays(self):
+            return {c: np.asarray(self.im[c].resize(self.out, _PIm.BOX), np.float32) / 255.0 for c in self.CH}
+
+    PAINT = Painter(PX if not PREVIEW else 16)
+
+    def _smp(arr, x, z):
+        """Bilinear lookup of a mask at world (x, z) (as sample() further down)."""
+        fx = np.clip((np.asarray(x) - G.X0) * MPX - 0.5, 0, g.w - 1.001)
+        fz = np.clip((np.asarray(z) - G.Z0) * MPX - 0.5, 0, g.h - 1.001)
+        i0, j0 = fz.astype(int), fx.astype(int)
+        tz, tx = fz - i0, fx - j0
+        return (arr[i0, j0] * (1 - tx) + arr[i0, j0 + 1] * tx) * (1 - tz) + (arr[i0 + 1, j0] * (1 - tx) + arr[i0 + 1, j0 + 1] * tx) * tz
+
+    def _res(P, step=0.03):
+        P = np.asarray(P, np.float64)
+        cum = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+        s_ = np.arange(0.0, cum[-1] + 1e-9, step)
+        Q = np.stack([np.interp(s_, cum, P[:, 0]), np.interp(s_, cum, P[:, 1])], 1)
+        T = np.gradient(Q, axis=0)
+        T /= np.maximum(np.linalg.norm(T, axis=1, keepdims=True), 1e-9)
+        return Q, T, s_
+
+    RS = [_res(_round(lg)) for lg in legs]
+    _aP = np.vstack([r[0] for r in RS])
+    _aT = np.vstack([r[1] for r in RS])
+    _aL = np.concatenate([np.full(len(r[0]), i) for i, r in enumerate(RS)])
+    _aS = np.concatenate([r[2] for r in RS])
+    _tree = cKDTree(_aP)
+
+    def _on_other(Q, T, li, S_, r):
+        """True where a point of a line drawn along leg li lies on another road that joins or crosses it (not one
+        running along it), within r of that road's centre line."""
+        out = np.zeros(len(Q), bool)
+        for i, nb_ in enumerate(_tree.query_ball_point(Q, r)):
+            if nb_:
+                nb_ = np.asarray(nb_)
+                far = (_aL[nb_] != li) | (np.abs(_aS[nb_] - S_[i]) > 3.0)
+                out[i] = bool(np.any(far & (np.abs(_aT[nb_] @ T[i]) < 0.8)))
+        return out
+
+    def _dup(P, T, li, S_):
+        out = np.zeros(len(P), bool)
+        for i, nb_ in enumerate(_tree.query_ball_point(P, 0.12)):
+            if nb_:
+                nb_ = np.asarray(nb_)
+                earlier = (_aL[nb_] < li) | ((_aL[nb_] == li) & (_aS[nb_] < S_[i] - 3.0))
+                out[i] = bool(np.any(earlier & (np.abs(_aT[nb_] @ T[i]) > 0.9)))
+        return out
+
+    DUP = [_dup(P, T, li, S_) for li, (P, T, S_) in enumerate(RS)]
+
+    def _runs(k):
+        idx = np.flatnonzero(np.diff(np.concatenate([[0], k.astype(np.int8), [0]])))
+        return list(zip(idx[::2], idx[1::2]))
+
+    def road_line(ch, off, w, dash=0.0, gap=0.0, skip=None, r=HALF - 0.03, v=255):
+        """A line along every road, off to the side of its centre line (+ = left of the way it runs)."""
+        for li, (P, T, S_) in enumerate(RS):
+            Q = P + np.stack([-T[:, 1], T[:, 0]], 1) * off
+            k = ~DUP[li] & ~_on_other(Q, T, li, S_, r)
+            if skip is not None:
+                k &= ~skip(Q[:, 0], Q[:, 1])
+            if dash > 0:
+                k &= (S_ % (dash + gap)) < dash
+            for a, b in _runs(k):
+                if b - a >= 2:
+                    PAINT.line(ch, Q[a:b], w, v)
+
+    def road_ticks(ch, off0, off1, step, w, skip=None, v=255, r=HALF + 0.6):
+        """Short strokes across each road's side from off0 to off1 out from its centre line, every step along it (the
+        joints between a sidewalk's slabs), both sides."""
+        for li, (P, T, S_) in enumerate(RS):
+            Nn = np.stack([-T[:, 1], T[:, 0]], 1)
+            k = ~DUP[li] & (np.abs((S_ + step / 2) % step - step / 2) < 0.016)
+            for sg in (-1, 1):
+                A_, B_ = P + Nn * off0 * sg, P + Nn * off1 * sg
+                kk = k & ~_on_other((A_ + B_) / 2, T, li, S_, r)
+                if skip is not None:
+                    kk &= ~skip(A_[:, 0], A_[:, 1]) & ~skip(B_[:, 0], B_[:, 1])
+                for i in np.flatnonzero(kk):
+                    PAINT.seg(ch, A_[i], B_[i], w, v)
+
+    def zebra(cx, cz, ang, L=0.5, bar=0.1, gap=0.1, half=HALF - 0.1, ch="w"):
+        """A zebra crossing at (cx, cz) across a road heading ang: bars along the road, spaced across it."""
+        n_ = (-math.sin(ang), math.cos(ang))
+        k = -half + bar / 2
+        while k <= half - bar / 2 + 1e-6:
+            PAINT.rect(ch, cx + n_[0] * k, cz + n_[1] * k, L, bar, ang)
+            k += bar + gap
+
+    def stop_bar(cx, cz, ang, side, w=0.07, ch="w"):
+        """A stop line across one lane (side +1: the right of ang as seen from above, the lane a car heading ang drives
+    in; -1: the other) of a road heading ang."""
+        n_ = (-math.sin(ang), math.cos(ang))
+        PAINT.rect(ch, cx + n_[0] * side * HALF / 2, cz + n_[1] * side * HALF / 2, w, HALF - 0.08, ang)
+
+    def _fillet(mask, rad):
+        """Round a paved area's inner corners (where two streets meet) without moving its straight edges."""
+        return np.maximum(mask, np.clip((gaussian_filter(mask.astype(np.float32), rad * MPX) - 0.5) / 0.12 + 0.5, 0, 1))
+
+    def _sdist(mask):
+        """Signed distance (world units) to the edge of a mask's area, < 0 inside."""
+        m_ = mask > 0.5
+        return (distance_transform_edt(~m_) - distance_transform_edt(m_)) / MPX
+
+    def _box(cx, cz, hw, hh, ang, rc=0.0):
+        """Signed distance to a rotated rounded rectangle (hw along ang)."""
+        ca, sa = math.cos(ang), math.sin(ang)
+        u, v_ = (X - cx) * ca + (Z - cz) * sa, -(X - cx) * sa + (Z - cz) * ca
+        qx, qz = np.abs(u) - (hw - rc), np.abs(v_) - (hh - rc)
+        return np.hypot(np.maximum(qx, 0), np.maximum(qz, 0)) + np.minimum(np.maximum(qx, qz), 0) - rc
+
+    def _arc(cx, cz, R, a0, a1, n=20):
+        return [(cx + R * math.cos(a), cz + R * math.sin(a)) for a in np.linspace(a0, a1, n)]
+
+    def _scorch(cx, cz, r_, d_, rng):
+        """Scorch round a crater: dark over its rim, burnt out past it in a ragged star of blast rays."""
+        ang = np.arctan2(Z - cz, X - cx)
+        ph0 = rng.uniform(0, 2 * math.pi)
+        rays = 0.5 + 0.5 * np.sin(ang * int(rng.integers(7, 12)) + ph0 + np.sin(ang * 3 + ph0) * 0.9)
+        reach = r_ * (1.45 + 1.0 * rays ** 2)
+        return np.clip((reach - d_) / (reach - r_ * 0.9), 0, 1) ** 0.8 * (0.45 + 0.55 * np.clip((d_ - r_ * 0.35) / (r_ * 0.5), 0, 1))
+
+    road_c = road = _fillet(rd_hard, 0.42) if THEME != "military" else rd_hard
+    ped = _sdist(road)
+    on_road = np.clip((0.06 - ped) / 0.06, 0, 1)
+    tbl = np.zeros(X.shape)
+    if zf["slow"]:          # (the slow stretches, square-ended, the whole road's width there: the intersection too)
+        _sd, _sal, _ssd = g.poly_dist(zf["slow"], signed=True)
+        tbl = road * ((_sd < HALF + 0.6) & ((_sd - np.abs(_ssd)) < 0.02))
+    bus = road * np.clip(lane * 2, 0, 1)
+    pr_ = np.random.default_rng(97)
+
+if THEME == "military":
+    # an airbase: a runway between the service roads (09/27, thresholds, numbers, touchdown and aiming-point bars, rubber
+    # in the touchdown zones, edge lights), taxiways (yellow centre lines, edge lines, hold-short bars where they leave
+    # the runway, blue edge lights), an apron of concrete slabs with parking stands, concrete pads under the machines
+    # and the crates, a helipad, a hangar hardstand; grass between; craters blasted in, scorched round
+    RWZ, RWH, RX0, RX1 = -4.0, 1.05, -14.3, 7.0
+    TXZ = -0.05                                      # the apron's taxi lane
+    rwy = ((np.abs(Z - RWZ) < RWH) & (X > RX0) & (X < RX1)).astype(float)
+    blast = ((np.abs(Z - RWZ) < RWH) & (X > RX0 - 1.3) & (X <= RX0)).astype(float)
+    TW = []                                          # taxiways: (centre line, half width, edge lines and lights)
+    for x0 in (-4.5, 4.0):                           # turn-offs south across the service road to the apron
+        TW.append(([(x0 - 2.4, RWZ)] + _arc(x0 - 1.2, RWZ + 1.2, 1.2, -math.pi / 2, 0) + [(x0, TXZ)], 0.48, False))
+    T3 = [(-12.3, RWZ)] + _arc(-12.5, RWZ + 1.2, 1.2, -math.pi / 2, -math.pi) + [(-13.7, 3.2)]
+    TW.append((T3, 0.48, True))                      # from the runway's west end down to the west machine's pad
+    T4 = [(-12.9, 4.9)] + _arc(-12.1, 5.2, 0.8, math.pi, math.pi / 2) + [(4.2, 6.0)]
+    TW.append((T4, 0.42, True))                      # from that pad east between the two roads
+    twy = np.zeros(X.shape)
+    for pts, hw_, _e in TW:
+        d_, _a = g.poly_dist([pts], margin=1.0)
+        twy = np.maximum(twy, np.clip((hw_ - d_) / 0.02, 0, 1))
+    apron = np.clip(-_rrect(0.7, 1.5, 7.65, 1.95, 0.5) / 0.02, 0, 1)
+    pads = np.zeros(X.shape)
+    haz = np.zeros(X.shape)
+    PADS = []
+    for (bx, bz, br, kind) in BLOCKERS:
+        if kind == "machine":
+            h_ = br + 0.2
+            PADS.append((bx, bz, h_))
+            dp = _rrect(bx, bz, h_, h_, 0.12)
+            pads = np.maximum(pads, np.clip(-dp / 0.02, 0, 1))
+            haz = np.maximum(haz, ((dp < -0.06) & (dp > -0.22)).astype(float))
+        elif kind == "crates":
+            pads = np.maximum(pads, np.clip(-_rrect(bx, bz, br + 0.15, br + 0.15, 0.12) / 0.02, 0, 1))
+    HELI = (12.4, -7.35)
+    heli = np.clip(-_rrect(HELI[0], HELI[1], 0.95, 0.95, 0.1) / 0.02, 0, 1)
+    hard = np.clip(-_rrect(13.2, 9.3, 5.8, 3.65, 0.4) / 0.02, 0, 1)
+    conc = np.clip(np.maximum.reduce([apron, twy, pads, heli, hard]) * (1 - rd_hard) * (1 - rwy) * (1 - blast), 0, 1)
+    IND["conc"] = conc
+    IND["rwy"] = rwy * (1 - rd_hard)
+    IND["blast"] = blast * (1 - rd_hard)
+    IND["haz"] = haz
+    # craters: the crater blockers, deep with raised rims, and smaller ones off the roads and pavements
+    for (bx, bz, br, kind) in BLOCKERS:
+        if kind != "crater":
+            continue
+        r_ = br * 0.82
+        d_ = np.hypot(X - bx, Z - bz) + (fbm(0.6, 2, int(abs(bx * 7 + bz * 13)) % 997 + 500) - 0.5) * 0.35
+        crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
+        crater_rim = np.maximum(crater_rim, np.exp(-((d_ - r_ * 1.02) / (0.2 * r_)) ** 2))
+        gp_d = np.maximum(gp_d, _scorch(bx, bz, r_, d_, pr_))
+    paved = np.maximum.reduce([conc, rwy, blast])
+    paved_b = gaussian_filter(paved, 0.3 * MPX)
+    for _ in range(800):
+        if len(SMALL_CR) >= 5:
+            break
+        cx, cz = pr_.uniform(-14.5, 14.5), pr_.uniform(-8.2, 8.2)
+        r_ = pr_.uniform(0.3, 0.5)
+        if (_at(dist, cx, cz) < HALF + r_ + 0.4 or _at(BLK_ANY, cx, cz) < r_ + 0.6 or _at(crater, cx, cz) > 0
+                or any(math.hypot(cx - a_, cz - b_) < 4.0 for a_, b_, _r in SMALL_CR)
+                or _at(np.maximum(pads, heli), cx, cz) > 0 or _at(_rrect(HELI[0], HELI[1], 1.6, 1.6, 0.2), cx, cz) < 0):
+            continue
+        if _at(paved_b, cx, cz) > 0.02:
+            continue                                 # (in the turf)
+        SMALL_CR.append((cx, cz, r_))
+        d_ = np.hypot(X - cx, Z - cz) + (fbm(0.3, 2, 600 + len(SMALL_CR)) - 0.5) * 0.45 * r_
+        crater = np.maximum(crater, np.clip(1 - (d_ / r_) ** 2, 0, 1))
+        crater_rim = np.maximum(crater_rim, np.exp(-((d_ - r_) / (0.25 * r_)) ** 2))
+        gp_d = np.maximum(gp_d, _scorch(cx, cz, r_, d_, pr_) * 0.85)
+    gp_d *= 1 - rd_hard
+    IND["crater"], IND["rim"], IND["scorch"] = crater * (1 - rd_hard), crater_rim * (1 - rd_hard), gp_d
+    # oil and fuel stains on the concrete: under the parked aircraft, and here and there
+    oil = np.clip((fbm(0.5, 3, 471) - 0.74) / 0.04, 0, 1) * 0.5
+    STANDS = (-5.2, -2.6, 3.0, 5.8)
+    for sx in STANDS:
+        for _ in range(3):
+            ox, oz = sx + pr_.normal(0, 0.35), 1.9 + pr_.normal(0, 0.3)
+            oil = np.maximum(oil, np.clip((pr_.uniform(0.12, 0.26) - np.hypot((X - ox) * 1.0, (Z - oz) * 1.4) +
+                                           (fbm(0.15, 2, 472) - 0.5) * 0.12) / 0.06, 0, 1) * pr_.uniform(0.6, 0.9))
+    IND["oil"] = oil * conc
+    IND["mow"] = 0.5 + 0.5 * np.sin(Z * 2 * math.pi / 1.3 + (fbm(2.0, 2, 473) - 0.5) * 1.2)
+    # paint: the runway
+    for sg in (-1, 1):
+        PAINT.rect("w", (RX0 + RX1) / 2, RWZ + sg * (RWH - 0.08), RX1 - RX0 - 0.1, 0.06)
+    for xe, dr_ in ((RX0, 1), (RX1, -1)):
+        PAINT.rect("w", xe + dr_ * 0.06, RWZ, 0.06, 2 * RWH - 0.2, 0.0)                         # threshold bar
+        for k in range(4):                                                                     # piano keys
+            for sg in (-1, 1):
+                PAINT.rect("w", xe + dr_ * 0.68, RWZ + sg * (0.16 + k * 0.215), 1.0, 0.11)
+        PAINT.text("w", "09" if dr_ > 0 else "27", xe + dr_ * 1.95, RWZ, 0.95, 0.0 if dr_ > 0 else math.pi, gap=0.45)
+        for dd_, nbar, L_, W_, off0 in ((3.1, 3, 0.55, 0.07, 0.3), (4.5, 1, 1.15, 0.2, 0.5), (5.9, 2, 0.55, 0.07, 0.3), (7.0, 1, 0.55, 0.07, 0.3)):
+            for k in range(nbar):
+                for sg in (-1, 1):
+                    PAINT.rect("w", xe + dr_ * (dd_ + L_ / 2), RWZ + sg * (off0 + k * 0.12), L_, W_)
+        for _ in range(140):                                                                   # rubber where they land
+            x_ = xe + dr_ * pr_.uniform(2.4, 7.8)
+            z_ = RWZ + pr_.choice([-1, 1]) * pr_.uniform(0.12, 0.42) + pr_.normal(0, 0.05)
+            PAINT.rect("k", x_, z_, pr_.uniform(0.3, 1.3), pr_.uniform(0.012, 0.045), pr_.normal(0, 0.012), int(pr_.uniform(50, 130)))
+    PAINT.dashed("w", [(RX0 + 2.7, RWZ), (RX1 - 2.7, RWZ)], 0.07, 0.75, 0.5)                 # centre line
+    for xa in (RX0 - 1.22, RX0 - 0.82, RX0 - 0.42):                                          # the blast pad's chevrons
+        PAINT.line("y", [(xa, RWZ - 0.95), (xa + 0.38, RWZ), (xa, RWZ + 0.95)], 0.08)
+    # taxiways: centre lines, double edge lines (not where they meet other paving), hold-short bars
+    other = np.maximum.reduce([rwy, blast, apron, pads, heli, hard, rd_hard])
+    other = np.clip(gaussian_filter(other, 0.06 * MPX) * 2, 0, 1)
+    for pts, hw_, edges in TW:
+        Q, T, S_ = _res(pts, 0.03)
+        PAINT.line("y", Q, 0.05)
+        if edges:
+            Nn = np.stack([-T[:, 1], T[:, 0]], 1)
+            for sg in (-1, 1):
+                for off in (hw_ - 0.05, hw_ - 0.11):
+                    E_ = Q + Nn * off * sg
+                    k = _smp(other, E_[:, 0], E_[:, 1]) < 0.3
+                    for a, b in _runs(k):
+                        if b - a >= 2:
+                            PAINT.line("y", E_[a:b], 0.025)
+                E_ = Q + Nn * (hw_ + 0.08) * sg
+                for i in range(0, len(Q), 33):
+                    if _smp(other, E_[i, 0], E_[i, 1]) < 0.3 and _smp(dist, E_[i, 0], E_[i, 1]) > HALF + 0.12:
+                        LIGHTS.append((E_[i, 0], E_[i, 1], 1))
+    for x0 in (-4.5, 4.0):                            # hold-short: solid on the taxiway's side, dashed on the runway's
+        for zz_, dsh in ((-2.73, True), (-2.66, True), (-2.55, False), (-2.48, False)):
+            if dsh:
+                for k in range(4):
+                    PAINT.rect("y", x0 - 0.36 + k * 0.24, zz_, 0.13, 0.025)
+            else:
+                PAINT.rect("y", x0, zz_, 0.9, 0.025)
+    # the apron: a taxi lane, four stands (lead-in lines, stop bars, numbers, red safety lines)
+    PAINT.line("y", [(-6.6, TXZ), (8.0, TXZ)], 0.05)
+    for k, sx in enumerate(STANDS):
+        PAINT.line("y", [(sx, TXZ), (sx, 2.85)], 0.05)
+        PAINT.rect("y", sx, 2.88, 0.08, 0.5, 0.0)
+        PAINT.text("y", str(k + 1), sx, 3.2, 0.32, -math.pi / 2)
+        for a_, b_ in (((sx - 1.15, 0.75), (sx - 1.15, 3.35)), ((sx + 1.15, 0.75), (sx + 1.15, 3.35)), ((sx - 1.15, 3.35), (sx + 1.15, 3.35))):
+            PAINT.dashed("r", [a_, b_], 0.03, 0.22, 0.14)
+    # the crates' pad: a yellow outline and pallet bays; the helipad: a white ring and an H, a yellow border
+    for (bx, bz, br, kind) in BLOCKERS:
+        if kind == "crates":
+            h_ = br + 0.03
+            PAINT.line("y", [(bx - h_, bz - h_), (bx + h_, bz - h_), (bx + h_, bz + h_), (bx - h_, bz + h_), (bx - h_, bz - h_)], 0.05)
+            for k in range(1, 4):
+                PAINT.line("y", [(bx - h_ + k * h_ / 2, bz - h_), (bx - h_ + k * h_ / 2, bz + h_)], 0.025)
+    PAINT.line("y", [(7.8, 6.45), (19.0, 6.45)], 0.05)                        # the hardstand: a taxi lane, three stands
+    for sx in (9.6, 12.2, 14.8):
+        PAINT.line("y", [(sx, 6.45), (sx, 8.6)], 0.05)
+        PAINT.rect("y", sx, 8.62, 0.08, 0.5, 0.0)
+        for a_, b_ in (((sx - 1.2, 7.0), (sx - 1.2, 9.4)), ((sx + 1.2, 7.0), (sx + 1.2, 9.4))):
+            PAINT.dashed("r", [a_, b_], 0.03, 0.22, 0.14)
+    PAINT.ring("w", HELI[0], HELI[1], 0.66, 0.06)
+    PAINT.text("w", "H", HELI[0], HELI[1], 0.72, -math.pi / 2, w=0.1)
+    hh_ = 0.87
+    PAINT.line("y", [(HELI[0] - hh_, HELI[1] - hh_), (HELI[0] + hh_, HELI[1] - hh_), (HELI[0] + hh_, HELI[1] + hh_),
+                     (HELI[0] - hh_, HELI[1] + hh_), (HELI[0] - hh_, HELI[1] - hh_)], 0.04)
+    # the roads: white edge lines, a yellow dashed centre line (not on the speed lane: its arrows are painted there);
+    # stop lines where the turn-offs cross the service road
+    road_line("w", HALF - 0.1, 0.04)
+    road_line("w", -(HALF - 0.1), 0.04)
+    road_line("y", 0.0, 0.045, 0.5, 0.45, skip=lambda x, z: _smp(bus, x, z) > 0.5)
+    for x0 in (-4.5, 4.0):
+        stop_bar(x0 + 0.78, -1.5, math.pi, 1)
+        stop_bar(x0 - 0.78, -1.5, 0.0, 1)
+    # edge lights: white along the runway, green across its west threshold, red across its east end
+    for x_ in np.arange(RX0 + 0.2, RX1 - 0.1, 1.2):
+        for sg in (-1, 1):
+            LIGHTS.append((x_, RWZ + sg * (RWH + 0.1), 0))
+    for z_ in np.arange(RWZ - 0.95, RWZ + 0.96, 0.27):
+        LIGHTS.append((RX0 - 0.1, z_, 2))
+        LIGHTS.append((RX1 + 0.1, z_, 3))
+    log("military: lights", len(LIGHTS), "small craters", len(SMALL_CR), "concrete px", int((conc > 0.5).sum()))
+
+if THEME == "metro":
+    # a city centre: asphalt avenues (double yellow centre lines, red bus lanes on the speed lanes, a raised table of
+    # brick pavers over the crossroads where the slow stretches are), zebra crossings with stop lines, granite kerbs,
+    # concrete sidewalks with tree pits, storm drains and manholes; the blocks cut into lots (granite tiles, concrete
+    # slabs, brick pavers, parking with white bays, a lawn with planted beds, slate), a plaza where avenue B ends,
+    # polished plinths under the buildings, small parks with planted beds round the trees
+    SW = 0.5
+    sidewalk = ((ped >= 0) & (ped < SW)).astype(float)
+    BLOCKS = [(-21, -13, 2.65, -3.35), (5.35, -13, 19, -3.35), (10.35, -3.35, 19, 4.65), (-12.35, -0.65, -1.2, 4.65),
+              (-21, -0.65, -12.35, 13), (-12.35, 7.35, 19, 13)]
+    PLAZA = (-1.2, -0.65, 7.65, 4.65)
+    LOTS = []
+
+    def _cut(x0, z0, x1, z1, depth=0):
+        w, h = x1 - x0, z1 - z0
+        if max(w, h) < 3.4 or (max(w, h) < 5.0 and depth > 0 and mr_.random() < 0.35):
+            LOTS.append((x0, z0, x1, z1))
+            return
+        ax = 0 if w >= h else 1
+        lo, hi = (x0, x1) if ax == 0 else (z0, z1)
+        for _try in range(30):                   # (not through a blocker zone: a building's plinth, a park)
+            s = lo + (hi - lo) * mr_.uniform(0.34, 0.66)
+            if all(abs(s - (bx if ax == 0 else bz)) > br + 0.35 for (bx, bz, br, k_) in BLOCKERS
+                   if x0 - br < bx < x1 + br and z0 - br < bz < z1 + br):
+                break
+        else:
+            LOTS.append((x0, z0, x1, z1))
+            return
+        if ax == 0:
+            _cut(x0, z0, s, z1, depth + 1)
+            _cut(s, z0, x1, z1, depth + 1)
+        else:
+            _cut(x0, z0, x1, s, depth + 1)
+            _cut(x0, s, x1, z1, depth + 1)
+
+    mr_ = np.random.default_rng(89)
+    for bl_ in BLOCKS:
+        _cut(*bl_)
+    # each lot one surface: 0 granite tiles, 1 concrete slabs, 2 brick pavers, 3 parking, 4 lawn and beds, 5 slate
+    lk = np.full(X.shape, -1, np.int8)
+    pid = np.zeros(X.shape, np.float32)
+    lot_e = np.full(X.shape, 9.0)
+    kinds_ = []
+    for i, (x0, z0, x1, z1) in enumerate(LOTS):
+        has = [k_ for (bx, bz, br, k_) in BLOCKERS if x0 - 0.3 < bx < x1 + 0.3 and z0 - 0.3 < bz < z1 + 0.3]
+        if "trees" in has:
+            kd = 4
+        elif "building" in has:
+            kd = int(mr_.choice([0, 5]))
+        else:
+            kd = int(mr_.choice([0, 1, 2, 3, 4, 5], p=[0.24, 0.22, 0.16, 0.18, 0.1, 0.1]))
+            if kd == 3 and min(x1 - x0, z1 - z0) < 2.3:
+                kd = 1
+        kinds_.append(kd)
+        sel = (X >= x0) & (X < x1) & (Z >= z0) & (Z < z1)
+        lk[sel] = kd
+        pid[sel] = mr_.uniform(0.0, 0.42) + (0.58 if mr_.random() < 0.5 else 0.0)   # (clear of the swap at 0.5)
+        lot_e[sel] = np.minimum.reduce([X[sel] - x0, x1 - X[sel], Z[sel] - z0, z1 - Z[sel]])
+    plaza = np.clip(-_rrect((PLAZA[0] + PLAZA[2]) / 2, (PLAZA[1] + PLAZA[3]) / 2, (PLAZA[2] - PLAZA[0]) / 2,
+                             (PLAZA[3] - PLAZA[1]) / 2, 0.3) / 0.02, 0, 1)
+    block = np.clip((ped - SW) / 0.02, 0, 1)
+    IND["plaza"] = plaza * block
+    nonpl = block * (1 - plaza)
+    for k_, nm in enumerate(("l_tile", "l_conc", "l_brick", "l_lot", "l_lawn", "l_slate")):
+        IND[nm] = (lk == k_) * nonpl
+    IND["pid"] = pid
+    IND["lotb"] = np.clip(1 - np.abs(lot_e - 0.04) / 0.045, 0, 1) * nonpl * (lot_e < 8)
+    for (bx, bz, br, kind) in BLOCKERS:                  # (no lot border across a building's plinth or a park)
+        IND["lotb"] *= np.clip((np.hypot(X - bx, Z - bz) - br - 0.1) / 0.05, 0, 1)
+    # plinths under the buildings; parks round the trees: a lawn, planted beds edged with low granite kerbs, a path
+    plinth = np.zeros(X.shape)
+    beds = np.zeros(X.shape)
+    for (bx, bz, br, kind) in BLOCKERS:
+        if kind == "building":
+            plinth = np.maximum(plinth, np.clip(-_rrect(bx, bz, br * 0.97, br * 0.97, 0.18) / 0.02, 0, 1))
+        if kind == "trees":
+            beds = np.maximum(beds, np.clip((br * 0.9 + (fbm(0.5, 2, 481) - 0.5) * 0.4 - np.hypot(X - bx, Z - bz)) / 0.03, 0, 1))
+    lpath = np.zeros(X.shape)
+    for i, (x0, z0, x1, z1) in enumerate(LOTS):          # the lawn lots: a bed along one side, islands, a path across
+        if kinds_[i] != 4:
+            continue
+        sd_ = int(mr_.integers(0, 4))
+        bx0, bz0, bx1, bz1 = x0 + 0.18, z0 + 0.18, x1 - 0.18, z1 - 0.18
+        if sd_ == 0:
+            bx1 = bx0 + 0.42
+        elif sd_ == 1:
+            bx0 = bx1 - 0.42
+        elif sd_ == 2:
+            bz1 = bz0 + 0.42
+        else:
+            bz0 = bz1 - 0.42
+        beds = np.maximum(beds, np.clip(-_rrect((bx0 + bx1) / 2, (bz0 + bz1) / 2, (bx1 - bx0) / 2, (bz1 - bz0) / 2, 0.15) / 0.02, 0, 1))
+        hb = [(bx, bz, br) for (bx, bz, br, k_) in BLOCKERS if k_ == "trees" and x0 < bx < x1 and z0 < bz < z1]
+        for _k in range(0 if (hb or min(x1 - x0, z1 - z0) < 2.0) else int(mr_.integers(1, 3))):
+            cx_, cz_ = mr_.uniform(x0 + 0.9, x1 - 0.9), mr_.uniform(z0 + 0.9, z1 - 0.9)
+            rr_ = mr_.uniform(0.22, 0.4)
+            beds = np.maximum(beds, np.clip((rr_ * (1 + 0.15 * np.sin(np.arctan2(Z - cz_, X - cx_) * 5 + _k)) - np.hypot((X - cx_) / 1.3, Z - cz_)) / 0.03, 0, 1))
+        if (x1 - x0) > 2.2 and (z1 - z0) > 2.2:          # a path of pavers right across, the long way
+            if (x1 - x0) >= (z1 - z0):
+                zp = mr_.uniform(z0 + 0.8, z1 - 0.8)
+                pts_ = [(x0, zp), (x1, zp + mr_.uniform(-0.5, 0.5))]
+            else:
+                xp = mr_.uniform(x0 + 0.8, x1 - 0.8)
+                pts_ = [(xp, z0), (xp + mr_.uniform(-0.5, 0.5), z1)]
+            d_, _a = g.poly_dist([pts_], margin=0.5)
+            lpath = np.maximum(lpath, np.clip((0.15 - d_) / 0.02, 0, 1) * (X >= x0) * (X < x1) * (Z >= z0) * (Z < z1))
+    for (bx, bz, br, kind) in BLOCKERS:
+        lpath *= np.clip((np.hypot(X - bx, Z - bz) - br - 0.1) / 0.05, 0, 1)
+    beds *= nonpl * (1 - plinth) * (1 - lpath)
+    IND["plinth"] = plinth * block
+    IND["lpath"] = lpath * nonpl
+    IND["beds"] = beds
+    IND["bedk"] = np.clip(1 - np.abs(_sdist(beds) - 0.02) / 0.035, 0, 1) * block            # their granite edging
+    # the plaza: big pale stone slabs with dark granite bands, a round inlaid motif, two raised planters
+    PLM = (0.9, 2.0, 1.05)
+    dm = np.hypot(X - PLM[0], Z - PLM[1])
+    IND["pl_r"] = np.where(dm < PLM[2] * 1.18, np.clip(dm / PLM[2], 0, 1.2) / 1.2, 1.0)      # (1 outside it)
+    IND["pl_a"] = (np.arctan2(Z - PLM[1], X - PLM[0]) / (2 * math.pi) + 0.5)
+    planter = np.zeros(X.shape)
+    for (px_, pz_) in ((6.3, 0.75), (6.3, 3.55), (-0.2, 4.05)):
+        planter = np.maximum(planter, np.clip(-_rrect(px_, pz_, 0.55, 0.32, 0.08) / 0.12, 0, 1))      # (0 at its rim's edge)
+    IND["planter"] = planter * IND["plaza"]
+    # sidewalks, kerbs, the slow table and the bus lanes, drains, tree pits, manholes
+    IND["side"] = sidewalk
+    IND["kerb"] = np.clip(1 - np.abs(ped - 0.035) / 0.04, 0, 1)
+    IND["tbl"] = tbl
+    IND["bus"] = bus * (1 - tbl)
+    pits = np.zeros(X.shape)
+    PITS = []
+    for li, (P, T, S_) in enumerate(RS):
+        for s_ in np.arange(1.2, S_[-1] - 0.6, 2.6):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i]:
+                continue
+            for sg in (-1, 1):
+                q = P[i] + np.array([-T[i, 1], T[i, 0]]) * (HALF + 0.29) * sg
+                if (_at(ped, q[0], q[1]) < 0.18 or _at(ped, q[0], q[1]) > 0.42 or not _in_tex(q[0], q[1], 0.5)
+                        or _at(tbl, q[0], q[1]) > 0 or _at(plaza, q[0], q[1]) > 0.5):
+                    continue
+                if any(math.hypot(q[0] - a_, q[1] - b_) < 1.6 for a_, b_, _ in PITS):
+                    continue
+                PITS.append((q[0], q[1], math.atan2(T[i, 1], T[i, 0])))
+    for (qx, qz, a_) in PITS:
+        pits = np.maximum(pits, (_box(qx, qz, 0.15, 0.15, a_) < 0).astype(float))
+    IND["pit"] = pits
+    mh = np.zeros(X.shape)
+    for li, (P, T, S_) in enumerate(RS):
+        for s_ in np.arange(mr_.uniform(1.0, 3.0), S_[-1] - 0.5, 5.7):
+            i = int(s_ / 0.03)
+            if i < len(P) and not DUP[li][i] and _in_tex(P[i, 0], P[i, 1], 1.0):
+                q = P[i] + np.array([-T[i, 1], T[i, 0]]) * mr_.choice([-0.32, 0.32])
+                mh = np.maximum(mh, np.clip(1 - np.hypot(X - q[0], Z - q[1]) / 0.14, 0, 1))
+    IND["mh"] = mh * (1 - tbl)
+    # paint: double yellow centre lines (none on the bus lanes or the brick table), zebra crossings and stop lines,
+    # storm drains' slots, sidewalk joints, the parking bays
+    nolines = lambda x, z: (_smp(bus, x, z) > 0.5) | (_smp(tbl, x, z) > 0.5)
+    road_line("y", 0.045, 0.035, skip=nolines)
+    road_line("y", -0.045, 0.035, skip=nolines)
+    road_ticks("k", HALF + 0.07, HALF + SW - 0.02, 0.5, 0.018, v=150, skip=lambda x, z: _smp(plaza, x, z) > 0.5)
+    road_line("k", HALF + 0.075, 0.016, v=120)
+    road_line("k", -(HALF + 0.075), 0.016, v=120)
+    XW = [(2.3, -2.0, 0.0), (5.7, -2.0, 0.0), (4.0, -3.7, math.pi / 2), (4.0, -0.3, math.pi / 2), (-9.0, -2.0, 0.0),
+          (-4.0, 6.0, 0.0), (7.55, 6.0, 0.0), (11.3, 6.0, 0.0), (9.0, 3.65, math.pi / 2), (4.0, -7.2, math.pi / 2), (2.2, 6.0, 0.0)]
+    for (cx, cz, a_) in XW:
+        zebra(cx, cz, a_)
+        if _at(tbl, cx, cz) < 0.5:              # (stop lines before the crossings out on the avenues, both ways)
+            for sg in (-1, 1):
+                stop_bar(cx - math.cos(a_) * sg * 0.45, cz - math.sin(a_) * sg * 0.45, a_ if sg > 0 else a_ + math.pi, 1)
+    for li, (P, T, S_) in enumerate(RS):       # storm drains in the gutters: a grate of slots by the kerb
+        for s_ in np.arange(2.0, S_[-1] - 0.5, 3.9):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i]:
+                continue
+            for sg in (-1, 1):
+                q = P[i] + np.array([-T[i, 1], T[i, 0]]) * (HALF - 0.08) * sg
+                if _at(ped, q[0], q[1]) > -0.03 or _at(ped, q[0], q[1]) < -0.2 or _at(tbl, q[0], q[1]) > 0 or not _in_tex(q[0], q[1], 0.5):
+                    continue
+                a_ = math.atan2(T[i, 1], T[i, 0])
+                PAINT.rect("k", q[0], q[1], 0.3, 0.12, a_, 200)
+                for k in range(5):
+                    PAINT.rect("w", q[0] + math.cos(a_) * (k - 2) * 0.055, q[1] + math.sin(a_) * (k - 2) * 0.055, 0.02, 0.09, a_ + 0.0, 60)
+    for i, (x0, z0, x1, z1) in enumerate(LOTS):  # parking: bays along both long sides of an aisle
+        if kinds_[i] != 3:
+            continue
+        x0, z0, x1, z1 = x0 + 0.2, z0 + 0.2, x1 - 0.2, z1 - 0.2
+        along_x = (x1 - x0) >= (z1 - z0)
+        a0, a1, b0, b1 = (x0, x1, z0, z1) if along_x else (z0, z1, x0, x1)
+        rows = [(b0, 1), (b1, -1)] if b1 - b0 > 2.5 else [(b0, 1)]
+        for b_, sg in rows:
+            for k in range(int((a1 - a0) / 0.55) + 1):
+                a_ = a0 + k * 0.55
+                p0, p1 = (a_, b_), (a_, b_ + sg * 0.95)
+                PAINT.seg("w", p0 if along_x else p0[::-1], p1 if along_x else p1[::-1], 0.035, 200)
+            q0, q1 = (a0, b_ + sg * 0.95), (a0 + int((a1 - a0) / 0.55) * 0.55, b_ + sg * 0.95)
+            PAINT.seg("w", q0 if along_x else q0[::-1], q1 if along_x else q1[::-1], 0.035, 200)
+    oil = np.clip((fbm(0.4, 3, 482) - 0.62) / 0.06, 0, 1) * IND["l_lot"]
+    IND["oil"] = oil
+    IND["grime"] = np.clip((fbm(0.9, 4, 483) - 0.45) / 0.25, 0, 1)
+    log("metro: lots", len(LOTS), "by kind", np.bincount(kinds_, minlength=6).tolist(), "pits", len(PITS), "crossings", len(XW))
+
+if THEME == "suburb":
+    # an American suburb: curving asphalt streets with a yellow dashed centre line, concrete kerbs, a grass verge and a
+    # concrete sidewalk each side; cul-de-sacs; houses' lots of lawn mown in stripes, each with a concrete driveway to
+    # the street, a garden path to the sidewalk and flower beds along its front; a park in the loop with a playground,
+    # a sandpit and paths; the lake zones are backyard pools (turquoise water inside a tiled coping, a pool deck)
+    CUL = [([(4.0, -2.0), (7.6, -2.0)], (7.8, -2.0, 1.05)), ([(11.0, 1.8), (14.0, 1.8)], (14.2, 1.8, 1.05))]
+    cul = np.zeros(X.shape)
+    for stem, (bx, bz, R) in CUL:
+        sd_, _a = g.poly_dist([stem], margin=1.5)
+        cul = np.maximum(cul, np.clip((0.62 - sd_) / 0.02, 0, 1))
+        cul = np.maximum(cul, np.clip((R - np.hypot(X - bx, Z - bz)) / 0.02, 0, 1))
+    pav = _fillet(np.maximum(road, cul), 0.42)
+    cul = np.clip(pav - road, 0, 1)
+    ped = _sdist(pav)
+    on_road = np.clip((0.06 - ped) / 0.06, 0, 1)
+    HS = [(x_, -6.35, math.pi / 2) for x_ in (-13.4, -10.2, -7.0, -3.8, -0.6, 2.4)]
+    HS += [(5.52, -6.14, math.atan2(4.0, -3.3)),                                  # (the building zone: faces the bend)
+           (6.0, -3.7, math.pi / 2), (7.8, -4.1, math.pi / 2), (7.8, 0.15, -math.pi / 2),    # round the first cul-de-sac
+           (13.0, 0.2, math.pi / 2), (14.7, -0.1, math.pi / 2), (14.7, 3.7, -math.pi / 2),   # round the second
+           (12.75, 4.9, math.pi), (12.6, 6.4, math.pi),
+           (-2.75, 7.9, 0.0), (2.0, 7.75, -math.pi / 2), (5.2, 7.75, -math.pi / 2), (8.4, 7.75, -math.pi / 2),
+           (-12.65, 1.1, 0.0), (-12.2, -1.7, 0.0), (-8.3, 5.0, -math.pi / 2), (-5.4, 5.0, -math.pi / 2),
+           (10.9, -4.6, math.pi / 2)]
+    drive = np.zeros(X.shape)
+    patio = np.zeros(X.shape)
+    veg = np.zeros(X.shape)
+    gpath = np.zeros(X.shape)
+    fbed = np.zeros(X.shape)
+    lot_a = np.full(X.shape, 0.35)
+    lot_id = np.zeros(X.shape, np.int16)
+    best = np.full(X.shape, 1e9)
+    for hi_, (fx, fz, fa) in enumerate(HS):
+        f_, p_ = np.array([math.cos(fa), math.sin(fa)]), np.array([-math.sin(fa), math.cos(fa)])
+        side = 1 if hi_ % 2 == 0 else -1
+        gx, gz = np.array([fx, fz]) + p_ * 0.38 * side
+        end = None
+        for t_ in np.arange(0.1, 5.0, 0.04):
+            q = np.array([gx, gz]) + f_ * t_
+            if _at(ped, q[0], q[1]) < -0.15:
+                end = q
+                break
+        HOUSES.append((fx, fz, fa))
+        if end is not None:
+            d_, _a = g.poly_dist([[(gx, gz), tuple(end)]], margin=0.6)
+            drive = np.maximum(drive, np.clip((0.22 - d_) / 0.02, 0, 1))
+        dx_, dz_ = np.array([fx, fz]) - p_ * 0.28 * side
+        end = None
+        for t_ in np.arange(0.1, 4.0, 0.04):
+            q = np.array([dx_, dz_]) + f_ * t_
+            if _at(ped, q[0], q[1]) < 0.45:
+                end = q
+                break
+        if end is not None:
+            d_, _a = g.poly_dist([[(dx_, dz_), tuple(end)]], margin=0.4)
+            gpath = np.maximum(gpath, np.clip((0.08 - d_) / 0.02, 0, 1))
+        fbed = np.maximum(fbed, np.clip(-_box(fx + f_[0] * 0.17, fz + f_[1] * 0.17, 0.7, 0.13, fa + math.pi / 2, 0.06) / 0.02, 0, 1))
+        bk = np.array([fx, fz]) - f_ * 1.62                                      # a patio behind the house
+        if all(math.hypot(bk[0] - bx, bk[1] - bz) > br + 0.95 for (bx, bz, br, k_) in BLOCKERS):
+            patio = np.maximum(patio, np.clip(-_box(bk[0] + p_[0] * 0.2 * side, bk[1] + p_[1] * 0.2 * side, 0.42, 0.26, fa + math.pi / 2, 0.03) / 0.02, 0, 1))
+        if hi_ % 3 == 1:                                                         # and now and then a vegetable bed
+            vb = bk - p_ * 0.55 * side - f_ * 0.2
+            veg = np.maximum(veg, np.clip(-_box(vb[0], vb[1], 0.3, 0.17, fa, 0.02) / 0.02, 0, 1))
+        dh = np.hypot(X - (fx - f_[0] * 0.6), Z - (fz - f_[1] * 0.6))
+        closer = dh < best
+        best = np.where(closer, dh, best)
+        lot_a = np.where(closer & (dh < 3.6), fa, lot_a)
+        lot_id = np.where(closer, hi_, lot_id)
+    # the pools: water in a rounded rectangle, a coping of tiles round it, a pool deck round that
+    pool_d = np.full(X.shape, 1e9)
+    deck_d = np.full(X.shape, 1e9)
+    pdepth = np.zeros(X.shape)
+    for k, (bx, bz, br, kind) in enumerate([b_ for b_ in BLOCKERS if b_[3] == "lake"]):
+        hw, hh = (1.02, 0.62) if k % 2 == 0 else (0.62, 1.02)
+        POOLS_S.append((bx, bz, hw, hh, 0.3))
+        d_ = _rrect(bx, bz, hw, hh, 0.3)
+        pool_d = np.minimum(pool_d, d_)
+        deck_d = np.minimum(deck_d, _rrect(bx, bz, hw + 0.48, hh + 0.48, 0.22))
+        u_ = ((X - bx) / hw) if hw > hh else ((Z - bz) / hh)                   # -1 shallow end .. 1 deep end
+        pdepth = np.where(d_ < 0.1, np.clip(0.5 + 0.5 * u_, 0, 1), pdepth)
+    IND["water"] = np.clip(-(pool_d + 0.07) / 0.02, 0, 1)
+    IND["wline"] = np.clip(1 + (pool_d + 0.07) / 0.07, 0, 1) * IND["water"]               # (1 at the water's edge)
+    IND["coping"] = np.clip(-pool_d / 0.02, 0, 1) * (1 - IND["water"])
+    patio *= np.clip((BLK_ANY - 0.1) / 0.05, 0, 1)
+    IND["deck"] = np.maximum(np.clip(-deck_d / 0.02, 0, 1) * (pool_d > 0), patio * (ped > 0.55))
+    IND["veg"] = veg * (ped > 0.55) * (1 - IND["deck"])
+    IND["pdepth"] = pdepth
+    # the park in the loop: a ring path with paths out to the sidewalks, a playground in the middle, a sandpit, beds
+    PK = (-6.5, -0.5)
+    dk = np.hypot(X - PK[0], Z - PK[1])
+    ppath = np.clip((0.11 - np.abs(dk - 1.45)) / 0.02, 0, 1)
+    for a_ in (0, math.pi / 2, math.pi, -math.pi / 2):
+        d_, _a = g.poly_dist([[(PK[0] + math.cos(a_) * 1.45, PK[1] + math.sin(a_) * 1.45), (PK[0] + math.cos(a_) * 3.0, PK[1] + math.sin(a_) * 3.0)]], margin=0.5)
+        ppath = np.maximum(ppath, np.clip((0.11 - d_) / 0.02, 0, 1))
+    play = np.clip((1.12 - dk) / 0.02, 0, 1)
+    IND["play"] = play
+    IND["pk_r"] = np.clip(dk / 1.12, 0, 1)
+    IND["playb"] = np.clip(1 - np.abs(dk - 1.15) / 0.05, 0, 1)                   # its timber edging
+    sand = np.clip(-_rrect(-8.05, 1.05, 0.42, 0.34, 0.1) / 0.02, 0, 1)
+    IND["sand"] = sand
+    fbed = np.maximum(fbed, np.clip((0.36 - np.hypot(X + 4.95, Z + 2.05)) / 0.02, 0, 1))
+    fbed = np.maximum(fbed, np.clip(-_rrect(-8.05, -2.0, 0.42, 0.25, 0.1) / 0.02, 0, 1))
+    for (bx, bz, br, kind) in BLOCKERS:              # mulch under the trees zone; a bed round the building zone's house
+        if kind == "trees":
+            fbed = np.maximum(fbed, np.clip((br * 0.62 + (fbm(0.4, 2, 491) - 0.5) * 0.3 - np.hypot(X - bx, Z - bz)) / 0.03, 0, 1))
+    sw_ = ((ped >= 0.2) & (ped < 0.5)).astype(float)
+    hard_ = np.maximum.reduce([drive, gpath * (1 - sw_), IND["deck"], IND["coping"], IND["water"]])
+    IND["drive"] = drive * (ped > 0.0)
+    IND["gpath"] = np.maximum(gpath, ppath) * (ped > 0.5) * (1 - drive)
+    IND["side"] = sw_ * (1 - drive)
+    IND["kerb"] = np.clip(1 - np.abs(ped - 0.03) / 0.035, 0, 1)
+    IND["cul"] = cul
+    IND["fbed"] = fbed * (ped > 0.55) * (1 - hard_) * (1 - IND["gpath"]) * (1 - play) * (1 - sand)
+    hard_ = np.maximum(hard_, IND["deck"])
+    lawn = (ped > 0.06) * (1 - IND["side"]) * (1 - hard_) * (1 - IND["gpath"]) * (1 - IND["fbed"]) * (1 - play) * (1 - sand) * (1 - IND["veg"])
+    IND["lawn"] = lawn
+    IND["mca"], IND["msa"] = 0.5 + 0.5 * np.cos(lot_a), 0.5 + 0.5 * np.sin(lot_a)      # (the shader draws the stripes)
+    IND["lshade"] = np.where(best < 3.6, (np.sin(lot_id * 12.9898) * 43758.5453) % 1.0, 0.5)
+    IND["bus"] = bus
+    # paint: a yellow dashed centre line (not on the speed lane), stop lines and STOP at the cul-de-sacs' mouths, two
+    # zebra crossings by the park, sidewalk joints
+    road_line("y", 0.0, 0.045, 0.5, 0.4, skip=lambda x, z: _smp(bus, x, z) > 0.5)
+    road_ticks("k", HALF + 0.21, HALF + 0.49, 0.32, 0.016, v=140, skip=lambda x, z: (_smp(drive, x, z) > 0.5) | (_smp(cul, x, z) > 0.3))
+    for stem, (bx, bz, R) in CUL:
+        a_ = math.atan2(stem[1][1] - stem[0][1], stem[1][0] - stem[0][0])
+        mx, mz = stem[0][0] + math.cos(a_) * (HALF + 0.3), stem[0][1] + math.sin(a_) * (HALF + 0.3)
+        hx_, hz_ = math.sin(a_) * 0.31, -math.cos(a_) * 0.31          # (the right of a car heading out: a_ + pi)
+        PAINT.rect("w", mx + hx_, mz + hz_, 0.08, 0.56, a_)
+        PAINT.text("w", "STOP", mx + hx_ + math.cos(a_) * 0.55, mz + hz_ + math.sin(a_) * 0.55, 0.3, a_ + math.pi, w=0.035, gap=0.25)
+        L_ = math.hypot(stem[1][0] - stem[0][0], stem[1][1] - stem[0][1])      # the cul-de-sac's sidewalk joints
+        n_ = (-math.sin(a_), math.cos(a_))
+        for s_ in np.arange(HALF + 0.6, L_, 0.32):
+            for sg in (-1, 1):
+                q0 = (stem[0][0] + math.cos(a_) * s_ + n_[0] * sg * 0.83, stem[0][1] + math.sin(a_) * s_ + n_[1] * sg * 0.83)
+                q1 = (q0[0] + n_[0] * sg * 0.28, q0[1] + n_[1] * sg * 0.28)
+                if _at(drive, q0[0], q0[1]) < 0.5 and _at(drive, q1[0], q1[1]) < 0.5 and _at(ped, q0[0], q0[1]) > 0.1:
+                    PAINT.seg("k", q0, q1, 0.016, 140)
+        for th in np.arange(0, 2 * math.pi, 0.32 / (R + 0.35)):
+            q0 = (bx + math.cos(th) * (R + 0.21), bz + math.sin(th) * (R + 0.21))
+            q1 = (bx + math.cos(th) * (R + 0.49), bz + math.sin(th) * (R + 0.49))
+            if _at(drive, q0[0], q0[1]) < 0.5 and _at(ped, q0[0], q0[1]) > 0.1 and _at(ped, q1[0], q1[1]) < 0.55:
+                PAINT.seg("k", q0, q1, 0.016, 140)
+    for cx in (PK[0],):
+        zebra(cx, -4.0, 0.0, L=0.45)
+        zebra(cx, 3.0, 0.0, L=0.45)
+    log("suburb: houses", len(HOUSES), "pools", len(POOLS_S), "drive px", int((drive > 0.5).sum()))
+if MOD_T:
+    PNT = PAINT.arrays()
+    log("paint", {k_: round(float(v_.mean()), 4) for k_, v_ in PNT.items()})
 if arg("--maskdump"):                    # quick look at the masks (no render): python3 map_ground_hq.py MAP --maskdump DIR
     from PIL import Image as _Im
     os.makedirs(arg("--maskdump"), exist_ok=True)
-    for k_, v_ in list(IND.items()) + [("road", road), ("tk_d", np.clip(1 - tk_d / 2, 0, 1)), ("outside", outside)]:
+    _extra = [("paint_" + k_, v_) for k_, v_ in PNT.items()] if MOD_T else []
+    for k_, v_ in list(IND.items()) + [("road", road), ("tk_d", np.clip(1 - tk_d / 2, 0, 1)), ("outside", outside)] + _extra:
         v_ = np.asarray(v_, np.float64)
         if v_.max() > 1.01 or v_.min() < -0.01:
             v_ = (v_ - v_.min()) / max(1e-6, v_.max() - v_.min())
         _Im.fromarray((np.clip(v_, 0, 1) * 255).astype(np.uint8)).save(os.path.join(arg("--maskdump"), k_ + ".png"))
     log("masks dumped ->", arg("--maskdump"))
     sys.exit(0)
-if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor", "smog"):
+if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor", "smog", "suburb"):
     from PIL import Image as _Im
     _w = np.maximum(np.clip(-riv / 0.12, 0, 1), np.clip(-blk["lake"] / 0.15, 0, 1))
     if THEME == "harbor":
         _w = _w * (1 - gp_b)                  # (not under the plank decks: the planks don't ripple)
     if THEME == "smog":
         _w = np.clip(-(pool_d + 0.2) / 0.03, 0, 1)    # (the dock pools inside their coping, not the whole lake zone)
+    if THEME == "suburb":
+        _w = IND["water"]                     # (the swimming pools inside their coping)
     _Im.fromarray((np.clip(_w, 0, 1) * 255).astype(np.uint8)).save(arg("--watersrc"))
     log("water source ->", arg("--watersrc"))
 
@@ -1010,6 +1781,22 @@ if THEME == "smog":
     hf += (fbm(0.5, 3, 461) - 0.5) * 0.025 * (IND["y_waste"] + IND["y_earth"])                           # waste ground
     hf -= IND["puddle"] * 0.008 + IND["gutter"] * 0.008
     hf = np.where(pool_d < -0.2, -0.09, hf) + (pool_d < 0) * (pool_d >= -0.2) * 0.014                    # the dock pools
+if THEME == "military":
+    pv_ = np.maximum.reduce([IND["conc"], IND["rwy"], IND["blast"]])
+    hf += road * 0.015 + rut * 0.017                                                                    # (asphalt: hardly rutted)
+    hf = hf * (1 - 0.85 * pv_) + pv_ * 0.004                                                            # the pavements, flat
+    hf -= IND["crater"] * 0.3
+    hf += IND["rim"] * 0.07
+if THEME == "metro":                     # all paved and flat: the carriageway a kerb's height down, the brick table up
+    hf = (fbm(1.6, 3, 501) - 0.5) * 0.008 - road * 0.04 + tbl * 0.028
+    hf += (fbm(0.8, 3, 502) - 0.5) * 0.03 * (IND["l_lawn"] + IND["beds"]) + IND["beds"] * 0.012
+    hf += (IND["planter"] > 0.02) * 0.05 + IND["plinth"] * 0.012 - IND["pit"] * 0.012
+if THEME == "suburb":                    # gently rolling lawns; the streets a kerb's height down; the pools sunk in
+    pav_ = np.maximum(road, IND["cul"])
+    lawny = np.clip(IND["lawn"] + IND["fbed"], 0, 1)
+    hf = (fbm(1.8, 4, 511) - 0.5) * 0.06 * lawny + (fbm(0.4, 2, 512) - 0.5) * 0.006 - pav_ * 0.034
+    hf += IND["fbed"] * 0.012 - IND["play"] * 0.004 - IND["sand"] * 0.008
+    hf = np.where(IND["water"] > 0.5, -0.09, hf) + IND["coping"] * 0.008
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
 H_MESH = sample(hf, MX, MZ)
@@ -1090,8 +1877,14 @@ img10 = to_image("mask10", np.stack([rc_al, rc_sd, tk_al, tk_sd], 2))
 INDN = {"factory": ["flags", "cobble", "plates", "puddle", "rust", "slag", "apron", "ballast", "coke"],
         "railyard": ["ballast", "xing", "coal", "pit", "coping", "pads", "weeds", "drip", "puddle", "tt_u"],
         "smog": ["y_flags", "y_cobble", "y_waste", "y_brick", "y_earth", "y_quay", "lane", "wall", "pave", "kerb", "gutter", "grate",
-                 "water", "coping", "cope_u", "manhole", "puddle", "soot", "pid"]}.get(THEME, [])
+                 "water", "coping", "cope_u", "manhole", "puddle", "soot", "pid"],
+        "military": ["conc", "rwy", "blast", "haz", "crater", "rim", "scorch", "oil", "mow"],
+        "metro": ["l_tile", "l_conc", "l_brick", "l_lot", "l_lawn", "l_slate", "pid", "lotb", "plinth", "beds", "bedk", "plaza",
+                  "pl_r", "pl_a", "planter", "side", "kerb", "tbl", "bus", "pit", "mh", "oil", "grime", "lpath"],
+        "suburb": ["water", "wline", "coping", "deck", "pdepth", "play", "playb", "sand", "drive", "gpath", "side", "kerb", "cul",
+                   "fbed", "lawn", "mca", "msa", "lshade", "bus", "veg", "pk_r"]}.get(THEME, [])
 IND_IMGS = []
+img_paint = to_image("paint", np.stack([PNT["w"], PNT["y"], PNT["r"], PNT["k"]], 2)) if MOD_T else None
 for k_ in range(0, len(INDN), 4):
     grp = INDN[k_:k_ + 4]
     IND_IMGS.append((grp, to_image("ind%d" % k_, np.stack([np.asarray(IND[n_], np.float64) for n_ in grp] +
@@ -1275,6 +2068,8 @@ if IND_T:
     for grp, im_ in IND_IMGS:
         for n_, o_ in zip(grp, nb.tex(im_)):
             I[n_] = o_
+    if MOD_T:
+        pw_m, py_m, pr_m, pk_m = nb.tex(img_paint)
 big = nb.noise(0.35, 4, 0.6)
 mid = nb.noise(1.6, 4, 0.6)
 fine = nb.noise(14.0, 2, 0.5)
@@ -2063,6 +2858,243 @@ elif THEME == "smog":
                                      nb.math("ADD", nb.math("MULTIPLY", I["y_cobble"], nb.ramp(cbd, 0.0, 0.07)),
                                              nb.math("MULTIPLY", I["y_quay"], nb.math("SUBTRACT", 1.0, qj))))))
     bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", pmask, wmask)))
+elif MOD_T:
+    obj = nb.uvn.outputs["Object"]
+    ox_, oy_ = nb.xyz()
+
+    def asphalt(lo, hi, wear=0.3):
+        """Asphalt: aggregate speckled through it, the wheel tracks worn paler, cracks sealed with black tar."""
+        a_ = nb.mix(nb.ramp(mid, 0.3, 0.7), lo, hi)
+        a_ = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(42.0, "Distance"), 0.2, 0.07), 0.35), a_, tuple(min(1, v * 1.55) for v in hi))
+        a_ = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(30.0, 2, 0.5), 0.6, 0.75), 0.3), a_, tuple(v * 0.7 for v in lo))
+        a_ = nb.mix(nb.math("MULTIPLY", rut_m, wear), a_, tuple(min(1, v * 1.22) for v in hi))
+        seal = nb.math("MULTIPLY", nb.ramp(nb.voronoi(1.1, "Distance", "DISTANCE_TO_EDGE"), 0.011, 0.002),
+                       nb.ramp(nb.noise(1.8, 3, 0.6), 0.56, 0.64))
+        return nb.mix(nb.math("MULTIPLY", seal, 0.85), a_, (0.06, 0.06, 0.065)), seal
+
+    def paint(c_, white=(0.9, 0.9, 0.88), yellow=(0.9, 0.7, 0.12), red=(0.72, 0.13, 0.1), worn=0.35):
+        wear = nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", nb.ramp(nb.noise(7.0, 3, 0.6), 0.5, 0.78), worn))
+        c_ = nb.mix(pk_m, c_, (0.05, 0.05, 0.055))
+        c_ = nb.mix(nb.math("MULTIPLY", pw_m, wear), c_, white)
+        c_ = nb.mix(nb.math("MULTIPLY", py_m, wear), c_, yellow)
+        return nb.mix(nb.math("MULTIPLY", pr_m, wear), c_, red)
+
+    if THEME == "military":
+        # an airbase: olive airfield turf mown in stripes; concrete slabs (apron, taxiways, pads, hardstands) with sealed
+        # joints, patched slabs, cracks and oil; the runway paler, its slabs long, grooved across; asphalt roads; paint;
+        # hazard stripes round the machines' pads; craters of raw earth, the turf and concrete scorched round them
+        c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.33, 0.39, 0.17), (0.42, 0.47, 0.22))
+        c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.62, 0.76), 0.55), c, (0.52, 0.5, 0.28))           # dry straw patches
+        c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.45), c, (0.27, 0.35, 0.14))         # lush hollows
+        c = nb.mix(nb.math("MULTIPLY", I["mow"], 0.3), c, (0.5, 0.55, 0.28))                          # mower stripes
+        clover = nb.ramp(nb.voronoi(9.0, "Distance"), 0.17, 0.07)
+        c = nb.mix(nb.math("MULTIPLY", clover, nb.math("MULTIPLY", nb.ramp(big, 0.55, 0.7), 0.3)), c, (0.3, 0.42, 0.16))
+        c = nb.mix(nb.math("MULTIPLY", fine, 0.2), c, (0.5, 0.52, 0.3))
+        c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.3, 0.35, 0.16), (0.38, 0.42, 0.2)))
+        c = nb.mix(nb.math("MULTIPLY", edge_m, 0.35), c, (0.3, 0.3, 0.2))
+        sj, sr_ = nb.brick(obj, 1.0, 1.0, 0.012, 0.25, offset=0.0, freq=1)
+        cc = nb.mix(sr_, (0.5, 0.5, 0.48), (0.61, 0.6, 0.57))
+        cc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.5, 3, 0.6), 0.5, 0.75), 0.4), cc, (0.41, 0.4, 0.37))
+        cc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(28.0, 2, 0.5), 0.55, 0.75), 0.22), cc, (0.7, 0.69, 0.66))
+        cc = nb.mix(nb.math("MULTIPLY", nb.ramp(sr_, 0.93, 0.95), 0.75), cc, (0.43, 0.43, 0.42))      # patched slabs
+        crack = nb.math("MULTIPLY", nb.ramp(nb.voronoi(1.2, "Distance", "DISTANCE_TO_EDGE"), 0.009, 0.0), nb.ramp(sr_, 0.1, 0.07))
+        cj = nb.math("MAXIMUM", sj, crack)
+        cc = nb.mix(cj, cc, (0.16, 0.16, 0.16))
+        cc = nb.mix(nb.math("MULTIPLY", I["oil"], nb.ramp(nb.noise(6.0, 3, 0.6), 0.25, 0.6)), cc, (0.17, 0.165, 0.16))
+        c = nb.mix(I["conc"], c, cc)
+        rj, rr_ = nb.brick(obj, 1.5, 0.35, 0.007, 0.2, offset=0.0, freq=1)
+        rc = nb.mix(rr_, (0.57, 0.57, 0.55), (0.64, 0.63, 0.6))
+        rc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.5, 0.75), 0.35), rc, (0.48, 0.47, 0.45))
+        groove = nb.ramp(nb.math("ABSOLUTE", nb.math("SINE", nb.math("MULTIPLY", ox_, 95.0))), 0.85, 1.0)
+        rc = nb.mix(nb.math("MULTIPLY", groove, 0.12), rc, (0.42, 0.42, 0.41))
+        rc = nb.mix(rj, rc, (0.25, 0.25, 0.25))
+        c = nb.mix(I["rwy"], c, rc)
+        asp, seal = asphalt((0.16, 0.16, 0.17), (0.23, 0.23, 0.24))
+        c = nb.mix(I["blast"], c, asp)
+        c = nb.mix(road_m, c, asp)
+        hz = nb.ramp(nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), math.pi / 0.11)), -0.08, 0.08)
+        c = nb.mix(I["haz"], c, nb.mix(hz, (0.07, 0.07, 0.07), (0.86, 0.66, 0.1)))
+        c = paint(c)
+        c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["scorch"], 0.0, 0.7), 0.94), c, nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.035, 0.03, 0.028), (0.1, 0.085, 0.07)))
+        bowl = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.15, 0.11, 0.08), (0.26, 0.2, 0.14))
+        bowl = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(18.0, "Distance"), 0.2, 0.08), 0.45), bowl, (0.4, 0.33, 0.25))
+        c = nb.mix(nb.math("MULTIPLY", I["rim"], 0.75), c, (0.33, 0.27, 0.19))
+        c = nb.mix(nb.ramp(I["crater"], 0.02, 0.2), c, bowl)
+        pave = nb.math("MAXIMUM", I["conc"], nb.math("MAXIMUM", I["rwy"], road_m))
+        rough = nb.mixf(pave, 0.92, nb.mixf(nb.math("MULTIPLY", I["oil"], I["conc"]), 0.78, 0.35))
+        bump_h = nb.math("ADD", nb.math("MULTIPLY", I["conc"], nb.math("SUBTRACT", 1.0, cj)),
+                         nb.math("ADD", nb.math("MULTIPLY", I["rwy"], nb.math("SUBTRACT", 1.0, rj)),
+                                 nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 0.0, seal))))
+    elif THEME == "metro":
+        # a city centre at night (kept light enough to read): lots of granite tiles, concrete slabs, brick pavers,
+        # parking, lawns with planted beds, slate; dark granite bands between them; polished plinths under the buildings;
+        # the plaza's pale stone in a grid of dark granite bands, its round inlaid motif and raised planters; sidewalks of
+        # concrete slabs with tree pits, granite kerbs; asphalt avenues, red bus lanes, a brick table at the crossroads,
+        # manholes; paint
+        pid = I["pid"]
+        swap = nb.ramp(pid, 0.49, 0.51)
+        pv = nb.vec(nb.math("ADD", nb.mixf(swap, ox_, oy_), nb.math("MULTIPLY", pid, 7.3)),
+                    nb.math("ADD", nb.mixf(swap, oy_, ox_), nb.math("MULTIPLY", pid, 3.1)))
+        grime = nb.math("MULTIPLY", nb.ramp(nb.noise(3.5, 3, 0.6), 0.45, 0.75), nb.mixf(I["grime"], 0.4, 1.0))
+        c = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.47, 0.47, 0.45), (0.55, 0.55, 0.52))                    # (plain concrete)
+        tj, tr_ = nb.brick(pv, 0.5, 0.5, 0.01, 0.2)
+        tc = nb.mix(tr_, (0.55, 0.55, 0.53), (0.66, 0.65, 0.62))
+        tc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(40.0, 2, 0.5), 0.55, 0.72), 0.35), tc, (0.42, 0.42, 0.42))   # speckle
+        tc = nb.mix(nb.math("MULTIPLY", grime, 0.35), tc, (0.42, 0.41, 0.39))
+        tc = nb.mix(tj, tc, (0.3, 0.3, 0.3))
+        c = nb.mix(I["l_tile"], c, tc)
+        cj_, cr_ = nb.brick(pv, 1.0, 1.0, 0.01, 0.2, offset=0.0, freq=1)
+        ccn = nb.mix(cr_, (0.5, 0.5, 0.48), (0.58, 0.57, 0.54))
+        ccn = nb.mix(nb.math("MULTIPLY", grime, 0.45), ccn, (0.38, 0.37, 0.35))
+        ccn = nb.mix(cj_, ccn, (0.27, 0.27, 0.27))
+        c = nb.mix(I["l_conc"], c, ccn)
+        bj, br_ = nb.brick(pv, 0.2, 0.1, 0.008, 0.2)
+        bc = nb.mix(br_, (0.42, 0.25, 0.19), (0.54, 0.34, 0.25))
+        bc = nb.mix(nb.math("MULTIPLY", grime, 0.4), bc, (0.33, 0.22, 0.17))
+        bc = nb.mix(bj, bc, (0.3, 0.26, 0.22))
+        c = nb.mix(I["l_brick"], c, bc)
+        lot_asp, _s = asphalt((0.2, 0.2, 0.21), (0.27, 0.27, 0.28), 0.0)
+        lot_asp = nb.mix(nb.math("MULTIPLY", I["oil"], 0.5), lot_asp, (0.12, 0.12, 0.12))
+        c = nb.mix(I["l_lot"], c, lot_asp)
+        sj_, sr2 = nb.brick(pv, 0.6, 0.3, 0.008, 0.2)
+        slc = nb.mix(sr2, (0.29, 0.3, 0.32), (0.37, 0.38, 0.4))
+        slc = nb.mix(sj_, slc, (0.18, 0.18, 0.19))
+        c = nb.mix(I["l_slate"], c, slc)
+        grass = nb.mix(nb.ramp(nb.noise(2.0, 3, 0.6), 0.3, 0.7), (0.25, 0.4, 0.15), (0.34, 0.5, 0.2))
+        grass = nb.mix(nb.math("MULTIPLY", fine, 0.25), grass, (0.4, 0.55, 0.24))
+        c = nb.mix(I["l_lawn"], c, grass)
+        pj_, pr3 = nb.brick(obj, 0.3, 0.3, 0.012, 0.2)
+        lpc = nb.mix(pr3, (0.55, 0.53, 0.5), (0.65, 0.62, 0.58))
+        lpc = nb.mix(pj_, lpc, (0.32, 0.36, 0.22))
+        c = nb.mix(I["lpath"], c, lpc)
+        mulch = nb.mix(nb.ramp(nb.voronoi(40.0, "Color"), 0.2, 0.8), (0.17, 0.1, 0.06), (0.3, 0.19, 0.11))
+        mulch = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.55, 0.7), 0.6), mulch, (0.24, 0.32, 0.13))   # ground cover
+        c = nb.mix(I["beds"], c, mulch)
+        c = nb.mix(nb.math("MULTIPLY", I["bedk"], 0.85), c, (0.6, 0.6, 0.58))
+        c = nb.mix(nb.math("MULTIPLY", I["lotb"], 0.9), c, (0.36, 0.36, 0.37))
+        plj, plr = nb.brick(obj, 0.8, 0.8, 0.006, 0.2, offset=0.0, freq=1)
+        pc = nb.mix(plr, (0.16, 0.16, 0.18), (0.24, 0.24, 0.27))
+        pc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(12.0, 3, 0.5), 0.55, 0.7), 0.4), pc, (0.34, 0.34, 0.37))
+        pc = nb.mix(plj, pc, (0.42, 0.42, 0.44))
+        c = nb.mix(I["plinth"], c, pc)
+        # the plaza: pale limestone slabs, a band of dark granite every fourth joint, the round motif, planters
+        qj, qr = nb.brick(obj, 0.6, 0.6, 0.008, 0.2, offset=0.0, freq=1)
+        qc = nb.mix(qr, (0.66, 0.63, 0.57), (0.75, 0.72, 0.66))
+        qc = nb.mix(nb.math("MULTIPLY", grime, 0.25), qc, (0.56, 0.53, 0.48))
+        qc = nb.mix(qj, qc, (0.45, 0.43, 0.4))
+        band = nb.math("MAXIMUM", nb.ramp(nb.seam(nb.math("ADD", ox_, 0.9), 2.4), 0.07, 0.055), nb.ramp(nb.seam(nb.math("ADD", oy_, 0.0), 2.4), 0.07, 0.055))
+        qc = nb.mix(band, qc, (0.25, 0.25, 0.27))
+        rr4 = I["pl_r"]
+        ringc = nb.mix(nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", rr4, 4.8)), 0.5)), 0.2, 0.26),
+                       (0.28, 0.27, 0.3), (0.8, 0.77, 0.7))
+        fa8 = nb.math("FRACT", nb.math("MULTIPLY", I["pl_a"], 8.0))
+        star = nb.math("ABSOLUTE", nb.math("SUBTRACT", fa8, 0.5))          # 0 down each point's middle, 0.5 between
+        starm = nb.ramp(nb.math("SUBTRACT", rr4, nb.math("ADD", 0.12, nb.math("MULTIPLY", nb.math("SUBTRACT", 0.5, star), 1.15))), 0.012, -0.012)
+        ringc = nb.mix(starm, ringc, nb.mix(nb.ramp(fa8, 0.49, 0.51), (0.62, 0.43, 0.25), (0.33, 0.31, 0.35)))
+        qc = nb.mix(nb.ramp(rr4, 0.83, 0.82), qc, ringc)
+        pl_rim = nb.ramp(I["planter"], 0.0, 0.5)
+        qc = nb.mix(pl_rim, qc, (0.3, 0.3, 0.32))
+        c = nb.mix(I["plaza"], c, qc)
+        c = nb.mix(nb.math("MULTIPLY", I["planter"], nb.ramp(I["planter"], 0.6, 0.95)), c, mulch)
+        # sidewalks and kerbs, tree pits with iron grates
+        sc_ = nb.mix(nb.ramp(nb.noise(2.5, 3, 0.6), 0.3, 0.7), (0.56, 0.56, 0.54), (0.64, 0.64, 0.61))
+        sc_ = nb.mix(nb.math("MULTIPLY", grime, 0.3), sc_, (0.45, 0.45, 0.43))
+        gum = nb.ramp(nb.voronoi(14.0, "Distance"), 0.035, 0.02)
+        sc_ = nb.mix(nb.math("MULTIPLY", gum, nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 2, 0.5), 0.5, 0.7), 0.6)), sc_, (0.33, 0.33, 0.33))
+        c = nb.mix(I["side"], c, sc_)
+        grate = nb.mix(nb.ramp(nb.math("MINIMUM", nb.seam(ox_, 0.045), nb.seam(oy_, 0.045)), 0.008, 0.004), (0.1, 0.07, 0.05), (0.2, 0.2, 0.21))
+        c = nb.mix(I["pit"], c, grate)
+        c = nb.mix(I["kerb"], c, nb.mix(nb.ramp(nb.noise(8.0, 2, 0.5), 0.3, 0.7), (0.6, 0.6, 0.59), (0.72, 0.72, 0.7)))
+        # the carriageway: asphalt, red bus lanes, the brick table, manholes, paint
+        asp, seal = asphalt((0.17, 0.17, 0.18), (0.24, 0.24, 0.25))
+        busc = nb.mix(nb.ramp(nb.noise(2.0, 3, 0.6), 0.3, 0.7), (0.33, 0.13, 0.115), (0.41, 0.165, 0.14))
+        busc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(6.0, 3, 0.6), 0.6, 0.75), 0.6), busc, asp)       # worn through
+        busc = nb.mix(nb.math("MULTIPLY", rut_m, 0.35), busc, (0.3, 0.13, 0.11))
+        asp = nb.mix(I["bus"], asp, busc)
+        hj, hr = nb.brick(obj, 0.22, 0.11, 0.009, 0.2)
+        hc = nb.mix(hr, (0.44, 0.24, 0.17), (0.56, 0.33, 0.23))
+        hc = nb.mix(nb.math("MULTIPLY", rut_m, 0.3), hc, (0.36, 0.24, 0.19))
+        hc = nb.mix(hj, hc, (0.27, 0.22, 0.19))
+        asp = nb.mix(I["tbl"], asp, hc)
+        mh = I["mh"]
+        mhc = nb.mix(nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", mh, 5.0)), 0.5)), 0.12, 0.25),
+                     (0.27, 0.27, 0.28), (0.13, 0.13, 0.14))
+        asp = nb.mix(nb.ramp(mh, 0.0, 0.04), asp, nb.mix(nb.ramp(mh, 0.12, 0.06), mhc, (0.06, 0.06, 0.06)))
+        c = nb.mix(road_m, c, asp)
+        c = paint(c, worn=0.25)
+        rough = nb.mixf(I["plinth"], nb.mixf(road_m, 0.86, 0.7), 0.3)
+        bump_h = nb.math("ADD", nb.math("MULTIPLY", I["l_tile"], nb.math("SUBTRACT", 1.0, tj)),
+                         nb.math("ADD", nb.math("MULTIPLY", I["l_brick"], nb.math("SUBTRACT", 1.0, bj)),
+                                 nb.math("ADD", nb.math("MULTIPLY", I["plaza"], nb.math("SUBTRACT", 1.0, qj)),
+                                         nb.math("ADD", nb.math("MULTIPLY", I["tbl"], nb.math("SUBTRACT", 1.0, hj)),
+                                                 nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 0.0, seal))))))
+    else:   # suburb
+        # an American suburb: lawns mown in stripes, flower beds of bark mulch, concrete sidewalks, kerbs, driveways and
+        # garden paths of flagstones; asphalt streets with tar-sealed cracks; travertine pool decks round a tiled coping
+        # and turquoise water (its floor shallow to deep, caustics on it); the park's playground of rubber safety
+        # surfacing in a timber edging, a sandpit
+        c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.26, 0.45, 0.14), (0.35, 0.55, 0.19))
+        c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.64, 0.76), 0.45), c, (0.45, 0.52, 0.22))         # sunburnt patches
+        mca = nb.math("SUBTRACT", nb.math("MULTIPLY", I["mca"], 2.0), 1.0)
+        msa = nb.math("SUBTRACT", nb.math("MULTIPLY", I["msa"], 2.0), 1.0)
+        wz_ = nb.math("MULTIPLY", oy_, -1.0)                                     # (world z)
+        mow = nb.ramp(nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", nb.math("MULTIPLY", ox_, mca), nb.math("MULTIPLY", wz_, msa)),
+                                               2 * math.pi / 0.62)), -0.25, 0.25)
+        c = nb.mix(nb.math("MULTIPLY", I["lshade"], 0.35), c, (0.4, 0.5, 0.17))                         # each lot its own
+        c = nb.mix(nb.math("MULTIPLY", mow, 0.24), c, (0.43, 0.63, 0.25))                               # mower stripes
+        c = nb.mix(nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, mow), 0.12), c, (0.2, 0.38, 0.11))
+        clover = nb.ramp(nb.voronoi(10.0, "Distance"), 0.16, 0.07)
+        c = nb.mix(nb.math("MULTIPLY", clover, nb.math("MULTIPLY", nb.ramp(big, 0.5, 0.7), 0.3)), c, (0.26, 0.48, 0.17))
+        c = nb.mix(nb.math("MULTIPLY", fine, 0.18), c, (0.42, 0.6, 0.24))
+        c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.22, 0.38, 0.13), (0.29, 0.45, 0.16)))
+        mulch = nb.mix(nb.ramp(nb.voronoi(45.0, "Color"), 0.2, 0.8), (0.2, 0.11, 0.06), (0.36, 0.21, 0.11))
+        mulch = nb.mix(nb.ramp(nb.voronoi(45.0, "Distance", "DISTANCE_TO_EDGE"), 0.05, 0.015), mulch, (0.12, 0.07, 0.04))
+        c = nb.mix(I["fbed"], c, mulch)
+        vrow = nb.ramp(nb.math("ABSOLUTE", nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 28.0))), 0.55, 0.8)
+        vegc = nb.mix(vrow, (0.3, 0.2, 0.12), nb.mix(nb.ramp(nb.noise(20.0, 2, 0.5), 0.4, 0.6), (0.2, 0.42, 0.12), (0.35, 0.58, 0.2)))
+        c = nb.mix(I["veg"], c, nb.mix(nb.ramp(I["veg"], 0.2, 0.0), vegc, (0.55, 0.42, 0.28)))   # (a timber edge)
+        conc = lambda lo, hi: nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(25.0, 2, 0.5), 0.55, 0.75), 0.25),
+                                     nb.mix(nb.ramp(nb.noise(2.5, 3, 0.6), 0.3, 0.7), lo, hi), tuple(v * 0.85 for v in lo))
+        dj, dr_ = nb.brick(obj, 1.0, 1.0, 0.008, 0.2, offset=0.0, freq=1)
+        dc = conc((0.58, 0.57, 0.54), (0.66, 0.65, 0.62))
+        dc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.4, 3, 0.6), 0.62, 0.72), 0.5), dc, (0.4, 0.39, 0.37))   # oil drips
+        dc = nb.mix(nb.math("MULTIPLY", dj, 0.7), dc, (0.33, 0.33, 0.32))
+        c = nb.mix(I["drive"], c, dc)
+        c = nb.mix(I["side"], c, conc((0.62, 0.61, 0.58), (0.7, 0.69, 0.66)))
+        fl_ = nb.voronoi(7.0, "Distance", "DISTANCE_TO_EDGE")
+        flc = nb.mix(nb.ramp(nb.voronoi(7.0, "Color"), 0.2, 0.8), (0.52, 0.47, 0.4), (0.66, 0.6, 0.5))
+        flc = nb.mix(nb.ramp(fl_, 0.05, 0.02), flc, (0.32, 0.4, 0.2))
+        c = nb.mix(I["gpath"], c, flc)
+        c = nb.mix(I["kerb"], c, (0.74, 0.73, 0.7))
+        tj, tr_ = nb.brick(obj, 0.36, 0.24, 0.008, 0.2)
+        tvc = nb.mix(tr_, (0.74, 0.68, 0.57), (0.84, 0.78, 0.67))
+        tvc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(18.0, 2, 0.5), 0.55, 0.75), 0.35), tvc, (0.66, 0.59, 0.48))
+        tvc = nb.mix(tj, tvc, (0.6, 0.56, 0.5))
+        c = nb.mix(I["deck"], c, tvc)
+        c = nb.mix(I["coping"], c, (0.9, 0.9, 0.87))
+        cau = nb.ramp(nb.voronoi_v(nb.vec(nb.math("ADD", ox_, nb.math("MULTIPLY", nb.noise(1.5, 2, 0.5), 0.3)), oy_), 6.0, "Distance", "DISTANCE_TO_EDGE"), 0.045, 0.0)
+        wfl = nb.mix(I["pdepth"], (0.42, 0.82, 0.84), (0.1, 0.48, 0.62))
+        wfl = nb.mix(nb.math("MULTIPLY", cau, 0.4), wfl, (0.75, 0.97, 0.96))
+        wfl = nb.mix(nb.ramp(I["wline"], 0.45, 0.55), wfl, (0.08, 0.36, 0.55))        # the waterline tiles
+        c = nb.mix(I["water"], c, wfl)
+        pkr = I["pk_r"]
+        rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", pkr, 0.72)), 0.1, 0.08), 1.0), (0.66, 0.3, 0.2), (0.2, 0.42, 0.66))
+        rub = nb.mix(nb.ramp(pkr, 0.36, 0.34), rub, (0.32, 0.58, 0.26))
+        rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", pkr, 0.72)), 0.1, 0.08),
+                             nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 1.6)), 0.5)), 0.2, 0.22)), rub, (0.95, 0.8, 0.2))
+        rub = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 2, 0.5), 0.5, 0.7), 0.3), rub, (0.2, 0.2, 0.2))
+        c = nb.mix(I["play"], c, rub)
+        c = nb.mix(I["playb"], c, nb.mix(nb.ramp(nb.noise(9.0, 3, 0.6), 0.3, 0.7), (0.38, 0.26, 0.15), (0.5, 0.36, 0.22)))
+        c = nb.mix(I["sand"], c, nb.mix(nb.ramp(nb.noise(12.0, 3, 0.6), 0.3, 0.7), (0.78, 0.68, 0.48), (0.88, 0.8, 0.6)))
+        asp, seal = asphalt((0.19, 0.19, 0.2), (0.26, 0.26, 0.27), 0.25)
+        c = nb.mix(nb.math("ADD", road_m, I["cul"]), c, asp)
+        c = paint(c, worn=0.3)
+        wm = I["water"]
+        rough = nb.mixf(wm, nb.mixf(nb.math("MAXIMUM", I["lawn"], I["fbed"]), 0.8, 0.92), 0.08)
+        bump_h = nb.math("ADD", nb.math("MULTIPLY", I["deck"], nb.math("SUBTRACT", 1.0, tj)),
+                         nb.math("ADD", nb.math("MULTIPLY", I["gpath"], nb.ramp(fl_, 0.0, 0.05)),
+                                 nb.math("MULTIPLY", nb.math("MAXIMUM", road_m, I["cul"]), nb.math("SUBTRACT", 0.0, seal))))
+        bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, wm))
 else:   # volcano
     c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.11), (0.24, 0.2, 0.18))
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.36, 0.22, 0.15))         # rusty ash
@@ -3176,6 +4208,80 @@ elif THEME == "smog":
     pts = scatter(350 if not PREVIEW else 60, lambda x, z: yard(x, z) & (sample(IND["y_waste"], x, z) + sample(IND["y_earth"], x, z) > 0.5))
     merged("Stones", blob_template(1), place_list(pts, 0.02, 0.05, sink=0.4, tilt=0.3),
            simple_mat("Stone", (0.3, 0.29, 0.27), 0.8, var=(0.46, 0.44, 0.4)))
+elif THEME == "military":
+    rnd = lambda x: RNG.random(np.shape(x))
+    pv_s = np.maximum.reduce([IND["conc"], IND["rwy"], IND["blast"], rd_hard])
+    edgeb = gaussian_filter(pv_s, 0.12 * MPX)
+    turf = lambda x, z: (sample(pv_s, x, z) < 0.03) & (sample(IND["crater"], x, z) < 0.05)
+    turf_b = blade_mat("Turf", (0.32, 0.37, 0.15), (0.42, 0.47, 0.2), (0.58, 0.59, 0.32))
+    pts = scatter(9000 if not PREVIEW else 1500, lambda x, z: turf(x, z) & (rnd(x) < 0.35 + 0.65 * sample(IND["mow"], x, z)))
+    merged("Tufts", tuft_template(8, 0.07, 0.011), place_list(pts, 0.7, 1.3), turf_b)
+    pts = scatter(5000 if not PREVIEW else 700, lambda x, z: turf(x, z) & (sample(edgeb, x, z) > 0.06))
+    merged("EdgeTufts", tuft_template(7, 0.09, 0.012), place_list(pts, 0.8, 1.3), turf_b)
+    pts = scatter(700 if not PREVIEW else 100, lambda x, z: (sample(IND["conc"], x, z) > 0.5) & (rnd(x) < 0.5) & (sample(IND["haz"], x, z) < 0.1))
+    merged("JointWeeds", tuft_template(5, 0.04, 0.008), place_list(pts, 0.7, 1.2), turf_b)
+    # round the craters: broken concrete and asphalt where they blew through paving, clods and charred lumps elsewhere
+    near_c = lambda x, z: (sample(IND["rim"], x, z) > 0.25) | ((sample(IND["scorch"], x, z) > 0.45) & (rnd(x) < 0.25))
+    pts = scatter(700 if not PREVIEW else 120, lambda x, z: near_c(x, z) & (sample(pv_s, x, z) > 0.5) & (rd(x, z) > HALF + 0.05))
+    merged("Rubble", box_template(0.09, 0.07, 0.035), place_list(pts, 0.5, 1.5, sink=0.01, tilt=0.5),
+           simple_mat("Rubble", (0.42, 0.41, 0.39), 0.85, var=(0.6, 0.59, 0.56)))
+    pts = scatter(800 if not PREVIEW else 150, lambda x, z: near_c(x, z) & (sample(pv_s, x, z) < 0.5))
+    merged("Clods", blob_template(1), place_list(pts, 0.025, 0.055, sink=0.35, tilt=0.5),
+           simple_mat("Clod", (0.22, 0.16, 0.11), 0.9, var=(0.34, 0.26, 0.18)))
+    pts = scatter(500 if not PREVIEW else 80, lambda x, z: (sample(IND["scorch"], x, z) > 0.35) & (rd(x, z) > HALF + 0.05))
+    merged("Charred", blob_template(1), place_list(pts, 0.015, 0.04, sink=0.4, tilt=0.6),
+           simple_mat("Charred", (0.06, 0.05, 0.045), 0.85, var=(0.14, 0.12, 0.1)))
+    # the edge lights: a short grey post, a coloured glass cap
+    posts, caps = [], {0: [], 1: [], 2: [], 3: []}
+    for (x_, z_, k_) in LIGHTS:
+        h_ = float(hgt(x_, z_))
+        posts.append(((x_, -z_, h_), 0.0, 1.0, None))
+        caps[k_].append(((x_, -z_, h_ + 0.05), 0.0, 0.02, None))
+    merged("LightPosts", cyl_template(0.016, 0.05, 8, 1.2), posts, simple_mat("LightPost", (0.3, 0.31, 0.32), 0.5, metal=0.4))
+    for k_, (col, em) in {0: ((0.95, 0.93, 0.8), (1.0, 0.95, 0.75)), 1: ((0.2, 0.4, 1.0), (0.25, 0.45, 1.0)),
+                          2: ((0.2, 0.9, 0.35), (0.2, 1.0, 0.4)), 3: ((0.95, 0.15, 0.1), (1.0, 0.15, 0.1))}.items():
+        merged("LightCaps%d" % k_, ball_template(1), caps[k_], simple_mat("LightCap%d" % k_, col, 0.3, emit=em, strength=1.5))
+elif THEME == "metro":
+    rnd = lambda x: RNG.random(np.shape(x))
+    soil = lambda x, z: (sample(IND["beds"], x, z) > 0.5) | (sample(IND["planter"], x, z) > 0.65)
+    pts = scatter(1400 if not PREVIEW else 200, soil)
+    merged("Shrubs", blob_template(2), place_list(pts, 0.05, 0.11, sink=0.3, tilt=0.2),
+           simple_mat("Shrub", (0.16, 0.3, 0.12), 0.8, var=(0.28, 0.45, 0.18)))
+    for k, col in enumerate([(0.95, 0.95, 0.9), (0.95, 0.75, 0.2), (0.85, 0.3, 0.45), (0.6, 0.45, 0.85)]):
+        centres = scatter(28 if not PREVIEW else 8, soil)
+        fl_ = [(cx + RNG.normal(0, 0.07), cz + RNG.normal(0, 0.07)) for cx, cz in centres for _ in range(int(RNG.integers(5, 12)))]
+        fl_ = [p_ for p_ in fl_ if _at(IND["beds"], p_[0], p_[1]) > 0.5 or _at(IND["planter"], p_[0], p_[1]) > 0.65]
+        merged("Flowers%d" % k, flower_template(5, 0.024), place_list(fl_, 0.8, 1.2), simple_mat("Fl%d" % k, col, 0.6))
+    gr_ = blade_mat("Grass", (0.2, 0.33, 0.12), (0.32, 0.48, 0.18), (0.5, 0.64, 0.28))
+    pts = scatter(3500 if not PREVIEW else 500, lambda x, z: (sample(IND["l_lawn"], x, z) > 0.5) & (sample(IND["beds"], x, z) < 0.2) &
+                  (sample(IND["lpath"], x, z) < 0.2))
+    merged("Tufts", tuft_template(7, 0.06, 0.01), place_list(pts, 0.7, 1.2), gr_)
+    pts = scatter(260 if not PREVIEW else 40, lambda x, z: sample(IND["pit"], x, z) > 0.5)
+    merged("PitWeeds", tuft_template(5, 0.05, 0.008), place_list(pts, 0.7, 1.1), gr_)
+    pts = scatter(500 if not PREVIEW else 80, lambda x, z: ((sample(IND["side"], x, z) > 0.5) | (sample(IND["plaza"], x, z) > 0.5)) & (rnd(x) < 0.4))
+    merged("Leaves", leaf_template(0.025, 0.012), place_list(pts, 0.8, 1.3), simple_mat("Leaf", (0.42, 0.33, 0.12), 0.7, var=(0.55, 0.4, 0.15)))
+elif THEME == "suburb":
+    rnd = lambda x: RNG.random(np.shape(x))
+    bed = lambda x, z: (sample(IND["fbed"], x, z) > 0.5)
+    pts = scatter(1500 if not PREVIEW else 250, bed)
+    merged("Shrubs", blob_template(2), place_list(pts, 0.045, 0.1, sink=0.3, tilt=0.2),
+           simple_mat("Shrub", (0.15, 0.32, 0.11), 0.8, var=(0.28, 0.5, 0.17)))
+    for k, col in enumerate([(0.97, 0.97, 0.94), (1.0, 0.82, 0.2), (0.95, 0.35, 0.55), (0.92, 0.22, 0.16), (0.62, 0.48, 0.92), (1.0, 0.55, 0.15)]):
+        centres = scatter(45 if not PREVIEW else 10, bed)
+        fl_ = [(cx + RNG.normal(0, 0.06), cz + RNG.normal(0, 0.06)) for cx, cz in centres for _ in range(int(RNG.integers(6, 14)))]
+        fl_ = [p_ for p_ in fl_ if _at(IND["fbed"], p_[0], p_[1]) > 0.5]
+        merged("Flowers%d" % k, flower_template(5, 0.026), place_list(fl_, 0.8, 1.25), simple_mat("Fl%d" % k, col, 0.6))
+    lawn_b = blade_mat("Lawn", (0.18, 0.36, 0.1), (0.3, 0.52, 0.16), (0.48, 0.7, 0.26))
+    lw = lambda x, z: sample(IND["lawn"], x, z) > 0.6
+    edgel = gaussian_filter(1 - IND["lawn"], 0.1 * MPX)
+    pts = scatter(6000 if not PREVIEW else 900, lambda x, z: lw(x, z) & (sample(edgel, x, z) > 0.1))
+    merged("EdgeTufts", tuft_template(7, 0.06, 0.01), place_list(pts, 0.7, 1.2), lawn_b)
+    pts = scatter(7000 if not PREVIEW else 1000, lambda x, z: lw(x, z) & (rnd(x) < 0.5))
+    merged("Tufts", tuft_template(6, 0.04, 0.009), place_list(pts, 0.7, 1.2), lawn_b)
+    toys = scatter(14, lambda x, z: lw(x, z) & (sample(edgel, x, z) < 0.05) & (rd(x, z) > HALF + 1.2))
+    for k, col in enumerate([(0.9, 0.15, 0.12), (0.15, 0.4, 0.9), (1.0, 0.8, 0.1)]):
+        merged("Ball%d" % k, ball_template(2), [((x_, -z_, float(hgt(x_, z_)) + 0.03), 0.0, 0.03, None) for (x_, z_) in toys[k::3]],
+               simple_mat("Ball%d" % k, col, 0.35))
 else:
     cinder = simple_mat("Cinder", (0.16, 0.13, 0.12), 0.8, var=(0.3, 0.25, 0.22))
     pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
@@ -3209,7 +4315,8 @@ im = np.asarray(Image.open(OUT + ".raw.png").convert("RGB")).astype(np.float32) 
 # brightness: the game lights this plane again, so bring the playfield's mean to the old painted level
 TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4, "highland": 0.4, "forge": 0.26,
           "bog": 0.33, "olive": 0.5, "coast": 0.53, "acropolis": 0.56, "farmland": 0.44, "darkwood": 0.26, "castle": 0.4,
-          "jungle": 0.3, "harbor": 0.56, "fortress": 0.4, "factory": 0.31, "railyard": 0.36, "smog": 0.31}[THEME]
+          "jungle": 0.3, "harbor": 0.56, "fortress": 0.4, "factory": 0.31, "railyard": 0.36, "smog": 0.31,
+          "military": 0.42, "metro": 0.37, "suburb": 0.42}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()
