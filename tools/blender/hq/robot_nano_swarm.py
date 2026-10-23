@@ -82,8 +82,8 @@ GLOW = {"Core": (CYAN, 1.4, 0.6)}
 LOW_TARGETS = {"Core": 260, "Lattice": 360}
 for _k in range(len(CLUMP_DIRS)):
     GLOW["Eyes%d" % _k] = (RED_GLOW, 1.6, 0.5)
-    LOW_TARGETS["Clump%d" % _k] = 330
-    LOW_TARGETS["Eyes%d" % _k] = 40
+    LOW_TARGETS["Clump%d" % _k] = 440
+    LOW_TARGETS["Eyes%d" % _k] = 70
 
 
 def _frame(u, fwd):
@@ -99,8 +99,8 @@ def mite(f, c, u, fwd, s):
     f.add(Ellipsoid(c, (rx, ry, rz), R=R), k=0.006)
     f.add(Ellipsoid(c + R @ v3((0, -ry * 0.55, 0.0)), (rx * 0.78, ry * 0.5, rz * 0.82), R=R), k=0.012)
     f.sub(Sphere(c + R @ v3((0, -ry * 1.02, rz * 0.12)), rx * 0.42), k=0.004)                    # the eye's socket
-    for side in (-1, 1):                                                     # two pairs of stubby legs, splayed into the gaps
-        for dy in (-0.45, 0.35):
+    for side in (-1, 1):                                                     # a stubby leg each side, splayed into the gaps
+        for dy in (-0.05,):
             a = c + R @ v3((side * rx * 0.7, dy * ry, -rz * 0.25))
             b = c + R @ v3((side * rx * 1.45, (dy - 0.15) * ry * 1.2, -rz * 1.1))
             f.add(RoundCone(a, b, 0.017 * s, 0.011 * s), k=0.005, label=3)

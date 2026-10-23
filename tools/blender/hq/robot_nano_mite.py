@@ -51,10 +51,10 @@ MATS = {
     "glow": ("glow", dict(name="RB_MiteGlow", col=RED_GLOW)),
 }
 GLOW = {"Eye": (RED_GLOW, 1.6, 0.5), "Seam": (CYAN, 1.4, 0.55)}
-LOW_TARGETS = {"Body": 520, "Brow": 70, "Socket": 90, "Eye": 60, "Seam": 110, "Hips": 130}
+LOW_TARGETS = {"Body": 520, "Brow": 80, "Socket": 100, "Eye": 110, "Seam": 140, "Hips": 160}
 for _n in LEGS:
-    LOW_TARGETS["Femur" + _n] = 44
-    LOW_TARGETS["Tibia" + _n] = 50
+    LOW_TARGETS["Femur" + _n] = 80
+    LOW_TARGETS["Tibia" + _n] = 90
 
 
 def _ellipse_ring(c, a, b, z, r):

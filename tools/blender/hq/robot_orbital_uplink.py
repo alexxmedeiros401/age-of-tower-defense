@@ -137,8 +137,8 @@ MATS = {
 }
 GLOW = {"Eye": (RED_GLOW, 1.6, 0.5), "SmallEyes": (RED_GLOW, 1.5, 0.5), "Beacon": (RED_GLOW, 1.6, 0.5),
         "Conduits": (CYAN, 1.4, 0.55), "Emitter": (CYAN, 1.6, 0.6), "Pulse": (CYAN, 1.8, 0.7)}
-LOW_TARGETS = {"Hull": 2400, "Belly": 300, "Head": 700, "Brow": 160, "Bezel": 360, "Eye": 120, "Pupil": 50, "SmallEyes": 60,
-               "Turret": 520, "Dish": 1300, "DishBack": 650, "Feed": 360, "Emitter": 90, "Pulse": 140, "Mast": 450, "Mast2": 280,
+LOW_TARGETS = {"Hull": 2200, "Belly": 300, "Head": 700, "Brow": 160, "Bezel": 360, "Eye": 120, "Pupil": 50, "SmallEyes": 60,
+               "Turret": 520, "Dish": 1200, "DishBack": 560, "Feed": 360, "Emitter": 90, "Pulse": 220, "Mast": 450, "Mast2": 280,
                "Beacon": 40, "Conduits": 420, "Rack": 260}
 for _s in "LR":
     GLOW["BayGlow" + _s] = (CYAN, 1.3, 0.55)
@@ -146,8 +146,8 @@ for _s in "LR":
     LOW_TARGETS.update({"Door" + _s: 220, "BayGlow" + _s: 30, "Spill" + _s: 380, "SpillEyes" + _s: 40})
 for _n in LEGS:
     GLOW["LegGlow" + _n] = (CYAN, 1.4, 0.55)
-    LOW_TARGETS.update({"Hip" + _n: 220, "Thigh" + _n: 330, "Piston" + _n: 110, "Knee" + _n: 230, "KneeCap" + _n: 140,
-                        "Shin" + _n: 230, "ShinPlate" + _n: 200, "LegGlow" + _n: 50, "Foot" + _n: 330})
+    LOW_TARGETS.update({"Hip" + _n: 190, "Thigh" + _n: 280, "Piston" + _n: 90, "Knee" + _n: 200, "KneeCap" + _n: 120,
+                        "Shin" + _n: 200, "ShinPlate" + _n: 170, "LegGlow" + _n: 50, "Foot" + _n: 280})
 
 
 # ------------------------------------------------------------------------------------------------ shapes
@@ -633,9 +633,9 @@ def summon(arm):
               "beacon": 1.0 + 0.3 * k}
         for sx in (-1, 1):
             s = "L" if sx > 0 else "R"
-            off = SPILL_OUT[sx] * go + v3((0, 0, 0.03 * math.sin(math.pi * go)))
+            off = SPILL_OUT[sx] * go + v3((0, 0, 0.06 * go + 0.03 * math.sin(math.pi * go)))
             aims["spill." + s] = _spill(arm, sx, tuple(off), 2.6 * go)
-            sz = HIDE if (gone or f < 5) else max(HIDE, grow * (1.0 if f <= SUMMON_FRAME else 0.45))
+            sz = HIDE if (gone or f < 5) else max(HIDE, grow * (1.0 + 0.5 * go) * (1.0 if f <= SUMMON_FRAME else 0.45))
             sc["spill." + s] = sz
             sc["bay." + s] = 1.0 + 0.5 * smooth(5, 12, f) * (1.0 - smooth(24, 36, f))
         ch, _ = P.solve(aims, root_off=root_off, root_rot=root_rot, scales=sc)
