@@ -237,11 +237,11 @@ def nade_free(pos, rot):
 
 # ----------------------------------------------------------------------------------------------- the aim
 YAW = -32.0
-POCKET = (0.05, 0.1, 0.1)          # the butt's place: ahead of her right shoulder joint, in toward her chest, up
+POCKET = (0.05, 0.12, -0.03)       # the butt's place: ahead of her right shoulder joint, in toward her chest, up
 AIM_DOWN = 0.05
 L_POLE = V(0.3, -0.2, -1.0)         # her left elbow under the handguard
 R_POLE = V(-0.8, 0.4, -0.5)         # her right elbow out and down
-AIM_BODY = {"lean": 0.18, "side": -0.04, "head_tilt": -0.3, "head_up": -0.3, "neck_side": -0.2,
+AIM_BODY = {"lean": 0.18, "side": -0.04, "head_tilt": -0.3, "head_up": -0.4, "neck_side": -0.1,
             "neck_tw": -0.45 * YAW + 4, "head_tw": -0.55 * YAW + 2}
 
 
@@ -319,8 +319,8 @@ def make_attack(arm, frames=FR):
 
 
 # ----------------------------------------------------------------------------------------------- idle: a relaxed port
-PORT_G = V(-0.13, -0.26, 1.0)                        # (body frame) the pistol grip at her right hip, before her
-PORT_A = V(0.5, -0.17, 0.85).normalized()            # (body frame) the muzzle up past her left shoulder
+PORT_G = V(-0.13, -0.38, 0.96)                        # (body frame) the pistol grip at her right hip, before her
+PORT_A = V(0.5, -0.2, 0.62).normalized()            # (body frame) the muzzle up past her left shoulder
 
 
 def port_T(Dr, br=0.0, k=0.0):

@@ -61,14 +61,13 @@ def head(fd):
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.06, 1.594), (0.142, 0.131, 0.126)), 0.07, SKIN)                          # a strong jaw
+    fd.add(E((0, -0.06, 1.594), (0.138, 0.13, 0.125)), 0.07, SKIN)                          # a strong jaw
     fd.add(E((0, -0.13, 1.507), (0.073, 0.064, 0.061)), 0.05, SKIN)                          # a firm, rounded chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.028, -0.138, 1.5), 0.03), 0.03, SKIN)                                 # the chin's corners
-        fd.add(S((sx * 0.112, -0.038, 1.552), 0.04), 0.05, SKIN)                               # the jaw's angles
+        fd.add(S((sx * 0.108, -0.04, 1.556), 0.036), 0.05, SKIN)                               # the jaw's angles
         fd.add(S((sx * 0.108, -0.12, 1.638), 0.041), 0.05, SKIN)                               # high cheekbones
         fd.add(S((sx * 0.112, -0.05, 1.566), 0.043), 0.05, SKIN)
-        fd.add(S((sx * 0.076, -0.142, 1.61), 0.027), 0.03, SKIN)                               # cheeks, lifted by the smile
+        fd.add(S((sx * 0.074, -0.142, 1.612), 0.022), 0.03, SKIN)                               # cheeks, lifted by the smile
         pts = [hp((sx * 0.15, -0.058, 1.748)), hp((sx * 0.115, -0.124, 1.754)), hp((sx * 0.062, -0.156, 1.752))]
         fd.add(Chain(pts, [hr(0.007), hr(0.0095), hr(0.008)], k=hr(0.02)), hr(0.03), SKIN)    # a firm brow bone
     # brows: straight and strong, a gentle lift at the outer ends, lying on her brow (raised hair and a painted band)
@@ -82,11 +81,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0235))), (sx * 0.18, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0275))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.018))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.18, 0.05, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.008)), Plane(ec + v3((0, 0, hr(0.0245))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
         flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.016)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.012), hr(0.006), hr(0.006))), hr(0.0038), hr(0.0014)), hr(0.004), LASH)
     # a straight, broad nose
@@ -113,14 +112,14 @@ def head(fd):
     fd.paint(Inter(Func(lambda P: opening(P) - F(0.0025), hp((-0.09, -0.24, 1.48)), hp((0.09, -0.12, 1.62))),
                    Ellipsoid(hp((0.0, -0.165, 1.555)), v3((0.08, 0.04, 0.06)) * HS), hr(0.002)), MOUTH)
     # full lips, tapering into the corners
-    ru = [0.0026, 0.0046, 0.006, 0.0068, 0.007, 0.0068, 0.006, 0.0046, 0.0026]
-    rl = [0.0028, 0.0055, 0.0076, 0.0088, 0.0092, 0.0088, 0.0076, 0.0055, 0.0028]
+    ru = [0.0024, 0.0042, 0.0054, 0.006, 0.0062, 0.006, 0.0054, 0.0042, 0.0024]
+    rl = [0.0026, 0.005, 0.0068, 0.0078, 0.0082, 0.0078, 0.0068, 0.005, 0.0026]
     fd.add(Chain(upper, [hr(r) for r in ru], k=hr(0.005)), hr(0.007), LIP)
     fd.add(Chain(lower, [hr(r) for r in rl], k=hr(0.006)), hr(0.008), LIP)
     for sx in (-1, 1):
         cx = sx * (MOUTH_W + 0.006)
         cz = float(mouth_curves(cx)[0])
-        fd.add(S((sx * 0.078, -0.15, cz + 0.014 + (0.004 if sx > 0 else 0.0)), 0.012), hr(0.01), SKIN)   # the smile's cheeks
+        fd.add(S((sx * 0.078, -0.15, cz + 0.014 + (0.004 if sx > 0 else 0.0)), 0.01), hr(0.01), SKIN)   # the smile's cheeks
         if sx > 0:
             fd.sub(S((sx * (MOUTH_W + 0.016), -0.152, cz + 0.002), 0.0055), hr(0.006))                  # a dimple on her left
         fd.add(Ellipsoid(hp((sx * 0.174, 0.035, 1.66)), v3((0.024, 0.043, 0.054)) * HS, R=euler(0, sx * 0.25, sx * -0.35)), hr(0.02), SKIN)
@@ -772,7 +771,7 @@ BAR_H = 0.11                              # the bore's height above the grip's m
 MUZZLE_U = 0.665
 BUTT_U = -0.335                           # the butt pad's face
 FORE_U = 0.36                             # the vertical foregrip
-OPTIC_U, OPTIC_H = 0.05, 0.19             # the red dot's tube: its middle (along), its axis' height
+OPTIC_U, OPTIC_H = 0.05, 0.225            # the red dot's tube on a riser mount: its middle (along), its axis' height
 GUN_SCALE = 1.0
 
 
@@ -870,7 +869,8 @@ def rifle_field():
     # the red-dot sight: its mount on the rail, the tube, its hoods, the turrets
     oc = _gr(OPTIC_U, 0.0, OPTIC_H)
     Ra = rot_from_axes(z_axis=A)
-    fd.add(RoundBox(_gr(OPTIC_U, 0.0, 0.16), (0.018, 0.03, 0.012), 0.005, R=Rg), 0.004, 8)
+    fd.add(RoundBox(_gr(OPTIC_U, 0.0, 0.178), (0.018, 0.034, 0.03), 0.006, R=Rg), 0.004, 8)
+    fd.sub(RoundBox(_gr(OPTIC_U, 0.0, 0.176), (0.03, 0.016, 0.012), 0.005, R=Rg), 0.003)              # (the riser's window)
     fd.add(Cylinder(oc, 0.026, 0.09, rr=0.008, R=Ra), 0.006, 8)
     fd.sub(Cylinder(oc + A * 0.047, 0.019, 0.016, rr=0.002, R=Ra), 0.002)
     fd.sub(Cylinder(oc - A * 0.047, 0.019, 0.016, rr=0.002, R=Ra), 0.002)
