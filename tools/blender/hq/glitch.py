@@ -265,8 +265,8 @@ def spark_field():
     fd = Field("Spark")
     for sx in (-1, 1):
         p, R = eye_frame(sx)
-        c = p + R[:, 1] * hr(0.024) + R[:, 0] * (sx * hr(0.013)) + R[:, 2] * hr(0.0085)
-        fd.add(Ellipsoid(c, v3((0.0095, 0.0105, 0.004)) * HS, R=R), 0.0)
+        c = p + R[:, 1] * hr(0.021) + R[:, 0] * (sx * hr(0.012)) + R[:, 2] * hr(0.0088)
+        fd.add(Ellipsoid(c, v3((0.014, 0.0155, 0.005)) * HS, R=R), 0.0)
     return fd
 
 
@@ -711,7 +711,8 @@ def legs_field():
             d, t = _seg(P, a, b)
             ax_ = (a + (b - a) * 0.5).astype(F)
             front = (P[:, 1] - ax_[1]) - F(0.03) - F(0.06) * np.maximum((P[:, 0] - ax_[0]) * F(sx), F(0))
-            return np.maximum(np.maximum(F(0.2) - t, t - F(0.72)), front)
+            inner = F(0.05) - P[:, 0] * F(sx)                   # (kept clear of the other leg's plate)
+            return np.maximum(np.maximum(np.maximum(F(0.2) - t, t - F(0.72)), front), inner)
         fd.add(Inter(Func(tband, hip - 0.3, kn + 0.3), Shell(tl, 0.017, 0.022, pad=0.06), 0.005), 0.0, GRAPHITE)
         fd.paint(Func(lambda P, sx=sx, x0=lerp(hip, kn, 0.5)[0], zk=kn[2]: np.maximum(np.abs((P[:, 0] - F(x0)) * F(sx) - F(0.035)) - F(0.012),
                                                                                   F(zk + 0.05) - P[:, 2]), hip - 0.3, kn + 0.3), NAVY)
@@ -899,12 +900,25 @@ def _islands(ob):
     return out
 
 
-def _rigid_islands(ob, classify, wts=None):
+def _rigid_islands(ob, classify, wts=None, split_x=False):
     """Every piece rigid on the bone `classify(centroid)` names (or blended as `wts(bone)` gives)."""
     for g in list(ob.vertex_groups):
         ob.vertex_groups.remove(g)
     tally = {}
+    pieces = []
     for idx, c in _islands(ob):
+        if split_x:
+            from mathutils import Vector
+            for sgn in (-1, 1):
+                sub = [i for i in idx if ob.data.vertices[i].co.x * sgn >= 0]
+                if sub:
+                    cc = Vector((0, 0, 0))
+                    for i in sub:
+                        cc += ob.data.vertices[i].co
+                    pieces.append((sub, cc / len(sub)))
+        else:
+            pieces.append((idx, c))
+    for idx, c in pieces:
         b = classify(c)
         w = wts(b) if wts else {b: 1.0}
         for nm, x in w.items():
@@ -948,11 +962,11 @@ def shoulder_weights(ob, skin_ob, arm):
 
 
 def arms_weights(ob, skin_ob, arm):
-    _rigid_islands(ob, _arm_bone)
+    _rigid_islands(ob, _arm_bone, split_x=True)
 
 
 def legs_weights(ob, skin_ob, arm):
-    _rigid_islands(ob, _leg_bone)
+    _rigid_islands(ob, _leg_bone, split_x=True)
 
 
 def blades_weights(ob, skin_ob, arm):
