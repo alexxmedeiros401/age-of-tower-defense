@@ -62,6 +62,24 @@ BASE_L, BLACK_L, VIO_L, WHITE_L, ALT_L, GUN_L, STEEL_L, GLASS_L, RUBBER_L, HAZ_L
 Z_ = v3((0.0, 0.0, 1.0))
 
 
+class Clip(Prim):
+    """Inter(a, region) that evaluates the (costly) shape `a` only where the region is near (region < margin): elsewhere
+    the region's own value stands in (it is positive there, so the surface is unchanged; the sculpt just runs faster)."""
+
+    def __init__(self, a, region, k=0.0, margin=0.04):
+        super().__init__()
+        self.a, self.b, self.k, self.margin = a, region, k, margin
+        self.lo, self.hi = a.lo, a.hi
+
+    def sdf(self, P):
+        r = self.b(P)
+        out = r.copy()
+        m = r < F(self.margin)
+        if np.any(m):
+            out[m] = smax(self.a(P[m]), r[m], self.k)
+        return out
+
+
 # ======================================================================================= head
 def stubble_mask(P):
     """The jaw, chin and upper lip below the cheekbones (design coordinates): a dark shadow of a close shave."""
@@ -373,16 +391,16 @@ def armour_field():
     base = shirt_hull()
     lo, hi = (-0.8, -0.6, 0.8), (0.8, 0.6, 1.7)
     hard = lambda P: F(0.0005) * NOISE(P * F(40))
-    fd.add(Inter(Shell(base, PLATE_OFF, PLATE_T, pad=0.14, disp=hard, disp_amp=0.001), Func(_plate_region, lo, hi), 0.014), 0.0)
+    fd.add(Clip(Shell(base, PLATE_OFF, PLATE_T, pad=0.14, disp=hard, disp_amp=0.001), Func(_plate_region, lo, hi), 0.014), 0.0)
     fd.paint(Inter(Func(_plate_edge, lo, hi), Func(_plate_region, lo, hi)), ALT_L)
-    fd.add(Inter(Shell(base, CB_OFF, CB_T, pad=0.14), Func(_cb_region, lo, hi), 0.006), 0.008, ALT_L)
-    fd.add(Inter(Shell(base, PC_IN + STRAP_T / 2, STRAP_T, pad=0.14), Func(_strap_region, lo, hi), 0.01), 0.01, ALT_L)
+    fd.add(Clip(Shell(base, CB_OFF, CB_T, pad=0.14), Func(_cb_region, lo, hi), 0.006), 0.008, ALT_L)
+    fd.add(Clip(Shell(base, PC_IN + STRAP_T / 2, STRAP_T, pad=0.14), Func(_strap_region, lo, hi), 0.01), 0.01, ALT_L)
     out = PLATE_OFF + PLATE_T / 2
     # the abdomen band's segments
     for zk in (1.05, 1.105):
         def seg(P, zk=zk):
             return np.maximum(np.abs(P[:, 2] - F(zk)) - F(0.004), np.abs(P[:, 0]) - F(0.4))
-        fd.sub(Inter(Shell(base, CB_OFF + CB_T / 2, 0.012, pad=0.14), Func(seg, lo, hi), 0.0), 0.002)
+        fd.sub(Clip(Shell(base, CB_OFF + CB_T / 2, 0.012, pad=0.14), Func(seg, lo, hi), 0.0), 0.002)
     # panel lines: across the front plate under the chest, a chevron above it; down the back plate's middle
     def groove(P, a, b, w=0.0032):
         a, b = a.astype(F), b.astype(F)
@@ -394,9 +412,9 @@ def armour_field():
     lines_f = [(np.array([-0.2, 1.16]), np.array([0.2, 1.16])),
                (np.array([-0.17, 1.33]), np.array([0.0, 1.235])), (np.array([0.17, 1.33]), np.array([0.0, 1.235]))]
     for a, b in lines_f:
-        fd.sub(Inter(Shell(base, out, 0.014, pad=0.14),
+        fd.sub(Clip(Shell(base, out, 0.014, pad=0.14),
                      Func(lambda P, a=a, b=b: np.where(front(P), groove(P, a, b), F(1.0)), lo, hi), 0.0), 0.002)
-    fd.sub(Inter(Shell(base, out, 0.014, pad=0.14),
+    fd.sub(Clip(Shell(base, out, 0.014, pad=0.14),
                  Func(lambda P: np.where(P[:, 1] > F(0.07), groove(P, np.array([0.0, 1.03]), np.array([0.0, 1.38])), F(1.0)), lo, hi), 0.0), 0.002)
     co = carrier_outer()
     # slim pouches on the abdomen band's front corners
@@ -484,8 +502,8 @@ def guards_field():
         sx = -1 if side == "R" else 1
         sh = J["shoulder_" + side]
         c = sh + v3((sx * 0.035, 0.0, 0.03))
-        fd.add(Inter(Shell(base, PC_IN + 0.02, 0.022, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 1), lo, hi), 0.01), 0.004, BASE_L)
-        fd.add(Inter(Shell(base, PC_IN + 0.04, 0.024, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 0), lo, hi), 0.012), 0.004, BASE_L)
+        fd.add(Clip(Shell(base, PC_IN + 0.02, 0.022, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 1), lo, hi), 0.01), 0.004, BASE_L)
+        fd.add(Clip(Shell(base, PC_IN + 0.04, 0.024, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 0), lo, hi), 0.012), 0.004, BASE_L)
         def edge(P, s=side):
             return np.maximum(-(_pauldron_region(P, s, 0) + F(0.014)), _pauldron_region(P, s, 0))
         fd.paint(Func(edge, lo, hi), ALT_L)
@@ -499,7 +517,7 @@ def guards_field():
         # the forearm guard
         def bout(P, s=side):
             return _bracer_region(P, s)
-        fd.add(Inter(Shell(base, SHIRT_FACE + SHIRT_T / 2 + 0.014, 0.02, pad=0.14), Func(bout, lo, hi), 0.008), 0.004, BASE_L)
+        fd.add(Clip(Shell(base, SHIRT_FACE + SHIRT_T / 2 + 0.014, 0.02, pad=0.14), Func(bout, lo, hi), 0.008), 0.004, BASE_L)
         def bedge(P, s=side):
             r = _bracer_region(P, s)
             return np.maximum(-(r + F(0.012)), r)
