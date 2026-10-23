@@ -1,0 +1,7 @@
+[
+ {
+  "name": "ground_suburbia_m2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/ground_suburbia_m2; mkdir -p $O\npython3 ../map_ground_hq.py suburbia --px 64 --samples 32 --out $O/ground_suburbia.png --watersrc $O/water_src_suburbia.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/ground_suburbia_m2"
+ }
+]
