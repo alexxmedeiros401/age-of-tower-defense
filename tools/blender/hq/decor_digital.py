@@ -257,7 +257,7 @@ def instrument_rack(seed=0):
     for k in range(3):                                              # patch cables looping down the front
         x0, x1 = -0.18 + k * 0.12, -0.05 + k * 0.14
         z0, z1 = 0.32 + k * 0.2, 0.62 - k * 0.1
-        mid = v3(((x0 + x1) / 2, -hy - 0.07, min(z0, z1) - 0.14))
+        mid = v3(((x0 + x1) / 2, -hy - 0.05, min(z0, z1) - 0.06))
         cb.add(Chain([v3((x0, -hy - 0.015, z0)), mid, v3((x1, -hy - 0.015, z1))], [0.006] * 3, k=0.02), k=0.0, label=(5, 8, 9)[k])
     ground_cut(tf, -0.01)
     ground_cut(rk, -0.01)
@@ -421,9 +421,10 @@ def potted_fern(seed=0, s=1.0, square=False):
         so.add(RoundBox((0, 0, 0.385), (0.145, 0.145, 0.02), 0.01, **wob(12.0, 0.006, seed)), k=0.0)
         top = 0.4
     else:
-        pt.add(RoundCone((0, 0, 0.0), (0, 0, 0.3), 0.13, 0.17), k=0.0)
+        pt.add(Func(lambda P: np.maximum(np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2) - (F32(0.13) + P[:, 2] * F32(0.13)), np.abs(P[:, 2] - F32(0.15)) - F32(0.15)).astype(F32),
+                    (-0.25, -0.25, -0.05), (0.25, 0.25, 0.35)), k=0.0)
         pt.add(Torus((0, 0, 0.3), 0.17, 0.016), k=0.006)
-        pt.sub(Cylinder((0, 0, 0.36), 0.15, 0.12), k=0.004)
+        pt.sub(Cylinder((0, 0, 0.32), 0.15, 0.2), k=0.004)
         pt.paint(Cylinder((0, 0, 0.06), 0.3, 0.035), 7)
         so.add(Cylinder((0, 0, 0.27), 0.155, 0.03, **wob(12.0, 0.006, seed)), k=0.0)
         top = 0.28
@@ -1161,7 +1162,7 @@ def antenna_mast(seed=0, H=3.0):
 
 def _panel(f, fr, c, yaw, tilt, W=0.46, Hh=0.3):
     """A solar panel (cells in field f, its frame in fr) at c, facing -Y turned by yaw, tilted up by `tilt`."""
-    R = Rz(yaw) @ euler(-tilt, 0, 0)
+    R = Rz(yaw) @ euler(tilt, 0, 0)                                  # (its back edge, +Y, raised)
     c = v3(c)
     f.add(RoundBox(c, (W, Hh, 0.012), 0.004, R=R), k=0.0)
     fr.add(RoundBox(c - R @ v3((0, 0, 0.012)), (W + 0.012, Hh + 0.012, 0.012), 0.004, R=R), k=0.0)
@@ -1175,10 +1176,10 @@ def solar_panel(seed=0):
     tilt = 0.55
     for x in (-0.48, 0.48):
         _panel(sl, fr, (x, 0, 0.62), 0.0, tilt)
-        for (y, h) in ((-0.18, 0.5), (0.2, 0.75)):
+        for (y, h) in ((-0.18, 0.46), (0.2, 0.69)):
             seg(st, (x * 1.2, y, 0.0), (x * 1.2, y, h), 0.02)
             st.add(Cylinder((x * 1.2, y, 0.02), 0.05, 0.06, rr=0.01), k=0.0, label=7)
-    for (y, h) in ((-0.18, 0.5), (0.2, 0.75)):
+    for (y, h) in ((-0.18, 0.46), (0.2, 0.69)):
         seg(st, (-0.6, y, h), (0.6, y, h), 0.018)
     box(st, (0.0, 0.25, 0.32), (0.1, 0.05, 0.12), 0.015, label=5)
     seg(st, (0.0, 0.25, 0.2), (0.0, 0.28, 0.0), 0.015)
@@ -1189,7 +1190,7 @@ def solar_panel(seed=0):
 
 def cable_drum(seed=0):
     """Cable drums: a big wooden drum of black cable on its flanges, a smaller empty one lying beside it."""
-    out = cable_reel(seed, Rf=0.42, R0=0.2, W=0.22, reel="timber", cable="rubber_cable", end=False)
+    out = cable_reel(seed, Rf=0.42, R0=0.2, W=0.22, reel="timber", cable="rubber", end=False)
     d2 = Field("Drum2")
     c = v3((0.75, 0.25, 0.0))
     for z in (0.025, 0.25):
@@ -1332,9 +1333,9 @@ def control_building(seed=0):
         box(rf, (x, y, H + 0.18), (0.16, 0.2, 0.12), 0.02, label=0)
         rf.sub(Cylinder((x, y, H + 0.31), 0.11, 0.04), k=0.0)
         rf.add(Cylinder((x, y, H + 0.28), 0.03, 0.02), k=0.0, label=7)
-    place_parts(out, small_dish(seed + 1, tripod=True), (0.35, 0.2, H + 0.06), Rz(0.3), rename={"Dish": "RoofDish", "Mount": "RoofMount", "Feed": "RoofFeed",
+    place_parts(out, [(n, Scaled_field(f, 0.6), v * 0.8, m) for (n, f, v, m) in small_dish(seed + 1, tripod=True)], (0.35, 0.2, H + 0.06), Rz(0.3), rename={"Dish": "RoofDish", "Mount": "RoofMount", "Feed": "RoofFeed",
                                                                                             "Ballast": "RoofBallast", "Cable": "RoofCable"})
-    place_parts(out, [(n, Scaled_field(f, 0.7), v * 0.8, m) for (n, f, v, m) in small_dish(seed + 2)], (-0.05, -0.3, H + 0.06), Rz(-0.4),
+    place_parts(out, [(n, Scaled_field(f, 0.5), v * 0.7, m) for (n, f, v, m) in small_dish(seed + 2)], (-0.05, -0.3, H + 0.06), Rz(-0.4),
                 rename={"Dish": "RoofDish", "Mount": "RoofMount", "Feed": "RoofFeed", "Ballast": "RoofBallast"})
     mt = Field("Mast")
     lattice_mast(mt, (1.15, 0.45, 0), H + 0.06, H + 1.7, 0.09, 0.05, legs=3, step=0.2, rod=0.008)
@@ -1547,10 +1548,10 @@ def solar_array(seed=0):
         for x in (-0.78, 0.0, 0.78):
             _panel(sl, fr, (x, y, 0.6), 0.0, tilt, W=0.37, Hh=0.3)
         for x in (-1.15, -0.39, 0.39, 1.15):
-            seg(rk, (x, y - 0.2, 0.0), (x, y - 0.2, 0.44), 0.022)
-            seg(rk, (x, y + 0.2, 0.0), (x, y + 0.2, 0.72), 0.022)
-            seg(rk, (x, y - 0.2, 0.42), (x, y + 0.2, 0.74), 0.016)
-        for (dy, h) in ((-0.15, 0.48), (0.15, 0.7)):
+            seg(rk, (x, y - 0.2, 0.0), (x, y - 0.2, 0.42), 0.022)
+            seg(rk, (x, y + 0.2, 0.0), (x, y + 0.2, 0.65), 0.022)
+            seg(rk, (x, y - 0.2, 0.4), (x, y + 0.2, 0.64), 0.016)
+        for (dy, h) in ((-0.15, 0.48), (0.15, 0.64)):
             seg(rk, (-1.2, y + dy, h), (1.2, y + dy, h), 0.016)
     box(iv, (1.45, 0.02, 0.55), (0.12, 0.16, 0.22), 0.02)
     for sy in (-1, 1):
@@ -2054,9 +2055,9 @@ def hover_car(seed=0):
     out = []
     bd, cn, pd = Field("Body"), Field("Canopy"), Field("Pods")
     glows = G("glow_cyan", "glow_magenta", "glow_red", "glow_screen")
-    zc = 0.42
-    bd.add(Ellipsoid((0.0, 0, zc), (0.85, 0.36, 0.17)), k=0.0)
-    bd.add(Ellipsoid((-0.35, 0, zc + 0.04), (0.5, 0.38, 0.16)), k=0.08)
+    zc = 0.4
+    bd.add(Ellipsoid((0.0, 0, zc), (0.85, 0.37, 0.13)), k=0.0)
+    bd.add(Ellipsoid((-0.35, 0, zc + 0.02), (0.5, 0.39, 0.13)), k=0.08)
     bd.add(RoundCone((0.5, 0, zc - 0.02), (0.92, 0, zc - 0.05), 0.12, 0.04), k=0.08)
     cn.add(Ellipsoid((0.0, 0, zc + 0.14), (0.42, 0.24, 0.15)), k=0.0)
     cn.inter(Plane((0, 0, zc + 0.06), (0, 0, -1)))
@@ -2337,7 +2338,7 @@ def lab_city(seed=0):
         box(fr, (LX0 + 0.1, y, 0.55), (0.025, 0.025, 0.46), 0.006, label=7)
     # the upper floor, cantilevered forward over the entrance
     UX0 = LX0 - 0.45
-    curtain_box(cw, gw, (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 1, bands=(1,), cell=(0.16, 0.3), p=0.2, rc=0.02)
+    curtain_box(cw, gw, (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 1, bands=(), cell=(0.16, 0.3), p=0.2, rc=0.02)
     _lit_strips(glows["glow_window_cool"], (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 2, p=0.35)
     for sy in (-1, 1):                                              # raked steel columns under the overhang
         seg(fr, (LX0 + 0.12, sy * 1.3, 0.12), (UX0 + 0.08, sy * 1.45, z1), 0.05)
