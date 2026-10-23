@@ -3318,7 +3318,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4934,6 +4934,8 @@ func _handle_events() -> void:
 					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type in ["steam_brawler", "jim"] and _hq_clips(ev.id):
 					_brawler_punch(u2, ev.get("targets", []))   # v0.9.64: the piston-driven fist rams out in a burst of steam
+				elif u2 != null and u2.type == "flamethrower" and _hq_clips(ev.id):
+					_flame_jet(u2, ev.get("targets", []))       # v0.9.69: a roaring jet of fire swept across in front of him
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type in ["axe_warrior", "knight", "aldric", "halberdier"] and _hq_clips(ev.id):
@@ -4959,7 +4961,7 @@ func _handle_events() -> void:
 					elif u2.type in ["mech_brawler", "titan_mech"]:
 						slam_col = Color(0.9, 0.4, 1.0)
 					_sfx(ss, -4.0, 0.12, 0.05)
-					if u2.type == "flamethrower":
+					if u2.type == "flamethrower" and not _hq_clips(ev.id):
 						_dust_fx(_v3(u2.pos + u2.facing * 1.2, 0.5), 4, 0.9)
 			"pulse":
 				_animate_fire(ev.id)
@@ -5368,7 +5370,7 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
 const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197),
-	"maya": Vector3(-0.199, 1.290, 0.946)}   # (v0.9.61: Isla's right pistol)
+	"maya": Vector3(-0.199, 1.290, 0.946), "sniper": Vector3(0.001, 0.826, 1.562)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
@@ -5390,7 +5392,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 		root.look_at(tp, Vector3.UP)
 	if time_s - float(_musket_t.get(int(u.id), -9.0)) > 0.15:
 		_musket_t[int(u.id)] = time_s
-		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), {"musketeer": 1.0, "rifleman": 0.8}.get(str(u.type), 0.7))
+		_gun_blast(launch, (yaw.global_transform.basis * Vector3(0, 0, 1)).normalized(), {"musketeer": 1.0, "rifleman": 0.8, "sniper": 1.15}.get(str(u.type), 0.7))
 		if str(u.type) == "maya":                    # v0.9.69: Maya's three-round burst: two more tracers on frames 2 and 3
 			for k in [1, 2]:
 				_fx_after(float(k) / CLIP_FPS / maxf(float(speed), 0.01), func() -> void: _burst_tracer(int(u.id), tp))
@@ -7471,6 +7473,79 @@ func _shell_burst(ground: Vector3, r: float) -> void:
 	shake = maxf(shake, 0.22)
 
 
+## v0.9.69: the Flamethrower (anim_flamethrower.py): he braces, swings the nozzle out to his right and sweeps it
+## across in front of him from frame 3 (FLAME_ON) to 17 (FLAME_OFF): a jet of fire pours from the nozzle all the way,
+## following it (its tip and bearing interpolated through the measured frames), rolling into black smoke at its end;
+## the robots it catches burst into flame as the sweep reaches them.
+const FLAME_ON := 3
+const FLAME_OFF := 17
+const FLAME_TIPS := [Vector3(-0.898, 0.977, 0.951), Vector3(-0.264, 0.979, 1.271), Vector3(0.451, 0.984, 1.220)]
+const FLAME_YAW := [-29.6, 32.9]
+func _flame_local(f: float) -> Array:
+	var k := clampf((f - FLAME_ON) / float(FLAME_OFF - FLAME_ON), 0.0, 1.0)
+	var tip: Vector3 = (FLAME_TIPS[0] as Vector3).lerp(FLAME_TIPS[1], k * 2.0) if k < 0.5 else (FLAME_TIPS[1] as Vector3).lerp(FLAME_TIPS[2], k * 2.0 - 1.0)
+	var a := deg_to_rad(lerpf(FLAME_YAW[0], FLAME_YAW[1], k))
+	return [tip, Vector3(sin(a), -0.08, cos(a)).normalized()]
+
+
+var _flame_core: StandardMaterial3D = null
+func _flame_jet(u: Dictionary, targets: Array) -> void:
+	var uid := int(u.id)
+	var tn: Node3D = tower_nodes[uid]
+	var clip := str(tn.get_meta("clip_attack", "Attack"))
+	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
+	var spd := maxf(float(speed), 0.01)
+	var at0 := float(FLAME_ON) / CLIP_FPS
+	var reach := float(u.stats.get("range", 2.3)) * 1.05
+	var ids := []
+	for tid in targets:
+		if _robot_point(int(tid), 0.0) == Vector3.INF:
+			continue
+		_hold_hit(int(tid), (10.0 / CLIP_FPS) / rate + 0.04 * ids.size() + 0.05)
+		ids.append(int(tid))
+	if _flame_core == null:
+		_flame_core = StandardMaterial3D.new()
+		_flame_core.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_flame_core.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_flame_core.billboard_keep_scale = true
+		_flame_core.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flame_core.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_flame_core.albedo_color = Color(1.0, 0.55, 0.18, 0.9)
+		_flame_core.albedo_texture = _mote_tex()
+	_fx_after(0.0, func() -> void: _on_clip(uid, clip, at0, at0 / rate, func() -> void:
+		_sfx("flame", -3.0, 0.1, 0.2)
+		var per: int = [2, 1, 1][clampi(Progress.gfx_level(), 0, 2)]
+		for i in FLAME_OFF - FLAME_ON + 1:
+			_fx_after(float(i) / CLIP_FPS / rate / spd, func() -> void:
+				if not tower_nodes.has(uid) or not is_instance_valid(tower_nodes[uid]) or not (tower_nodes[uid] as Node3D).has_meta("yaw"):
+					return
+				var yt := ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform
+				var loc := _flame_local(float(FLAME_ON + i))
+				var tip: Vector3 = yt * (loc[0] as Vector3)
+				var dir: Vector3 = (yt.basis * (loc[1] as Vector3)).normalized()
+				for j in per:
+					if not _fx_room(1):
+						return
+					var pf := _mi(_fx_mesh("flash"), _flame_core, self, tip + dir * 0.05)
+					pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					pf.scale = Vector3.ONE * 0.12
+					var end := tip + dir * reach * randf_range(0.85, 1.05) + Vector3(randf_range(-0.15, 0.15), randf_range(0.0, 0.35), randf_range(-0.15, 0.15))
+					var life := randf_range(0.26, 0.34) / spd
+					var tw := create_tween().set_parallel(true)
+					tw.tween_property(pf, "position", end, life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+					tw.tween_property(pf, "scale", Vector3.ONE * randf_range(0.55, 0.8), life)
+					tw.chain().tween_callback(pf.queue_free)
+				if i % 3 == 0 and _fx_room(1):          # the jet rolls into black smoke at its end
+					var sm := _mi(_fx_mesh("dust"), _puff_mat(Color(0.18, 0.16, 0.15, 0.55)), self, tip + dir * reach)
+					sm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					effects.append({"node": sm, "t": 0.0, "life": randf_range(0.7, 1.0), "kind": "dust", "v": Vector3(0, 1.0, 0) + dir * 0.6}))
+		_fx_after((7.0 / CLIP_FPS) / rate / spd, func() -> void:
+			for tid in ids:
+				var at := _robot_point(int(tid), 0.0)
+				if at != Vector3.INF:
+					_fire_splash(Vector3(at.x, 0.0, at.z), 0.6))))
+
+
 ## v0.9.64: a puff of white steam (Ada's launcher venting as it fires), drifting along dir and up.
 func _steam_puff(pos: Vector3, dir: Vector3) -> void:
 	var n: int = [3, 2, 1][clampi(Progress.gfx_level(), 0, 2)]
@@ -8165,7 +8240,7 @@ func _maya_strike(ev: Dictionary, hp: Vector3) -> void:
 ## Red marker smoke pouring from the grenade for a few seconds, drifting up and downwind.
 func _red_smoke(at: Vector3) -> void:
 	var spd := maxf(float(speed), 0.01)
-	var n: int = [16, 10, 5][clampi(Progress.gfx_level(), 0, 2)]
+	var n: int = [24, 14, 7][clampi(Progress.gfx_level(), 0, 2)]
 	var flare := _mi(_sph(0.09, 8), _mat("smoke_flare", Color(1.0, 0.3, 0.2), {"emit": Color(1.0, 0.25, 0.15), "emit_e": 3.0}), self, at + Vector3(0, 0.05, 0))
 	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_fx_after(3.2 / spd, flare.queue_free)
@@ -8173,11 +8248,15 @@ func _red_smoke(at: Vector3) -> void:
 		_fx_after(i * 3.0 / n / spd, func() -> void:
 			if not _fx_room(1):
 				return
-			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.92, 0.3, 0.25, 0.6) if i % 3 else Color(0.98, 0.5, 0.42, 0.55)), self, at + Vector3(0, 0.2, 0))
+			var pf := _mi(_fx_mesh("dust"), _puff_mat(Color(0.9, 0.22, 0.18, 0.75) if i % 3 else Color(0.98, 0.45, 0.38, 0.7)), self, at + Vector3(0, 0.2, 0))
 			pf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			pf.scale = Vector3.ONE * randf_range(0.55, 0.8)
-			effects.append({"node": pf, "t": 0.0, "life": randf_range(1.6, 2.2), "kind": "dust",
-				"v": Vector3(randf_range(0.1, 0.45), randf_range(0.7, 1.1), randf_range(-0.25, 0.25))}))
+			pf.scale = Vector3.ONE * 0.5
+			var life := randf_range(1.8, 2.4) / spd
+			var tw := create_tween().set_parallel(true)
+			tw.tween_property(pf, "position", pf.position + Vector3(randf_range(0.3, 0.9), randf_range(1.4, 2.2), randf_range(-0.4, 0.4)), life)
+			tw.tween_property(pf, "scale", Vector3.ONE * randf_range(2.0, 2.8), life)
+			tw.tween_property(pf, "transparency", 1.0, life).set_ease(Tween.EASE_IN)
+			tw.chain().tween_callback(pf.queue_free))
 
 
 ## The pass: two jets in echelon, low and fast over the robots, along the line from her smoke to the targets; on the

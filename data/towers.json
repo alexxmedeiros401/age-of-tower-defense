@@ -3286,7 +3286,7 @@
   "name": "Sniper",
   "lineage": "Ranged",
   "era": "Modern Age",
-  "model_scale": 0.56,
+  "model_scale": 0.63,
   "swing": [
    -0.9,
    0.5
@@ -3408,7 +3408,7 @@
   "name": "Flamethrower",
   "lineage": "Brute",
   "era": "Modern Age",
-  "model_scale": 0.56,
+  "model_scale": 0.63,
   "swing": [
    -0.5,
    1.2
