@@ -1604,3 +1604,45 @@ def beach_sand(name="HQ_BeachSand", base=(0.86, 0.75, 0.55), hi=(0.95, 0.88, 0.7
     rough = g.mixf(g.reg(5), 0.95, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", g.math("MULTIPLY", rip, top), 0.6), g.math("MULTIPLY", grains, 0.5))
     return g.finish(c, rough, g.bump(h, 0.3, 0.004))
+
+
+# ======================================================================================= Industrial Age: red brick (the Rifleman)
+def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13), mortar=(0.66, 0.62, 0.55),
+              blue=(0.2, 0.22, 0.27), soot=(0.09, 0.08, 0.075), course=0.07, brick=0.2, radial=0.0):
+    """Fired red brick in stretcher bond: each brick a little lighter or darker than its neighbours, pale mortar joints
+    sunk in the normal map, worn pale edges; label 5 = blue engineering bricks (copings, glossier), 6 = soot and grime.
+    `radial` > 0: the bricks run round a drum of that radius (the courses follow the angle about the z axis, not x + y)."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    z = sep.outputs["Z"]
+    row = g.math("FLOOR", g.math("DIVIDE", z, course))
+    fz = g.math("SUBTRACT", g.math("DIVIDE", z, course), row)
+    if radial > 0:
+        along = g.math("MULTIPLY", g.math("ARCTAN2", sep.outputs["Y"], sep.outputs["X"]), radial)
+    else:
+        along = g.math("ADD", sep.outputs["X"], sep.outputs["Y"])
+    run = g.math("ADD", along, g.math("MULTIPLY", g.math("MODULO", g.math("ADD", row, 1000.0), 2.0), brick * 0.5))
+    col = g.math("FLOOR", g.math("DIVIDE", run, brick))
+    fx = g.math("SUBTRACT", g.math("DIVIDE", run, brick), col)
+    jz = g.math("MINIMUM", fz, g.math("SUBTRACT", 1.0, fz))
+    jx = g.math("MINIMUM", fx, g.math("SUBTRACT", 1.0, fx))
+    joint = g.math("MAXIMUM", g.math("SUBTRACT", 1.0, g.smooth(jz, 0.05, 0.13)), g.math("SUBTRACT", 1.0, g.smooth(jx, 0.018, 0.045)))
+    nz = g.node("ShaderNodeSeparateXYZ")
+    g.put(nz.inputs[0], g.geo("Normal"))
+    joint = g.math("MULTIPLY", joint, g.math("SUBTRACT", 1.0, g.smooth(nz.outputs["Z"], 0.75, 0.92)))
+    rnd = g.math("FRACT", g.math("MULTIPLY", g.math("SINE", g.math("ADD", g.math("MULTIPLY", col, 12.9898), g.math("MULTIPLY", row, 78.233))), 43758.5453))
+    c = g.mix(rnd, g.rgb(base), g.rgb(alt))
+    c = g.mix(g.math("MULTIPLY", g.smooth(rnd, 0.82, 0.9), 0.6), c, g.rgb((0.68, 0.36, 0.22)))
+    c = g.mix(g.remap(g.noise(p, 9.0, 3.0), 0.3, 0.7, 0.0, 0.35), c, g.rgb(tuple(x * 0.72 for x in alt)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 60.0, 2.0), 0.6, 0.68), 0.35), c, g.rgb(tuple(x * 0.6 for x in alt)))
+    bl = g.mix(g.math("MULTIPLY", rnd, 0.6), g.rgb(blue), g.rgb(tuple(min(1.0, x * 1.3) for x in blue)))
+    c = g.mix(g.reg(5), c, bl)
+    c = g.mix(joint, c, g.rgb(mortar))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.51, 0.57), 0.4), c, g.rgb((0.8, 0.6, 0.48)))
+    st = g.math("MULTIPLY", g.reg(6), g.remap(g.noise(p, 5.0, 3.0), 0.3, 0.7, 0.4, 0.95))
+    c = g.mix(st, c, g.rgb(soot))
+    rough = g.mixf(g.reg(5), 0.86, 0.45)
+    h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
+    return g.finish(c, rough, g.bump(h, 0.4, 0.006))
