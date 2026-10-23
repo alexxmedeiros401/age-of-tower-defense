@@ -85,11 +85,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.0165))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.024))), (sx * 0.2, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0052)), Plane(ec + v3((0, 0, -hr(0.022))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0052)), Plane(ec + v3((0, 0, -hr(0.026))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0155))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0225))), (sx * 0.2, 0.06, -1.0)), hr(0.002)), LASH)
     # a straight nose
     fd.add(RoundCone(hp((0, -0.186, 1.726)), hp((0, -0.24, 1.632)), hr(0.015), hr(0.021)), hr(0.016), SKIN)
     fd.add(S((0, -0.242, 1.614), 0.025), hr(0.014), SKIN)
@@ -100,10 +100,10 @@ def head(fd):
     slot = mouth_slot()
     fd.sub(Chain(slot, [hr(0.0024), hr(0.003), hr(0.0033), hr(0.003), hr(0.0024)], k=hr(0.003)), hr(0.003))
     fd.paint(Chain(slot, [hr(0.003), hr(0.0042), hr(0.0046), hr(0.0042), hr(0.003)], k=hr(0.004)), MOUTH)
-    up_lip = [(-0.048, -0.172, 1.556), (-0.026, -0.19, 1.556), (0.0, -0.195, 1.559), (0.026, -0.19, 1.556), (0.048, -0.172, 1.556)]
-    lo_lip = [(-0.04, -0.174, 1.542), (-0.021, -0.19, 1.534), (0, -0.194, 1.532), (0.021, -0.19, 1.534), (0.04, -0.174, 1.542)]
-    fd.add(Chain([hp(p) for p in up_lip], [hr(0.004), hr(0.006), hr(0.0065), hr(0.006), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.005), hr(0.0078), hr(0.0085), hr(0.0078), hr(0.005)], k=hr(0.006)), hr(0.007), LIP)
+    up_lip = [(-0.048, -0.17, 1.556), (-0.026, -0.187, 1.556), (0.0, -0.191, 1.558), (0.026, -0.187, 1.556), (0.048, -0.17, 1.556)]
+    lo_lip = [(-0.038, -0.172, 1.543), (-0.02, -0.186, 1.536), (0, -0.19, 1.534), (0.02, -0.186, 1.536), (0.038, -0.172, 1.543)]
+    fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0045), hr(0.005), hr(0.0045), hr(0.003)], k=hr(0.006)), hr(0.007), LIP)
+    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.006), hr(0.0065), hr(0.006), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
     # ears (under the headset's cups)
     for sx in (-1, 1):
         R = euler(0, sx * 0.25, sx * -0.35)
@@ -163,7 +163,7 @@ def teeth_field():
 # ======================================================================================= the patrol cap (olive)
 CAP_O = v3((0.0, 0.03, 1.806))             # the band's foot, on the crown's axis (world)
 CAP_R = euler(0.08, 0.0, 0.0)              # tipped a little forward
-CAP_H = 0.158
+CAP_H = 0.128
 CAP_R0 = (0.2, 0.216)                      # the crown's radii at the band (x, y) and at its flat top
 CAP_R1 = (0.198, 0.218)
 CAP_T = 0.009
@@ -319,7 +319,7 @@ def headset_field():
     band = headband_path()
     ns = [norm(cap_world(np.array([0, BAND_Y, 0.04])) - p) * -1 for p in band]
     fd.add(Lock(band, [0.03] * len(band), [0.011] * len(band), ns, k=0.004), 0.0, K_BLACK)
-    fd.add(Lock(band[2:-2], [0.018] * (len(band) - 4), [0.017] * (len(band) - 4), ns[2:-2], k=0.004), 0.004, K_COY)   # the pad
+    fd.add(Lock(band[3:-3], [0.02] * (len(band) - 6), [0.016] * (len(band) - 6), ns[3:-3], k=0.004), 0.004, K_BLACK)   # the pad
     for sx in (-1, 1):
         ax = _cup_axis(sx)
         c = CUP_C[sx] + ax * 0.038
@@ -335,9 +335,9 @@ def headset_field():
         fd.add(Chain([top, mid, cup_top], [0.011, 0.011, 0.012], k=0.004), 0.004, K_BLACK)
     # the boom mic: from the left cup's front round to his mouth
     c = CUP_C[1] + _cup_axis(1) * (0.038 + CUP_T * 0.5)
-    pts = [c + v3((0.004, -0.045, -0.02)), c + v3((-0.02, -0.11, -0.05)), hp((0.11, -0.16, 1.57)), hp((0.05, -0.215, 1.565))]
+    pts = [c + v3((0.004, -0.045, -0.02)), c + v3((-0.02, -0.1, -0.05)), hp((0.12, -0.15, 1.56)), hp((0.085, -0.19, 1.552))]
     fd.add(Chain(pts, [0.008, 0.007, 0.006, 0.006], k=0.004), 0.003, K_BLACK)
-    fd.add(Ellipsoid(hp((0.04, -0.222, 1.564)), (0.022, 0.016, 0.016), R=euler(0, 0, 0.5)), 0.004, K_BLACK)
+    fd.add(Ellipsoid(hp((0.078, -0.198, 1.55)), (0.02, 0.015, 0.015), R=euler(0, 0, 0.8)), 0.004, K_BLACK)
     return fd
 
 
@@ -390,7 +390,7 @@ def _neck_open(P, r=0.128):
 
 def _waist_cut(P):
     """> 0 below the shirt's tail (tucked in under the belt), only round his body (not the arms)."""
-    return np.where(np.abs(P[:, 0]) < F(0.38), F(0.935) - P[:, 2], F(-1.0))
+    return np.where(np.abs(P[:, 0]) < F(0.38), F(0.915) - P[:, 2], F(-1.0))
 
 
 def shirt_field():
@@ -444,7 +444,8 @@ def shirt_field():
 def legs_base():
     b = Field("Legs")
     tp = torso_prims()
-    b.add(tp[5][0], 0.0)
+    b.add(tp[4][0], 0.0)
+    b.add(tp[5][0], 0.08)
     for side in ("R", "L"):
         for p, k in leg_prims(side):
             b.add(p, k)
@@ -792,20 +793,19 @@ def machine_field():
             fd.add(RoundBox(cc + Z * (DECK_H + 2 * CAP_HH + 0.014) + v3((math.cos(ra), math.sin(ra), 0)) * (CAP_RAD - 0.016),
                             (0.004, 0.012, 0.016), 0.003, R=rot_from_axes(y_axis=v3((math.cos(ra), math.sin(ra), 0)), z_axis=Z)), 0.002, M_BLACK)
         tp = cc + Z * (DECK_H + 2 * CAP_HH + 0.03)
-        fd.add(Cylinder(tp + Z * 0.02, 0.016, 0.04, rr=0.005), 0.003, M_COPPER)                          # the terminal
-        fd.add(Sphere(tp + Z * 0.044, 0.016), 0.003, M_COPPER)
+        fd.add(Cylinder(tp + Z * 0.016, 0.018, 0.032, rr=0.005), 0.003, M_STEEL)                          # the terminal
         # the charge window: a recessed slot in a black frame (the glowing bar sits in it)
         wc = cc + wd * CAP_RAD + Z * ((CHARGE_Z0 + CHARGE_Z1) / 2)
         Rw2 = rot_from_axes(z_axis=wd, y_axis=Z)
-        fd.add(RoundBox(wc, (0.026, (CHARGE_Z1 - CHARGE_Z0) / 2 + 0.018, 0.012), 0.006, R=Rw2), 0.004, M_BLACK)
-        fd.sub(RoundBox(wc + wd * 0.012, (0.014, (CHARGE_Z1 - CHARGE_Z0) / 2 + 0.004, 0.012), 0.003, R=Rw2), 0.002)
+        fd.add(RoundBox(wc, (0.03, (CHARGE_Z1 - CHARGE_Z0) / 2 + 0.018, 0.012), 0.006, R=Rw2), 0.004, M_BLACK)
+        fd.sub(RoundBox(wc + wd * 0.012, (0.019, (CHARGE_Z1 - CHARGE_Z0) / 2 + 0.004, 0.012), 0.003, R=Rw2), 0.002)
         # a hazard label on its side
         lc = cc + norm(np.cross(Z, wd)) * CAP_RAD * 0.97 + Z * (DECK_H + 0.3)
         fd.paint(Sphere(lc, 0.032), M_YELLOW)
         # the cable from the terminal over to the housing's side
         hd = norm(v3((MAST_C[0] - cc[0], MAST_C[1] - cc[1], 0.0)))
         end = MAST_C + -hd * (HOUSE[0] + 0.01) + Z * (MAST_Z0 - 0.08)
-        pts = [tp + Z * 0.06, tp + Z * 0.1 + hd * 0.03, lerp(tp, end, 0.6) + Z * 0.1, end - hd * 0.03 + Z * 0.02, end]
+        pts = [tp + Z * 0.03, tp + Z * 0.05 + hd * 0.04, lerp(tp, end, 0.6) + Z * 0.045, end - hd * 0.03 + Z * 0.01, end]
         fd.add(Chain(pts, [0.016] * len(pts), k=0.01), 0.004, M_BLACK)
     # the console's cable arriving at the deck: a gland on the deck's edge
     gd = norm(v3((CON_P[0] - c[0], CON_P[1] - c[1], 0.0)))
@@ -871,7 +871,7 @@ def charge_field():
         cc = cap_c(a)
         wd = cap_window_dir(a)
         wc = cc + wd * (CAP_RAD + 0.006) + Z * ((CHARGE_Z0 + CHARGE_Z1) / 2)
-        fd.add(RoundBox(wc, (0.011, (CHARGE_Z1 - CHARGE_Z0) / 2, 0.006), 0.004, R=rot_from_axes(z_axis=wd, y_axis=Z)), 0.0)
+        fd.add(RoundBox(wc, (0.016, (CHARGE_Z1 - CHARGE_Z0) / 2, 0.006), 0.004, R=rot_from_axes(z_axis=wd, y_axis=Z)), 0.0)
     return fd
 
 
@@ -1029,7 +1029,7 @@ COYOTE_C = (0.6, 0.5, 0.36)
 FATIGUES = {"base": OLIVE_C, "facing": (0.74, 0.1, 0.08), "brass": (0.93, 0.92, 0.88), "buff": COYOTE_C,
             "black": (0.05, 0.05, 0.05)}
 KIT = {"base": COYOTE_C, "facing": OLIVE_C, "brass": (0.4, 0.4, 0.42), "buff": (0.46, 0.38, 0.27), "black": (0.06, 0.06, 0.065)}
-MACHINE = {"olive": (0.36, 0.38, 0.24), "grey": (0.27, 0.29, 0.31), "brass": (0.78, 0.4, 0.2), "copper": (0.78, 0.4, 0.2),
+MACHINE = {"olive": (0.36, 0.38, 0.24), "grey": (0.38, 0.4, 0.42), "brass": (0.78, 0.4, 0.2), "copper": (0.78, 0.4, 0.2),
            "red": (0.8, 0.08, 0.06), "white": (0.96, 0.76, 0.12)}
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_EmpSkin", "base": (0.8, 0.58, 0.44), "ruddy": (0.82, 0.48, 0.38), "lips": (0.68, 0.4, 0.34),
