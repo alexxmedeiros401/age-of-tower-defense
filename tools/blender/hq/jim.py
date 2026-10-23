@@ -171,11 +171,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.02))), (sx * 0.22, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.014))), (sx * 0.22, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0064)), Plane(ec + v3((0, 0, -hr(0.009))), (sx * -0.2, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0064)), Plane(ec + v3((0, 0, -hr(0.004))), (sx * -0.2, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.017))), (sx * 0.22, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.011))), (sx * 0.22, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):                                                                      # laughter lines
             a = hp((sx * (0.11 + 0.004 * k), -0.128 + 0.006 * k, 1.684 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.026, 0.012, -0.002 - 0.009 * k)), hr(0.0024), hr(0.0015)), hr(0.003))
@@ -240,8 +240,8 @@ def beard_field():
         mo = (x / F(0.084)) ** 2 + ((y + F(0.19)) / F(0.08)) ** 2 + ((z - F(1.528)) / F(0.05)) ** 2 - F(1.0)
         back = np.where(ax > F(0.14), y - F(0.04), y - F(0.0))
         return np.maximum(np.maximum(np.maximum(z - top, back), -mo * F(0.03)), F(BEARD_LOW + 0.1) - z)
-    bushy = lambda P: curls(P, 0.024, 0.009)
-    fd.add(Inter(Shell(hull, 0.016, 0.042, pad=0.08, disp=bushy, disp_amp=0.011), Func(mask, HEAD_C - 0.45, HEAD_C + 0.3), 0.012), 0.0)
+    bushy = lambda P: curls(P, 0.017, 0.0055) + F(0.0016) * NOISE(P * np.array([60.0, 60.0, 20.0], F))
+    fd.add(Inter(Shell(hull, 0.016, 0.042, pad=0.08, disp=bushy, disp_amp=0.008), Func(mask, HEAD_C - 0.45, HEAD_C + 0.3), 0.012), 0.0)
     # the bulk of it under his chin, spreading over the top of his chest (clear of the mouth)
     def chin_keep(P):
         Q = hinv(P)
@@ -253,7 +253,7 @@ def beard_field():
     for sx in (-1, 1):
         big.add(Ellipsoid(hp((sx * 0.1, -0.1, 1.44)), v3((0.08, 0.09, 0.1)) * HS), 0.04)
     blo, bhi = big.bounds()
-    fd.add(Inter(Func(lambda P: big.eval(P, margin=0.04), blo - 0.03, bhi + 0.03, disp=bushy, disp_amp=0.011),
+    fd.add(Inter(Func(lambda P: big.eval(P, margin=0.04), blo - 0.03, bhi + 0.03, disp=bushy, disp_amp=0.008),
                  Func(chin_keep, blo - 0.05, bhi + 0.05), 0.01), 0.03)
     # the moustache: two thick bushy locks swept out and down past the corners of his mouth
     for sx in (-1, 1):
@@ -418,7 +418,7 @@ def _sleeve_end(P):
     return out
 
 
-SHIRT_OFF, SHIRT_T = 0.012, 0.013
+SHIRT_OFF, SHIRT_T = 0.02, 0.013
 
 
 def shirt_hull():
@@ -438,14 +438,14 @@ def shirt_field():
     fd = Field("Shirt")
     base = shirt_hull()
     folds = lambda P: F(0.0012) * NOISE(P * F(22)) + F(0.002) * NOISE(P * F(6))
-    keep = lambda P: np.maximum(np.maximum(neck_open(P, 0.15), _sleeve_end(P)), F(0.8) - P[:, 2])
-    fd.add(Inter(Func(keep, (-0.86, -0.42, 0.78), (0.86, 0.42, 1.62)), Shell(base, SHIRT_OFF, SHIRT_T, pad=0.1, disp=folds, disp_amp=0.004),
+    keep = lambda P: np.maximum(np.maximum(neck_open(P, 0.15), _sleeve_end(P)), F(0.92) - P[:, 2])
+    fd.add(Inter(Func(keep, (-0.86, -0.42, 0.9), (0.86, 0.42, 1.62)), Shell(base, SHIRT_OFF, SHIRT_T, pad=0.1, disp=folds, disp_amp=0.004),
                  0.004), 0.0)
     # the rolled sleeves: two fat rolls at each sleeve's end
     for side in ("R", "L"):
         el = J["elbow_" + side]
         af = arm_hull(side)
-        for j, (c0, w, off) in enumerate(((SLEEVE_END - 0.022, 0.024, 0.034), (SLEEVE_END - 0.062, 0.022, 0.03))):
+        for j, (c0, w, off) in enumerate(((SLEEVE_END - 0.022, 0.024, 0.042), (SLEEVE_END - 0.062, 0.022, 0.038))):
             roll = lambda P, side=side, c0=c0, w=w: np.maximum(np.abs(_fore_along(P, side)[0] - F(c0)) - F(w), _fore_along(P, side)[1] - F(0.2))
             fd.add(Inter(Func(roll, el - 0.3, el + 0.3), Shell(af, off, 0.03, pad=0.08,
                                                                  disp=lambda P: F(0.002) * NOISE(P * F(25)), disp_amp=0.003), 0.012), 0.008)
@@ -453,7 +453,7 @@ def shirt_field():
 
 
 # ---------------------------------------------------------------------------------------------- the overalls
-OV_OFF, OV_T = 0.032, 0.015            # the bib and waist over the shirt
+OV_OFF, OV_T = 0.04, 0.015            # the bib and waist over the shirt
 LEG_OFF, LEG_T = 0.036, 0.014          # the trouser legs, loose
 HEM_Z = 0.25
 BIB_TOP = 1.29
@@ -486,15 +486,15 @@ def overalls_keep(P):
     """< 0 on the overalls above the legs: the waist all round, the bib up the front of his chest."""
     z, x, y = P[:, 2], P[:, 0], P[:, 1]
     bib = np.where(y < F(0.04), np.maximum(np.abs(x) - bib_w(z), z - bib_top(x)), F(1.0))
-    return np.maximum(np.minimum(z - _waist(P), bib), F(0.84) - z)
+    return np.maximum(np.minimum(z - _waist(P), bib), F(0.78) - z)
 
 
 def strap_path(sx):
     """One shoulder strap (design: from the bib's top corner up over his shoulder, down his back crossing to the other
     side of his waist), as points on the overall's outer surface with their normals."""
-    th = torso_hull()
+    sh = shirt_hull()
     outer = Field("StrapHull")
-    outer.add(Func(lambda P: th.eval(P, margin=0.1) - F(OV_OFF + OV_T * 0.5), (-0.8, -0.6, 0.8), (0.8, 0.7, 1.7)), 0.0)
+    outer.add(Func(lambda P: sh.eval(P, margin=0.1) - F(SHIRT_OFF + SHIRT_T * 0.5 + 0.012), (-0.8, -0.6, 0.8), (0.8, 0.7, 1.7)), 0.0)
     raw = [(sx * 0.14, -0.3, BIB_TOP - 0.015), (sx * 0.145, -0.25, 1.37), (sx * 0.16, -0.12, 1.47), (sx * 0.165, 0.04, 1.52),
            (sx * 0.15, 0.2, 1.46), (sx * 0.11, 0.3, 1.32), (sx * 0.04, 0.32, 1.2), (-sx * 0.05, 0.32, 1.1), (-sx * 0.11, 0.3, 1.02)]
     pts = project_to(outer, [v3(p) for p in raw], iters=4)
@@ -509,7 +509,7 @@ def overalls_field():
     th = torso_hull()
     lh = legs_hull()
     wr = lambda P: F(0.0014) * NOISE(P * F(26)) + F(0.0022) * NOISE(P * np.array([6, 6, 3], F))
-    fd.add(Inter(Func(overalls_keep, (-0.5, -0.45, 0.82), (0.5, 0.45, 1.33)), Shell(th, OV_OFF, OV_T, pad=0.1, disp=wr, disp_amp=0.004), 0.004), 0.0)
+    fd.add(Inter(Func(overalls_keep, (-0.5, -0.45, 0.76), (0.5, 0.45, 1.33)), Shell(th, OV_OFF, OV_T, pad=0.1, disp=wr, disp_amp=0.004), 0.004), 0.0)
     fd.add(Inter(Func(lambda P: np.maximum(F(HEM_Z) - P[:, 2], P[:, 2] - F(0.99)), (-0.42, -0.36, HEM_Z - 0.02), (0.42, 0.36, 1.0)),
                  Shell(lh, LEG_OFF, LEG_T, pad=0.1, disp=wr, disp_amp=0.004), 0.004), 0.006)
     # the turned-up hems
@@ -587,7 +587,7 @@ def kerchief_field():
         zc = F(1.45) - F(0.06) * smoothstep(0.02, -0.12, P[:, 1])
         return np.maximum(np.abs(P[:, 2] - zc) - F(0.04), neck_dist(P) - F(0.21))
     roll = lambda P: F(0.003) * np.sin(np.arctan2(P[:, 0], P[:, 1] - F(0.06)) * F(9)) + F(0.0015) * NOISE(P * F(30))
-    fd.add(Inter(Func(band, (-0.2, -0.2, 1.28), (0.2, 0.26, 1.52)), Shell(nk, 0.03, 0.036, pad=0.08, disp=roll, disp_amp=0.004), 0.008), 0.0)
+    fd.add(Inter(Func(band, (-0.2, -0.2, 1.28), (0.2, 0.26, 1.52)), Shell(nk, 0.038, 0.036, pad=0.08, disp=roll, disp_amp=0.004), 0.008), 0.0)
     k = KNOT
     fd.add(Ellipsoid(k, (0.042, 0.036, 0.036), R=euler(0, 0.3, 0.6)), 0.012)
     for d, L, w in ((v3((0.55, -0.45, -0.7)), 0.13, 0.05), (v3((0.15, -0.6, -0.78)), 0.12, 0.046)):
