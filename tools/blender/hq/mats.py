@@ -1858,3 +1858,39 @@ def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13),
     rough = g.mixf(g.reg(5), 0.86, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
     return g.finish(c, rough, g.bump(h, 0.4, 0.006))
+
+
+# ======================================================================================= Modern Age: asphalt and concrete (Dr. Ito's pad)
+def pavement(name="HQ_Pavement", asphalt=(0.22, 0.22, 0.23), concrete=(0.62, 0.61, 0.58), yellow=(0.92, 0.72, 0.14),
+             white=(0.9, 0.9, 0.86), black=(0.06, 0.06, 0.065)):
+    """Modern paving, hand-painted: asphalt (label 0: dark grey, a speckle of pale aggregate, darker cracks and seams in
+    the recesses, worn paler on its edges); poured concrete (7: pale warm grey, fine pores, darker blotches, worn pale
+    edges, grime in its joints); road paint (5 yellow, 6 white, 9 black), scuffed back to the surface under it in
+    patches; oil stains (8, dark and glossy)."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    hollow, ridge = g.smooth(pt, 0.48, 0.42), g.smooth(pt, 0.51, 0.57)
+    macro = g.remap(g.noise(p, 2.5, 3.0), 0.3, 0.7, 0.0, 1.0)
+    agg = g.smooth(g.noise(p, 140.0, 1.0), 0.6, 0.66)
+    a = g.mix(macro, g.rgb(asphalt), g.rgb(tuple(x * 1.18 for x in asphalt)))
+    a = g.mix(g.math("MULTIPLY", agg, 0.55), a, g.rgb((0.5, 0.49, 0.47)))
+    a = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 40.0, 2.0), 0.62, 0.7), 0.4), a, g.rgb(tuple(x * 0.6 for x in asphalt)))
+    con = g.mix(macro, g.rgb(concrete), g.rgb(tuple(x * 0.9 for x in concrete)))
+    con = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 6.0, 3.0), 0.55, 0.7), 0.35), con, g.rgb(tuple(x * 0.78 for x in concrete)))
+    con = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 200.0, 1.0), 0.64, 0.7), 0.4), con, g.rgb(tuple(x * 0.7 for x in concrete)))
+    c = g.mix(g.reg(7), a, con)
+    scuff = g.smooth(g.noise(g.scale_vec(p, (9.0, 9.0, 9.0)), 1.0, 4.0, 0.65), 0.6, 0.7)
+    def paint(col, lab):
+        pc = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 30.0, 2.0), 0.4, 0.7), 0.25), g.rgb(col), g.rgb(tuple(x * 0.85 for x in col)))
+        return g.math("MULTIPLY", g.reg(lab), g.math("SUBTRACT", 1.0, g.math("MULTIPLY", scuff, 0.75))), pc
+    for col, lab in ((yellow, 5), (white, 6), (black, 9)):
+        m, pc = paint(col, lab)
+        c = g.mix(m, c, pc)
+    st = g.math("MULTIPLY", g.reg(8), g.remap(g.noise(p, 8.0, 3.0), 0.3, 0.7, 0.45, 0.95))
+    c = g.mix(st, c, g.rgb((0.05, 0.048, 0.05)))
+    c = g.mix(g.math("MULTIPLY", hollow, 0.7), c, g.rgb((0.07, 0.065, 0.06)))                 # grime in cracks and joints
+    c = g.mix(g.math("MULTIPLY", ridge, 0.35), c, g.rgb((0.78, 0.76, 0.72)))                 # worn pale edges
+    rough = g.mixf(st, g.mixf(g.reg(7), 0.9, 0.85), 0.25)
+    h = g.math("ADD", g.math("MULTIPLY", agg, 0.5), g.math("MULTIPLY", g.noise(p, 60.0, 2.0), 0.3))
+    return g.finish(c, rough, g.bump(h, 0.3, 0.003))
