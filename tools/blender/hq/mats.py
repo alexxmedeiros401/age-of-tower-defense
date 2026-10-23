@@ -1858,3 +1858,66 @@ def red_brick(name="HQ_RedBrick", base=(0.6, 0.25, 0.16), alt=(0.48, 0.2, 0.13),
     rough = g.mixf(g.reg(5), 0.86, 0.45)
     h = g.math("ADD", g.math("MULTIPLY", joint, -0.7), g.math("MULTIPLY", g.noise(p, 40.0, 3.0), 0.25))
     return g.finish(c, rough, g.bump(h, 0.4, 0.006))
+
+
+# ======================================================================================= Modern Age: the Sniper
+def modern_kit(name="HQ_ModernKit", base=(0.6, 0.5, 0.36), weave=1.0, black=(0.075, 0.075, 0.08), red=(0.74, 0.1, 0.08),
+               white=(0.93, 0.92, 0.88), olive=(0.36, 0.38, 0.26), gunmetal=(0.24, 0.25, 0.27), steel=(0.6, 0.62, 0.66),
+               glass=(0.05, 0.1, 0.12), rubber=(0.1, 0.1, 0.1), coyote=(0.6, 0.5, 0.36)):
+    """Modern kit, hand-painted: label 0 = `base` (cordura nylon with a fine weave when `weave` > 0, else smooth matte
+    polymer with a fine stipple), lighter on worn edges, darker in the recesses; 5 black nylon or polymer; 6 red and 7 white
+    (patches); 8 olive-drab paint; 9 gunmetal (parkerized steel, bright on its edges); 10 bright steel; 11 lens glass
+    (glossy, a cyan sheen on the edge); 12 black rubber; 13 coyote."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    hi_, lo_ = g.smooth(pt, 0.51, 0.56), g.smooth(pt, 0.48, 0.43)
+    wv = g.math("ADD", g.wave(p, 320.0, 0.0, 0.0, "BANDS", "X"), g.wave(p, 320.0, 0.0, 0.0, "BANDS", "Z"))
+    stip = g.noise(p, 160.0, 2.0, 0.6)
+    def cloth(col, lift=1.35):
+        c = g.mix(g.remap(g.noise(p, 7.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(col), g.rgb(tuple(x * 0.84 for x in col)))
+        c = g.mix(g.math("MULTIPLY", lo_, 0.6), c, g.rgb(tuple(x * 0.5 for x in col)))
+        return g.mix(g.math("MULTIPLY", hi_, 0.5), c, g.rgb(tuple(min(1.0, x * lift + 0.07) for x in col)))
+    c = cloth(base, 1.35 if weave > 0 else 1.8)
+    c = g.mix(g.reg(5), c, cloth(black, 2.4))
+    c = g.mix(g.reg(6), c, cloth(red, 1.25))
+    c = g.mix(g.reg(7), c, cloth(white, 1.0))
+    c = g.mix(g.reg(8), c, cloth(olive, 1.4))
+    c = g.mix(g.reg(13), c, cloth(coyote, 1.3))
+    gm, rs = _iron_col(g, p, base=gunmetal, hi=tuple(min(1.0, x * 2.6) for x in gunmetal), dark=tuple(x * 0.4 for x in gunmetal),
+                       rust=(0.3, 0.2, 0.14))
+    c = g.mix(g.reg(9), c, gm)
+    st, _r = _iron_col(g, p, base=steel, hi=(0.95, 0.96, 0.98), dark=(0.22, 0.22, 0.25), rust=(0.4, 0.3, 0.2))
+    c = g.mix(g.reg(10), c, st)
+    gl = g.mix(g.math("MULTIPLY", hi_, 0.8), g.rgb(glass), g.rgb((0.45, 0.8, 0.85)))
+    c = g.mix(g.reg(11), c, gl)
+    rb = g.mix(g.math("MULTIPLY", hi_, 0.5), g.rgb(rubber), g.rgb(tuple(min(1.0, x * 2.2) for x in rubber)))
+    c = g.mix(g.reg(12), c, rb)
+    rough = g.mixf(g.reg(5), 0.82 if weave > 0 else 0.6, 0.7)
+    rough = g.mixf(g.reg(9), rough, g.mixf(rs, 0.38, 0.7))
+    rough = g.mixf(g.reg(10), rough, 0.25)
+    rough = g.mixf(g.reg(11), rough, 0.06)
+    rough = g.mixf(g.reg(12), rough, 0.9)
+    metal = g.math("MAXIMUM", g.math("MAXIMUM", g.reg(9), g.reg(10)), g.reg(11))
+    h = g.math("MULTIPLY", g.mixf(g.math("MULTIPLY", wv, weave), g.math("MULTIPLY", stip, 0.4), 0.0 if weave > 0 else 1.0),
+               g.math("SUBTRACT", 1.0, metal))
+    return g.finish(c, rough, g.bump(h, 0.16, 0.0015))
+
+
+def ghillie(name="HQ_Ghillie", moss=(0.3, 0.36, 0.17), olive=(0.42, 0.42, 0.24), tan=(0.66, 0.56, 0.36), brown=(0.36, 0.26, 0.15)):
+    """Jute ghillie strips: label 0 a mottle of moss green and olive with streaks of tan, 5 tan jute, 6 brown; long
+    fibres along the strips (they hang), dark between them, pale on the frayed ridges."""
+    g = new(name)
+    p = g.obj()
+    pt = g.geo("Pointiness")
+    fib = g.noise(g.scale_vec(p, (110.0, 110.0, 14.0)), 1.0, 3.0, 0.6)
+    mot = g.noise(p, 9.0, 3.0, 0.6)
+    c = g.mix(g.smooth(mot, 0.42, 0.58), g.rgb(moss), g.rgb(olive))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 15.0, 2.0), 0.6, 0.7), 0.7), c, g.rgb(tan))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 5.3, 2.0, 0.5), 0.3, 0.22), 0.6), c, g.rgb(brown))
+    c = g.mix(g.reg(5), c, g.mix(g.remap(fib, 0.3, 0.7, 0.0, 1.0), g.rgb(tan), g.rgb(tuple(x * 0.8 for x in tan))))
+    c = g.mix(g.reg(6), c, g.mix(g.remap(fib, 0.3, 0.7, 0.0, 1.0), g.rgb(brown), g.rgb(tuple(x * 0.75 for x in brown))))
+    c = g.mix(g.remap(fib, 0.3, 0.7, 0.0, 0.35), c, g.rgb((0.14, 0.13, 0.08)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.42), 0.6), c, g.rgb((0.08, 0.08, 0.05)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.4), c, g.rgb((0.78, 0.72, 0.52)))
+    return g.finish(c, 0.95, g.bump(fib, 0.4, 0.003))
