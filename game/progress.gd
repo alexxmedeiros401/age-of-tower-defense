@@ -500,6 +500,7 @@ func start_new_timeline(map_order: Array) -> void:
 	data.tab = ""
 	data.towers = []
 	data.scrap = {}
+	data.erase("new_age")
 	save()
 
 
@@ -591,3 +592,16 @@ func era_unlocked_count(era: String) -> int:
 
 func tech_mult(era: String) -> float:
 	return 1.0 + float(workshop.get("tech_bonus", 0.0)) * maxi(0, era_unlocked_count(era) - 1)
+
+
+# ---------------------------------------------------------------- new age (menu highlight)
+## The age a win just opened ("new_age"): the main menu and map select mark it NEW until the player opens its tab or
+## plays a match there.
+func new_age() -> String:
+	return str(data.get("new_age", ""))
+
+
+func clear_new_age() -> void:
+	if data.has("new_age"):
+		data.erase("new_age")
+		save()
