@@ -350,7 +350,7 @@ def idle_pose(arm, P_, t):
     look = (0.42 * math.sin(w) + 0.12 * math.sin(w * 3)) * (1.0 - check) + 0.16      # (frame 0: her face to the front, for portraits)
     torso(aims, yaw, lean=-0.02, side=-0.05 * hip, spine_tw=0.03 * math.sin(w), chest_tw=0.04 * math.sin(w),
           neck_tw=0.3 * look + 0.12 * check, head_tw=0.65 * look + 0.2 * check, head_tilt=0.04 * hip - 0.12 * check,
-          head_up=0.06 + 0.03 * br - 0.1 * check)
+          head_up=0.16 + 0.03 * br - 0.16 * check)
     q = rz(yaw)
     aims["clavicle.L"] = q @ V(1.0, 0.0, -0.03 + 0.12 * check)
     aims["clavicle.R"] = q @ V(-1.0, -0.02, 0.04)
