@@ -35,6 +35,34 @@ from sdf import (Field, Sphere, Ellipsoid, RoundCone, RoundBox, Torus, Cylinder,
 from caveman import Inter, Shell, ray_hit, Lock, lerp
 from mech_brawler import MultiField, island_weights, seg_box, dent, smoothstep
 
+
+class PaintedMulti(MultiField):
+    """A MultiField whose painted labels may also be shape labels in other pieces (robot white is added on the
+    pauldrons and painted on the hatch's halves): where a piece doesn't paint a label, its own shape labels decide
+    (mech_brawler.MultiField leaves them unpainted, and the plates came out the material's dark under-suit)."""
+
+    def paint_dist(self, P, band=0.004):
+        P = np.asarray(P, dtype=F)
+        own = self.owners(P)
+        per = [f.paint_dist(P, band) for b, f in self.subs]
+        labels = set()
+        for d in per:
+            labels |= set(d)
+        out = {L: np.full(len(P), F(band)) for L in labels}
+        for i, (b, f) in enumerate(self.subs):
+            m = own == i
+            if not m.any():
+                continue
+            lab = None
+            for L in labels:
+                if L in per[i]:
+                    out[L][m] = per[i][L][m]
+                else:
+                    if lab is None:
+                        lab = f.eval(P[m], labels=True)[1]
+                    out[L][m] = np.where(lab == L, F(-band), F(band))
+        return out
+
 # ======================================================================================= labels
 SKIN, NAIL, LIP, MOUTH, BROW, SCAR, SOOT, LASH, STUBBLE = 0, 1, 2, 3, 4, 6, 7, 8, 9
 # android (the plates): 5 graphite, 6 charcoal (its `navy`), 7 panel lines, 8 amber cloth (its `violet`), 9 teal-grey
@@ -295,18 +323,18 @@ def head(fd):
     tuft = lambda P: F(0.0018) * NOISE(P * F(150)) + F(0.0008) * np.sin(P[:, 0] * F(380) + P[:, 2] * F(80))
     for sx in (-1, 1):
         pts = brow_pts(sx)
-        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.013), hr(0.016), hr(0.014), hr(0.008)], k=hr(0.008),
-                     disp=tuft, disp_amp=0.003), hr(0.01), BROW)
+        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.0105), hr(0.0125), hr(0.011), hr(0.0065)], k=hr(0.008),
+                     disp=tuft, disp_amp=0.0025), hr(0.008), BROW)
         fd.paint(Chain(pts, [hr(0.021), hr(0.024), hr(0.021), hr(0.013)], k=hr(0.01)), BROW)
     # eyes open and steady, the upper lids a little lower (a hard, level look)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0165))), (sx * 0.1, 0.08, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.1, 0.08, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0205))), (sx * -0.08, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0145))), (sx * 0.1, 0.08, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.1, 0.08, -1.0)), hr(0.002)), LASH)
         a = hp((sx * 0.112, -0.132, 1.684))
         fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, 0.0)) * PS, hr(0.0018), hr(0.0012)), hr(0.003))           # a crease
     # a straight nose
@@ -510,13 +538,22 @@ DOOR_Y = FRONT_Y - 0.012 - DOOR_T / 2
 
 
 def torch(P):
-    return F(0.006) * NOISE(P * F(22)) + F(0.003) * NOISE(P * F(70))
+    """Ragged torch-cut edges round the hatch's mouth (fading out inside it)."""
+    k = smoothstep(FRONT_Y + 0.14, FRONT_Y + 0.02, P[:, 1])
+    return (F(0.006) * NOISE(P * F(22)) + F(0.003) * NOISE(P * F(70))) * (F(0.15) + F(0.85) * k)
+
+
+DOOR_TURN = 0.2                          # each half turned back about its hinge, lying on the hull's rounded front
 
 
 def door_frame(sx):
     """A hatch half's frame: centre, right (outward for both), up, normal (out of its painted inner face)."""
-    c = v3((sx * (DOOR_X[0] + DOOR_X[1]) / 2, DOOR_Y, (DOOR_Z[0] + DOOR_Z[1]) / 2))
-    return c, v3((sx, 0.0, 0.0)), v3((0, 0, 1)), v3((0, -1, 0))
+    hw = (DOOR_X[1] - DOOR_X[0]) / 2
+    r = v3((sx * math.cos(DOOR_TURN), math.sin(DOOR_TURN), 0.0))
+    u = v3((0, 0, 1))
+    n = sx * np.cross(r, u)
+    c = v3((sx * DOOR_X[0], DOOR_Y, (DOOR_Z[0] + DOOR_Z[1]) / 2)) + r * hw
+    return c, r, u, n
 
 
 def chest_shell(fd):
@@ -544,8 +581,9 @@ def chest_shell(fd):
     for sx in (-1, 1):
         c, r, u, n = door_frame(sx)
         hw, hh = (DOOR_X[1] - DOOR_X[0]) / 2, (DOOR_Z[1] - DOOR_Z[0]) / 2
-        fd.add(RoundBox(c, (hw, DOOR_T / 2, hh), 0.012, R=np.stack([r, -n, u], 1), disp=torch, disp_amp=0.006), 0.008, CHAR)
-        fd.paint(RoundBox(c + v3((0, DOOR_T * 0.45, 0)), (hw + 0.02, DOOR_T * 0.42, hh + 0.02), 0.0), WHITE)     # its outer (white) face
+        Rd = np.stack([r, -n, u], 1)
+        fd.add(RoundBox(c, (hw, DOOR_T / 2, hh), 0.012, R=Rd, disp=dent(0.0012, 18), disp_amp=0.0015), 0.008, CHAR)
+        fd.paint(RoundBox(c - n * (DOOR_T * 0.45), (hw + 0.02, DOOR_T * 0.42, hh + 0.02), 0.0, R=Rd), WHITE)     # its outer (white) face
         # two amber slashes on each half: together the halves make a big double V round the pilot
         for k, dz in enumerate((0.12, -0.08)):
             a = c + r * (-hw + 0.02) + u * (dz - 0.11)
@@ -757,7 +795,7 @@ def armour_field():
         f = Field("ArmourFoot" + side)
         foot_armour(f, side)
         subs.append(("foot." + side, f))
-    return MultiField("Armour", subs)
+    return PaintedMulti("Armour", subs)
 
 
 # ======================================================================================= the frame, salvage and the head's lamp
@@ -920,7 +958,7 @@ def frame_field():
         f.add(RoundBox(an + v3((0, -0.07, -0.215)), (0.185, 0.3, 0.025), 0.016), 0.0, K_RUBBER)     # the sole (bottom at z = 0)
         f.add(Cylinder(an, 0.08, 0.27, rr=0.02, R=rot_from_axes(z_axis=(1, 0, 0))), 0.0, K_BLACK)
         subs.append(("foot." + side, f))
-    return MultiField("Frame", subs)
+    return PaintedMulti("Frame", subs)
 
 
 # ======================================================================================= the cockpit (rigid with the hull)
@@ -1017,7 +1055,7 @@ def fists_field():
         f = Field("FistFingers" + side)
         fist_fingers(f, side)
         subs.append(("fingers." + side, f))
-    return MultiField("Fists", subs)
+    return PaintedMulti("Fists", subs)
 
 
 # ======================================================================================= the glows

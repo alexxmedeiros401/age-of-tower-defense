@@ -364,9 +364,9 @@ def hoist_field():
             f[:2] = f[:2] * (1.2 / math.hypot(f[0], f[1]))
     for f in feet:
         d = norm(apex - f)
-        fd.add(RoundCone(f + Z * 0.01, apex + d * 0.05, 0.022, 0.019), 0.0, GUN)
+        fd.add(RoundCone(f + Z * 0.01, apex + d * 0.05, 0.032, 0.026), 0.0, GUN)
         fd.add(Cylinder(f + Z * 0.012, 0.036, 0.024, rr=0.006), 0.004, BLACK)
-    fd.add(Sphere(apex, 0.045), 0.02, GUN)
+    fd.add(Sphere(apex, 0.055), 0.02, GUN)
     fd.add(Torus(apex - Z * 0.03, 0.04, 0.012), 0.004, TEAL)
     # the chain block
     blk = apex - Z * 0.15
@@ -408,33 +408,32 @@ def banner_field():
     charcoal double chevron on it (5), a ragged foot; the pole stands in a small stand of sandbag-weighted steel feet."""
     fd = Field("Banner")
     c, t, n = banner_frame()
-    top = c + Z * 2.0
-    fd.add(RoundCone(c + Z * 0.02, top, 0.02, 0.016), 0.0, GUN)
+    top = c + Z * 1.9
+    fd.add(RoundCone(c + Z * 0.02, top, 0.026, 0.02), 0.0, GUN)
     fd.add(Sphere(top + Z * 0.02, 0.028), 0.006, GUN)
     for k in range(3):
         a = 2 * math.pi * k / 3 + 0.4
         e = t * math.cos(a) + n * math.sin(a)
         fd.add(RoundCone(c + Z * 0.2, c + e * 0.14 + Z * 0.012, 0.012), 0.004, GUN)
     bar = top - Z * 0.08
-    fd.add(RoundCone(bar - t * 0.24, bar + t * 0.24, 0.013), 0.004, GUN)
+    fd.add(RoundCone(bar - t * 0.28, bar + t * 0.28, 0.016), 0.004, GUN)
     # the cloth: hanging from the crossbar, gently rippled, its foot cut ragged
-    ripple = lambda P: F(0.012) * np.sin(((P - c.astype(F)) @ t.astype(F)) * F(16)) + F(0.002) * NOISE(P * F(30))
-
     def cloth(P):
         q = P - bar.astype(F)
         u = q @ t.astype(F)
-        v = q @ n.astype(F)
         w = q[:, 2]
-        foot = F(-0.82) + F(0.04) * np.sin(u * F(40)) + F(0.03) * NOISE(P * F(14))
-        return np.maximum(np.maximum(np.abs(u) - F(0.22), np.abs(v) - F(0.008)), np.maximum(w - F(-0.02), foot - w))
-    fd.add(Func(cloth, bar - 1.0, bar + 0.3, disp=ripple, disp_amp=0.014), 0.004, BASE)
+        # its folds: the sheet itself rippled (a wave across it, deeper toward its foot)
+        v = q @ n.astype(F) - (F(0.014) * np.sin(u * F(14) + F(0.6)) * (F(0.4) - w)) - F(0.002) * NOISE(P * F(20))
+        foot = F(-0.8) + F(0.035) * np.sin(u * F(38)) + F(0.03) * NOISE(P * F(14))
+        return np.maximum(np.maximum(np.abs(u) - F(0.25), np.abs(v) - F(0.01)), np.maximum(w - F(-0.02), foot - w))
+    fd.add(Func(cloth, bar - 1.0, bar + 0.3), 0.004, BASE)
     # the double chevron (on both faces)
     for k, dz in enumerate((-0.28, -0.46)):
         m = bar + Z * dz
         for s in (-1, 1):
-            a = m + t * (s * 0.17) + Z * 0.12
+            a = m + t * (s * 0.2) + Z * 0.13
             b = m - Z * 0.02
-            fd.paint(_stroke(a, b, 0.032, n, 0.05, rag=0.004), BLACK)
+            fd.paint(_stroke(a, b, 0.036, n, 0.06, rag=0.004), BLACK)
     return fd
 
 
