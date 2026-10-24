@@ -46,7 +46,18 @@ manholes, its blocks cut into lots (granite tiles, concrete, brick, slate, parki
 with an inlaid compass and planters, polished plinths under the buildings (metro); a suburb of striped lawns, curving
 streets with a yellow centre line, kerbs, verges and sidewalks, two cul-de-sacs, driveways, garden paths, flower beds,
 patios, a park with a playground, and backyard swimming pools (the lake zones) with travertine decks (suburb). Their
-markings are painted at the render's resolution (PIL), so they stay crisp. For highland, bog, coast, harbor, smog and
+markings are painted at the render's resolution (PIL), so they stay crisp. Digital Age: a cleanroom hall of white epoxy,
+anti-static tile and raised-floor bays between yellow safety lines, green walkways, floor grates, covered cable
+trenches, marked equipment bays, steel plinths under the machines, frost-ringed drain pads with pipe stubs under the
+tanks, the robots' lanes dark service tracks with steel edges, hazard-striped borders, guide lines and fiducial tags,
+decontamination grilles on the slow stretches (lab); a high-desert ground station of red-brown sand, ripples, desert
+pavement and stones, packed gravel access roads with tyre ruts and a worn painted edge, reflector posts, concrete dish
+foundations ringed with anchor bolts, gravel beds with footings and covered cable trenches under the solar arrays, a
+fenced concrete compound and its gravel spur, mast pads (satellite); a cyberpunk district of dark wet asphalt with cyan
+edge lines and magenta centre dashes, data lanes on the fast stretches, steel kerbs with light strips, deck-plate
+sidewalks with grates, hex-tiled plazas, gridded slabs, parking, scorched pylon bases, glowing data pits, the neon's
+glow and reflections painted into the wet ground (neon). Their rift ends get gate plates (violet in, cyan out), and their
+crisp shapes (road edges, pads, plinths, pits, hex tiles) are distance fields at the render's own resolution. For highland, bog, coast, harbor, smog and
 suburb, --watersrc PATH also writes the exact water mask (the stream, its fords, the lochans, the bog pools, the inlet,
 the dock pools, the swimming pools) for tools/water_mask.py --src PATH. --maskdump DIR writes the Industrial themes' feature
 masks without rendering; --dry builds the scene without rendering.
@@ -134,7 +145,8 @@ if zf["tunnel"]:
     td, tun_al = g.poly_dist(zf["tunnel"])
     tun = np.exp(-(td / 0.3) ** 2) * np.clip((dist - HALF - 0.1) / 0.1, 0, 1)
 blk = {k: np.full(X.shape, 1e9) for k in ("lake", "lava", "rocks", "palms", "dune", "ruins", "pillar", "ore", "trees", "stones", "slag",
-                                         "statue", "building", "tents", "crates", "crater", "machine", "coal")}
+                                         "statue", "building", "tents", "crates", "crater", "machine", "coal", "tank", "dish",
+                                         "panels", "pylon", "pit")}
 BLOCKERS = []
 for bl in m.get("blockers", []):
     bx, bz, br = bl[0], bl[1], bl[2]
@@ -204,7 +216,8 @@ SKY = {"meadow": (0.62, 0.74, 0.95), "snow": (0.66, 0.78, 1.0), "volcano": (0.6,
        "farmland": (0.62, 0.74, 0.95), "darkwood": (0.46, 0.56, 0.52), "castle": (0.62, 0.7, 0.86),
        "jungle": (0.5, 0.62, 0.55), "harbor": (0.64, 0.78, 0.97), "fortress": (0.62, 0.7, 0.86),
        "factory": (0.6, 0.57, 0.55), "railyard": (0.62, 0.66, 0.72), "smog": (0.6, 0.6, 0.56),
-       "military": (0.64, 0.74, 0.92), "metro": (0.6, 0.66, 0.8), "suburb": (0.62, 0.75, 0.96)}[THEME]
+       "military": (0.64, 0.74, 0.92), "metro": (0.6, 0.66, 0.8), "suburb": (0.62, 0.75, 0.96),
+       "lab": (0.86, 0.9, 0.96), "satellite": (0.62, 0.68, 0.82), "neon": (0.42, 0.36, 0.6)}[THEME]
 wd.node_tree.nodes["Background"].inputs["Color"].default_value = SKY + (1,)
 wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1.05, "snow": 1.0, "volcano": 0.8, "delta": 1.05,
                                                                     "desert": 1.0, "canyon": 0.95, "highland": 1.0, "forge": 0.82,
@@ -212,22 +225,24 @@ wd.node_tree.nodes["Background"].inputs["Strength"].default_value = {"meadow": 1
                                                                     "farmland": 1.05, "darkwood": 0.85, "castle": 1.0,
                                                                     "jungle": 0.92, "harbor": 1.05, "fortress": 1.0,
                                                                     "factory": 0.92, "railyard": 0.98, "smog": 0.95,
-                                                                    "military": 1.0, "metro": 0.95, "suburb": 1.05}[THEME]
+                                                                    "military": 1.0, "metro": 0.95, "suburb": 1.05,
+                                                                    "lab": 1.35, "satellite": 1.0, "neon": 0.7}[THEME]
 # the game's sun: Godot rotation (-52, -36, 0) -> light travelling (0.362, -0.788, -0.498) in Godot = (x, y_b, z_b)
 # (0.362, 0.498, -0.788) in Blender (y_b = -z_godot)
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
 sun.data.energy = {"meadow": 2.7, "snow": 2.6, "volcano": 2.3, "delta": 2.7, "desert": 2.8, "canyon": 2.6, "highland": 2.6, "forge": 2.3,
                    "bog": 2.5, "olive": 2.8, "coast": 2.75, "acropolis": 2.8, "farmland": 2.75, "darkwood": 2.2, "castle": 2.6,
                    "jungle": 2.45, "harbor": 2.8, "fortress": 2.6, "factory": 2.4, "railyard": 2.55, "smog": 2.2,
-                   "military": 2.7, "metro": 2.5, "suburb": 2.75}[THEME]
-sun.data.angle = math.radians(8)
+                   "military": 2.7, "metro": 2.5, "suburb": 2.75, "lab": 1.7, "satellite": 2.6, "neon": 1.9}[THEME]
+sun.data.angle = math.radians({"lab": 35}.get(THEME, 8))            # (the cleanroom's light is soft, from above)
 sun.data.color = {"meadow": (1.0, 0.95, 0.86), "snow": (1.0, 0.98, 0.96), "volcano": (1.0, 0.75, 0.55), "delta": (1.0, 0.95, 0.86),
                   "desert": (1.0, 0.94, 0.82), "canyon": (1.0, 0.9, 0.78), "highland": (1.0, 0.95, 0.87), "forge": (1.0, 0.8, 0.62),
                   "bog": (0.98, 0.96, 0.86), "olive": (1.0, 0.95, 0.84), "coast": (1.0, 0.96, 0.88), "acropolis": (1.0, 0.95, 0.85),
                   "farmland": (1.0, 0.95, 0.86), "darkwood": (0.92, 0.96, 0.82), "castle": (1.0, 0.93, 0.84),
                   "jungle": (1.0, 0.95, 0.8), "harbor": (1.0, 0.96, 0.88), "fortress": (1.0, 0.93, 0.83),
                   "factory": (1.0, 0.88, 0.74), "railyard": (1.0, 0.92, 0.8), "smog": (1.0, 0.9, 0.74),
-                  "military": (1.0, 0.95, 0.86), "metro": (1.0, 0.96, 0.9), "suburb": (1.0, 0.96, 0.88)}[THEME]
+                  "military": (1.0, 0.95, 0.86), "metro": (1.0, 0.96, 0.9), "suburb": (1.0, 0.96, 0.88),
+                  "lab": (0.96, 0.98, 1.0), "satellite": (1.0, 0.94, 0.86), "neon": (0.86, 0.84, 1.0)}[THEME]
 d = Vector((0.362, 0.498, -0.788))
 sun.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 sc.collection.objects.link(sun)
@@ -545,7 +560,8 @@ if THEME == "fortress":
 # rc_al / rc_sd are the road's own coordinates (distance along it, signed distance across it), so setts, flags and kerbs
 # follow the road round its bends; TRACKS is the railway (railyard, factory): each track's centre line, its sleepers and
 # rails built in 3D further down; tk_* the distance to the nearest track, along it and across it.
-IND_T = THEME in ("factory", "railyard", "smog", "military", "metro", "suburb")
+DIG_T = THEME in ("lab", "satellite", "neon")                # (the Digital Age: built on the Modern Age's tools)
+IND_T = THEME in ("factory", "railyard", "smog", "military", "metro", "suburb") or DIG_T
 MOD_T = THEME in ("military", "metro", "suburb")              # (the Modern Age: its own features further down)
 IND = {}
 TRACKS = []                # {"pts": N x 2 world (x, z) 0.05 apart, "buf": a buffer stop at its end}
@@ -610,7 +626,7 @@ if IND_T:
     _rd, rc_al, rc_sd = g.poly_dist([_round(lg) for lg in legs], margin=1.8, signed=True)
     rc_sd = np.where(rc_sd < 0, -1.0, 1.0) * np.minimum(dist, _rd)
     rd_hard = np.clip((HALF - dist) / 0.03, 0, 1)                      # the road itself, a crisp edge (no wobble)
-    if THEME in ("factory", "smog") or MOD_T:                         # (paved roads: straight edges, kerbs)
+    if THEME in ("factory", "smog") or MOD_T or DIG_T:                # (paved roads: straight edges, kerbs)
         road = rd_hard
         edge = np.exp(-((dist - HALF) / 0.1) ** 2)
         rut = np.exp(-((dist - 0.36) / 0.09) ** 2) * road
@@ -905,7 +921,7 @@ GLYPH = {"0": [[(0, 0), (1, 0), (1, 2), (0, 2), (0, 0)]], "1": [[(0.2, 1.6), (0.
          "U": [[(0, 2), (0, 0), (1, 0), (1, 2)]], "C": [[(1, 2), (0, 2), (0, 0), (1, 0)]], "E": [[(1, 2), (0, 2), (0, 0), (1, 0)], [(0, 1), (0.75, 1)]],
          "R": [[(0, 0), (0, 2), (1, 2), (1, 1), (0, 1), (1, 0)]], "Y": [[(0, 2), (0.5, 1), (1, 2)], [(0.5, 1), (0.5, 0)]],
          "N": [[(0, 0), (0, 2), (1, 0), (1, 2)]], "I": [[(0.5, 0), (0.5, 2)]], "K": [[(0, 0), (0, 2)], [(1, 2), (0, 1), (1, 0)]]}
-if MOD_T:
+if MOD_T or DIG_T:
     from PIL import Image as _PIm, ImageDraw as _PId
     from scipy.spatial import cKDTree
     from scipy.ndimage import gaussian_filter, distance_transform_edt
@@ -915,7 +931,8 @@ if MOD_T:
         y (yellow), r (red), k (dark: joints, rubber, slots)."""
         CH = ("w", "y", "r", "k")
 
-        def __init__(self, px, ss=2):
+        def __init__(self, px, ss=2, ch=None):
+            self.CH = tuple(ch or self.CH)
             self.s = float(px * ss)
             self.out = (int(round(G.W * px)), int(round(G.H * px)))
             self.im = {c: _PIm.new("L", (self.out[0] * ss, self.out[1] * ss), 0) for c in self.CH}
@@ -984,7 +1001,7 @@ if MOD_T:
         def arrays(self):
             return {c: np.asarray(self.im[c].resize(self.out, _PIm.BOX), np.float32) / 255.0 for c in self.CH}
 
-    PAINT = Painter(PX if not PREVIEW else 16)
+    PAINT = Painter(PX if not PREVIEW else 16, ch=("w", "y", "r", "k", "c", "m", "g", "hz") if DIG_T else None)
 
     def _smp(arr, x, z):
         """Bilinear lookup of a mask at world (x, z) (as sample() further down)."""
@@ -1018,6 +1035,8 @@ if MOD_T:
             if nb_:
                 nb_ = np.asarray(nb_)
                 far = (_aL[nb_] != li) | (np.abs(_aS[nb_] - S_[i]) > 3.0)
+                if DIG_T:                        # (another path's copy of this same stretch is not a road joining it)
+                    far &= _own[li].query(_aP[nb_])[0] > 0.1
                 out[i] = bool(np.any(far & (np.abs(_aT[nb_] @ T[i]) < 0.8)))
         return out
 
@@ -1031,6 +1050,7 @@ if MOD_T:
         return out
 
     DUP = [_dup(P, T, li, S_) for li, (P, T, S_) in enumerate(RS)]
+    _own = [cKDTree(P) for (P, T, S_) in RS]
 
     def _runs(k):
         idx = np.flatnonzero(np.diff(np.concatenate([[0], k.astype(np.int8), [0]])))
@@ -1043,6 +1063,8 @@ if MOD_T:
             k = ~DUP[li] & ~_on_other(Q, T, li, S_, r)
             if skip is not None:
                 k &= ~skip(Q[:, 0], Q[:, 1])
+            if DIG_T and abs(off) > 0.3:         # (an edge line stays at its distance from the road's edge: none cut
+                k &= _smp(ped, Q[:, 0], Q[:, 1]) > abs(off) - HALF - 0.16    # across where the road kinks sharply)
             if dash > 0:
                 k &= (S_ % (dash + gap)) < dash
             for a, b in _runs(k):
@@ -1113,6 +1135,79 @@ if MOD_T:
         tbl = road * ((_sd < HALF + 0.6) & ((_sd - np.abs(_ssd)) < 0.02))
     bus = road * np.clip(lane * 2, 0, 1)
     pr_ = np.random.default_rng(97)
+
+if DIG_T:
+    # The Digital Age's crisp shapes are fields at the render's own resolution (HD: signed distances and coordinates
+    # that the material turns into edges, so a kerb, a pad's rim or a hex tile's seam stays sharp): the road's signed
+    # distance (its inner corners filleted like the Modern streets'), the slow and fast stretches, and a gate plate at
+    # each rift end (the game stands its rift ring over it: 0 where the robots go in, violet; 1 where they come out, cyan).
+    from scipy.ndimage import map_coordinates
+    HPX = PX if not PREVIEW else 16
+    gH = G.Grid(HPX)
+    HX, HZ = gH.X.astype(np.float32), gH.Z.astype(np.float32)
+    HD = {}
+
+    def _hsd(mask):
+        """Signed distance (world units, < 0 inside) to the edge of a hi-res mask's area, exact to the half pixel."""
+        m_ = mask > 0.5
+        a_, b_ = distance_transform_edt(~m_), distance_transform_edt(m_)
+        return (np.where(m_, 0.5 - b_, a_ - 0.5) / HPX).astype(np.float32)
+
+    def _down(a):
+        """A hi-res field sampled at the mask grid's pixel centres (bilinear)."""
+        return map_coordinates(a, [(Z - G.Z0) * HPX - 0.5, (X - G.X0) * HPX - 0.5], order=1, mode="nearest").astype(np.float64)
+
+    def _rr_h(cx, cz, hw, hh, rc=0.0):
+        """Signed distance to a rounded rectangle on the hi-res grid."""
+        qx, qz = np.abs(HX - cx) - (hw - rc), np.abs(HZ - cz) - (hh - rc)
+        return np.hypot(np.maximum(qx, 0), np.maximum(qz, 0)) + np.minimum(np.maximum(qx, qz), 0) - rc
+
+    _dh = gH.poly_dist(legs, margin=2.0)[0]
+    _rh = np.clip((HALF - _dh) * HPX + 0.5, 0, 1).astype(np.float32)
+    del _dh
+    _rh = np.maximum(_rh, np.clip((gaussian_filter(_rh, 0.42 * HPX) - 0.5) / 0.12 + 0.5, 0, 1))
+    HD["ped"] = np.clip(_hsd(_rh), -2.0, 4.0)
+    del _rh
+    ped = _down(HD["ped"])                                             # (the coarse masks follow the crisp road)
+    road = road_c = np.clip(0.5 - ped * MPX, 0, 1)
+    on_road = np.clip((0.06 - ped) / 0.06, 0, 1)
+
+    def _zone_h(zl):
+        """A slow or fast stretch on the hi-res grid: the road's whole width there, square-ended."""
+        if not zl:
+            return np.zeros(HX.shape, np.float32)
+        sd_, _a, ssd_ = gH.poly_dist(zl, margin=1.5, signed=True)
+        return ((sd_ < HALF + 0.7) & ((sd_ - np.abs(ssd_)) < 0.005) & (HD["ped"] < 0)).astype(np.float32)
+
+    HD["sl"] = _zone_h(zf["slow"])
+    HD["fl"] = _zone_h(zf["fast"])
+    tbl, bus = _down(HD["sl"]), _down(HD["fl"])
+    GATES = []                                                         # (x, z, the road's heading there, 0 in / 1 out)
+    for sp in specs:
+        P_ = sp["pts"]
+        for i in sp.get("rift", []):
+            for (x_, z_), (ax_, az_), k_ in ((P_[i - 1], P_[max(0, i - 2)], 0), (P_[i], P_[min(len(P_) - 1, i + 1)], 1)):
+                if any(math.hypot(x_ - a_, z_ - b_) < 0.2 for a_, b_, _h, _k in GATES):
+                    continue
+                hd_ = math.atan2(z_ - az_, x_ - ax_) if k_ == 0 else math.atan2(az_ - z_, ax_ - x_)
+                GATES.append((float(x_), float(z_), hd_, k_))
+    gt_r = np.full(HX.shape, 9.0, np.float32)
+    gt_k = np.zeros(HX.shape, np.float32)
+    for (x_, z_, _h, k_) in GATES:
+        d_ = np.hypot(HX - x_, HZ - z_) / 0.86
+        gt_k = np.where(d_ < gt_r, float(k_), gt_k)
+        gt_r = np.minimum(gt_r, d_)
+    HD["gt_r"], HD["gt_k"] = gt_r, gt_k
+    gate_m = np.clip((1.0 - _down(gt_r)) * 20, 0, 1)
+    _tl = []                                                           # (the game's tunnel ramps: keep walkways and tags off)
+    for sp in specs:
+        cum = G.spec_cum(sp)
+        for z_ in sp.get("zones", []):
+            if z_["k"] == "tunnel":
+                _tl += G.sub_polylines(sp, cum[z_["a"]] - 0.9, cum[z_["b"]] + 0.9)
+    tun_m = (g.poly_dist(_tl, margin=2.0)[0] < HALF + 0.7).astype(float) if _tl else np.zeros(X.shape)
+    LANDMARKS = []                                                     # (what, x, z, size): spots left for the kits
+    log("digital: gates", [(round(a_, 2), round(b_, 2), k_) for a_, b_, _h, k_ in GATES])
 
 if THEME == "military":
     # an airbase: a runway between the service roads (09/27, thresholds, numbers, touchdown and aiming-point bars, rubber
@@ -1628,18 +1723,650 @@ if THEME == "suburb":
         zebra(cx, -4.0, 0.0, L=0.45)
         zebra(cx, 3.0, 0.0, L=0.45)
     log("suburb: houses", len(HOUSES), "pools", len(POOLS_S), "drive px", int((drive > 0.5).sum()))
-if MOD_T:
+if THEME == "lab":
+    # a cleanroom hall: its floor cut into bays on the 0.6 tile grid (white epoxy, anti-static tile, raised floor with
+    # vent panels, blue ESD epoxy) between painted yellow safety lines; green walkways across it, crossing the tracks on
+    # zebras between yellow bollards; floor grates, covered cable trenches from the machines and the tanks; marked
+    # equipment bays (for the kit's racks and partitions); steel plinths under the machines; drain pads ringed with frost
+    # under the tanks; the robots' lanes dark service tracks (a steel edge, a hazard-striped border, white lane lines, a
+    # yellow guide line with fiducial tags), decontamination grilles across the slow stretches
+    lr_ = np.random.default_rng(131)
+    TL = 0.6
+    BAYS, CUTS = [], []
+
+    def _cutb(x0, z0, x1, z1, depth=0):
+        w, h = x1 - x0, z1 - z0
+        if max(w, h) < 4.3 or (max(w, h) < 7.5 and depth > 1 and lr_.random() < 0.4):
+            BAYS.append((x0, z0, x1, z1))
+            return
+        ax = 0 if w >= h else 1
+        lo, hi = (x0, x1) if ax == 0 else (z0, z1)
+        for _try in range(40):
+            s = round((lo + (hi - lo) * lr_.uniform(0.3, 0.7)) / TL) * TL
+            if all(abs(s - (bx if ax == 0 else bz)) > br + 0.5 for (bx, bz, br, k_) in BLOCKERS
+                   if x0 - br < bx < x1 + br and z0 - br < bz < z1 + br):
+                break
+        else:
+            BAYS.append((x0, z0, x1, z1))
+            return
+        if ax == 0:
+            CUTS.append([(s, z0), (s, z1)])
+            _cutb(x0, z0, s, z1, depth + 1)
+            _cutb(s, z0, x1, z1, depth + 1)
+        else:
+            CUTS.append([(x0, s), (x1, s)])
+            _cutb(x0, z0, x1, s, depth + 1)
+            _cutb(x0, s, x1, z1, depth + 1)
+
+    _cutb(-21.0, -13.2, 19.2, 13.2)
+    bk = np.zeros(X.shape, np.int8)
+    bid = np.zeros(X.shape, np.float32)
+    for (x0, z0, x1, z1) in BAYS:
+        sel = (X >= x0) & (X < x1) & (Z >= z0) & (Z < z1)
+        bk[sel] = lr_.choice([0, 1, 2, 3], p=[0.34, 0.3, 0.2, 0.16])
+        bid[sel] = lr_.random()
+    for k_, nm in ((1, "b_tile"), (2, "b_raised"), (3, "b_esd")):
+        IND[nm] = (bk == k_).astype(float)
+    IND["bid"] = bid
+    # machine plinths (square steel plinths, a hazard border), the tanks' drain pads (round), the equipment bays
+    PLIN = [(bx, bz, br + 0.2) for (bx, bz, br, k_) in BLOCKERS if k_ == "machine"]
+    TANK = [(bx, bz, br * 0.92) for (bx, bz, br, k_) in BLOCKERS if k_ == "tank"]
+    pl_d = np.full(HX.shape, 9.0, np.float32)
+    for (bx, bz, h_) in PLIN:
+        pl_d = np.minimum(pl_d, _rr_h(bx, bz, h_, h_, 0.1))
+    HD["pl_d"] = pl_d
+    tk_r = np.full(HX.shape, 9.0, np.float32)
+    tk_a = np.zeros(HX.shape, np.float32)
+    for (bx, bz, R) in TANK:
+        d_ = np.hypot(HX - bx, HZ - bz) / R
+        tk_a = np.where(d_ < tk_r, np.arctan2(HZ - bz, HX - bx) / (2 * math.pi) + 0.5, tk_a)
+        tk_r = np.minimum(tk_r, d_)
+    HD["tk_r"], HD["tk_a"] = tk_r, tk_a
+    tkm = np.full(X.shape, 9.0)
+    for (bx, bz, R) in TANK:
+        tkm = np.minimum(tkm, np.hypot(X - bx, Z - bz) - R)
+    EQ_C = [(-4.8, -5.4, 1.8, 1.2), (-11.4, 6.6, 1.8, 1.2), (12.6, 4.8, 1.2, 1.8), (7.5, 1.8, 0.9, 1.8), (2.4, 2.4, 1.2, 1.2)]
+    EQ = []
+    for (cx, cz, hw, hh) in EQ_C:
+        sub = (np.abs(X - cx) < hw) & (np.abs(Z - cz) < hh)
+        sub2 = (np.abs(X - cx) < hw + 0.3) & (np.abs(Z - cz) < hh + 0.3)
+        if ped[sub].min() > 0.35 and BLK_ANY[sub2].min() > 0.2:
+            EQ.append((cx, cz, hw, hh))
+            LANDMARKS.append(("equipment bay", cx, cz, "%.1f x %.1f" % (2 * hw, 2 * hh)))
+        else:
+            log("lab: equipment bay too close to a road or a zone, dropped", (cx, cz))
+    eq_d = np.full(HX.shape, 9.0, np.float32)
+    for (cx, cz, hw, hh) in EQ:
+        eq_d = np.minimum(eq_d, _rr_h(cx, cz, hw, hh, 0.04))
+    HD["eq_d"] = eq_d
+    eqm = np.full(X.shape, 9.0)
+    for (cx, cz, hw, hh) in EQ:
+        eqm = np.minimum(eqm, _rrect(cx, cz, hw, hh, 0.04))
+    for (bx, bz, h_) in PLIN:
+        LANDMARKS.append(("machine plinth", bx, bz, "%.2f square" % (2 * h_)))
+    for (bx, bz, R) in TANK:
+        LANDMARKS.append(("tank drain pad", bx, bz, "r %.2f" % R))
+    # walkways: straight lanes 0.72 wide along the tile grid, as long as the floor allows, clear of the machines, the
+    # tanks and the equipment bays; they cross the tracks (never run along one) on zebras
+    keep = np.minimum.reduce([BLK_ANY, eqm, tkm])
+    WALKS = []
+    cands = []
+    for ax in (0, 1):
+        vals = np.arange(-6.6, 6.61, TL) if ax == 0 else np.arange(-13.2, 13.21, TL)
+        for v in vals:
+            t_ = np.arange(-16.5, 16.5, 0.05) if ax == 0 else np.arange(-10.0, 10.0, 0.05)
+            ok = np.ones(len(t_), bool)
+            onr = np.zeros(len(t_), bool)
+            for off in (-0.42, 0.0, 0.42):
+                xs_, zs_ = (t_, np.full(len(t_), v + off)) if ax == 0 else (np.full(len(t_), v + off), t_)
+                ok &= (_smp(keep, xs_, zs_) > 0.45) & (_smp(tun_m, xs_, zs_) < 0.5)
+                onr |= _smp(ped, xs_, zs_) < 0.3
+            for a, b in _runs(ok):
+                L_ = (b - a) * 0.05
+                if L_ < 6.0:
+                    continue
+                o_ = onr[a:b]
+                stretch = max([(e_ - s_) * 0.05 for s_, e_ in _runs(o_)] + [0.0])
+                if o_.mean() > 0.3 or stretch > 2.9:
+                    continue
+                cands.append((L_ - 4.0 * o_.mean(), ax, round(v, 2), t_[a], t_[b - 1]))
+    cands.sort(key=lambda c_: -c_[0])
+    for sc_, ax, v, lo, hi in cands:
+        if sum(1 for w_ in WALKS if w_[0] == ax) >= 2:
+            continue
+        if any(w_[0] == ax and abs(w_[1] - v) < 4.0 for w_ in WALKS):
+            continue
+        WALKS.append((ax, v, lo, hi))
+    BOLL = []                                                          # yellow bollards where the walkways meet a track
+    XINGS = []
+    wk_d = np.full(X.shape, 9.0)
+    for (ax, v, lo, hi) in WALKS:
+        t_ = np.arange(lo, hi, 0.03)
+        xs_, zs_ = (t_, np.full(len(t_), v)) if ax == 0 else (np.full(len(t_), v), t_)
+        pmin = np.minimum.reduce([_smp(ped, xs_ + (0 if ax == 0 else o_), zs_ + (o_ if ax == 0 else 0)) for o_ in (-0.4, 0.0, 0.4)])
+        off = pmin > 0.17
+        ang = 0.0 if ax == 0 else math.pi / 2
+        for a, b in _runs(off):
+            if b - a < 6:
+                continue
+            p0, p1 = (xs_[a], zs_[a]), (xs_[b - 1], zs_[b - 1])
+            PAINT.seg("g", p0, p1, 0.72)
+            n_ = (-math.sin(ang), math.cos(ang))
+            for sg in (-1, 1):
+                PAINT.seg("w", (p0[0] + n_[0] * 0.33 * sg, p0[1] + n_[1] * 0.33 * sg), (p1[0] + n_[0] * 0.33 * sg, p1[1] + n_[1] * 0.33 * sg), 0.035)
+            for (q_, at_) in ((p0, a), (p1, b - 1)):
+                if 0 < at_ < len(t_) - 1:                              # (an end at a track, not at the floor's edge)
+                    for sg in (-1, 1):
+                        BOLL.append((q_[0] + n_[0] * 0.46 * sg, q_[1] + n_[1] * 0.46 * sg))
+        d_, _a = g.poly_dist([[(xs_[0], zs_[0]), (xs_[-1], zs_[-1])]], margin=1.0)
+        wk_d = np.minimum(wk_d, d_ - 0.36)
+        cen = _smp(ped, xs_, zs_) < 0.0
+        for a, b in _runs(cen):
+            if b - a < 10:
+                continue
+            m_ = (a + b) // 2
+            XINGS.append((xs_[m_], zs_[m_], ang + math.pi / 2))
+    for (cx, cz, ra) in XINGS:
+        zebra(cx, cz, ra, L=0.62, bar=0.1, gap=0.1, half=HALF - 0.14)
+    BOLL = [p_ for p_ in BOLL if _at(ped, p_[0], p_[1]) > 0.2]
+    # cable trenches: from the sides of each machine's plinth and from each tank pad straight out across the floor until
+    # a track, a zone or the hall's edge (the longest two per machine, one per tank)
+    TRN = []                                                           # (axis, centre line, lo, hi)
+
+    def _trench_from(x_, z_, dx, dz, start_free):
+        pts_, t = [], 0.0
+        while t < 14.0:
+            px_, pz_ = x_ + dx * t, z_ + dz * t
+            if not (-16.0 < px_ < 16.0 and -9.6 < pz_ < 9.6):
+                break
+            q = [(px_ - dz * o_, pz_ + dx * o_) for o_ in (-0.2, 0.2)]
+            if any(_at(ped, a_, b_) < 0.35 for a_, b_ in q):
+                break
+            if t > start_free and (any(_at(BLK_ANY, a_, b_) < 0.15 for a_, b_ in q) or _at(eqm, px_, pz_) < 0.2
+                                   or _at(tkm, px_, pz_) < 0.2):
+                break
+            pts_.append((px_, pz_))
+            t += 0.05
+        return pts_
+
+    for (bx, bz, h_) in PLIN:
+        runs_ = []
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            v_ = round((bz if dx else bx) / 0.3) * 0.3
+            sx_, sz_ = (bx + dx * (h_ - 0.05), v_) if dx else (v_, bz + dz * (h_ - 0.05))
+            p_ = _trench_from(sx_, sz_, dx, dz, 0.6)
+            if len(p_) * 0.05 > 2.2:
+                runs_.append((len(p_), p_))
+        for _n, p_ in sorted(runs_, key=lambda r: -r[0])[:2]:
+            TRN.append(p_)
+    for (bx, bz, R) in TANK:
+        runs_ = []
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            sx_, sz_ = bx + dx * (R - 0.05), bz + dz * (R - 0.05)
+            p_ = _trench_from(sx_, sz_, dx, dz, 0.6)
+            if len(p_) * 0.05 > 2.0:
+                runs_.append((len(p_), p_))
+        for _n, p_ in sorted(runs_, key=lambda r: -r[0])[:1]:
+            TRN.append(p_)
+    tr_d = np.full(HX.shape, 9.0, np.float32)
+    tr_u = np.zeros(HX.shape, np.float32)
+    trm = np.full(X.shape, 9.0)
+    for p_ in TRN:
+        (x0, z0), (x1, z1) = p_[0], p_[-1]
+        cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+        along_x = abs(x1 - x0) > abs(z1 - z0)
+        hw, hh = (abs(x1 - x0) / 2, 0.18) if along_x else (0.18, abs(z1 - z0) / 2)
+        d_ = _rr_h(cx, cz, hw, hh, 0.0)
+        tr_u = np.where(d_ < tr_d, HX if along_x else HZ, tr_u)
+        tr_d = np.minimum(tr_d, d_)
+        trm = np.minimum(trm, _rrect(cx, cz, hw, hh, 0.0))
+    HD["tr_d"], HD["tr_u"] = tr_d, tr_u
+    # floor grates: bar gratings on the tile grid, in the bays
+    GRT = []
+    gr_d = np.full(HX.shape, 9.0, np.float32)
+    grm = np.full(X.shape, 9.0)
+    for _ in range(600):
+        if len(GRT) >= 11:
+            break
+        w_, h_ = [(1.2, 0.6), (0.6, 1.2), (1.2, 1.2), (1.8, 0.6)][int(lr_.integers(0, 4))]
+        x0_ = round(lr_.uniform(-15.5, 15.5 - w_) / TL) * TL
+        z0_ = round(lr_.uniform(-9.0, 9.0 - h_) / TL) * TL
+        sub = (X > x0_ - 0.45) & (X < x0_ + w_ + 0.45) & (Z > z0_ - 0.45) & (Z < z0_ + h_ + 0.45)
+        if (ped[sub].min() < 0.4 or BLK_ANY[sub].min() < 0.3 or eqm[sub].min() < 0.1 or tkm[sub].min() < 0.3
+                or trm[sub].min() < 0.1 or wk_d[sub].min() < 0.1 or grm[sub].min() < 0.6):
+            continue
+        GRT.append((x0_ + w_ / 2, z0_ + h_ / 2, w_ / 2, h_ / 2))
+        gr_d = np.minimum(gr_d, _rr_h(x0_ + w_ / 2, z0_ + h_ / 2, w_ / 2 - 0.02, h_ / 2 - 0.02, 0.02))
+        grm = np.minimum(grm, _rrect(x0_ + w_ / 2, z0_ + h_ / 2, w_ / 2, h_ / 2, 0.02))
+    HD["gr_d"] = gr_d
+    # frost round the tanks' pads: a ragged ring of rime, creeping in over the pad's rim
+    frost = np.zeros(X.shape)
+    for k_, (bx, bz, R) in enumerate(TANK):
+        d_ = np.hypot(X - bx, Z - bz)
+        reach = R + 0.3 + (fbm(0.5, 3, 621 + k_) - 0.5) * 0.32
+        frost = np.maximum(frost, np.clip((reach - d_) / 0.18, 0, 1) * np.clip((d_ - R * 0.68) / 0.2, 0, 1))
+    IND["frost"] = frost * np.clip((ped - 0.2) / 0.2, 0, 1)
+    IND["scuff"] = np.clip((fbm(0.7, 3, 622) - 0.55) / 0.2, 0, 1)
+    # paint: the bays' yellow safety lines (under everything else), the equipment bays' dashed outlines and white corner
+    # marks; on the tracks white lane lines, the yellow guide line, fiducial tags every 2.4, hazard bars across the
+    # ends of the decontamination grilles
+    for (a_, b_) in CUTS:
+        PAINT.seg("y", a_, b_, 0.06)
+    for (cx, cz, hw, hh) in EQ:
+        for (p0, p1) in (((cx - hw + 0.1, cz - hh + 0.1), (cx + hw - 0.1, cz - hh + 0.1)), ((cx + hw - 0.1, cz - hh + 0.1), (cx + hw - 0.1, cz + hh - 0.1)),
+                         ((cx + hw - 0.1, cz + hh - 0.1), (cx - hw + 0.1, cz + hh - 0.1)), ((cx - hw + 0.1, cz + hh - 0.1), (cx - hw + 0.1, cz - hh + 0.1))):
+            PAINT.dashed("r", [p0, p1], 0.05, 0.3, 0.2)
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                q = (cx + sx * (hw - 0.2), cz + sz * (hh - 0.2))
+                PAINT.seg("w", q, (q[0] - sx * 0.35, q[1]), 0.06)
+                PAINT.seg("w", q, (q[0], q[1] - sz * 0.35), 0.06)
+    on_sl = lambda x, z: (_smp(tbl, x, z) > 0.3) | (_smp(gate_m, x, z) > 0.3)
+    road_line("w", HALF - 0.2, 0.03, skip=on_sl)
+    road_line("w", -(HALF - 0.2), 0.03, skip=on_sl)
+    road_line("r", 0.0, 0.05, skip=on_sl)
+    n_tag = 0
+    for li, (P, T, S_) in enumerate(RS):
+        for s_ in np.arange(1.2, S_[-1] - 0.6, 2.4):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i] or not _in_tex(P[i, 0], P[i, 1], 0.8):
+                continue
+            q, a_ = P[i], math.atan2(T[i, 1], T[i, 0])
+            if _on_other(P[i:i + 1], T[i:i + 1], li, S_[i:i + 1], HALF + 0.3)[0] or on_sl(q[0], q[1]) or _at(tun_m, q[0], q[1]) > 0.5:
+                continue
+            if any(math.hypot(q[0] - gx, q[1] - gz) < 1.4 for gx, gz, _h, _k in GATES):
+                continue
+            PAINT.rect("w", q[0], q[1], 0.17, 0.17, a_)
+            u_, n2 = (math.cos(a_), math.sin(a_)), (-math.sin(a_), math.cos(a_))
+            bits = lr_.random(9) < 0.5
+            bits[0] = bits[2] = bits[6] = True                         # (three corners set: which way it reads)
+            bits[8] = False
+            for bi in range(9):
+                if bits[bi]:
+                    a2, b2 = (bi % 3 - 1) * 0.042, (bi // 3 - 1) * 0.042
+                    PAINT.rect("k", q[0] + u_[0] * a2 + n2[0] * b2, q[1] + u_[1] * a2 + n2[1] * b2, 0.038, 0.038, a_)
+            n_tag += 1
+    for zl in zf["slow"]:
+        P_ = np.asarray(zl, np.float64)
+        for (e_, f_) in ((P_[0], P_[1]), (P_[-1], P_[-2])):
+            d_ = (f_ - e_) / max(np.hypot(*(f_ - e_)), 1e-9)
+            c_ = e_ + d_ * 0.09
+            PAINT.rect("hz", c_[0], c_[1], 0.16, 2 * HALF, math.atan2(d_[1], d_[0]))
+    STUBS = []                                                         # pipe stubs at the tanks' pads
+    for (bx, bz, R) in TANK:
+        a0 = lr_.uniform(0, 2 * math.pi)
+        for k_ in range(6):
+            a_ = a0 + k_ * math.pi / 3
+            q = (bx + math.cos(a_) * (R + 0.14), bz + math.sin(a_) * (R + 0.14))
+            if _at(ped, q[0], q[1]) > 0.5 and _at(trm, q[0], q[1]) > 0.15 and len([s for s in STUBS if s[2] == (bx, bz)]) < 3:
+                STUBS.append((q[0], q[1], (bx, bz)))
+    log("lab: bays", len(BAYS), "walkways", WALKS, "crossings", len(XINGS), "trenches", len(TRN), "grates", len(GRT),
+        "tags", n_tag, "stubs", len(STUBS), "equipment bays", len(EQ))
+
+if THEME == "satellite":
+    # a ground station on a high desert plateau: red-brown sand rippled by the wind, patches of dark desert pavement and
+    # pale caliche, stones; the access roads (the robots' road) packed gravel with tyre ruts, a loose berm along each
+    # side, a worn white edge line, sand drifting across them, reflector posts; concrete foundations under the dishes
+    # (a ring of anchor bolts, the mount's grout ring); gravel beds under the solar arrays (rows of footings, covered
+    # cable trenches between the rows); covered cable trenches from the dishes to the arrays; a fenced concrete compound
+    # off the road with a gravel spur to it (the control building's lot); small concrete pads for masts
+    sr_ = np.random.default_rng(151)
+    DISH = [(bx, bz, br * 0.97) for (bx, bz, br, k_) in BLOCKERS if k_ == "dish"]
+    PANL = [(bx, bz, br) for (bx, bz, br, k_) in BLOCKERS if k_ == "panels"]
+    pd_r = np.full(HX.shape, 9.0, np.float32)
+    pd_a = np.zeros(HX.shape, np.float32)
+    for (bx, bz, R) in DISH:
+        d_ = np.hypot(HX - bx, HZ - bz) / R
+        pd_a = np.where(d_ < pd_r, np.arctan2(HZ - bz, HX - bx) / (2 * math.pi) + 0.5, pd_a)
+        pd_r = np.minimum(pd_r, d_)
+        LANDMARKS.append(("dish foundation", bx, bz, "r %.2f" % R))
+    HD["pd_r"], HD["pd_a"] = pd_r, pd_a
+    pdm = np.full(X.shape, 9.0)
+    for (bx, bz, R) in DISH:
+        pdm = np.minimum(pdm, np.hypot(X - bx, Z - bz) - R)
+    gb_d = np.full(HX.shape, 9.0, np.float32)
+    gbm = np.full(X.shape, 9.0)
+    BEDS = []
+    for (bx, bz, br) in PANL:
+        hw, hh = br + 0.3, br + 0.08
+        BEDS.append((bx, bz, hw, hh))
+        gb_d = np.minimum(gb_d, _rr_h(bx, bz, hw, hh, 0.15))
+        gbm = np.minimum(gbm, _rrect(bx, bz, hw, hh, 0.15))
+        LANDMARKS.append(("solar array gravel bed", bx, bz, "%.2f x %.2f" % (2 * hw, 2 * hh)))
+    HD["gb_d"] = gb_d
+    # the compound: a concrete apron in the top-left corner, fenced, a gate on its east side, a gravel spur to the road
+    APR = (-10.7, -7.05, 3.5, 1.75)
+    HD["ap_d"] = _rr_h(APR[0], APR[1], APR[2], APR[3], 0.12)
+    apm = _rrect(APR[0], APR[1], APR[2], APR[3], 0.12)
+    LANDMARKS.append(("compound apron (control building)", APR[0], APR[1], "%.1f x %.1f" % (2 * APR[2], 2 * APR[3])))
+    GATE_Z = (-7.35, -6.05)
+    SPUR = [(APR[0] + APR[2] - 0.2, -6.7), (-3.2, -6.7)]
+    sp_d, sp_al = gH.poly_dist([SPUR], margin=1.0)
+    HD["sp_d"] = (sp_d - 0.48).astype(np.float32)
+    spm = g.poly_dist([SPUR], margin=1.0)[0] - 0.48
+    MASTS = [(13.8, -1.8), (-5.4, 7.8), (9.0, -7.8)]
+    mp_d = np.full(HX.shape, 9.0, np.float32)
+    mpm = np.full(X.shape, 9.0)
+    for (cx, cz) in MASTS:
+        mp_d = np.minimum(mp_d, _rr_h(cx, cz, 0.6, 0.6, 0.06))
+        mpm = np.minimum(mpm, _rrect(cx, cz, 0.6, 0.6, 0.06))
+        LANDMARKS.append(("mast pad", cx, cz, "1.2 square"))
+    HD["mp_d"] = mp_d
+    for (cx, cz) in MASTS + [(APR[0], APR[1])]:
+        if _at(ped, cx, cz) < 1.0:
+            log("satellite: a pad is close to the road!", (cx, cz), round(float(_at(ped, cx, cz)), 2))
+    # paint: footings in rows across the beds ("c"), trench lids ("m") with joints ("k"), the road's worn edge line
+    # ("w"), the apron's parking bays ("y") and a hatched keep-clear box ("r")
+    for (bx, bz, hw, hh) in BEDS:
+        for k_ in (-1, 0, 1):
+            zr = bz + k_ * 0.8
+            for x_ in np.arange(bx - hw + 0.35, bx + hw - 0.3, 0.55):
+                PAINT.rect("c", x_, zr, 0.15, 0.15)
+                PAINT.rect("k", x_, zr, 0.05, 0.05, v=200)
+    TRS = []                                                           # covered cable trenches: polylines
+    for (bx, bz, hw, hh) in BEDS:
+        for zz_ in (bz - 0.4, bz + 0.4):
+            TRS.append([(bx - hw + 0.12, zz_), (bx + hw - 0.12, zz_)])
+    TRS.append([(APR[0] - 0.7, APR[1] + APR[3] - 0.05), (APR[0] - 0.7, -4.5)])                       # compound -> array A
+    (d1x, d1z, d1r), (d2x, d2z, d2r), (d3x, d3z, d3r) = sorted(DISH, key=lambda d_: d_[0])
+    TRS.append([(d1x, d1z - d1r + 0.05), (d1x, APR[1] + APR[3] - 0.05)])                              # west dish -> compound
+    TRS.append([(d2x - d2r + 0.05, d2z), (d1x, d2z), (d1x, d1z + d1r - 0.05)])                        # dish -> west dish
+    BB = max(BEDS, key=lambda b_: b_[0])
+    TRS.append([(d3x + d3r - 0.05, d3z), (BB[0] + 0.8, d3z), (BB[0] + 0.8, BB[1] - BB[3] + 0.05)])    # centre dish -> array B
+    trn_m = np.zeros(X.shape)
+    for tr_ in TRS:
+        Q, T_, S_ = _res(tr_, 0.03)
+        ok = (_smp(ped, Q[:, 0], Q[:, 1]) > 0.42) & (_smp(pdm, Q[:, 0], Q[:, 1]) > -0.06) & (_smp(apm, Q[:, 0], Q[:, 1]) > -0.06)
+        ok &= _smp(mpm, Q[:, 0], Q[:, 1]) > 0.1
+        for a, b in _runs(ok):
+            if b - a < 4:
+                continue
+            PAINT.line("m", Q[a:b], 0.28)
+            for i in range(a, b):
+                if (S_[i] % 0.5) < 0.03:
+                    Nn = np.array([-T_[i, 1], T_[i, 0]])
+                    PAINT.seg("k", Q[i] - Nn * 0.14, Q[i] + Nn * 0.14, 0.018, v=170)
+            d_, _a = g.poly_dist([Q[a:b]], margin=0.5)
+            trn_m = np.maximum(trn_m, np.clip((0.15 - d_) / 0.03, 0, 1))
+    road_line("w", HALF - 0.12, 0.06, skip=lambda x, z: _smp(gate_m, x, z) > 0.2)
+    road_line("w", -(HALF - 0.12), 0.06, skip=lambda x, z: _smp(gate_m, x, z) > 0.2)
+    for k_ in range(6):                                                 # parking bays along the apron's north side
+        x_ = APR[0] - APR[2] + 0.5 + k_ * 0.85
+        PAINT.seg("y", (x_, APR[1] - APR[3] + 0.15), (x_, APR[1] - APR[3] + 1.25), 0.045)
+    PAINT.seg("y", (APR[0] - APR[2] + 0.5, APR[1] - APR[3] + 1.25), (APR[0] - APR[2] + 0.5 + 5 * 0.85, APR[1] - APR[3] + 1.25), 0.045)
+    hx0, hx1, hz0, hz1 = APR[0] + APR[2] - 1.5, APR[0] + APR[2] - 0.25, -7.3, -6.1                    # keep clear: inside the gate
+    PAINT.line("r", [(hx0, hz0), (hx1, hz0), (hx1, hz1), (hx0, hz1), (hx0, hz0)], 0.05)
+    for k_ in np.arange(-1.2, 1.4, 0.2):
+        a_, b_ = (hx0 + k_, hz0), (hx0 + k_ + 1.2, hz1)
+        t0 = max(0.0, (hx0 - a_[0]) / 1.2, 0.0)
+        t1 = min(1.0, (hx1 - a_[0]) / 1.2)
+        if t1 > t0:
+            PAINT.seg("r", (a_[0] + 1.2 * t0, hz0 + 1.2 * t0), (a_[0] + 1.2 * t1, hz0 + 1.2 * t1), 0.04)
+    # the fence: posts every 0.5 round the apron (0.15 out from it), a gap for the gate
+    FENCE = []
+    x0f, x1f, z0f, z1f = APR[0] - APR[2] - 0.15, APR[0] + APR[2] + 0.15, APR[1] - APR[3] - 0.15, APR[1] + APR[3] + 0.15
+    per = [((x0f, z0f), (x1f, z0f)), ((x1f, z0f), (x1f, z1f)), ((x1f, z1f), (x0f, z1f)), ((x0f, z1f), (x0f, z0f))]
+    for (a_, b_) in per:
+        L_ = math.hypot(b_[0] - a_[0], b_[1] - a_[1])
+        n_ = max(1, int(round(L_ / 0.5)))
+        run = []
+        for t_ in np.linspace(0, 1, n_ + 1):
+            q = (a_[0] + (b_[0] - a_[0]) * t_, a_[1] + (b_[1] - a_[1]) * t_)
+            if abs(q[0] - x1f) < 0.01 and GATE_Z[0] < q[1] < GATE_Z[1]:
+                if len(run) > 1:
+                    FENCE.append(run)
+                run = []
+                continue
+            run.append(q)
+        if len(run) > 1:
+            FENCE.append(run)
+    # the desert itself
+    IND["pave"] = np.clip((fbm(1.4, 4, 631) - 0.6) / 0.06, 0, 1) * np.clip((ped - 0.4) / 0.3, 0, 1)
+    IND["cal"] = np.clip((fbm(2.2, 3, 632) - 0.62) / 0.08, 0, 1) * (1 - IND["pave"])
+    dn = np.clip((fbm(1.4, 3, 633) - 0.6) / 0.1, 0, 1)                   # (drifts here and there, tongues over the edge)
+    IND["drift"] = dn * np.clip((0.1 - ped + (fbm(0.6, 2, 634) - 0.5) * 0.35) / 0.25, 0, 1) * np.clip((ped + 0.75) / 0.2, 0, 1) * (1 - gate_m)
+    IND["berm"] = np.clip(1 - np.abs(ped - 0.17) / 0.17, 0, 1) * (spm > 0.0)
+    IND["stain"] = np.clip((fbm(0.45, 3, 635) - 0.62) / 0.08, 0, 1)
+    IND["trn"] = trn_m
+    RPOST = []                                                          # reflector posts along the road's edges
+    for li, (P, T, S_) in enumerate(RS):
+        for k_, s_ in enumerate(np.arange(1.0, S_[-1] - 0.5, 3.2)):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i]:
+                continue
+            sg = 1 if k_ % 2 == 0 else -1
+            q = P[i] + np.array([-T[i, 1], T[i, 0]]) * (HALF + 0.3) * sg
+            if (not _in_tex(q[0], q[1], 0.6) or _at(ped, q[0], q[1]) < 0.2 or _at(pdm, q[0], q[1]) < 0.2 or _at(gbm, q[0], q[1]) < 0.2
+                    or _at(apm, q[0], q[1]) < 0.3 or _at(spm, q[0], q[1]) < 0.15 or _at(gate_m, q[0], q[1]) > 0.0):
+                continue
+            RPOST.append((q[0], q[1], math.atan2(T[i, 1], T[i, 0])))
+    sat_clear = np.minimum.reduce([pdm, gbm, apm, spm, mpm])
+    log("satellite: dishes", len(DISH), "beds", len(BEDS), "trenches", len(TRS), "fence runs", len(FENCE), "reflector posts", len(RPOST))
+
+if THEME == "neon":
+    # a cyberpunk district at night, wet: the streets dark asphalt with cyan edge lines and magenta centre dashes, data
+    # lanes (dark glass with cyan seams) on the fast stretches, cyan zebras; steel kerbs with a cyan light strip; deck-
+    # plate sidewalks with grates, a magenta line along their outer edge; the blocks cut into lots (hex-tiled plazas,
+    # dark slabs in a cyan grid, deck plates, parking with magenta bays, dark pavers) between dark steel bands; four
+    # big hex plazas kept for the kit's stalls and billboards; the pylons' scorched hex bases with magenta conduits; the
+    # data pits (a dark shaft, cyan light inside its rim, a hazard ring); the neon's glow and its reflections painted
+    # into the wet ground, puddles
+    nr_ = np.random.default_rng(171)
+    LOTS_N, CUTS = [], []
+
+    def _cutn(x0, z0, x1, z1, depth=0):
+        w, h = x1 - x0, z1 - z0
+        if max(w, h) < 3.6 or (max(w, h) < 5.5 and depth > 1 and nr_.random() < 0.4):
+            LOTS_N.append((x0, z0, x1, z1))
+            return
+        ax = 0 if w >= h else 1
+        lo, hi = (x0, x1) if ax == 0 else (z0, z1)
+        for _try in range(40):
+            s = round((lo + (hi - lo) * nr_.uniform(0.3, 0.7)) / 0.3) * 0.3
+            if all(abs(s - (bx if ax == 0 else bz)) > br + 0.5 for (bx, bz, br, k_) in BLOCKERS
+                   if x0 - br < bx < x1 + br and z0 - br < bz < z1 + br):
+                break
+        else:
+            LOTS_N.append((x0, z0, x1, z1))
+            return
+        if ax == 0:
+            CUTS.append([(s, z0), (s, z1)])
+            _cutn(x0, z0, s, z1, depth + 1)
+            _cutn(s, z0, x1, z1, depth + 1)
+        else:
+            CUTS.append([(x0, s), (x1, s)])
+            _cutn(x0, z0, x1, s, depth + 1)
+            _cutn(x0, s, x1, z1, depth + 1)
+
+    _cutn(-21.0, -13.2, 19.2, 13.2)
+    lk = np.zeros(X.shape, np.int8)
+    pid = np.zeros(X.shape, np.float32)
+    kinds_ = []
+    for (x0, z0, x1, z1) in LOTS_N:
+        sel = (X >= x0) & (X < x1) & (Z >= z0) & (Z < z1)
+        kd = int(nr_.choice([0, 1, 2, 3, 4], p=[0.14, 0.3, 0.2, 0.14, 0.22]))
+        if kd == 3 and min(x1 - x0, z1 - z0) < 2.2:
+            kd = 1
+        kinds_.append(kd)
+        lk[sel] = kd
+        pid[sel] = nr_.random()
+    # the plazas kept for the kit: hex tiles in a steel border
+    PLZ = [(-11.0, -2.6, 3.0, 1.2), (-13.2, 5.6, 1.4, 2.4), (13.2, 4.3, 1.4, 2.3), (-0.6, -6.6, 2.4, 1.2)]
+    pz_d = np.full(HX.shape, 9.0, np.float32)
+    pzm = np.full(X.shape, 9.0)
+    for (cx, cz, hw, hh) in PLZ:
+        sub = (np.abs(X - cx) < hw) & (np.abs(Z - cz) < hh)
+        if ped[sub].min() < 0.7 or BLK_ANY[sub].min() < 0.25:
+            log("neon: plaza too close to a road or a zone", (cx, cz), round(float(ped[sub].min()), 2), round(float(BLK_ANY[sub].min()), 2))
+        pz_d = np.minimum(pz_d, _rr_h(cx, cz, hw, hh, 0.25))
+        pzm = np.minimum(pzm, _rrect(cx, cz, hw, hh, 0.25))
+        LANDMARKS.append(("hex plaza", cx, cz, "%.1f x %.1f" % (2 * hw, 2 * hh)))
+    HD["pz_d"] = pz_d
+    SW = 0.65
+    blockm = (ped > SW).astype(float)
+    nonpl = blockm * (pzm > 0)
+    for k_, nm in enumerate(("l_hex", "l_grid", "l_deck", "l_park", "l_paver")):
+        IND[nm] = (lk == k_) * nonpl
+    IND["pid"] = pid
+    # hex tiles everywhere (the material shows them on the plazas): flat-topped, 0.26 across the corners
+    s_ = 0.15
+    q_ = (2.0 / 3.0 * HX) / s_
+    r_ = (-1.0 / 3.0 * HX + math.sqrt(3) / 3.0 * HZ) / s_
+    cx_, cz_, cy_ = np.round(q_), np.round(r_), np.round(-q_ - r_)
+    dx_, dz_, dy_ = np.abs(cx_ - q_), np.abs(cz_ - r_), np.abs(cy_ + q_ + r_)
+    fx_ = (dx_ > dz_) & (dx_ > dy_)
+    fz_ = ~fx_ & (dz_ > dy_)
+    cx_ = np.where(fx_, -cz_ - cy_, cx_)
+    cz_ = np.where(fz_, -cx_ - cy_, cz_)
+    hx_c, hz_c = s_ * 1.5 * cx_, s_ * math.sqrt(3) * (cz_ + cx_ / 2)
+    ux_, uz_ = np.abs(HX - hx_c), np.abs(HZ - hz_c)
+    HD["hx_e"] = (s_ * math.sqrt(3) / 2 - np.maximum(uz_, ux_ * math.sqrt(3) / 2 + uz_ / 2)).astype(np.float32)
+    HD["hx_id"] = (np.abs(np.sin(cx_ * 12.9898 + cz_ * 78.233) * 43758.5453) % 1.0).astype(np.float32)
+    del q_, r_, cx_, cz_, cy_, dx_, dz_, dy_, fx_, fz_, hx_c, hz_c, ux_, uz_
+    # pylon bases: steel hexagons (pointy side to the road), scorched round
+    PYL = [(bx, bz, br) for (bx, bz, br, k_) in BLOCKERS if k_ == "pylon"]
+    py_d = np.full(HX.shape, 9.0, np.float32)
+    py_r = np.full(HX.shape, 9.0, np.float32)
+    py_a = np.zeros(HX.shape, np.float32)
+    scorch = np.zeros(X.shape)
+    CONDUITS = []
+    for (bx, bz, br) in PYL:
+        Rb = br * 0.86
+        ux_, uz_ = np.abs(HX - bx), np.abs(HZ - bz)
+        hexd = np.maximum(uz_, ux_ * math.sqrt(3) / 2 + uz_ / 2) - Rb * math.sqrt(3) / 2
+        rr_ = np.hypot(HX - bx, HZ - bz) / Rb
+        py_a = np.where(rr_ < py_r, np.arctan2(HZ - bz, HX - bx) / (2 * math.pi) + 0.5, py_a)
+        py_r = np.minimum(py_r, rr_)
+        py_d = np.minimum(py_d, hexd)
+        d_ = np.hypot(X - bx, Z - bz) + (fbm(0.5, 2, int(abs(bx * 7 + bz * 13)) % 997 + 700) - 0.5) * 0.35
+        scorch = np.maximum(scorch, _scorch(bx, bz, Rb * 1.0, d_, nr_))
+        a0 = nr_.uniform(0, 2 * math.pi)
+        n_c = 0
+        for k_ in range(12):
+            a_ = a0 + k_ * 2 * math.pi / 12
+            p0 = (bx + math.cos(a_) * Rb * 0.9, bz + math.sin(a_) * Rb * 0.9)
+            p1 = (bx + math.cos(a_) * (Rb + 1.5), bz + math.sin(a_) * (Rb + 1.5))
+            if _at(ped, p1[0], p1[1]) > 0.75 and _at(ped, (p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2) > 0.75 and n_c < 3 and \
+                    all(abs(math.remainder(a_ - c_[2], 2 * math.pi)) > 1.4 for c_ in CONDUITS if c_[3] == (bx, bz)):
+                CONDUITS.append((p0, p1, a_, (bx, bz)))
+                n_c += 1
+        LANDMARKS.append(("pylon base (hexagon)", bx, bz, "r %.2f" % Rb))
+    HD["py_d"], HD["py_r"], HD["py_a"] = py_d, py_r, py_a
+    IND["scorch"] = scorch * (_down(py_d) > 0.0)
+    # data pits: a shaft (the material lights its rim from inside), a steel rim, a hazard ring
+    PIT = [(bx, bz, br * 0.78) for (bx, bz, br, k_) in BLOCKERS if k_ == "pit"]
+    pt_r = np.full(HX.shape, 9.0, np.float32)
+    pt_a = np.zeros(HX.shape, np.float32)
+    for (bx, bz, R) in PIT:
+        d_ = np.hypot(HX - bx, HZ - bz) / R
+        pt_a = np.where(d_ < pt_r, np.arctan2(HZ - bz, HX - bx) / (2 * math.pi) + 0.5, pt_a)
+        pt_r = np.minimum(pt_r, d_)
+        LANDMARKS.append(("data pit (shaft r, rim to 1.3 r)", bx, bz, "r %.2f" % R))
+    HD["pt_r"], HD["pt_a"] = pt_r, pt_a
+    ptm = np.full(X.shape, 9.0)
+    for (bx, bz, R) in PIT:
+        ptm = np.minimum(ptm, np.hypot(X - bx, Z - bz) / R)
+    # paint: road lines (cyan edges, magenta centre dashes, the data lanes' inner cyan lines and seams, cyan zebras),
+    # grates in the sidewalks, the lots' borders (a dark band, now and then a neon line in it), the grid slabs' cyan
+    # grid, the parking bays' magenta lines, the pylons' conduits
+    nogate = lambda x, z: _smp(gate_m, x, z) > 0.2
+    road_line("c", HALF - 0.1, 0.045, skip=nogate)
+    road_line("c", -(HALF - 0.1), 0.045, skip=nogate)
+    road_line("m", 0.0, 0.06, 0.55, 0.45, skip=lambda x, z: (_smp(bus, x, z) > 0.3) | nogate(x, z))
+    for sg in (-1, 1):
+        road_line("c", sg * (HALF - 0.2), 0.025, skip=lambda x, z: (_smp(bus, x, z) < 0.5) | nogate(x, z))
+    XW = []
+    for li, (P, T, S_) in enumerate(RS):
+        for s_ in np.arange(4.2, S_[-1] - 2.0, 7.3):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i] or not _in_tex(P[i, 0], P[i, 1], 3.0):
+                continue
+            j0, j1 = max(0, i - 25), min(len(P) - 1, i + 25)
+            if abs(T[j0] @ T[j1]) < 0.995 or np.any(_on_other(P[j0:j1:5], T[j0:j1:5], li, S_[j0:j1:5], HALF + 0.8)):
+                continue
+            if _smp(bus, P[i, 0], P[i, 1]) > 0.3 or any(math.hypot(P[i, 0] - gx, P[i, 1] - gz) < 2.0 for gx, gz, _h, _k in GATES):
+                continue
+            if any(math.hypot(P[i, 0] - a_, P[i, 1] - b_) < 3.0 for a_, b_, _c in XW):
+                continue
+            XW.append((P[i, 0], P[i, 1], math.atan2(T[i, 1], T[i, 0])))
+    for (cx, cz, a_) in XW:
+        zebra(cx, cz, a_, L=0.5, bar=0.1, gap=0.1, half=HALF - 0.16, ch="c")
+    for li, (P, T, S_) in enumerate(RS):                               # grates in the sidewalks
+        for s_ in np.arange(1.3, S_[-1] - 0.5, 2.7):
+            i = int(s_ / 0.03)
+            if i >= len(P) or DUP[li][i]:
+                continue
+            for sg in (-1, 1):
+                q = P[i] + np.array([-T[i, 1], T[i, 0]]) * (HALF + 0.38) * sg
+                if not _in_tex(q[0], q[1], 0.5) or _at(ped, q[0], q[1]) < 0.3 or _at(ped, q[0], q[1]) > 0.46 or _at(gate_m, q[0], q[1]) > 0:
+                    continue
+                a_ = math.atan2(T[i, 1], T[i, 0])
+                PAINT.rect("k", q[0], q[1], 0.42, 0.24, a_, 230)
+                for k in range(7):
+                    PAINT.rect("w", q[0] + math.cos(a_) * (k - 3) * 0.055, q[1] + math.sin(a_) * (k - 3) * 0.055, 0.018, 0.17, a_, 70)
+    # (the lots' layer, under the sidewalks and the streets: "g" the borders' dark steel bands, "y" cyan and "r" magenta
+    # lines in it; the streets' own lines are "c" and "m")
+    for (a_, b_) in CUTS:                                               # the lots' borders
+        PAINT.seg("g", a_, b_, 0.1, 210)
+        if nr_.random() < 0.4:
+            PAINT.seg("r" if nr_.random() < 0.5 else "y", a_, b_, 0.022)
+    for i, (x0, z0, x1, z1) in enumerate(LOTS_N):
+        if kinds_[i] == 1:                                              # the grid slabs: cyan lines every 1.2
+            for x_ in np.arange(math.ceil((x0 + 0.1) / 1.2) * 1.2, x1 - 0.1, 1.2):
+                PAINT.seg("y", (x_, z0 + 0.06), (x_, z1 - 0.06), 0.02, 200)
+            for z_ in np.arange(math.ceil((z0 + 0.1) / 1.2) * 1.2, z1 - 0.1, 1.2):
+                PAINT.seg("y", (x0 + 0.06, z_), (x1 - 0.06, z_), 0.02, 200)
+        if kinds_[i] == 3:                                              # parking: magenta bays along both sides
+            x0, z0, x1, z1 = x0 + 0.25, z0 + 0.25, x1 - 0.25, z1 - 0.25
+            along_x = (x1 - x0) >= (z1 - z0)
+            a0, a1, b0, b1 = (x0, x1, z0, z1) if along_x else (z0, z1, x0, x1)
+            rows = [(b0, 1), (b1, -1)] if b1 - b0 > 2.3 else [(b0, 1)]
+            for b_, sg in rows:
+                n_ = int((a1 - a0) / 0.55)
+                for k in range(n_ + 1):
+                    a_ = a0 + k * 0.55
+                    p0, p1 = (a_, b_), (a_, b_ + sg * 0.9)
+                    PAINT.seg("r", p0 if along_x else p0[::-1], p1 if along_x else p1[::-1], 0.03, 220)
+    for (p0, p1, a_, _b) in CONDUITS:
+        PAINT.seg("g", p0, p1, 0.13, 230)
+        PAINT.seg("r", p0, p1, 0.045)
+        PAINT.rect("g", p1[0], p1[1], 0.2, 0.2, a_, 240)
+        PAINT.rect("r", p1[0], p1[1], 0.08, 0.08, a_)
+    # wet: puddles (on the streets more than off them), grime
+    pn = fbm(0.9, 3, 641) + (fbm(0.22, 2, 642) - 0.5) * 0.08
+    IND["pud"] = np.clip((np.quantile(pn, 0.12) - pn) / 0.02, 0, 1) * (ptm > 1.4) * (_down(py_d) > 0.1)
+    IND["grime"] = np.clip((fbm(0.8, 4, 643) - 0.45) / 0.25, 0, 1)
+    log("neon: lots", len(LOTS_N), "by kind", np.bincount(kinds_, minlength=5).tolist(), "crossings", len(XW), "conduits", len(CONDUITS))
+if MOD_T or DIG_T:
     PNT = PAINT.arrays()
     log("paint", {k_: round(float(v_.mean()), 4) for k_, v_ in PNT.items()})
+if DIG_T:
+    if THEME == "neon":
+        # the neon's glow on the wet ground: each light's halo, and a longer smear toward the camera (its reflection)
+        _p = HD["ped"]
+        _src_c = np.maximum.reduce([PNT["c"], np.clip(1 - np.abs(_p - 0.05) / 0.016, 0, 1) * (gt_r > 1.0),
+                                    np.clip((HD["pt_r"] - 0.78) / 0.12, 0, 1) * (HD["pt_r"] < 1.0)])
+        _src_m = np.maximum(PNT["m"], np.clip(1 - np.abs(_p - (SW - 0.02)) / 0.016, 0, 1) * (HD["pz_d"] > 0))
+        for nm_, src_ in (("hc", _src_c), ("hm", _src_m)):
+            near_ = gaussian_filter(src_, 0.07 * HPX)
+            far_ = gaussian_filter(src_, (0.42 * HPX, 0.14 * HPX))
+            HD[nm_] = np.clip(near_ * 3.2 + far_ * 4.5, 0, 1).astype(np.float32)
+        del _src_c, _src_m, near_, far_
+        log("glow", {k_: round(float(HD[k_].mean()), 4) for k_ in ("hc", "hm")})
+    PNT.update(HD)
+    for (what_, x_, z_, size_) in LANDMARKS:
+        log("landmark: %s at (%.2f, %.2f), %s" % (what_, x_, z_, size_))
 if arg("--maskdump"):                    # quick look at the masks (no render): python3 map_ground_hq.py MAP --maskdump DIR
     from PIL import Image as _Im
     os.makedirs(arg("--maskdump"), exist_ok=True)
-    _extra = [("paint_" + k_, v_) for k_, v_ in PNT.items()] if MOD_T else []
+    _extra = [("paint_" + k_, v_) for k_, v_ in PNT.items()] if (MOD_T or DIG_T) else []
     for k_, v_ in list(IND.items()) + [("road", road), ("tk_d", np.clip(1 - tk_d / 2, 0, 1)), ("outside", outside)] + _extra:
         v_ = np.asarray(v_, np.float64)
         if v_.max() > 1.01 or v_.min() < -0.01:
             v_ = (v_ - v_.min()) / max(1e-6, v_.max() - v_.min())
         _Im.fromarray((np.clip(v_, 0, 1) * 255).astype(np.uint8)).save(os.path.join(arg("--maskdump"), k_ + ".png"))
+    if DIG_T:                            # (the raw fields, a quarter of the render's resolution)
+        np.savez_compressed(os.path.join(arg("--maskdump"), "fields.npz"), **{k_: np.asarray(v_, np.float32)[::4, ::4] for k_, v_ in PNT.items()})
     log("masks dumped ->", arg("--maskdump"))
     sys.exit(0)
 if arg("--watersrc") and THEME in ("highland", "bog", "coast", "harbor", "smog", "suburb"):
@@ -1797,6 +2524,29 @@ if THEME == "suburb":                    # gently rolling lawns; the streets a k
     hf = (fbm(1.8, 4, 511) - 0.5) * 0.06 * lawny + (fbm(0.4, 2, 512) - 0.5) * 0.006 - pav_ * 0.034
     hf += IND["fbed"] * 0.012 - IND["play"] * 0.004 - IND["sand"] * 0.008
     hf = np.where(IND["water"] > 0.5, -0.09, hf) + IND["coping"] * 0.008
+if THEME == "lab":                       # a flat hall floor: the plinths raised, the grates and the drain sunk
+    hf = (fbm(1.6, 3, 601) - 0.5) * 0.004
+    hf += np.clip(-_down(HD["pl_d"]) / 0.02, 0, 1) * 0.035
+    tkr_ = _down(HD["tk_r"])
+    hf += (tkr_ < 1.0) * 0.012 - (tkr_ < 0.18) * 0.012
+    hf -= np.clip(-_down(HD["gr_d"]) / 0.02, 0, 1) * 0.012 + np.clip(-_down(HD["tr_d"]) / 0.02, 0, 1) * 0.003
+    hf += gate_m * 0.006
+if THEME == "satellite":                 # rolling sand; the roads cut in a little, a berm of loose gravel each side; the pads
+    pe_ = np.clip((ped - 0.3) / 1.2, 0, 1)
+    hf = (fbm(2.0, 4, 611) - 0.5) * 0.11 * pe_ + (fbm(0.5, 2, 612) - 0.5) * 0.018 * pe_ + (fbm(0.25, 2, 613) - 0.5) * 0.006
+    hf -= road * 0.028 + rut * 0.012
+    hf += IND["berm"] * 0.014 + IND["drift"] * road * 0.01
+    hs_ = gaussian_filter(hf, 1.6 * MPX)                         # (the pads sit level on the ground round them)
+    for (n_, h_) in (("pd_r", 0.04), ("gb_d", 0.012), ("ap_d", 0.022), ("mp_d", 0.03)):
+        m_ = np.clip((1.0 - _down(HD["pd_r"])) * 30, 0, 1) if n_ == "pd_r" else np.clip(-_down(HD[n_]) / 0.03, 0, 1)
+        hf = hf * (1 - m_) + m_ * (hs_ + h_)
+    hf -= np.clip(-_down(HD["sp_d"]) / 0.03, 0, 1) * 0.008
+    hf += IND["trn"] * 0.004
+if THEME == "neon":                      # flat: the streets a kerb's height down, the pylons' bases up, the pits' shafts
+    hf = (fbm(1.6, 3, 641) - 0.5) * 0.006 - road * 0.035 - IND["pud"] * 0.003
+    hf += np.clip(-_down(HD["pz_d"]) / 0.03, 0, 1) * 0.008 + np.clip(-_down(HD["py_d"]) / 0.03, 0, 1) * 0.04
+    ptr_ = _down(HD["pt_r"])
+    hf = np.where(ptr_ < 1.0, -0.3, hf) + ((ptr_ >= 1.0) & (ptr_ < 1.16)) * 0.015
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
 H_MESH = sample(hf, MX, MZ)
@@ -1882,9 +2632,19 @@ INDN = {"factory": ["flags", "cobble", "plates", "puddle", "rust", "slag", "apro
         "metro": ["l_tile", "l_conc", "l_brick", "l_lot", "l_lawn", "l_slate", "pid", "lotb", "plinth", "beds", "bedk", "plaza",
                   "pl_r", "pl_a", "planter", "side", "kerb", "tbl", "bus", "pit", "mh", "oil", "grime", "lpath"],
         "suburb": ["water", "wline", "coping", "deck", "pdepth", "play", "playb", "sand", "drive", "gpath", "side", "kerb", "cul",
-                   "fbed", "lawn", "mca", "msa", "lshade", "bus", "veg", "pk_r"]}.get(THEME, [])
+                   "fbed", "lawn", "mca", "msa", "lshade", "bus", "veg", "pk_r"],
+        "lab": ["b_tile", "b_raised", "b_esd", "bid", "frost", "scuff"],
+        "satellite": ["pave", "cal", "drift", "berm", "stain", "trn"],
+        "neon": ["l_hex", "l_grid", "l_deck", "l_park", "l_paver", "pid", "pud", "scorch", "grime"]}.get(THEME, [])
 IND_IMGS = []
-img_paint = to_image("paint", np.stack([PNT["w"], PNT["y"], PNT["r"], PNT["k"]], 2)) if MOD_T else None
+PNT_IMGS = []                            # the paint and (Digital) the hi-res fields, four to an image
+if MOD_T or DIG_T:
+    _pn = list(PNT.keys())
+    for k_ in range(0, len(_pn), 4):
+        grp = _pn[k_:k_ + 4]
+        PNT_IMGS.append((grp, to_image("paint%d" % k_, np.stack([np.asarray(PNT[n_], np.float32) for n_ in grp] +
+                                                                  [np.zeros(PNT[grp[0]].shape, np.float32)] * (4 - len(grp)), 2))))
+    log("paint images", len(PNT_IMGS), PNT_IMGS[0][1].size[:])
 for k_ in range(0, len(INDN), 4):
     grp = INDN[k_:k_ + 4]
     IND_IMGS.append((grp, to_image("ind%d" % k_, np.stack([np.asarray(IND[n_], np.float64) for n_ in grp] +
@@ -2068,8 +2828,12 @@ if IND_T:
     for grp, im_ in IND_IMGS:
         for n_, o_ in zip(grp, nb.tex(im_)):
             I[n_] = o_
-    if MOD_T:
-        pw_m, py_m, pr_m, pk_m = nb.tex(img_paint)
+    Pn = {}
+    for grp, im_ in PNT_IMGS:
+        for n_, o_ in zip(grp, nb.tex(im_)):
+            Pn[n_] = o_
+    if MOD_T or DIG_T:
+        pw_m, py_m, pr_m, pk_m = Pn["w"], Pn["y"], Pn["r"], Pn["k"]
 big = nb.noise(0.35, 4, 0.6)
 mid = nb.noise(1.6, 4, 0.6)
 fine = nb.noise(14.0, 2, 0.5)
@@ -2858,7 +3622,7 @@ elif THEME == "smog":
                                      nb.math("ADD", nb.math("MULTIPLY", I["y_cobble"], nb.ramp(cbd, 0.0, 0.07)),
                                              nb.math("MULTIPLY", I["y_quay"], nb.math("SUBTRACT", 1.0, qj))))))
     bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", pmask, wmask)))
-elif MOD_T:
+elif MOD_T or DIG_T:
     obj = nb.uvn.outputs["Object"]
     ox_, oy_ = nb.xyz()
 
@@ -3028,7 +3792,7 @@ elif MOD_T:
                                  nb.math("ADD", nb.math("MULTIPLY", I["plaza"], nb.math("SUBTRACT", 1.0, qj)),
                                          nb.math("ADD", nb.math("MULTIPLY", I["tbl"], nb.math("SUBTRACT", 1.0, hj)),
                                                  nb.math("MULTIPLY", road_m, nb.math("SUBTRACT", 0.0, seal))))))
-    else:   # suburb
+    elif THEME == "suburb":
         # an American suburb: lawns mown in stripes, flower beds of bark mulch, concrete sidewalks, kerbs, driveways and
         # garden paths of flagstones; asphalt streets with tar-sealed cracks; travertine pool decks round a tiled coping
         # and turquoise water (its floor shallow to deep, caustics on it); the park's playground of rubber safety
@@ -3095,6 +3859,331 @@ elif MOD_T:
                          nb.math("ADD", nb.math("MULTIPLY", I["gpath"], nb.ramp(fl_, 0.0, 0.05)),
                                  nb.math("MULTIPLY", nb.math("MAXIMUM", road_m, I["cul"]), nb.math("SUBTRACT", 0.0, seal))))
         bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, wm))
+    elif DIG_T:
+        # (the Digital Age: shapes from the hi-res fields in Pn, edges antialiased over about a render pixel)
+        ped_ = Pn["ped"]
+        AA = 0.008
+        ins = lambda d_, aa=AA: nb.ramp(d_, aa, -aa)
+
+        def band(x, a, b, aa=AA):
+            return nb.math("MULTIPLY", nb.ramp(x, a - aa, a + aa), nb.ramp(x, b + aa, b - aa))
+
+        def ring_dots(t, a, R, t0, n, r):
+            """n bolts round a ring at t0 of a disc of radius R (t: distance / R, a: angle / 2pi + 0.5)."""
+            du = nb.math("MULTIPLY", nb.math("SUBTRACT", t, t0), R)
+            dv = nb.math("MULTIPLY", nb.seam(a, 1.0 / n), 2 * math.pi * R * t0)
+            return nb.ramp(nb.math("SQRT", nb.math("ADD", nb.math("MULTIPLY", du, du), nb.math("MULTIPLY", dv, dv))), r, r * 0.6)
+
+        def stripes(c0, c1, period=0.22):
+            st = nb.ramp(nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 2 * math.pi / period)), -0.1, 0.1)
+            return nb.mix(st, c0, c1)
+
+        tread = nb.ramp(nb.math("ABSOLUTE", nb.math("MULTIPLY", nb.math("SINE", nb.math("MULTIPLY", nb.math("ADD", ox_, oy_), 60.0)),
+                                                         nb.math("SINE", nb.math("MULTIPLY", nb.math("SUBTRACT", ox_, oy_), 60.0)))), 0.7, 0.95)
+        em = nb.rgb((0.0, 0.0, 0.0))
+        GIN, GOUT = (0.75, 0.3, 1.0), (0.25, 0.9, 1.0)
+
+        def gate_plate(c_, em_, base, rim):
+            """The rift ends' plates: concentric grooves, a ring lit in the rift's colour, a bright rim."""
+            t = Pn["gt_r"]
+            colg = nb.mix(Pn["gt_k"], GIN, GOUT)
+            pl = nb.mix(nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", t, 7.0)), 0.5)), 0.08, 0.14),
+                        tuple(v * 0.6 for v in base), base)
+            pl = nb.mix(band(t, 0.9, 1.0, 0.01), pl, rim)
+            lit = band(t, 0.7, 0.8, 0.01)
+            pl = nb.mix(lit, pl, colg)
+            on = ins(nb.math("SUBTRACT", t, 1.0), 0.01)
+            return nb.mix(on, c_, pl), nb.mix(nb.math("MULTIPLY", lit, on), nb.mix(on, em_, (0.0, 0.0, 0.0)), colg)
+
+        if THEME == "lab":
+            # a cleanroom hall, lit indoors: bays of white epoxy, anti-static tile (conductive chips, fine seams), raised
+            # floor (vent panels among the plain ones) and blue ESD epoxy between yellow safety lines; equipment bays of
+            # dark tile; bar grates; checker-plate trench covers; steel plinths with hazard borders; drain pads ringed
+            # with frost; green walkways; the robots' tracks: dark graphite with anti-slip grit and fine ribs, worn paler
+            # where the wheels run, a steel edge, a hazard-striped border, blue-lit decontamination grilles
+            YEL = (0.96, 0.76, 0.1)
+            hazc = stripes((0.07, 0.07, 0.075), (0.96, 0.74, 0.08))
+            sx_, sy_ = nb.seam(ox_, 0.6), nb.seam(oy_, 0.6)
+            c = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.85, 0.86, 0.87), (0.91, 0.915, 0.92))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.55, 0.75), 0.3), c, (0.8, 0.81, 0.82))
+            scuff = nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(ox_, nb.math("MULTIPLY", oy_, 7.0)), 2.5, 3, 0.6), 0.68, 0.78), I["scuff"])
+            c = nb.mix(nb.math("MULTIPLY", scuff, 0.35), c, (0.7, 0.71, 0.72))
+            tj, tr_ = nb.brick(obj, 0.6, 0.6, 0.004, 0.1, offset=0.0, freq=1)
+            chips = nb.ramp(nb.noise(110.0, 1, 0.5), 0.73, 0.77)
+            tc = nb.mix(tr_, (0.79, 0.8, 0.81), (0.86, 0.865, 0.87))
+            tc = nb.mix(nb.math("MULTIPLY", chips, 0.55), tc, (0.4, 0.41, 0.43))
+            tc = nb.mix(tj, tc, (0.56, 0.57, 0.59))
+            c = nb.mix(I["b_tile"], c, tc)
+            rj, rr_ = nb.brick(obj, 0.6, 0.6, 0.008, 0.1, offset=0.0, freq=1)
+            rc = nb.mix(rr_, (0.75, 0.76, 0.775), (0.81, 0.82, 0.83))
+            vent = nb.math("MULTIPLY", nb.ramp(rr_, 0.87, 0.89), nb.ramp(nb.math("MINIMUM", sx_, sy_), 0.045, 0.055))
+            holes = nb.dots(ox_, oy_, 0.045, 0.045, 0.0225, 0.012)
+            rc = nb.mix(vent, rc, nb.mix(holes, (0.62, 0.64, 0.66), (0.17, 0.18, 0.21)))
+            rc = nb.mix(rj, rc, (0.4, 0.41, 0.43))
+            c = nb.mix(I["b_raised"], c, rc)
+            ec = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.6, 0.68, 0.77), (0.66, 0.73, 0.82))
+            ec = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(80.0, 1, 0.5), 0.72, 0.77), 0.5), ec, (0.84, 0.88, 0.92))
+            c = nb.mix(I["b_esd"], c, ec)
+            c = nb.mix(py_m, c, YEL)                                                                     # the bays' lines
+            eqd = Pn["eq_d"]
+            eqc = nb.mix(tr_, (0.5, 0.52, 0.56), (0.56, 0.58, 0.62))
+            eqc = nb.mix(nb.math("MULTIPLY", chips, 0.4), eqc, (0.32, 0.33, 0.36))
+            eqc = nb.mix(tj, eqc, (0.38, 0.39, 0.42))
+            c = nb.mix(ins(eqd), c, eqc)
+            gd = Pn["gr_d"]
+            bars = nb.ramp(nb.seam(oy_, 0.034), 0.009, 0.005)
+            grc = nb.mix(bars, (0.13, 0.14, 0.16), (0.62, 0.64, 0.67))
+            grc = nb.mix(nb.ramp(gd, -0.05, -0.04), grc, (0.56, 0.58, 0.61))
+            grc = nb.mix(band(gd, -0.014, 0.0), grc, (0.32, 0.33, 0.35))
+            c = nb.mix(ins(gd), c, grc)
+            trd, tru = Pn["tr_d"], Pn["tr_u"]
+            trc = nb.mix(nb.math("MULTIPLY", tread, 0.45), (0.58, 0.6, 0.63), (0.73, 0.75, 0.78))
+            slot = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("ADD", tru, 0.3), 0.6), 0.04, 0.03), nb.ramp(trd, -0.13, -0.14))
+            trc = nb.mix(slot, trc, (0.15, 0.15, 0.17))
+            trc = nb.mix(nb.ramp(nb.seam(tru, 0.6), 0.009, 0.004), trc, (0.22, 0.22, 0.24))
+            trc = nb.mix(band(trd, -0.03, 0.0), trc, (0.47, 0.49, 0.52))
+            c = nb.mix(ins(trd), c, trc)
+            pld = Pn["pl_d"]
+            pj, prd = nb.brick(obj, 0.6, 0.6, 0.006, 0.1, offset=0.0, freq=1)
+            plc = nb.mix(prd, (0.37, 0.39, 0.43), (0.45, 0.47, 0.51))
+            plc = nb.mix(nb.math("MULTIPLY", tread, 0.3), plc, (0.56, 0.58, 0.61))
+            plc = nb.mix(pj, plc, (0.2, 0.21, 0.23))
+            plc = nb.mix(nb.dots(ox_, oy_, 0.6, 0.6, 0.06, 0.018), plc, (0.7, 0.72, 0.74))
+            plc = nb.mix(band(pld, -0.25, -0.09), plc, hazc)
+            plc = nb.mix(band(pld, -0.03, 0.0), plc, (0.64, 0.66, 0.7))
+            c = nb.mix(ins(pld), c, plc)
+            tk, ta = Pn["tk_r"], Pn["tk_a"]
+            pdc = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.6, 0.63, 0.67), (0.68, 0.71, 0.75))
+            pdc = nb.mix(nb.math("MAXIMUM", band(tk, 0.39, 0.41, 0.006), band(tk, 0.69, 0.71, 0.006)), pdc, (0.34, 0.36, 0.4))
+            drn = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", tk, 45.0)), 0.5)), 0.2, 0.3)
+            pdc = nb.mix(nb.ramp(tk, 0.2, 0.19), pdc, nb.mix(drn, (0.08, 0.09, 0.1), (0.5, 0.52, 0.56)))
+            pdc = nb.mix(band(tk, 0.94, 1.0, 0.006), pdc, (0.48, 0.5, 0.54))
+            pdc = nb.mix(ring_dots(tk, ta, 1.2, 0.86, 16, 0.03), pdc, (0.78, 0.8, 0.83))
+            c = nb.mix(ins(nb.math("SUBTRACT", tk, 1.0), 0.006), c, pdc)
+            cry = nb.ramp(nb.voronoi(24.0, "Distance", "DISTANCE_TO_EDGE"), 0.035, 0.0)
+            frc = nb.mix(cry, (0.8, 0.88, 0.96), (0.98, 0.99, 1.0))
+            fr = nb.math("MULTIPLY", nb.ramp(I["frost"], 0.0, 0.8), nb.ramp(nb.noise(9.0, 3, 0.6), 0.25, 0.5))
+            c = nb.mix(nb.math("MULTIPLY", fr, 0.95), c, frc)
+            wkc = nb.mix(nb.ramp(nb.noise(4.0, 3, 0.6), 0.3, 0.7), (0.21, 0.55, 0.35), (0.26, 0.62, 0.41))
+            c = nb.mix(Pn["g"], c, wkc)
+            tkc = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.2, 0.21, 0.23), (0.25, 0.26, 0.28))
+            tkc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(120.0, 1, 0.5), 0.7, 0.75), 0.5), tkc, (0.38, 0.39, 0.42))
+            tkc = nb.mix(nb.math("MULTIPLY", rut_m, 0.3), tkc, (0.31, 0.32, 0.34))
+            rib = nb.ramp(nb.seam(ral, 0.15), 0.008, 0.003)
+            tkc = nb.mix(nb.math("MULTIPLY", rib, 0.6), tkc, (0.13, 0.135, 0.15))
+            gb = nb.ramp(nb.seam(ral, 0.05), 0.013, 0.008)
+            slc = nb.mix(gb, (0.5, 0.68, 0.88), (0.6, 0.62, 0.66))
+            slc = nb.mix(nb.ramp(nb.seam(rsd, 0.42), 0.012, 0.006), slc, (0.42, 0.44, 0.48))
+            tkc = nb.mix(Pn["sl"], tkc, slc)
+            tkc = nb.mix(band(ped_, -0.075, 0.0), tkc, (0.66, 0.68, 0.72))
+            tkc = nb.mix(band(ped_, -0.088, -0.072, 0.004), tkc, (0.1, 0.1, 0.11))
+            c = nb.mix(ins(ped_), c, tkc)
+            c = nb.mix(nb.math("MAXIMUM", band(ped_, 0.0, 0.15), Pn["hz"]), c, hazc)
+            c = nb.mix(pr_m, c, YEL)
+            c = nb.mix(pw_m, c, (0.95, 0.95, 0.94))
+            c = nb.mix(pk_m, c, (0.05, 0.05, 0.06))
+            c, em = gate_plate(c, em, (0.42, 0.44, 0.48), (0.7, 0.72, 0.76))
+            stl = nb.math("MAXIMUM", ins(pld), nb.math("MAXIMUM", ins(trd), ins(gd)))
+            rough = nb.mixf(stl, nb.mixf(ins(ped_), 0.5, 0.75), 0.38)
+            bump_h = nb.math("ADD", nb.math("MULTIPLY", I["b_tile"], nb.math("SUBTRACT", 0.0, tj)),
+                             nb.math("ADD", nb.math("MULTIPLY", I["b_raised"], nb.math("SUBTRACT", 0.0, nb.math("MAXIMUM", rj, nb.math("MULTIPLY", vent, holes)))),
+                                     nb.math("ADD", nb.math("MULTIPLY", ins(gd), bars),
+                                             nb.math("MULTIPLY", nb.math("MAXIMUM", ins(trd), ins(pld)), nb.math("MULTIPLY", tread, 0.4)))))
+        elif THEME == "satellite":
+            # a high desert at night (kept light enough to read): red-brown sand in wind ripples, dark desert pavement,
+            # pale caliche; packed gravel roads with tyre ruts and tread marks, a loose berm each side, a worn white edge
+            # line, sand drifting over; concrete dish foundations (grout ring, joints, a ring of anchor bolts); gravel
+            # beds with a curb, footings, trench lids; the compound's concrete slabs, parking lines, a hatched box
+            rip = nb.n("ShaderNodeTexWave", wave_type="BANDS", bands_direction="DIAGONAL")
+            rip.inputs["Scale"].default_value = 2.2
+            rip.inputs["Distortion"].default_value = 7.0
+            rip.inputs["Detail"].default_value = 3.0
+            nb.link(nb.uvn.outputs["Object"], rip.inputs["Vector"])
+            rp_ = rip.outputs["Fac"]
+            c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.5, 0.3, 0.2), (0.6, 0.38, 0.25))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.75), 0.45), c, (0.66, 0.46, 0.31))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.36, 0.24), 0.4), c, (0.42, 0.24, 0.16))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.55, 0.85), 0.17), c, (0.42, 0.25, 0.16))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(rp_, 0.15, 0.0), 0.12), c, (0.7, 0.49, 0.33))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(45.0, "Distance"), 0.2, 0.08), 0.28), c, (0.3, 0.18, 0.12))
+            pvc = nb.mix(nb.ramp(nb.voronoi(22.0, "Color"), 0.2, 0.8), (0.2, 0.13, 0.1), (0.42, 0.3, 0.22))
+            pvc = nb.mix(nb.ramp(nb.voronoi(22.0, "Distance", "DISTANCE_TO_EDGE"), 0.05, 0.015), pvc, (0.5, 0.31, 0.21))
+            c = nb.mix(nb.math("MULTIPLY", I["pave"], 0.85), c, pvc)
+            c = nb.mix(nb.math("MULTIPLY", I["cal"], nb.ramp(nb.noise(6.0, 3, 0.6), 0.35, 0.6)), c, (0.72, 0.6, 0.47))
+            c = nb.mix(out_m, c, nb.mix(nb.ramp(mid, 0.3, 0.7), (0.4, 0.24, 0.16), (0.48, 0.3, 0.2)))
+            rdc = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.54, 0.45, 0.36), (0.62, 0.53, 0.43))
+            rdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(40.0, "Distance"), 0.22, 0.08), 0.4), rdc, (0.38, 0.3, 0.24))
+            rdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 1, 0.5), 0.7, 0.75), 0.35), rdc, (0.74, 0.66, 0.56))
+            tyre = nb.ramp(nb.seam(ral, 0.08), 0.016, 0.009)
+            rdc = nb.mix(nb.math("MULTIPLY", rut_m, 0.6), rdc, (0.45, 0.36, 0.29))
+            rdc = nb.mix(nb.math("MULTIPLY", rut_m, nb.math("MULTIPLY", tyre, nb.math("MULTIPLY", nb.ramp(nb.noise(2.0, 2, 0.5), 0.45, 0.65), 0.18))), rdc, (0.38, 0.3, 0.24))
+            spd = Pn["sp_d"]
+            c = nb.mix(ins(spd, 0.012), c, nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(4.0, 3, 0.6), 0.5, 0.7), 0.4), rdc, (0.5, 0.36, 0.26)))
+            berm = nb.mix(nb.ramp(nb.voronoi(30.0, "Distance"), 0.25, 0.1), (0.52, 0.39, 0.29), (0.33, 0.23, 0.17))
+            c = nb.mix(nb.math("MULTIPLY", I["berm"], 0.75), c, berm)
+            c = nb.mix(ins(ped_), c, rdc)
+            wear = nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", nb.ramp(nb.noise(5.0, 3, 0.6), 0.45, 0.75), 0.75))
+            c = nb.mix(nb.math("MULTIPLY", pw_m, wear), c, (0.9, 0.88, 0.82))
+            dc_ = nb.mix(nb.ramp(rp_, 0.3, 0.8), (0.62, 0.41, 0.28), (0.53, 0.33, 0.22))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["drift"], 0.15, 0.7), 0.95), c, dc_)
+            conc = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.6, 0.58, 0.54), (0.68, 0.66, 0.62))
+            conc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(30.0, 2, 0.5), 0.6, 0.72), 0.3), conc, (0.5, 0.48, 0.45))
+            conc = nb.mix(nb.math("MULTIPLY", I["stain"], 0.35), conc, (0.46, 0.4, 0.34))
+            pr_d, pa_d = Pn["pd_r"], Pn["pd_a"]
+            pc = nb.mix(nb.ramp(pr_d, 0.4, 0.38), conc, (0.64, 0.63, 0.6))
+            jt = nb.math("MULTIPLY", nb.ramp(nb.math("MULTIPLY", nb.seam(pa_d, 0.125), nb.math("MULTIPLY", pr_d, 7.5)), 0.012, 0.006),
+                         nb.ramp(pr_d, 0.42, 0.45))
+            pc = nb.mix(nb.math("MAXIMUM", jt, band(pr_d, 0.38, 0.42, 0.006)), pc, (0.36, 0.34, 0.31))
+            pc = nb.mix(band(pr_d, 0.95, 1.0, 0.006), pc, (0.5, 0.48, 0.45))
+            pc = nb.mix(ring_dots(pr_d, pa_d, 1.2, 0.8, 16, 0.05), pc, (0.2, 0.19, 0.18))
+            pc = nb.mix(ring_dots(pr_d, pa_d, 1.2, 0.8, 16, 0.028), pc, (0.62, 0.6, 0.58))
+            c = nb.mix(ins(nb.math("SUBTRACT", pr_d, 1.0), 0.007), c, pc)
+            gbd = Pn["gb_d"]
+            gvc = nb.mix(nb.ramp(nb.voronoi(32.0, "Color"), 0.2, 0.8), (0.52, 0.52, 0.5), (0.7, 0.69, 0.66))
+            gvc = nb.mix(nb.ramp(nb.voronoi(32.0, "Distance", "DISTANCE_TO_EDGE"), 0.05, 0.015), gvc, (0.32, 0.3, 0.28))
+            gvc = nb.mix(band(gbd, -0.07, 0.0), gvc, (0.63, 0.62, 0.59))
+            c = nb.mix(ins(gbd), c, gvc)
+            c = nb.mix(Pn["c"], c, (0.72, 0.71, 0.68))
+            c = nb.mix(Pn["m"], c, nb.mix(nb.ramp(nb.noise(8.0, 3, 0.6), 0.3, 0.7), (0.6, 0.59, 0.56), (0.7, 0.69, 0.66)))
+            c = nb.mix(pk_m, c, (0.22, 0.21, 0.2))
+            apd = Pn["ap_d"]
+            aj, ar_ = nb.brick(obj, 1.0, 1.0, 0.006, 0.2, offset=0.0, freq=1)
+            apc = nb.mix(ar_, (0.55, 0.54, 0.51), (0.64, 0.63, 0.6))
+            apc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(1.6, 3, 0.6), 0.62, 0.72), 0.5), apc, (0.36, 0.35, 0.33))
+            apc = nb.mix(aj, apc, (0.32, 0.31, 0.3))
+            apc = nb.mix(band(apd, -0.05, 0.0), apc, (0.46, 0.45, 0.42))
+            c = nb.mix(ins(apd), c, apc)
+            c = nb.mix(nb.math("MULTIPLY", py_m, wear), c, (0.92, 0.74, 0.12))
+            c = nb.mix(nb.math("MULTIPLY", pr_m, wear), c, (0.76, 0.15, 0.1))
+            mpd = Pn["mp_d"]
+            mpc = nb.mix(nb.dots(ox_, oy_, 1.2, 1.2, 0.15, 0.035), conc, (0.22, 0.21, 0.2))
+            mpc = nb.mix(band(mpd, -0.04, 0.0), mpc, (0.5, 0.48, 0.45))
+            c = nb.mix(ins(mpd), c, mpc)
+            c, em = gate_plate(c, em, (0.5, 0.49, 0.47), (0.66, 0.65, 0.62))
+            rough = 0.9
+            bump_h = nb.math("ADD", nb.math("MULTIPLY", I["pave"], nb.ramp(nb.voronoi(22.0, "Distance", "DISTANCE_TO_EDGE"), 0.0, 0.05)),
+                             nb.math("ADD", nb.math("MULTIPLY", ins(gbd), nb.ramp(nb.voronoi(32.0, "Distance", "DISTANCE_TO_EDGE"), 0.0, 0.05)),
+                                     nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, ins(ped_)), nb.math("MULTIPLY", nb.ramp(rp_, 0.3, 0.9), 0.5))))
+        else:   # neon
+            # a cyberpunk district at night, wet: dark pavers, slabs, deck plates, parking and hex tiles in the lots;
+            # deck-plate sidewalks, steel kerbs with a cyan light strip, a magenta line at the sidewalks' outer edge;
+            # dark wet asphalt with the streets' cyan and magenta lines, data lanes of dark glass with cyan seams; the
+            # pylons' scorched hex bases (a magenta ring, bolts, hazard stripes); the data pits (a dark shaft, cyan light
+            # rising up its wall to a bright lip, a steel rim, a striped ring); the neon's glow and reflections; puddles
+            CY, MG = (0.15, 0.95, 1.0), (1.0, 0.22, 0.86)
+            pid = I["pid"]
+            swap = nb.ramp(pid, 0.49, 0.51)
+            pv = nb.vec(nb.math("ADD", nb.mixf(swap, ox_, oy_), nb.math("MULTIPLY", pid, 7.3)),
+                        nb.math("ADD", nb.mixf(swap, oy_, ox_), nb.math("MULTIPLY", pid, 3.1)))
+            grime = nb.math("MULTIPLY", nb.ramp(nb.noise(3.5, 3, 0.6), 0.45, 0.75), nb.mixf(I["grime"], 0.3, 1.0))
+            pj, pr2 = nb.brick(pv, 0.3, 0.15, 0.006, 0.2)
+            c = nb.mix(pr2, (0.085, 0.085, 0.105), (0.135, 0.13, 0.155))
+            c = nb.mix(pj, c, (0.035, 0.035, 0.045))
+            gj, gr2 = nb.brick(obj, 1.2, 1.2, 0.004, 0.2, offset=0.0, freq=1)
+            gc = nb.mix(gr2, (0.1, 0.1, 0.125), (0.15, 0.15, 0.18))
+            gc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 1, 0.5), 0.7, 0.76), 0.4), gc, (0.22, 0.22, 0.26))
+            c = nb.mix(I["l_grid"], c, gc)
+            dj, dr_ = nb.brick(obj, 0.6, 0.6, 0.006, 0.1, offset=0.0, freq=1)
+            dc = nb.mix(dr_, (0.15, 0.16, 0.19), (0.21, 0.22, 0.26))
+            dc = nb.mix(nb.math("MULTIPLY", tread, 0.35), dc, (0.27, 0.28, 0.32))
+            dc = nb.mix(dj, dc, (0.05, 0.05, 0.06))
+            dc = nb.mix(nb.dots(ox_, oy_, 0.6, 0.6, 0.05, 0.016), dc, (0.36, 0.37, 0.42))
+            c = nb.mix(I["l_deck"], c, dc)
+            pkc = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.07, 0.07, 0.085), (0.1, 0.1, 0.12))
+            pkc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(42.0, "Distance"), 0.2, 0.07), 0.3), pkc, (0.16, 0.16, 0.19))
+            c = nb.mix(I["l_park"], c, pkc)
+            he, hid = Pn["hx_e"], Pn["hx_id"]
+            pzd = Pn["pz_d"]
+            onpz = ins(pzd)
+            hexc = nb.mix(hid, (0.1, 0.1, 0.14), (0.2, 0.2, 0.26))
+            hexc = nb.mix(nb.math("MULTIPLY", grime, 0.3), hexc, (0.06, 0.06, 0.08))
+            litc = nb.mix(nb.ramp(nb.math("FRACT", nb.math("MULTIPLY", hid, 37.0)), 0.49, 0.51), CY, MG)
+            lit = nb.math("MULTIPLY", nb.ramp(hid, 0.982, 0.984), nb.ramp(he, 0.012, 0.02))
+            hexc = nb.mix(lit, hexc, litc)
+            hseam = nb.ramp(he, 0.01, 0.004)
+            hexc = nb.mix(hseam, hexc, nb.mix(onpz, (0.03, 0.03, 0.04), (0.08, 0.38, 0.45)))
+            hexm = nb.math("MAXIMUM", I["l_hex"], onpz)
+            c = nb.mix(I["l_hex"], c, hexc)
+            c = nb.mix(nb.math("MULTIPLY", grime, 0.35), c, (0.03, 0.03, 0.035))
+            c = nb.mix(Pn["g"], c, (0.05, 0.05, 0.06))                                                  # the lots' borders
+            c = nb.mix(pr_m, c, MG)
+            c = nb.mix(py_m, c, CY)
+            c = nb.mix(onpz, c, hexc)                                                                   # the plazas over them
+            pzrim = band(pzd, -0.09, 0.0)
+            pzline = band(pzd, -0.06, -0.035, 0.005)
+            c = nb.mix(pzrim, c, (0.26, 0.27, 0.32))
+            c = nb.mix(pzline, c, MG)
+            ars = nb.math("ABSOLUTE", rsd)
+            sj_, sr_ = nb.brick(nb.vec(ral, nb.math("SUBTRACT", ars, HALF + 0.1)), 0.6, 0.275, 0.006, 0.1, offset=0.5, freq=2)
+            swc = nb.mix(sr_, (0.16, 0.17, 0.2), (0.22, 0.23, 0.27))
+            swc = nb.mix(nb.math("MULTIPLY", tread, 0.35), swc, (0.29, 0.3, 0.34))
+            swc = nb.mix(sj_, swc, (0.05, 0.05, 0.06))
+            swc = nb.mix(nb.math("MULTIPLY", grime, 0.3), swc, (0.09, 0.09, 0.1))
+            c = nb.mix(band(ped_, 0.1, SW), c, swc)
+            c = nb.mix(band(ped_, 0.0, 0.1), c, nb.mix(nb.ramp(nb.noise(8.0, 2, 0.5), 0.3, 0.7), (0.28, 0.29, 0.34), (0.36, 0.37, 0.42)))
+            strip = nb.math("MULTIPLY", band(ped_, 0.035, 0.065, 0.005), nb.ramp(Pn["gt_r"], 1.0, 1.02))
+            c = nb.mix(strip, c, CY)
+            sedge = nb.math("MULTIPLY", band(ped_, SW - 0.035, SW - 0.005, 0.005), nb.ramp(pzd, 0.0, 0.02))
+            c = nb.mix(sedge, c, MG)
+            asp = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.055, 0.055, 0.07), (0.085, 0.085, 0.105))
+            asp = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(42.0, "Distance"), 0.2, 0.07), 0.3), asp, (0.15, 0.15, 0.18))
+            asp = nb.mix(nb.math("MULTIPLY", rut_m, 0.3), asp, (0.1, 0.1, 0.125))
+            asp = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", ox_, 4.0), oy_), 1.2, 3, 0.6), 0.6, 0.75), 0.35), asp, (0.12, 0.11, 0.17))
+            fseam = nb.ramp(nb.seam(ral, 0.6), 0.012, 0.006)
+            flc = nb.mix(nb.ramp(nb.noise(3.0, 3, 0.6), 0.3, 0.7), (0.03, 0.08, 0.13), (0.05, 0.12, 0.18))
+            flc = nb.mix(fseam, flc, (0.1, 0.6, 0.75))
+            asp = nb.mix(Pn["fl"], asp, flc)
+            c = nb.mix(ins(ped_), c, asp)
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(I["scorch"], 0.0, 0.7), 0.92), c, nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.015, 0.012, 0.02), (0.07, 0.04, 0.08)))
+            pyd, pyr, pya = Pn["py_d"], Pn["py_r"], Pn["py_a"]
+            pyc = nb.mix(nb.ramp(nb.noise(6.0, 3, 0.6), 0.3, 0.7), (0.2, 0.21, 0.25), (0.27, 0.28, 0.33))
+            pyc = nb.mix(nb.math("MULTIPLY", tread, 0.3), pyc, (0.33, 0.34, 0.39))
+            pjn = nb.math("MULTIPLY", nb.ramp(nb.math("MULTIPLY", nb.seam(pya, 1.0 / 6.0), nb.math("MULTIPLY", pyr, 7.0)), 0.012, 0.006), nb.ramp(pyr, 0.5, 0.53))
+            pyc = nb.mix(nb.math("MAXIMUM", pjn, band(pyr, 0.5, 0.53, 0.004)), pyc, (0.08, 0.08, 0.1))
+            pring = band(pyr, 0.38, 0.45, 0.006)
+            pyc = nb.mix(pring, pyc, MG)
+            pyc = nb.mix(ring_dots(pyr, pya, 1.15, 0.7, 12, 0.03), pyc, (0.5, 0.51, 0.56))
+            pyc = nb.mix(band(pyd, -0.17, -0.07), pyc, stripes((0.04, 0.04, 0.05), (0.9, 0.2, 0.75)))
+            pyc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(4.0, 3, 0.6), 0.5, 0.7), 0.5), pyc, (0.05, 0.04, 0.06))   # soot on it
+            c = nb.mix(ins(pyd), c, pyc)
+            t, ta = Pn["pt_r"], Pn["pt_a"]
+            glow = nb.math("POWER", nb.ramp(t, 0.5, 0.97), 2.0)
+            pit = nb.mix(glow, (0.01, 0.015, 0.025), (0.12, 0.85, 0.95))
+            data = nb.math("MULTIPLY", nb.math("MULTIPLY", nb.dots(ox_, oy_, 0.09, 0.09, 0.045, 0.012), nb.ramp(nb.noise(14.0, 2, 0.5), 0.55, 0.6)),
+                           nb.ramp(t, 0.75, 0.55))
+            pit = nb.mix(nb.math("MULTIPLY", data, 0.8), pit, (0.1, 0.6, 0.7))
+            lip = band(t, 0.93, 1.0, 0.008)
+            pit = nb.mix(lip, pit, (0.75, 1.0, 1.0))
+            pit = nb.mix(band(t, 1.0, 1.16, 0.008), pit, (0.3, 0.31, 0.36))
+            pit = nb.mix(ring_dots(t, ta, 1.0, 1.08, 20, 0.022), pit, (0.55, 0.56, 0.6))
+            hzr = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", ta, 28.0)), 0.5)), 0.24, 0.26)
+            pit = nb.mix(band(t, 1.17, 1.3, 0.008), pit, nb.mix(hzr, (0.04, 0.04, 0.05), (0.9, 0.2, 0.75)))
+            onpit = ins(nb.math("SUBTRACT", t, 1.3), 0.008)
+            c = nb.mix(onpit, c, pit)
+            notpit = nb.math("SUBTRACT", 1.0, ins(nb.math("SUBTRACT", t, 1.0), 0.008))
+            dry = nb.math("MULTIPLY", notpit, nb.math("SUBTRACT", 1.0, ins(pyd)))
+            pud = nb.ramp(I["pud"], 0.45, 0.6)
+            c = nb.mix(nb.math("MULTIPLY", pud, 0.7), c, nb.mix(nb.ramp(nb.noise(1.5, 2, 0.5), 0.3, 0.7), (0.035, 0.035, 0.05), (0.09, 0.07, 0.14)))
+            hk = nb.math("MULTIPLY", dry, nb.mixf(pud, 0.5, 0.95))
+            c = nb.mix(nb.math("MULTIPLY", Pn["hc"], hk), c, CY)
+            c = nb.mix(nb.math("MULTIPLY", Pn["hm"], hk), c, MG)
+            c = nb.mix(pk_m, c, (0.02, 0.02, 0.025))
+            c = nb.mix(pw_m, c, (0.34, 0.35, 0.4))
+            c = nb.mix(Pn["c"], c, CY)
+            c = nb.mix(Pn["m"], c, MG)
+            for f_, col_ in ((Pn["c"], CY), (Pn["m"], MG), (strip, CY), (sedge, MG), (nb.math("MULTIPLY", lit, hexm), litc),
+                             (pzline, MG), (pring, MG), (nb.math("MULTIPLY", fseam, Pn["fl"]), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", pr_m, 0.7), nb.math("SUBTRACT", 1.0, onpz)), MG),
+                             (nb.math("MULTIPLY", nb.math("MULTIPLY", py_m, 0.6), nb.math("SUBTRACT", 1.0, onpz)), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", hseam, onpz), 0.4), CY)):
+                em = nb.mix(f_, em, col_)
+            em = nb.mix(nb.math("MULTIPLY", onpit, nb.math("MAXIMUM", nb.math("MULTIPLY", glow, nb.ramp(t, 1.0, 0.99)), lip)), em, (0.2, 1.0, 1.0))
+            c, em = gate_plate(c, em, (0.2, 0.21, 0.25), (0.4, 0.42, 0.48))
+            rough = nb.mixf(nb.math("MAXIMUM", ins(ped_), pud), 0.62, 0.2)
+            bump_h = nb.math("ADD", nb.math("MULTIPLY", hexm, nb.math("SUBTRACT", 0.0, hseam)),
+                             nb.math("ADD", nb.math("MULTIPLY", I["l_deck"], nb.math("SUBTRACT", nb.math("MULTIPLY", tread, 0.3), dj)),
+                                     nb.math("MULTIPLY", band(ped_, 0.1, SW), nb.math("SUBTRACT", nb.math("MULTIPLY", tread, 0.3), sj_))))
+            bump_h = nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, pud))
+        nb.link(em, nb.b.inputs["Emission Color"])
+        nb.b.inputs["Emission Strength"].default_value = {"lab": 1.6, "satellite": 2.0, "neon": 1.1}[THEME]
 else:   # volcano
     c = nb.mix(nb.ramp(big, 0.3, 0.7), (0.13, 0.11, 0.11), (0.24, 0.2, 0.18))
     c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.6, 0.74), 0.6), c, (0.36, 0.22, 0.15))         # rusty ash
@@ -4282,6 +5371,66 @@ elif THEME == "suburb":
     for k, col in enumerate([(0.9, 0.15, 0.12), (0.15, 0.4, 0.9), (1.0, 0.8, 0.1)]):
         merged("Ball%d" % k, ball_template(2), [((x_, -z_, float(hgt(x_, z_)) + 0.03), 0.0, 0.03, None) for (x_, z_) in toys[k::3]],
                simple_mat("Ball%d" % k, col, 0.35))
+elif THEME == "lab":
+    # pipe stubs at the tanks' pads (a flanged steel stub, capped), yellow bollards where the walkways meet a track
+    merged("PipeStubs", cyl_template(0.06, 0.13, 12, 1.45), place_list([(x_, z_) for x_, z_, _t in STUBS], 1.0, 1.0),
+           simple_mat("PipeStub", (0.62, 0.65, 0.7), 0.3, metal=0.8))
+    merged("PipeCaps", cyl_template(0.03, 0.17, 10, 1.0), place_list([(x_, z_) for x_, z_, _t in STUBS], 1.0, 1.0),
+           simple_mat("PipeCap", (0.2, 0.5, 0.85), 0.35))
+    merged("Bollards", cyl_template(0.045, 0.24, 12, 1.15), place_list(BOLL, 1.0, 1.0),
+           simple_mat("Bollard", (0.95, 0.72, 0.08), 0.4))
+elif THEME == "satellite":
+    rnd = lambda x: RNG.random(np.shape(x))
+    open_ = lambda x, z, m_: (sample(ped, x, z) > m_) & (sample(sat_clear, x, z) > 0.12) & (sample(IND["trn"], x, z) < 0.2) & \
+        (sample(gate_m, x, z) < 0.05)
+    pts = scatter(1800 if not PREVIEW else 300, lambda x, z: open_(x, z, 0.35) & (rnd(x) < 0.25 + 0.75 * sample(IND["pave"], x, z)))
+    merged("Pebbles", blob_template(1), place_list(pts, 0.014, 0.034, sink=0.35, tilt=0.4),
+           simple_mat("Pebble", (0.26, 0.17, 0.12), 0.7, var=(0.48, 0.36, 0.27)))
+    pts = scatter(420 if not PREVIEW else 80, lambda x, z: open_(x, z, 0.5))
+    merged("Stones", blob_template(2), place_list(pts, 0.04, 0.09, sink=0.4, tilt=0.4),
+           simple_mat("Stone", (0.36, 0.22, 0.15), 0.75, var=(0.55, 0.42, 0.32)))
+    pts = scatter(60, lambda x, z: open_(x, z, 0.9))
+    merged("Rocks", blob_template(2), place_list(pts, 0.1, 0.2, sink=0.45, tilt=0.3),
+           simple_mat("Rock", (0.4, 0.26, 0.18), 0.7, var=(0.56, 0.42, 0.32)))
+    pts = scatter(900 if not PREVIEW else 150, lambda x, z: (np.abs(sample(ped, x, z) - 0.15) < 0.14) & (sample(gate_m, x, z) < 0.05) &
+                  (sample(sat_clear, x, z) > 0.05))
+    merged("BermGravel", blob_template(1), place_list(pts, 0.012, 0.026, sink=0.3, tilt=0.4),
+           simple_mat("BermGravel", (0.42, 0.33, 0.26), 0.8, var=(0.6, 0.5, 0.4)))
+    scrub = blade_mat("Scrub", (0.24, 0.22, 0.13), (0.38, 0.36, 0.22), (0.56, 0.54, 0.38))
+    centres = scatter(140 if not PREVIEW else 30, lambda x, z: open_(x, z, 0.8) & (sample(IND["pave"], x, z) < 0.3))
+    pts = [(cx + RNG.normal(0, 0.12), cz + RNG.normal(0, 0.12)) for cx, cz in centres for _ in range(int(RNG.integers(2, 7)))]
+    pts = [p_ for p_ in pts if _at(ped, p_[0], p_[1]) > 0.6 and _at(sat_clear, p_[0], p_[1]) > 0.15]
+    merged("Scrub", tuft_template(9, 0.09, 0.012), place_list(pts, 0.7, 1.4), scrub)
+    # the compound's fence: posts, a top rail and a mid rail between them; reflector posts along the roads
+    posts, rails = [], []
+    for run in FENCE:
+        P = np.asarray(run)
+        for (x_, z_) in P:
+            posts.append((x_, z_, 0.0, 0.045, 0.045, 0.34, float(hgt(x_, z_)) - 0.01))
+        for a_, b_ in zip(P[:-1], P[1:]):
+            m_, L_ = (a_ + b_) / 2, float(np.hypot(*(b_ - a_)))
+            yaw = math.atan2(b_[1] - a_[1], b_[0] - a_[0])
+            h_ = float(hgt(m_[0], m_[1]))
+            rails.append((m_[0], m_[1], yaw, L_, 0.022, 0.022, h_ + 0.31))
+            rails.append((m_[0], m_[1], yaw, L_, 0.014, 0.014, h_ + 0.16))
+    boxes_mesh("FencePosts", posts, simple_mat("FencePost", (0.5, 0.52, 0.55), 0.45, metal=0.6))
+    boxes_mesh("FenceRails", rails, simple_mat("FenceRail", (0.62, 0.64, 0.67), 0.4, metal=0.7))
+    rp_ = [(x_, z_, a_ + math.pi / 2, 0.04, 0.04, 0.2, float(hgt(x_, z_)) - 0.01) for (x_, z_, a_) in RPOST]
+    boxes_mesh("ReflectorPosts", rp_, simple_mat("ReflectorPost", (0.9, 0.9, 0.88), 0.5))
+    rc_ = [(x_, z_, a_ + math.pi / 2, 0.046, 0.046, 0.045, float(hgt(x_, z_)) + 0.15) for (x_, z_, a_) in RPOST]
+    boxes_mesh("Reflectors", rc_, simple_mat("Reflector", (0.95, 0.35, 0.12), 0.3, emit=(1.0, 0.4, 0.1), strength=1.5))
+elif THEME == "neon":
+    rnd = lambda x: RNG.random(np.shape(x))
+    lot = lambda x, z: (sample(ped, x, z) > 0.2) & (sample(ptm, x, z) > 1.4) & (sample(BLK_ANY, x, z) > 0.2)
+    pts = scatter(260 if not PREVIEW else 50, lambda x, z: lot(x, z) & (rnd(x) < 0.5))
+    third = len(pts) // 3
+    for k_, (col, em_) in enumerate((((0.9, 0.2, 0.75), (1.0, 0.25, 0.85)), ((0.15, 0.85, 0.95), (0.2, 0.9, 1.0)), ((0.85, 0.85, 0.9), None))):
+        sub_ = pts[k_ * third:(k_ + 1) * third]
+        merged("Flyers%d" % k_, box_template(0.07, 0.05, 0.002), place_list(sub_, 0.8, 1.3),
+               simple_mat("Flyer%d" % k_, col, 0.6, emit=em_, strength=0.4 if em_ else 0.0))
+    pts = scatter(140 if not PREVIEW else 30, lambda x, z: lot(x, z))
+    merged("Cans", cyl_template(0.018, 0.05, 8, 1.0), place_list(pts, 0.9, 1.1, tilt=1.5),
+           simple_mat("Can", (0.6, 0.62, 0.68), 0.3, var=(0.8, 0.2, 0.5), metal=0.7))
 else:
     cinder = simple_mat("Cinder", (0.16, 0.13, 0.12), 0.8, var=(0.3, 0.25, 0.22))
     pts = scatter(2600 if not PREVIEW else 500, lambda x, z: (rd(x, z) > HALF + 0.05) & no_blk(x, z))
@@ -4316,7 +5465,7 @@ im = np.asarray(Image.open(OUT + ".raw.png").convert("RGB")).astype(np.float32) 
 TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert": 0.6, "canyon": 0.4, "highland": 0.4, "forge": 0.26,
           "bog": 0.33, "olive": 0.5, "coast": 0.53, "acropolis": 0.56, "farmland": 0.44, "darkwood": 0.26, "castle": 0.4,
           "jungle": 0.3, "harbor": 0.56, "fortress": 0.4, "factory": 0.31, "railyard": 0.36, "smog": 0.31,
-          "military": 0.42, "metro": 0.37, "suburb": 0.42}[THEME]
+          "military": 0.42, "metro": 0.37, "suburb": 0.42, "lab": 0.62, "satellite": 0.42, "neon": 0.2}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()
