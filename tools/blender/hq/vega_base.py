@@ -246,7 +246,7 @@ def pole_field():
     return fd
 
 
-BANNER_W, BANNER_H = 0.34, 0.6
+BANNER_W, BANNER_H = 0.4, 0.72
 
 
 def banner_bar():
@@ -298,7 +298,7 @@ def banner_field():
 
 # ---------------------------------------------------------------------------------------------- the map table
 TABLE_H = 0.46                    # the top's height above the deck
-TABLE_HALF = (0.27, 0.17)         # (along the tangent, inward)
+TABLE_HALF = (0.3, 0.19)         # (along the tangent, inward)
 
 
 def table_frame():

@@ -15,7 +15,7 @@ the collar's top and the cuffs. Under it a gunmetal cuirass (a raised sternum ri
 over a dark mock-neck. An amber Resistance sash over his left shoulder, across his chest to his right hip, knotted there
 with two hanging ends; a black belt over the coat and the sash (a gunmetal buckle with the amber chevron), the
 killswitch's holder on his left hip. On his left shoulder an epaulette: a gunmetal shoulder board edged in amber, three
-amber rank bars, a short amber fringe. On his right shoulder a salvaged white robot pauldron: a domed plate and two lames
+amber rank bars. On his right shoulder a salvaged white robot pauldron: a domed plate and two lames
 below it, dented and scuffed, strapped on with black straps, sprayed with the Resistance's amber chevron. Black gloves
 (Ken's gloved fists, ken.py); charcoal-grey fatigue trousers bloused into black combat boots (ken.py's).
 
@@ -59,66 +59,60 @@ Z = v3((0.0, 0.0, 1.0))
 
 
 # ======================================================================================= head
-MOUTH_SLOT = [(-0.05, 1.553), (-0.026, 1.547), (0.0, 1.546), (0.026, 1.55), (0.054, 1.566)]   # (design x, z): his left
-                                                                                                # corner (+X) drawn up
-
-
 def head(fd):
-    """A commanding, warm face: a broad square jaw and a strong chin with a cleft, high cheekbones over lean cheeks, a
-    defined brow ridge; level brows lying on it (his left one lifted a little); clear open eyes with smile creases at
-    their corners; a straight strong nose; a closed mouth in a half-smile (his left corner drawn up into the cheek, a
-    fold beside it); a shadow of stubble; the scar down through his right brow and onto his cheek."""
+    """Ken's face (ken.py), reviewed and proven, made older and commanding: a broader square jaw, a strong chin with a
+    small cleft, cheekbones, a defined brow ridge; level brows lying on it (his left one lifted a little); clear open
+    eyes with smile creases at their outer corners; a straight nose; a closed mouth in a half-smile (his left corner drawn
+    up into the cheek); a shadow of stubble; the scar straight down through his right brow and on below the eye."""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.048, 1.588), (0.136, 0.127, 0.122)), 0.07, SKIN)                          # a broad jaw
-    fd.add(E((0, -0.134, 1.5), (0.077, 0.064, 0.064)), 0.05, SKIN)                            # a strong chin
+    fd.add(E((0, -0.05, 1.588), (0.133, 0.126, 0.122)), 0.07, SKIN)                          # a broad jaw
+    fd.add(E((0, -0.132, 1.501), (0.075, 0.063, 0.063)), 0.05, SKIN)                         # a strong chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.112, -0.118, 1.642), 0.044), 0.05, SKIN)                              # high cheekbones
-        fd.add(S((sx * 0.121, -0.036, 1.55), 0.046), 0.05, SKIN)                               # square jaw corners
-        fd.add(S((sx * 0.082, -0.112, 1.512), 0.034), 0.05, SKIN)                              # (the jaw's line to the chin)
-        pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.13, 1.752)), hp((sx * 0.06, -0.172, 1.75)), hp((0.0, -0.182, 1.749))]
-        fd.add(Chain(pts, [hr(0.01), hr(0.018), hr(0.021), hr(0.021)], k=hr(0.022)), hr(0.032), SKIN)  # a defined brow ridge
-        fd.sub(Ellipsoid(hp((sx * 0.12, -0.116, 1.574)), v3((0.024, 0.018, 0.028)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.024))  # lean cheeks
-    fd.sub(Ellipsoid(hp((0.0, -0.198, 1.49)), v3((0.0045, 0.008, 0.014)) * HS), hr(0.006))     # the cleft in his chin
+        fd.add(S((sx * 0.108, -0.118, 1.64), 0.042), 0.05, SKIN)                              # cheekbones
+        fd.add(S((sx * 0.118, -0.044, 1.56), 0.045), 0.05, SKIN)                              # square jaw corners
+        fd.add(S((sx * 0.074, -0.14, 1.604), 0.024), 0.03, SKIN)                              # (cheeks, a little round: warm)
+        pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.128, 1.752)), hp((sx * 0.06, -0.17, 1.75)), hp((0.0, -0.18, 1.748))]
+        fd.add(Chain(pts, [hr(0.009), hr(0.015), hr(0.017), hr(0.017)], k=hr(0.02)), hr(0.03), SKIN)   # a defined brow ridge
+    fd.sub(Ellipsoid(hp((0.0, -0.196, 1.488)), v3((0.004, 0.007, 0.012)) * HS), hr(0.005))     # the cleft in his chin
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
-    # brows: strong, level, lying on the brow ridge; his left one (+X) lifted a little (the warm, wry look)
-    brows = {-1: [(-0.026, 1.772), (-0.064, 1.781), (-0.106, 1.781), (-0.148, 1.768)],
-             1: [(0.026, 1.775), (0.064, 1.787), (0.106, 1.791), (0.148, 1.779)]}
+    # brows: strong and level, lying on the brow; his left one (+X) lifted a little (warm, wry; never knitted)
+    brows = {-1: [(-0.026, 1.779), (-0.064, 1.789), (-0.106, 1.789), (-0.148, 1.774)],
+             1: [(0.026, 1.782), (0.064, 1.795), (0.106, 1.797), (0.148, 1.783)]}
     for sx in (-1, 1):
         on = _on_face(fd, brows[sx], lift=0.001)
-        fd.add(Chain(on, [hr(0.0058), hr(0.0072), hr(0.0064), hr(0.003)], k=hr(0.006)), hr(0.004), BROW)
-        fd.paint(Chain(on, [hr(0.013), hr(0.015), hr(0.0135), hr(0.007)], k=hr(0.008)), BROW)
-    # eyes: open and clear (the upper lids clear of the irises, the lower lids just under them); lashes along the upper
-    # lids; smile creases at their outer corners
+        fd.add(Chain(on, [hr(0.0055), hr(0.0068), hr(0.006), hr(0.003)], k=hr(0.006)), hr(0.004), BROW)
+        fd.paint(Chain(on, [hr(0.0125), hr(0.0145), hr(0.013), hr(0.007)], k=hr(0.008)), BROW)
+    # eyes: open and clear (Ken's lids: the upper lids clear of the irises, the lower lids just under them); lashes;
+    # smile creases at their outer corners
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, hr(0.0185))), (sx * 0.18, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, hr(0.0212))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.005)), Plane(ec + v3((0, 0, -hr(0.0178))), (sx * -0.25, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0048)), Plane(ec + v3((0, 0, -hr(0.0168))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0165))), (sx * 0.18, 0.05, -1.0)), hr(0.002)), LASH)
-        for k in range(3):
-            a = hp((sx * (0.108 + 0.004 * k), -0.132 + 0.006 * k, 1.69 - 0.012 * k))
-            fd.sub(RoundCone(a, a + v3((sx * 0.024, 0.012, 0.005 - 0.009 * k)), hr(0.0019), hr(0.0012)), hr(0.003))
-    # a straight, strong nose
-    fd.add(RoundCone(hp((0, -0.182, 1.728)), hp((0, -0.232, 1.642)), hr(0.0125), hr(0.0175)), hr(0.016), SKIN)
-    fd.add(S((0, -0.236, 1.628), 0.021), hr(0.013), SKIN)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0192))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
+        for k in range(2):
+            a = hp((sx * (0.11 + 0.004 * k), -0.13 + 0.006 * k, 1.682 - 0.013 * k))
+            fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, 0.004 - 0.009 * k)), hr(0.0019), hr(0.0012)), hr(0.003))
+    # a straight nose, a firm tip
+    fd.add(RoundCone(hp((0, -0.18, 1.726)), hp((0, -0.226, 1.646)), hr(0.0125), hr(0.017)), hr(0.016), SKIN)
+    fd.add(S((0, -0.229, 1.633), 0.02), hr(0.013), SKIN)
     for sx in (-1, 1):
-        fd.add(S((sx * 0.026, -0.212, 1.614), 0.0175), hr(0.01), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.013, -0.228, 1.602)), v3((0.008, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
-    # the closed mouth: a firm line, his left corner drawn up into the cheek
-    slot = _on_face(fd, MOUTH_SLOT, lift=-0.002)
-    fd.sub(Chain(slot, [hr(0.0022), hr(0.003), hr(0.0034), hr(0.003), hr(0.0022)], k=hr(0.003)), hr(0.003))
-    fd.paint(Chain(slot, [hr(0.003), hr(0.0044), hr(0.0048), hr(0.0044), hr(0.0034)], k=hr(0.004)), MOUTH)
-    up_lip = _on_face(fd, [(-0.048, 1.558), (-0.026, 1.554), (-0.006, 1.555), (0.008, 1.556), (0.028, 1.557), (0.052, 1.57)], lift=0.0)
-    lo_lip = _on_face(fd, [(-0.042, 1.546), (-0.022, 1.537), (0.0, 1.535), (0.023, 1.538), (0.046, 1.553)], lift=0.0)
-    fd.add(Chain(up_lip, [hr(0.003), hr(0.0048), hr(0.0052), hr(0.0052), hr(0.0048), hr(0.003)], k=hr(0.006)), hr(0.008), LIP)
-    fd.add(Chain(lo_lip, [hr(0.0036), hr(0.0064), hr(0.007), hr(0.0064), hr(0.0036)], k=hr(0.007)), hr(0.008), LIP)
-    fd.add(S((0.066, -0.152, 1.576), 0.012), hr(0.02), SKIN)                                   # the smile's cheek
-    fold = _on_face(fd, [(0.052, 1.606), (0.068, 1.588), (0.076, 1.566)], lift=-0.002)
-    fd.sub(Chain(fold, [hr(0.002), hr(0.0024), hr(0.0018)], k=hr(0.003)), hr(0.004))            # a fold beside it
+        fd.add(S((sx * 0.025, -0.208, 1.618), 0.017), hr(0.01), SKIN)
+        fd.sub(Ellipsoid(hp((sx * 0.013, -0.223, 1.606)), v3((0.008, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+    # the closed mouth (the Musketeer's line on the same jaw): firm, his left corner (+X) drawn up into the cheek
+    slot = [hp((-0.05, -0.174, 1.552)), hp((-0.026, -0.194, 1.547)), hp((0, -0.199, 1.547)), hp((0.027, -0.193, 1.551)),
+            hp((0.053, -0.171, 1.563))]
+    fd.sub(Chain(slot, [hr(0.0022), hr(0.003), hr(0.0034), hr(0.003), hr(0.0024)], k=hr(0.003)), hr(0.003))
+    fd.paint(Chain(slot, [hr(0.003), hr(0.0042), hr(0.0046), hr(0.0042), hr(0.0034)], k=hr(0.004)), MOUTH)
+    up_lip = [(-0.046, -0.174, 1.557), (-0.024, -0.191, 1.553), (0.0, -0.196, 1.554), (0.025, -0.19, 1.557), (0.048, -0.172, 1.567)]
+    lo_lip = [(-0.04, -0.174, 1.541), (-0.021, -0.19, 1.534), (0, -0.194, 1.532), (0.022, -0.189, 1.535), (0.042, -0.174, 1.546)]
+    fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0045), hr(0.005), hr(0.0045), hr(0.003)], k=hr(0.005)), hr(0.007), LIP)
+    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0062), hr(0.007), hr(0.0062), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
+    fd.add(S((0.066, -0.158, 1.578), 0.011), hr(0.018), SKIN)                                   # the smile's cheek
     # ears: a rim, a hollow, a lobe (Ken's)
     for sx in (-1, 1):
         R = euler(0, sx * 0.25, sx * -0.35)
@@ -127,12 +121,12 @@ def head(fd):
         o = norm(R @ v3((sx, 0, 0)))
         fd.sub(Ellipsoid(c + o * hr(0.016) + v3((0, -0.004, -0.004)), v3((0.008, 0.022, 0.028)) * HS, R=R), hr(0.006))
         fd.add(Ellipsoid(c + v3((0, 0.002, -0.042)) + o * hr(0.004), v3((0.012, 0.016, 0.016)) * HS, R=R), hr(0.01), SKIN)
-    # the scar: a pale seam straight down through his right brow (splitting it) and on below the eye onto his cheek
-    for seg_ in ([(-0.083, 1.812), (-0.086, 1.79), (-0.089, 1.764), (-0.091, 1.738)],
-                 [(-0.094, 1.64), (-0.097, 1.618), (-0.101, 1.594), (-0.106, 1.572)]):
+    # the scar: a pale, slightly sunken line straight down through his right brow (splitting it) and on below the eye
+    for seg_ in ([(-0.082, 1.806), (-0.084, 1.784), (-0.086, 1.762), (-0.088, 1.738)],
+                 [(-0.09, 1.642), (-0.093, 1.622), (-0.097, 1.6), (-0.101, 1.582)]):
         sc = _on_face(fd, seg_, lift=0.0)
-        fd.add(Chain(sc, [hr(0.0026), hr(0.0034), hr(0.0032), hr(0.0022)], k=hr(0.003)), hr(0.003), SCAR)
-        fd.paint(Chain(sc, [hr(0.006), hr(0.0075), hr(0.007), hr(0.005)], k=hr(0.004)), SCAR)
+        fd.sub(Chain(sc, [hr(0.0012), hr(0.0018), hr(0.0016), hr(0.001)], k=hr(0.002)), hr(0.002))
+        fd.paint(Chain(sc, [hr(0.0045), hr(0.006), hr(0.0055), hr(0.0035)], k=hr(0.004)), SCAR)
 
 
 def body_parts(fd):
@@ -192,11 +186,19 @@ def ears_out(P):
     return out
 
 
-def top_line(P):
-    """> 0 above the line between the long top and the buzzed sides (design units): high on his head, a little lower at
-    the back of his crown."""
+_HC_D = v3((0.0, 0.03, 1.73))            # (the head's centre and radii in design units)
+_HR_D = v3((0.168, 0.188, 0.186))
+
+
+def top_patch(P):
+    """< 0 on the long top (design directions from the head's centre): a strip over the crown from his front hairline
+    back past the crown, narrow across (high and tight), its edge feathered."""
     Q = hinv(P)
-    return Q[:, 2] - (F(1.842) - F(0.03) * smoothstep(0.02, 0.17, Q[:, 1]))
+    n = (Q - _HC_D.astype(F)) / _HR_D.astype(F)
+    n = n / (np.sqrt((n * n).sum(1))[:, None] + F(1e-6))
+    w = F(0.6) + F(0.06) * smoothstep(0.2, -0.6, n[:, 1])               # (a touch wider over the brow)
+    e = np.sqrt((n[:, 0] / w) ** 2 + (np.maximum(n[:, 1] - F(0.1), 0) / F(0.8)) ** 2)
+    return np.maximum(e - F(1.0), F(0.15) - n[:, 2])
 
 
 def _comb(P):
@@ -205,33 +207,34 @@ def _comb(P):
 
 
 def hair_field():
-    """Dark hair (label 0), short on top and swept back (combed grooves), standing up a little over his brow."""
+    """Dark hair (label 0), short on top and combed back (grooves), standing up a little over his brow, thinning to
+    nothing at the strip's edges over the silver buzz."""
     fd = Field("Hair")
     sk = skull()
     lo, hi = HEAD_C - 0.32, HEAD_C + 0.32
     def cap(P):
         d = sk(P)
         Q = hinv(P)
+        inside = smoothstep(0.0, 0.32, -top_patch(P))
         front = smoothstep(-0.08, -0.17, Q[:, 1])
-        th = F(0.016) + F(0.012) * front * smoothstep(1.84, 1.87, Q[:, 2])
-        th = th * smoothstep(-0.004, 0.02, top_line(P)) + F(0.007)
-        return np.abs(d - (F(0.002) + th * F(0.5))) - th * F(0.5)
+        th = F(0.004) + (F(0.016) + F(0.01) * front) * inside
+        return np.abs(d - (F(0.003) + th * F(0.5))) - th * F(0.5)
     def region(P):
-        return np.maximum(np.maximum(hairline(P) * F(HS), -top_line(P) * F(HS) - F(0.006)), ears_out(P))
-    fd.add(Inter(Func(cap, lo, hi, disp=_comb, disp_amp=0.0015), Func(region, lo, hi), 0.004), 0.0)
+        return np.maximum(np.maximum(hairline(P) * F(HS), top_patch(P) * F(0.05)), ears_out(P))
+    fd.add(Inter(Func(cap, lo, hi, disp=_comb, disp_amp=0.0015), Func(region, lo, hi), 0.003), 0.0)
     return fd
 
 
 def temples_field():
-    """Silver hair buzzed close (label 0): at his temples, over and behind his ears, round the back of his head to the
-    nape (under the top's edge)."""
+    """Silver hair buzzed close (label 0) over the rest of his scalp: his temples, over and behind his ears, round the
+    back of his head to the nape (under the top's strip)."""
     fd = Field("Temples")
     sk = skull()
     lo, hi = HEAD_C - 0.32, HEAD_C + 0.32
     def region(P):
         Q = hinv(P)
         nape = F(1.585) - Q[:, 2] + F(0.008) * np.sin(Q[:, 0] * F(70))
-        return np.maximum(np.maximum(np.maximum(hairline(P), nape) * F(HS), top_line(P) * F(HS) - F(0.002)), ears_out(P))
+        return np.maximum(np.maximum(hairline(P), nape) * F(HS), ears_out(P))
     buzz = lambda P: F(0.0005) * NOISE(P * F(120)) + F(0.0004) * NOISE(P * F(30))
     fd.add(Inter(Shell(sk, 0.0045, 0.0055, pad=0.05, disp=buzz, disp_amp=0.0007), Func(region, lo, hi), 0.002), 0.0)
     return fd
@@ -242,10 +245,18 @@ def body_hull(arms=True):
     return kn.body_hull(arms)
 
 
+def _flat_torso(b):
+    """The torso's shapes without the pectorals, a broad smooth chest over them (the coat and the cuirass lie flat)."""
+    for i, (p, k) in enumerate(torso_prims()):
+        if i in (2, 3):
+            continue
+        b.add(p, k)
+    b.add(Ellipsoid((0, -0.05, 1.3), (0.24, 0.155, 0.18)), 0.06)
+
+
 def torso_hull():
     b = Field("TorsoHull")
-    for p, k in torso_prims():
-        b.add(p, k)
+    _flat_torso(b)
     b.add(traps(), 0.06)
     b.add(neck_prim(), 0.05)
     return b
@@ -339,12 +350,15 @@ def _sleeve_prims(side):
     """The sleeves' hull: a little slimmer than his arm (with the coat's offset they sit close)."""
     sx = -1 if side == "R" else 1
     sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
-    return [(Sphere(sh + v3((sx * 0.02, -0.005, 0.01)), 0.086), 0.05),
-            (RoundCone(sh, el, 0.075, 0.059), 0.045),
-            (Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.02, 0)), (0.066, 0.068, 0.106), R=rot_from_axes(z_axis=el - sh)), 0.035),
-            (RoundCone(el, wr, 0.057, 0.045), 0.03),
-            (Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.007, 0, 0)), (0.069, 0.062, 0.11), R=rot_from_axes(z_axis=wr - el)), 0.035),
-            (Sphere(el + v3((0, 0.024, 0)), 0.045), 0.025)]
+    return [(Sphere(sh + v3((sx * 0.02, -0.005, 0.01)), SLV[0]), 0.045),
+            (RoundCone(sh, el, SLV[1], SLV[2]), 0.04),
+            (Ellipsoid(lerp(sh, el, 0.48) + v3((0, -0.02, 0)), SLV[3], R=rot_from_axes(z_axis=el - sh)), 0.03),
+            (RoundCone(el, wr, SLV[4], SLV[5]), 0.03),
+            (Ellipsoid(lerp(el, wr, 0.3) + v3((sx * 0.007, 0, 0)), SLV[6], R=rot_from_axes(z_axis=wr - el)), 0.03),
+            (Sphere(el + v3((0, 0.024, 0)), SLV[7]), 0.025)]
+
+
+SLV = (0.078, 0.066, 0.05, (0.058, 0.06, 0.1), 0.048, 0.038, (0.06, 0.054, 0.104), 0.036)
 
 
 _CH = {}
@@ -354,8 +368,7 @@ def coat_hull(arms=True):
     if arms in _CH:
         return _CH[arms]
     b = Field("CoatHull")
-    for p, k in torso_prims():
-        b.add(p, k)
+    _flat_torso(b)
     b.add(traps(), 0.06)
     b.add(Func(skirt_sd, SKIRT_LO, SKIRT_HI), 0.07)
     if arms:
@@ -463,11 +476,12 @@ def coat_field():
         e = np.where(P[:, 1] < F(0.0), np.abs(P[:, 0]) - coat_w(P[:, 2]), F(1.0))
         band = np.abs(e - F(0.016)) - F(0.016)
         return np.maximum(np.maximum(band, coat_neck(P) + F(0.004)), np.maximum(coat_hem(P) - P[:, 2] + F(0.002), P[:, 1] - F(-0.04)))
-    fd.add(Inter(Shell(hull_t, COAT_OFF + 0.006, 0.012, pad=0.12), Func(facing, (-0.5, -0.6, 0.3), (0.5, 0.2, 1.6)), 0.003), 0.004)
+    def fshell(P):
+        return np.abs(hull_t.eval(P, margin=0.1) - (F(COAT_OFF + 0.007) - coat_folds(P))) - F(0.0065)
+    fd.add(Inter(Func(fshell, (-0.5, -0.6, 0.3), (0.5, 0.2, 1.6)), Func(facing, (-0.5, -0.6, 0.3), (0.5, 0.2, 1.6)), 0.003), 0.004)
     def piping(P):
         e = np.where(P[:, 1] < F(0.0), np.abs(P[:, 0]) - coat_w(P[:, 2]), F(1.0))
-        return np.maximum(np.maximum(np.abs(e - F(0.03)) - F(0.0035), F(COAT_OUT + 0.004) - hull_t.eval(P, margin=0.08)),
-                          np.maximum(coat_hem(P) + F(0.01) - P[:, 2], coat_neck(P)))
+        return np.maximum(np.abs(e - F(0.029)) - F(0.004), np.maximum(coat_hem(P) + F(0.01) - P[:, 2], coat_neck(P)))
     fd.paint(Func(piping, (-0.5, -0.6, 0.3), (0.5, 0.2, 1.6)), 6)
     # the stand collar: high round his neck, flaring a little, lined amber
     nh = _collar_hull()
@@ -544,7 +558,7 @@ def sash_field():
     fd = Field("Sash")
     base = coat_hull(arms=False)
     lo, hi = (-0.4, -0.35, 0.82), (0.4, 0.36, 1.6)
-    wrinkle = lambda P: F(0.0028) * np.sin((P[:, 0] * F(0.6) + P[:, 2]) * F(120) + F(1.5) * NOISE(P * F(6))) + F(0.001) * NOISE(P * F(30))
+    wrinkle = lambda P: F(0.0014) * np.sin((P[:, 0] * F(0.6) + P[:, 2]) * F(70) + F(1.5) * NOISE(P * F(6))) + F(0.0012) * NOISE(P * F(20))
     def band(P):
         return np.maximum(strap_d(P, SASH) - F(SASH_W), np.maximum(F(0.86) - P[:, 2], P[:, 2] - F(1.6)))
     def layer(P):
@@ -560,7 +574,7 @@ def sash_field():
     fd.add(Ellipsoid(knot + kd * 0.012, (0.04, 0.034, 0.034), R=rot_from_axes(z_axis=kd), disp=wrinkle, disp_amp=0.004), 0.008)
     fd.add(Ellipsoid(knot + kd * 0.008 + v3((-0.026, 0, 0.016)), (0.032, 0.026, 0.026), R=rot_from_axes(z_axis=kd)), 0.008)
     fringe = lambda P: F(0.004) * np.abs(np.sin((P[:, 0] + P[:, 1]) * F(260)))
-    for k, (dx, L, sw) in enumerate(((0.0, 0.34, 1.0), (-0.04, 0.28, -1.0))):
+    for k, (dx, L, sw) in enumerate(((0.0, 0.26, 1.0), (-0.045, 0.21, -1.0))):
         a0 = knot + kd * 0.014 + v3((dx, 0, -0.024))
         pts = [a0]
         for j in range(1, 6):
@@ -570,10 +584,10 @@ def sash_field():
             if ok2[0] and float((h2[0] - q) @ kd) > 0:
                 q = h2[0] + kd * 0.004
             pts.append(q)
-        fd.add(Lock(pts, [0.04, 0.039, 0.037, 0.036, 0.036, 0.036], [0.008] * 6, [kd] * 6, k=0.006, disp=wrinkle, disp_amp=0.003), 0.006)
+        fd.add(Lock(pts, [0.044, 0.046, 0.047, 0.048, 0.048, 0.046], [0.009] * 6, [kd] * 6, k=0.006, disp=wrinkle, disp_amp=0.003), 0.006)
         tip = pts[-1]
         dd = norm(pts[-1] - pts[-2])
-        fd.add(Lock([tip, tip + dd * 0.05], [0.038, 0.04], [0.006, 0.005], [kd] * 2, k=0.004, disp=fringe, disp_amp=0.004), 0.004, 5)
+        fd.add(Lock([tip - dd * 0.01, tip + dd * 0.03], [0.046, 0.048], [0.008, 0.006], [kd] * 2, k=0.004, disp=fringe, disp_amp=0.003), 0.004, 5)
     return fd
 
 
@@ -615,8 +629,8 @@ def belt_field():
     Rh = _frame(n)
     fd.add(RoundBox(p + n * 0.006 - Z * 0.012, (0.03, 0.05, 0.008), 0.005, R=Rh), 0.003, 9)          # the clip plate
     G, A, U = switch_rest()
-    ring_c = G + A * 0.032
-    fd.add(Torus(ring_c, 0.031, 0.0075, R=rot_from_axes(z_axis=A)), 0.003, 5)                      # the loop round its grip
+    ring_c = G + A * 0.05
+    fd.add(Torus(ring_c, 0.04, 0.008, R=rot_from_axes(z_axis=A)), 0.003, 5)                      # the loop round its grip
     fd.add(RoundCone(p + n * 0.006 - Z * 0.03, ring_c + n * -0.004, 0.009, 0.008), 0.003, 5)
     # a cell pouch on his right hip, behind the sash's knot
     p, n = belt_spot(-104.0, 0.004, dz=-0.05)
@@ -644,7 +658,7 @@ def shoulder_spot(side, along, out=0.0):
 def epaulette_field():
     """modern_kit: a gunmetal (9) shoulder board along the top of his left shoulder (from the collar to the shoulder's
     point, its outer end rounded), amber (6) piping round it and three amber rank bars across it, a button (9) at its
-    inner end; a short amber fringe hanging from its outer end (label 6)."""
+    inner end."""
     fd = Field("Epaulette")
     p0, n0 = shoulder_spot("L", 0.12, 0.01)
     p1, n1 = shoulder_spot("L", 0.98, 0.01)
@@ -665,12 +679,6 @@ def epaulette_field():
         bc = c + ax * (-L * 0.25 + L * 0.2 * k) + nrm * 0.008
         fd.add(RoundBox(bc, (0.006, 0.028, 0.003), 0.002, R=R), 0.002, 6)
     fd.add(Sphere(p0 + nrm * 0.016 - ax * 0.004, 0.011), 0.003, 9)
-    # the fringe: short amber cords round the outer end
-    for k in range(9):
-        a = math.radians(-80 + 20 * k)
-        rim = p1 + nrm * 0.0 + (ax * math.cos(a) + across * math.sin(a)) * 0.05
-        dn = norm(-nrm * 0.85 + (ax * math.cos(a) + across * math.sin(a)) * 0.5)
-        fd.add(RoundCone(rim, rim + dn * 0.05, 0.0065, 0.0055), 0.003, 6)
     return fd
 
 
@@ -840,7 +848,7 @@ def chamber_field():
 
 
 # ======================================================================================= the killswitch
-SW_SCALE = 1.25
+SW_SCALE = 1.6
 SW_HEAD = 0.1                             # the head's middle this far along the rod from the grip's middle (drawn size)
 SW_TOP = 0.145                            # the button's top
 
@@ -850,7 +858,7 @@ def switch_rest():
     hanging in its holder on his left hip, its head up."""
     p, n = belt_spot(HOLDER_A, 0.004)
     A = norm(Z - n * 0.12)
-    G = p + n * 0.046 - Z * 0.075
+    G = p + n * 0.062 - Z * 0.12
     U = norm(n - A * float(n @ A))
     return G, A, U
 
