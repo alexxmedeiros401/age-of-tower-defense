@@ -1,0 +1,12 @@
+[
+ {
+  "name": "dg_lab_final2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dg_lab_final2; mkdir -p $O\npython3 ../map_ground_hq.py cleanroom --px 64 --samples 32 --out $O/ground_cleanroom.png --watersrc $O/water_src_cleanroom.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/dg_lab_final2"
+ },
+ {
+  "name": "dg_neon_final2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dg_neon_final2; mkdir -p $O\npython3 ../map_ground_hq.py neon_grid --px 64 --samples 32 --out $O/ground_neon_grid.png --watersrc $O/water_src_neon_grid.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/dg_neon_final2"
+ }
+]
