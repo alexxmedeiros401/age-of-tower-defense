@@ -29,7 +29,7 @@ import decor_props as DP
 from decor_props import vx, wob, convex, rock
 from decor_bronze import fine, unit, box_bounds, ground_cut, cut_above, place, place_parts, convex_w, walls_box, scrub, saguaro, barrel, sandrock
 from decor_iron import Rz, R_xz, cone
-from decor_medieval import fern
+
 from decor_gunpowder import leaf, mirror
 from decor_industrial import retex
 from decor_modern import (box, wheel, car, drum, pole, flood_head, lattice_mast, chainlink, digits, stencil, rrect, curtain_box, Scaled,
@@ -120,6 +120,20 @@ def dish_point(vert, ax, Rd, Fc, a, t):
     return v3(vert) + R @ v3((math.cos(a) * r, math.sin(a) * r, r * r / (4 * Fc)))
 
 
+def bar(f, p, q, r, nrm):
+    """A flat light bar from p to q (field f), r wide each side, lying in the face of normal nrm: a stroke of a glyph.
+    (Flat bars decimate to a few clean faces each; round tubes collapsed into blobs in the game meshes.)"""
+    p, q = v3(p), v3(q)
+    d = q - p
+    L = float(np.linalg.norm(d))
+    if L < 1e-6:
+        return
+    x = d / L
+    n = unit(v3(nrm) - x * float(np.dot(v3(nrm), x)))
+    y = np.cross(n, x)
+    f.add(RoundBox((p + q) / 2, (L / 2 + r, r, r * 0.8), r * 0.3, R=np.stack([x, y, n], axis=1)), k=0.0)
+
+
 def glyphs(f, c, side, n, h, seed, r=0.01, up=(0, 0, 1)):
     """A line of n invented glyphs (no real script) in neon tube (field f) centred at c, reading along `side`, each h
     high: three to five strokes joining points of a 3 x 4 grid, every glyph its own."""
@@ -143,10 +157,11 @@ def glyphs(f, c, side, n, h, seed, r=0.01, up=(0, 0, 1)):
         if not strokes:
             strokes = [((0.0, 0.0), (0.0, 1.0)), ((0.0, 1.0), (1.0, 1.0))]
         strokes.append(((0.0, 1.0), (1.0, 1.0)) if rng.random() < 0.4 else ((0.5, 0.0), (0.5, 1.0)))
+        nrm = np.cross(side, up)
         for (a, b) in strokes:
             p = o + side * (a[0] * w) + up * (a[1] * h)
             q = o + side * (b[0] * w) + up * (b[1] * h)
-            f.add(RoundCone(p, q, r, r), k=0.0)
+            bar(f, p, q, r, nrm)
 
 
 def railing_line(f, pts, h=0.42, step=0.32, r=0.012, z0=0.0):
@@ -347,14 +362,11 @@ def cable_reel(seed=0, Rf=0.27, R0=0.13, W=0.16, reel="plywood", cable="cable_or
             a = math.pi / 4 + i * math.pi / 2
             rl.add(Cylinder((math.cos(a) * 0.07, sy * (W + 0.014), Rf + math.sin(a) * 0.07), 0.01, 0.01, R=RY), k=0.002, label=6)
     rl.add(Cylinder((0, 0, Rf), R0, 2 * W, R=RY), k=0.0)
-    rc = 0.017 * Rf / 0.27
-    nl = max(3, int((Rf - R0 - 0.03) / (2 * rc)))
-    ni = max(4, int((2 * W - 0.05) / (2 * rc)))
-    for j in range(nl):                                             # turns of cable, layer on layer
-        for i in range(ni + 1):
-            y = -W + 0.035 + i * (2 * W - 0.07) / ni
-            cb.add(Torus((0, y, Rf), R0 + rc * 1.5 + j * rc * 1.75, rc, R=RY), k=0.004)
-    cb.inter(Cylinder((0, 0, Rf), Rf - 0.03, 2 * W - 0.02, R=RY), k=0.0)
+    rc = 0.017 * Rf / 0.27                                          # the wound cable: a drum grooved turn by turn
+    Rw = Rf - 0.04
+    cb.add(Func(lambda P: (np.maximum(np.sqrt(P[:, 0] ** 2 + (P[:, 2] - F32(Rf)) ** 2) - F32(Rw), np.abs(P[:, 1]) - F32(W - 0.012))
+                           + F32(rc * 0.35) * (F32(1) - np.abs(np.cos(P[:, 1] * F32(math.pi / (2 * rc)))))).astype(F32),
+                (-Rf, -W, 0.0), (Rf, W, 2 * Rf)), k=0.0)
     ground_cut(rl, -0.01)
     out += [("Reel", rl, fine(0.005, 0.01), reel), ("Cable", cb, fine(0.005, 0.01), cable)]
     if end:
@@ -430,7 +442,21 @@ def potted_fern(seed=0, s=1.0, square=False):
         top = 0.28
     ground_cut(pt, -0.01)
     out += [("Pot", pt, fine(0.004, 0.008), "white_tech"), ("Soil", so, fine(0.005, 0.01), "soil")]
-    place_parts(out, fern(seed, s), (0, 0, top))
+    lv, stl = Field("Leaves"), Field("Stalks")
+    rng = np.random.default_rng(seed)
+    n = 11 if square else 9
+    for k in range(n):                                              # broad glossy leaves arching out on their stalks
+        a = 2 * math.pi * k / n + rng.uniform(-0.25, 0.25)
+        d = v3((math.cos(a), math.sin(a), 0.0))
+        el = rng.uniform(0.5, 1.1)
+        L = rng.uniform(0.32, 0.46) * s
+        b0 = v3((0, 0, top)) + d * 0.03
+        tip = b0 + (d * math.cos(el) + Z * math.sin(el)) * L
+        seg(stl, b0, tip, 0.008 * s)
+        u = unit(d * math.cos(el - 0.7) + Z * math.sin(el - 0.7))
+        c = tip + u * 0.1 * s
+        lv.add(Ellipsoid(c, (0.13 * s, 0.055 * s, 0.012 * s), R=R_xz(u, Z)), k=0.0)
+    out += [("Leaves", lv, fine(0.005, 0.01), "fern"), ("Stalks", stl, fine(0.004, 0.008), "fern")]
     return out
 
 
