@@ -481,8 +481,8 @@ def _pauldron_region(P, side, lame):
     z = P[:, 2]
     inner = F(0.21) - P[:, 0] * F(sx)
     if lame == 0:
-        return np.maximum(np.maximum(d - F(0.25), F(c[2] - 0.07) - z), inner)
-    return np.maximum(np.maximum(d - F(0.27), np.maximum(F(c[2] - 0.17) - z, z - F(c[2] - 0.03))), inner + F(0.03))
+        return np.maximum(np.maximum(d - F(0.22), F(c[2] - 0.07) - z), inner)
+    return np.maximum(np.maximum(d - F(0.24), np.maximum(F(c[2] - 0.16) - z, z - F(c[2] - 0.03))), inner + F(0.03))
 
 
 def _bracer_region(P, side):
@@ -502,8 +502,8 @@ def guards_field():
         sx = -1 if side == "R" else 1
         sh = J["shoulder_" + side]
         c = sh + v3((sx * 0.035, 0.0, 0.03))
-        fd.add(Clip(Shell(base, PC_IN + 0.02, 0.022, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 1), lo, hi), 0.01), 0.004, BASE_L)
-        fd.add(Clip(Shell(base, PC_IN + 0.04, 0.024, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 0), lo, hi), 0.012), 0.004, BASE_L)
+        fd.add(Clip(Shell(base, PC_IN + 0.016, 0.02, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 1), lo, hi), 0.01), 0.004, BASE_L)
+        fd.add(Clip(Shell(base, PC_IN + 0.034, 0.022, pad=0.14), Func(lambda P, s=side: _pauldron_region(P, s, 0), lo, hi), 0.012), 0.004, BASE_L)
         def edge(P, s=side):
             return np.maximum(-(_pauldron_region(P, s, 0) + F(0.014)), _pauldron_region(P, s, 0))
         fd.paint(Func(edge, lo, hi), ALT_L)
