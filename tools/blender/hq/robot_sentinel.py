@@ -47,7 +47,7 @@ for _k in ("hip", "knee", "ankle", "toe"):
 
 HEAD_C = v3((0, 0.0, 1.43))
 EMIT_C = v3((0, -0.152, 1.135))            # the chest emitter's lens
-HALO_C = v3((0, 0.2, 1.61))                # the halo ring's centre
+HALO_C = v3((0, 0.13, 1.69))                # the halo ring's centre
 HALO_N = norm(v3((0, -0.42, 0.906)))       # its axis: tilted toward a viewer in front and above
 HALO_R = 0.165
 HALO_W = norm(np.cross(HALO_N, v3((1, 0, 0))))       # in its plane: back and up
@@ -146,7 +146,7 @@ def parts(fine=False):
     f.paint(Func(lambda P: np.abs(P[:, 2] - F(1.2)) - F(0.012), (-0.3, 0.0, 0.9), (0.3, 0.4, 1.4)), 1)
     out.append(("Back", f, vx, "spine", "armor"))
     f = Field("HaloMount")
-    s0 = v3((0, 0.18, 1.22))
+    s0 = v3((0, 0.2, 1.24))
     s1 = HALO_BACK + v3((0, 0.03, -0.075))
     f.add(RoundCone(s0, s1, 0.028, 0.02))
     f.add(Sphere(s0, 0.04), k=0.01)
