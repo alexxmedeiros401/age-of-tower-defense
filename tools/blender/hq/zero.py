@@ -966,7 +966,7 @@ MAT_OVERRIDES = {nm: ("android", dict(MAT_KW, name="HQ_Zero" + nm)) for nm in RE
 GLOW = {"Eye": (AMBER_GLOW, 1.3, 0.55), "Mouth": (AMBER_GLOW, 1.2, 0.55), "Spark": ((1.0, 0.97, 0.9), 1.0, 0.95), "Smile": (AMBER_GLOW, 1.3, 0.55),
         "Core": (AMBER_GLOW, 1.3, 0.5), "Flare": (FLARE_GLOW, 1.5, 0.7), "Bore": (AMBER_GLOW, 1.3, 0.5)}
 LOW_TARGETS = {"Skin": 2600, "Head": 2800, "Hull": 5000, "Arms": 4200, "Launcher": 2200, "Hand": 2000, "Legs": 4000,
-               "Cloth": 900, "Pupil": 80, "Eye": 300, "Spark": 60, "Smile": 160, "Mouth": 120, "Core": 160, "Flare": 160, "Bore": 80}
+               "Cloth": 900, "Pupil": 160, "Eye": 300, "Spark": 60, "Smile": 160, "Mouth": 120, "Core": 160, "Flare": 160, "Bore": 80}
 AO_EXCLUDE = ["Cloth"]
 
 
