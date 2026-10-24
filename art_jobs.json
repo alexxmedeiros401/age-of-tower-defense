@@ -1,0 +1,22 @@
+[
+ {
+  "name": "dckit_cooling_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dckit_cooling_p1; mkdir -p $O\npython3 decor_build.py -- --theme cooling --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dckit_cooling_p1"
+ },
+ {
+  "name": "dckit_server_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dckit_server_p1; mkdir -p $O\npython3 decor_build.py -- --theme server --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dckit_server_p1"
+ },
+ {
+  "name": "dckit_core_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dckit_core_p1; mkdir -p $O\npython3 decor_build.py -- --theme core --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dckit_core_p1"
+ },
+ {
+  "name": "dckit_camp_p1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dckit_camp_p1; mkdir -p $O\npython3 decor_build.py -- --theme camp_city --out $O --fine --tex 2048 --ao 24 --shots $O/shots --each > $O/build.log 2>&1 || (tail -40 $O/build.log; exit 1)\ngrep '^\\[kit\\]' $O/build.log | tail -4; rm -f $O/kit_hi.blend",
+  "out": "out/dckit_camp_p1"
+ }
+]
