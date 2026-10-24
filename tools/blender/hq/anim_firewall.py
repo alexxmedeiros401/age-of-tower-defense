@@ -198,7 +198,7 @@ def make_combat(arm, frames=40):
 # ---------------------------------------------------------------------------------------------- attack
 D = PULSE
 # his right palm: typing (0-5), up high (8), down onto Enter (D), held (to D + 3), lifted off and back to the keys
-K_RH = [(0, 0.0), (5, 0.0), (6, 0.06), (8, 0.2), (9, 0.17), (D, 0.0), (D + 3, 0.0), (D + 6, 0.07), (D + 11, 0.03), (FR, 0.0)]
+K_RH = [(0, 0.0), (5, 0.0), (6, 0.14), (7, 0.34), (8, 0.4), (9, 0.24), (D, 0.0), (D + 3, 0.0), (D + 6, 0.1), (D + 11, 0.03), (FR, 0.0)]
 K_RX = [(0, 0.0), (5, 0.0), (8, 1.0), (D + 3, 1.0), (D + 9, 0.4), (D + 14, 0.0), (FR, 0.0)]     # on its way to Enter
 K_TYPE = [(0, 1.0), (5, 1.0), (7, 0.0), (D + 12, 0.0), (FR - 4, 0.3), (FR, 0.0)]                # the burst of typing
 K_NODE = [(0, 1.0), (6, 1.22), (D - 1, 1.28), (D, 1.9), (D + 1, 1.7), (D + 3, 0.8), (D + 8, 0.85), (FR, 1.0)]
@@ -206,7 +206,7 @@ K_FLARE = [(0, 0.0), (D - 1, 0.0), (D, 1.0), (D + 2, 1.22), (D + 4, 1.38), (D + 
 K_RO = [(0, C_RO), (5, C_RO + V(0.0, -0.012, -0.012)), (8, C_RO + V(0.006, 0.01, 0.02)), (D, C_RO + V(-0.012, -0.02, -0.035)),
         (D + 2, C_RO + V(-0.012, -0.018, -0.04)), (D + 7, C_RO + V(0.008, 0.016, -0.01)), (D + 13, C_RO), (FR, C_RO)]
 K_YAW = [(0, C_YAW), (5, C_YAW - 2.0), (8, C_YAW + 4.0), (D, C_YAW - 5.0), (D + 5, C_YAW + 2.0), (24, C_YAW - 1.0), (FR, C_YAW)]
-K_BEND = [(0, 0.17), (4, 0.26), (6, 0.24), (8, 0.14), (D, 0.3), (D + 2, 0.3), (D + 6, 0.13), (D + 12, 0.17), (FR, 0.17)]
+K_BEND = [(0, 0.17), (4, 0.26), (6, 0.2), (8, 0.06), (D, 0.32), (D + 2, 0.3), (D + 6, 0.13), (D + 12, 0.17), (FR, 0.17)]
 K_SCREEN = [(0, 0.0), (2, 1.0), (6, 1.0), (8, 0.6), (D, 0.85), (D + 2, 0.7), (D + 6, 0.0), (FR, 0.0)]    # eyes on the screen
 K_TILT = [(0, 0.05), (5, 0.0), (8, -0.04), (D + 1, 0.1), (D + 6, 0.02), (FR, 0.05)]
 K_SHRUG = [(0, 0.0), (4, 0.06), (8, 0.14), (D, 0.0), (D + 2, 0.16), (D + 6, 0.04), (FR, 0.0)]
@@ -243,7 +243,8 @@ def attack_pose(arm, f):
     # the right palm: from its place on the keys toward Enter, lifted by K_RH
     home = KEY_R + UP * tr[0] + SW * tr[1] - CU * tr[2]
     x = smooth_keys(K_RX, f)
-    right = home.lerp(ENTER_P, x) + UP * smooth_keys(K_RH, f) + CU * (0.05 * smooth_keys(K_RH, f))
+    h = smooth_keys(K_RH, f)
+    right = home.lerp(ENTER_P, x) + UP * h + CU * (0.12 * h) - SW * (0.2 * h)
     rfinger = (FINGER - SW * 0.12).normalized().lerp((FINGER - UP * 0.35).normalized(), x).normalized()
     aims.update(hands(arm, yaw, tl, tr, right=right, rfinger=rfinger))
     machine_aims(aims, wobble=(2.4 * ring(f) + 0.35 * hum(f), 1.3 * ring(f + 1.3) + 0.3 * hum(f + 1)))

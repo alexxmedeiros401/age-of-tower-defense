@@ -94,7 +94,7 @@ def floor_field():
         a = np.abs(np.mod(P[:, 0] + P[:, 1], F(0.06)) - F(0.03))
         b = np.abs(np.mod(P[:, 0] - P[:, 1], F(0.06)) - F(0.03))
         d = np.maximum(a, b) - F(0.008)
-        return np.maximum(np.maximum(d, np.abs(P[:, 2] - F(FLOOR_TOP)) - F(0.0035)), F(PAD_R) - _rr(P))
+        return np.maximum(np.maximum(d, np.abs(P[:, 2] - F(FLOOR_TOP)) - F(0.0035)), np.maximum(F(PAD_R) - _rr(P), _rr(P) - F(GROUND_R - 0.04)))
     fd.add(Func(tread, lo, hi), 0.001, CHAR)
     side = lambda P: np.maximum(F(GROUND_R - 0.03) - _rr(P), P[:, 2] - F(FLOOR_TOP - 0.025))
     fd.paint(Func(side, lo, hi), BLACK)
@@ -219,16 +219,16 @@ def bags_into(fd):
     """A low wall of sandbags (canvas 0), two courses on an arc at the ring's edge, tied ends (black 5)."""
     rs = np.random.RandomState(19)
     o0, _ = ring_frame(BAGS_A)
-    for row, (n, r, z, span) in enumerate(((5, PROP_R + 0.02, 0.0, 0.64), (4, PROP_R + 0.03, 0.085, 0.5))):
+    for row, (n, r, z, span) in enumerate(((5, PROP_R + 0.02, 0.0, 0.72), (4, PROP_R + 0.03, 0.105, 0.56))):
         for k in range(n):
             a = BAGS_A + span * (k / (n - 1) - 0.5)
             out, along = ring_frame(a)
-            p = ring_pt(a, r) + Z * (FLOOR_TOP + 0.05 + z)
+            p = ring_pt(a, r) + Z * (FLOOR_TOP + 0.058 + z)
             R = np.stack([along, out, Z], axis=1) @ euler(rs.uniform(-0.06, 0.06), rs.uniform(-0.05, 0.05), rs.uniform(-0.1, 0.1))
             lump = lambda P: F(0.006) * NOISE(P * F(14)) + F(0.002) * NOISE(P * F(40))
-            fd.add(Ellipsoid(p, (0.105, 0.075, 0.05), R=R, disp=lump, disp_amp=0.008), 0.012, BASE)
-            fd.add(Ellipsoid(p + R[:, 0] * 0.1, (0.022, 0.03, 0.022), R=R), 0.008, BASE)                # the tied end
-            fd.add(Torus(p + R[:, 0] * 0.085, 0.024, 0.006, R=rot_from_axes(z_axis=R[:, 0])), 0.003, BLACK)
+            fd.add(Ellipsoid(p, (0.125, 0.085, 0.062), R=R, disp=lump, disp_amp=0.008), 0.012, BASE)
+            fd.add(Ellipsoid(p + R[:, 0] * 0.12, (0.024, 0.034, 0.026), R=R), 0.008, BASE)                # the tied end
+            fd.add(Torus(p + R[:, 0] * 0.103, 0.028, 0.006, R=rot_from_axes(z_axis=R[:, 0])), 0.003, BLACK)
 
 
 def banner_into(fd):
@@ -239,8 +239,8 @@ def banner_into(fd):
     fd.add(Torus(BANNER_POLE[0] + Z * 0.05, 0.022, 0.006), 0.003, BLACK)
 
 
-BANNER_POLE = [ring_pt(BANNER_A, PROP_R + 0.07) + Z * FLOOR_TOP, ring_pt(BANNER_A, PROP_R + 0.075) + Z * (FLOOR_TOP + 0.35),
-               ring_pt(BANNER_A + 0.02, PROP_R + 0.09) + Z * (FLOOR_TOP + 0.62), ring_pt(BANNER_A + 0.04, PROP_R + 0.11) + Z * (FLOOR_TOP + 0.82)]
+BANNER_POLE = [ring_pt(BANNER_A, PROP_R + 0.07) + Z * FLOOR_TOP, ring_pt(BANNER_A, PROP_R + 0.075) + Z * (FLOOR_TOP + 0.45),
+               ring_pt(BANNER_A + 0.02, PROP_R + 0.09) + Z * (FLOOR_TOP + 0.8), ring_pt(BANNER_A + 0.04, PROP_R + 0.1) + Z * (FLOOR_TOP + 1.08)]
 
 
 def banner_field():
@@ -251,7 +251,7 @@ def banner_field():
     out, along = ring_frame(BANNER_A)
     hang = norm(along * -1.0 + out * -0.35)                 # it hangs off the pole toward the camera's side
     n = norm(np.cross(hang, Z))
-    W, H = 0.24, 0.3
+    W, H = 0.3, 0.46
     wave = lambda P: F(0.012) * np.sin(((P - top.astype(F)) @ hang.astype(F)) * F(22) + P[:, 2] * F(6)) + F(0.002) * NOISE(P * F(30))
     def cloth(P):
         q = P - top.astype(F)
@@ -265,10 +265,10 @@ def banner_field():
     lo, hi = top - 0.45, top + 0.45
     fd.add(Func(cloth, lo, hi), 0.0, BASE)
     fd.add(Chain([top - hang * 0.0, top + hang * W], [0.012, 0.01], k=0.004), 0.006, BASE)          # its hem round the pole's arm
-    cc = top + hang * (W * 0.5) - Z * 0.13
+    cc = top + hang * (W * 0.5) - Z * 0.18
     def chev(P):
         q = P - cc.astype(F)
-        return np.maximum(_c.chevron(q @ hang.astype(F), q @ Z.astype(F), w=0.034, arm=0.085), np.abs(q @ n.astype(F)) - F(0.04))
+        return np.maximum(_c.chevron(q @ hang.astype(F), q @ Z.astype(F), w=0.044, arm=0.11), np.abs(q @ n.astype(F)) - F(0.04))
     fd.paint(Func(chev, cc - 0.3, cc + 0.3), BLACK)
     def scorch(P):
         q = P - top.astype(F)

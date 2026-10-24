@@ -136,11 +136,11 @@ def head(fd):
         pts = [hp((sx * 0.15, -0.055, 1.742)), hp((sx * 0.114, -0.13, 1.75)), hp((sx * 0.06, -0.172, 1.748)), hp((0.0, -0.182, 1.746))]
         fd.add(Chain(pts, [hr(0.01), hr(0.015), hr(0.017), hr(0.017)], k=hr(0.02)), hr(0.03), SKIN)     # brow ridge
     fd.paint(Func(face_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
-    # straight brows, level and a little low over the eyes, their inner ends level (keen, not knitted)
+    # straight brows with a gentle arch, set level over the eyes (keen, not cross: their inner ends not drawn down)
     for sx in (-1, 1):
-        pts = [hp((sx * 0.026, -0.207, 1.765)), hp((sx * 0.066, -0.201, 1.778)), hp((sx * 0.108, -0.183, 1.781)), hp((sx * 0.148, -0.143, 1.768))]
-        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.008), hr(0.0095), hr(0.008), hr(0.0045)], k=hr(0.007)), hr(0.009), BROW)
-        fd.paint(Chain(pts, [hr(0.014), hr(0.016), hr(0.014), hr(0.008)], k=hr(0.01)), BROW)
+        pts = [hp((sx * 0.028, -0.207, 1.772)), hp((sx * 0.066, -0.201, 1.787)), hp((sx * 0.107, -0.182, 1.79)), hp((sx * 0.147, -0.143, 1.775))]
+        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.0068), hr(0.0078), hr(0.0068), hr(0.0038)], k=hr(0.007)), hr(0.009), BROW)
+        fd.paint(Chain(pts, [hr(0.012), hr(0.0135), hr(0.012), hr(0.007)], k=hr(0.01)), BROW)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
@@ -321,7 +321,7 @@ def band_path(n=21, lift=0.007):
 
 def mic_path():
     c, o = cup_frame(1)
-    return [c + o * 0.03 + v3((0, -0.03, -0.035)), hp((0.15, -0.1, 1.585)), hp((0.11, -0.19, 1.555)), hp((0.05, -0.232, 1.548))]
+    return [c + o * 0.03 + v3((0, -0.03, -0.035)), hp((0.155, -0.09, 1.57)), hp((0.125, -0.165, 1.54)), hp((0.088, -0.2, 1.528))]
 
 
 def headset_field():
@@ -739,12 +739,12 @@ SRV_Z = DECK_H + SRV_HALF[2]               # its centre's height
 SRV_TOP = DECK_H + 2 * SRV_HALF[2]
 MAST_Z0, MAST_Z1, MAST_R = SRV_TOP, 1.8, 0.034
 RING_Z = 1.93                              # the emitter ring's plane = the node's centre (the pulse's origin)
-RING_R = 0.2
+RING_R = 0.23
 EMIT_N = 8
 EMIT_A0 = math.atan2(FRONT[1], FRONT[0])   # an emitter faces the camera
 NODE_R = 0.058
 CORE_C = MAST_C + Z * RING_Z
-FLARE_R = RING_R + 0.075                   # the flare ring's radius (just round the lenses)
+FLARE_R = RING_R + 0.09                   # the flare ring's radius (just round the lenses)
 ANT_P = MAST_C - SRV_X * 0.1 + SRV_F * -0.05     # the whip antenna's foot (clamped to the mast's side)
 ANT_TIP = ANT_P + v3((-0.02, 0.0, 2.38))
 
@@ -883,9 +883,9 @@ def ring_field():
     for k in range(EMIT_N):
         pc, d = _emit_c(k)
         R = rot_from_axes(z_axis=d)
-        fd.add(Cylinder(pc + d * 0.03, 0.034, 0.06, rr=0.012, R=R), 0.006, BLACK)                # the can
-        fd.add(Torus(pc + d * 0.06, 0.028, 0.007, R=R), 0.003, STEEL)                            # its bezel
-        fd.sub(Cylinder(pc + d * 0.068, 0.024, 0.016, R=R), 0.002)                                # the lens' window
+        fd.add(Cylinder(pc + d * 0.035, 0.044, 0.07, rr=0.014, R=R), 0.006, BLACK)               # the can
+        fd.add(Torus(pc + d * 0.07, 0.036, 0.008, R=R), 0.003, STEEL)                            # its bezel
+        fd.sub(Cylinder(pc + d * 0.078, 0.031, 0.016, R=R), 0.002)                                # the lens' window
         fd.add(Cylinder(pc - Z * 0.03 + d * 0.02, 0.008, 0.03, rr=0.003), 0.003, STEEL)         # a little foot
     # the cup under the node, its cage of prongs
     fd.add(RoundCone(hub + Z * 0.02, CORE_C - Z * (NODE_R - 0.012), 0.034, 0.05), 0.01, GUN)
@@ -905,7 +905,7 @@ def emitters_field():
     fd = Field("Emitters")
     for k in range(EMIT_N):
         pc, d = _emit_c(k)
-        fd.add(Cylinder(pc + d * 0.066, 0.023, 0.014, rr=0.006, R=rot_from_axes(z_axis=d)), 0.0)
+        fd.add(Cylinder(pc + d * 0.076, 0.03, 0.014, rr=0.006, R=rot_from_axes(z_axis=d)), 0.0)
     return fd
 
 
