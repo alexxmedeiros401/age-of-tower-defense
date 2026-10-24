@@ -8771,7 +8771,8 @@ func _nova_orbital(ev: Dictionary, hp: Vector3) -> void:
 			effects.append({"node": up, "t": 0.0, "life": 0.3, "kind": "flash", "s": 1.0})
 		_sfx("laser", -2.0, 0.0, 0.3)
 		var spd := maxf(float(speed), 0.01)
-		var beam_m := _mat("orbital_beam", Color(1.0, 0.85, 1.0, 0.85), {"emit": Color(0.9, 0.45, 1.0), "emit_e": 5.0, "unshaded": true})
+		var beam_m := _mat("orbital_beam", Color(0.78, 0.25, 1.0, 0.9), {"emit": Color(0.75, 0.2, 1.0), "emit_e": 5.0, "unshaded": true})
+		var core_m := _mat("orbital_core", Color(1.0, 0.95, 1.0), {"emit": Color(1.0, 0.9, 1.0), "emit_e": 6.0, "unshaded": true})
 		for k in pts.size():
 			var tid := int(ids[k]) if k < ids.size() else -1
 			var p: Vector2 = pts[k]
@@ -8781,7 +8782,10 @@ func _nova_orbital(ev: Dictionary, hp: Vector3) -> void:
 				var beam := _mi(_cyl(0.32, 0.4, 16.0, 12), beam_m, self, g + Vector3(0, 8.0, 0))
 				beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				effects.append({"node": beam, "t": 0.0, "life": 0.4, "kind": "flash", "s": 1.0})
-				_ring_fx(g + Vector3(0, 0.2, 0), 1.8, Color(0.9, 0.5, 1.0), 0.5)
+				var core := _mi(_cyl(0.12, 0.14, 16.0, 8), core_m, self, g + Vector3(0, 8.0, 0))
+				core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": core, "t": 0.0, "life": 0.4, "kind": "flash", "s": 1.0})
+				_ring_fx(g + Vector3(0, 0.2, 0), 1.8, Color(0.75, 0.25, 1.0), 0.5)
 				_shell_burst(g, 1.1)
 				_sfx("explosion", -4.0, 0.1, 0.2)
 				shake = maxf(shake, 0.7)
