@@ -111,8 +111,8 @@ def head(fd):
         ec = eye_c(sx)
         low = sx > 0                                                                        # the left lid a touch lower
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up_z = hr(0.0125) if low else hr(0.0165)
-        lo_z = -hr(0.017) if low else -hr(0.02)
+        up_z = hr(0.0175) if low else hr(0.021)
+        lo_z = -hr(0.019) if low else -hr(0.021)
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, up_z)), (sx * 0.16, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, lo_z)), (sx * -0.1, 0.06, 1.0)), hr(0.004))
@@ -122,9 +122,9 @@ def head(fd):
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.672 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, -0.004 - 0.008 * k)), hr(0.0022), hr(0.0015)), hr(0.003))
     # a straight nose with a bump on the bridge (broken once)
-    fd.add(RoundCone(hp((0, -0.188, 1.73)), hp((0, -0.24, 1.632)), hr(0.015), hr(0.022)), hr(0.016), SKIN)
+    fd.add(RoundCone(hp((0, -0.188, 1.73)), hp((0, -0.236, 1.636)), hr(0.015), hr(0.02)), hr(0.016), SKIN)
     fd.add(S((0.003, -0.214, 1.69), 0.017), hr(0.01), SKIN)
-    fd.add(S((0, -0.24, 1.622), 0.024), hr(0.014), SKIN)
+    fd.add(S((0, -0.236, 1.628), 0.022), hr(0.014), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.03, -0.216, 1.606), 0.019), hr(0.011), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.015, -0.23, 1.594)), v3((0.008, 0.01, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
@@ -193,12 +193,12 @@ def hair_tex(P):
     """A close crop: fine short strands swept back from the brow, a little tufted."""
     Q = hinv(P)
     phi = np.arctan2(Q[:, 0], -(Q[:, 1] - F(CROWN[1])))
-    return (F(0.0011) * np.sin(phi * F(70) + F(1.4) * NOISE(Q * F(14))) + F(0.0012) * NOISE(Q * np.array([120, 120, 60], F))
-            + F(0.0008) * NOISE(Q * F(40)))
+    return (F(0.0004) * np.sin(phi * F(90) + F(2.5) * NOISE(Q * F(18))) + F(0.0012) * NOISE(Q * np.array([140, 140, 90], F))
+            + F(0.0009) * NOISE(Q * F(45)))
 
 
 def hair_shell_out():
-    return 0.006 + 0.012
+    return 0.006 + 0.006            # the hair shell's outer face (Shell(sk, 0.006, 0.012))
 
 
 def hair_field():
@@ -369,7 +369,7 @@ def scarf_knot():
     """The knot: on the cowl's rolled lower edge at the front, to his left, over the vest's collar."""
     sh = scarf_hull()
     co = carrier_outer()
-    o, d = v3((0.085, -0.7, 1.36)), v3((0, 1, 0))
+    o, d = v3((0.105, -0.7, 1.36)), v3((0, 1, 0))
     h, ok = ray_hit(Func(lambda P: np.minimum(sh.fn(P) - F(SCARF_OFF + SCARF_T + 0.012), co.fn(P) - F(0.006)), (-0.4, -0.8, 1.1), (0.4, 0.4, 1.6)),
                     [o], [d], tmax=0.8)
     p = h[0]
@@ -413,7 +413,7 @@ def scarf_field():
     fd.add(Inter(Func(roll, lo, hi, disp=folds, disp_amp=0.008), Func(roll_keep, lo, hi), 0.01), 0.014)
     k, kn = scarf_knot()
     cl = lambda P: F(0.003) * NOISE(P * F(20)) + F(0.0015) * NOISE(P * F(55))
-    fd.add(Ellipsoid(k, (0.05, 0.038, 0.042), R=rot_from_axes(z_axis=kn, y_axis=(0, 0, 1)), disp=cl, disp_amp=0.004), 0.016)
+    fd.add(Ellipsoid(k, (0.04, 0.03, 0.034), R=rot_from_axes(z_axis=kn, y_axis=(0, 0, 1)), disp=cl, disp_amp=0.004), 0.014)
     rag = lambda P: F(0.002) * NOISE(P * F(26))
     for tail, w0, w1 in zip(scarf_tails(), (0.042, 0.038), (0.052, 0.046)):
         pts = [p for p, n in tail]
@@ -425,6 +425,24 @@ def scarf_field():
         for j, o in enumerate((-0.6, 0.0, 0.6)):
             Rn = rot_from_axes(z_axis=d, y_axis=ns[-1])
             fd.sub(Ellipsoid(e + d * (0.006 + 0.008 * (j % 2)) + Rn[:, 0] * (o * w1), (0.01, 0.03, 0.022), R=Rn), 0.003)
+    return fd
+
+
+def vest_field():
+    """The Laser gunner's plate vest (laser.armour_field: front and back plates, borders, shoulder straps, the abdomen
+    band and its pouches, the battery pack on his back) in the Resistance's colours, the amber (6) slash sprayed across
+    its front plate below the scarf's ends, on his right."""
+    fd = armour_field()
+    co = carrier_outer()
+    def slash(P):
+        a, b = np.array([-0.17, 1.26], F), np.array([-0.04, 1.08], F)
+        ab = b - a
+        q2 = P[:, [0, 2]]
+        t = np.clip(((q2 - a) @ ab) / F(ab @ ab), 0, 1)
+        q = q2 - (a + t[:, None] * ab)
+        w = F(0.026) + F(0.008) * t + F(0.004) * NOISE(P * F(30))
+        return np.maximum(np.sqrt((q * q).sum(1)) - w, np.maximum(P[:, 1] - F(0.0), np.abs(co.fn(P)) - F(0.02)))
+    fd.paint(Func(slash, (-0.4, -0.5, 0.9), (0.2, 0.1, 1.4)), AMB_L)
     return fd
 
 
@@ -883,7 +901,7 @@ def sculpt_parts(fine=True):
         ("Goggles", goggles_field(), 0.0018 if fine else 0.0026),
         ("Scarf", scarf_field(), 0.0026 if fine else 0.0036),
         ("Suit", suit_field(), 0.0026 if fine else 0.0036),
-        ("Armour", armour_field(), 0.0026 if fine else 0.0036),
+        ("Armour", vest_field(), 0.0026 if fine else 0.0036),
         ("Guards", guards_field(), 0.0024 if fine else 0.0034),
         ("Salvage", salvage_field(), 0.0024 if fine else 0.0034),
         ("Trousers", trousers_field(), 0.0026 if fine else 0.0036),

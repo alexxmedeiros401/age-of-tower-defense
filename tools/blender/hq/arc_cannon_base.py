@@ -31,7 +31,7 @@ CRATE_A = math.radians(46.0)   # behind him on his left (+X)
 FLAG_A = math.radians(100.0)   # behind him (its cloth hangs out toward his right, facing the front)
 SOCK_A = math.radians(124.0)   # the battery cable's socket in the step's rim
 B = dict(BASE=0, BLACK=5, AMB=6, WHITE=7, ALT=8, GUN=9, STEEL=10, GLASS=11, RUBBER=12, HAZ=13)
-BAG = (0.15, 0.085, 0.05)      # a sandbag's half length, depth, height
+BAG = (0.16, 0.09, 0.058)      # a sandbag's half length, depth, height
 
 
 def ring_pt(a, r, z=0.0):
@@ -153,11 +153,11 @@ def bag_specs():
     rs = np.random.RandomState(31)
     out = []
     a0, a1 = WALL_A
-    for course, (rr, n) in enumerate(((PROP_R + 0.02, 11), (PROP_R + 0.025, 10))):
+    for course, (rr, n) in enumerate(((PROP_R + 0.02, 11), (PROP_R + 0.025, 10), (PROP_R + 0.03, 9))):
         for k in range(n):
             t = (k + 0.5 * course + 0.25) / float(n)
             a = a0 + (a1 - a0) * t
-            if any(abs(a - pa) < math.radians(10.0) for pa in PLATE_AS) and course == 1:
+            if any(abs(a - pa) < math.radians(10.0) for pa in PLATE_AS) and course >= 1:
                 continue
             z = GROUND_TOP + BAG[2] * 0.9 + course * (2 * BAG[2] * 0.82) + rs.uniform(-0.004, 0.006)
             c = v3((math.cos(a) * (rr + rs.uniform(-0.012, 0.012)), math.sin(a) * (rr + rs.uniform(-0.012, 0.012)), z))
@@ -194,10 +194,10 @@ def salvage_plates_field():
     fd = Field("Plates")
     for j, a in enumerate(PLATE_AS):
         o, t, R = frame_at(a)
-        c = o * (PROP_R + 0.02) + Z * (GROUND_TOP + 0.24)
+        c = o * (PROP_R + 0.0) + Z * (GROUND_TOP + 0.29)
         tilt = euler(0.0, 0.0, 0.0)
         Rp = R @ euler(-0.16, 0.0, 0.0)                     # leaning back a little against the bags
-        hw, hh = 0.19, 0.22
+        hw, hh = 0.21, 0.27
         def plate(P, c=c, Rp=Rp):
             q = (P - c.astype(F)) @ Rp.astype(F)
             bow = q[:, 1] - F(0.14) * (q[:, 0] / F(hw)) ** 2 * F(0.3)
@@ -228,7 +228,7 @@ def salvage_plates_field():
 
 
 # ======================================================================================= the battery bank
-BOX_HALF = (0.075, 0.1, 0.13)     # a battery box: along the ring, radial, height (half)
+BOX_HALF = (0.085, 0.11, 0.15)     # a battery box: along the ring, radial, height (half)
 
 
 def bank_frame():
@@ -301,7 +301,7 @@ def crate_field():
     fd = Field("Crate")
     f0, o, t, R = crate_frame()
     R2 = R @ euler(0, 0, 0.12)
-    hx, hy, hz = 0.19, 0.14, 0.15
+    hx, hy, hz = 0.22, 0.16, 0.17
     c = f0 + Z * hz
     fd.add(RoundBox(c, (hx, hy, hz), 0.012, R=R2), 0.0, B["ALT"])
     for sx in (-1, 1):
@@ -337,7 +337,7 @@ def flag_frame():
     return foot, o, t, R
 
 
-POLE_H = 1.95
+POLE_H = 2.05
 
 
 def banner_field():
@@ -369,7 +369,7 @@ def flagcloth_field():
     (5) slash across it and frayed holes."""
     fd = Field("Flag")
     top, o, t, = cloth_frame()
-    w, h = 0.42, 0.5
+    w, h = 0.5, 0.58
     def cloth(P):
         q = P - top.astype(F)
         u = q @ t.astype(F)                        # along the bar (0 .. w)

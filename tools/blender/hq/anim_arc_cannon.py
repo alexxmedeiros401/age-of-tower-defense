@@ -36,7 +36,7 @@ TRUN = vec(ac.TRUN)
 GD0, GU0, GX0 = vec(ac.GD), vec(ac.GU), vec(ac.GX_)
 HINGE = vec(ac.hinge_pt())
 GRIP = {"R": vec(ac.grip_pt(-1, 0.58)), "L": vec(ac.grip_pt(1, 0.58))}
-CELL_TOUCH = vec(ac.cell_pt(-0.085, -0.028, ac.CELL_R + 0.012))     # (rest) where his palm taps the cell's cage
+CELL_TOUCH = vec(ac.cell_pt(-0.115, -0.026, ac.CELL_R + 0.014))     # (rest) where his palm taps the cell (its back cap)
 CELL_N = V(-0.25, 0.0, 1.0).normalized()                              # (rest) the cage's surface normal there
 
 # ---------------------------------------------------------------------------------------------- timing (24 fps)
@@ -153,6 +153,7 @@ def idle_pose(arm, t, rest):
     el = EL_IDLE + 0.4 * math.sin(w * 2)
     ro, yaw = placed(I_XY, I_YAW, tr, -0.015 + 0.005 * br - 0.03 * reach)
     yaw += -10.0 * reach
+    ro = ro + rz(yaw) @ V(0.0, -0.15 * reach, -0.025 * reach)     # he steps his weight in over his front foot
     lf, rf = stance(I_XY, I_YAW, 1.04, 0.04, -0.04)
     aims = feet(arm, lf, rf, I_YAW)
     scan = (1.0 - reach) * (30.0 * math.sin(w) + 8.0 * math.sin(w * 3 + 0.4))
