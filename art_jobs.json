@@ -1,0 +1,7 @@
+[
+ {
+  "name": "dcg_core1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/dcg_core1; mkdir -p $O\npython3 ../map_ground_hq.py the_core --px 64 --samples 32 --out $O/ground_the_core.png --watersrc $O/water_src_the_core.png > $O/ground.log 2>&1 || (tail -40 $O/ground.log; exit 1)\nls -la $O",
+  "out": "out/dcg_core1"
+ }
+]
