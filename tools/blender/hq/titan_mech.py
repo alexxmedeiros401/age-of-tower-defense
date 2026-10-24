@@ -317,29 +317,29 @@ def head(fd):
         fd.add(S(c, r), hr(0.05), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.114, -0.114, 1.582)), v3((0.022, 0.016, 0.024)) * HS, R=euler(0, 0, sx * -0.5)), hr(0.02))
         pts = [hp((sx * 0.154, -0.055, 1.744)), hp((sx * 0.116, -0.133, 1.754)), hp((sx * 0.061, -0.177, 1.75)), hp((0.0, -0.187, 1.746))]
-        fd.add(Chain(pts, [hr(0.012), hr(0.021), hr(0.026), hr(0.024)], k=hr(0.022)), hr(0.033), SKIN)     # brow ridge
+        fd.add(Chain(pts, [hr(0.01), hr(0.017), hr(0.021), hr(0.019)], k=hr(0.02)), hr(0.026), SKIN)     # brow ridge
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # thick level brows, the inner ends drawn down a touch (determined, not scowling)
     tuft = lambda P: F(0.0018) * NOISE(P * F(150)) + F(0.0008) * np.sin(P[:, 0] * F(380) + P[:, 2] * F(80))
     for sx in (-1, 1):
         pts = brow_pts(sx)
-        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.0105), hr(0.0125), hr(0.011), hr(0.0065)], k=hr(0.008),
+        fd.add(Chain([p + v3((0, 0.005, 0)) for p in pts], [hr(0.012), hr(0.0145), hr(0.013), hr(0.007)], k=hr(0.008),
                      disp=tuft, disp_amp=0.0025), hr(0.008), BROW)
         fd.paint(Chain(pts, [hr(0.021), hr(0.024), hr(0.021), hr(0.013)], k=hr(0.01)), BROW)
     # eyes open and steady, the upper lids a little lower (a hard, level look)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0195))), (sx * 0.1, 0.08, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.021))), (sx * 0.1, 0.08, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0205))), (sx * -0.08, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0175))), (sx * 0.1, 0.08, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.019))), (sx * 0.1, 0.08, -1.0)), hr(0.002)), LASH)
         a = hp((sx * 0.112, -0.132, 1.684))
         fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, 0.0)) * PS, hr(0.0018), hr(0.0012)), hr(0.003))           # a crease
     # a straight nose
-    fd.add(RoundCone(hp((0, -0.19, 1.728)), hp((0, -0.245, 1.632)), hr(0.016), hr(0.023)), hr(0.016), SKIN)
-    fd.add(S((0, -0.248, 1.613), 0.027), hr(0.014), SKIN)
+    fd.add(RoundCone(hp((0, -0.19, 1.728)), hp((0, -0.238, 1.638)), hr(0.015), hr(0.02)), hr(0.016), SKIN)
+    fd.add(S((0, -0.24, 1.618), 0.023), hr(0.014), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.031, -0.222, 1.602), 0.02), hr(0.012), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.016, -0.238, 1.592)), v3((0.009, 0.011, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
@@ -539,8 +539,8 @@ DOOR_Y = FRONT_Y - 0.012 - DOOR_T / 2
 
 def torch(P):
     """Ragged torch-cut edges round the hatch's mouth (fading out inside it)."""
-    k = smoothstep(FRONT_Y + 0.14, FRONT_Y + 0.02, P[:, 1])
-    return (F(0.006) * NOISE(P * F(22)) + F(0.003) * NOISE(P * F(70))) * (F(0.15) + F(0.85) * k)
+    k = smoothstep(FRONT_Y + 0.08, FRONT_Y + 0.0, P[:, 1])
+    return (F(0.005) * NOISE(P * F(22)) + F(0.0025) * NOISE(P * F(70))) * (F(0.1) + F(0.9) * k)
 
 
 DOOR_TURN = 0.2                          # each half turned back about its hinge, lying on the hull's rounded front
@@ -1115,10 +1115,10 @@ KIT = dict(weave=0.0, base=CHARCOAL, black=(0.05, 0.05, 0.058), red=(0.72, 0.07,
            gunmetal=(0.26, 0.27, 0.3), steel=(0.66, 0.68, 0.72), glass=(0.06, 0.05, 0.04), rubber=(0.07, 0.07, 0.075),
            coyote=(0.95, 0.6, 0.15), glass_hi=(0.95, 0.62, 0.2))
 MAT_OVERRIDES = {
-    "Skin": ("skin", {"name": "HQ_TitanPilotSkin", "base": (0.74, 0.53, 0.41), "ruddy": (0.76, 0.45, 0.35), "lips": (0.6, 0.37, 0.32),
+    "Skin": ("skin", {"name": "HQ_TitanPilotSkin", "base": (0.8, 0.59, 0.46), "ruddy": (0.8, 0.5, 0.4), "lips": (0.6, 0.37, 0.32),
                       "brow": ((0.06, 0.045, 0.035), (0.14, 0.1, 0.075)),
-                      "extra": ((LASH, (0.05, 0.035, 0.03), 0.5), (STUBBLE, (0.3, 0.23, 0.19), 0.6, 0.6),
-                                (SCAR, (0.86, 0.6, 0.52), 0.45), (SOOT, (0.2, 0.17, 0.15), 0.8, 0.55))}),
+                      "extra": ((LASH, (0.05, 0.035, 0.03), 0.5), (STUBBLE, (0.42, 0.33, 0.28), 0.6, 0.45),
+                                (SCAR, (0.86, 0.6, 0.52), 0.45), (SOOT, (0.3, 0.26, 0.24), 0.8, 0.4))}),
     "Cap": ("modern_kit", dict(KIT, name="HQ_TitanCap", base=(0.17, 0.135, 0.11))),
     "Pilot": ("modern_kit", dict(KIT, name="HQ_TitanPilot", weave=1.0)),
     "Cockpit": ("modern_kit", dict(KIT, name="HQ_TitanKit")),
