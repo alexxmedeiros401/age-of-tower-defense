@@ -1,0 +1,12 @@
+[
+ {
+  "name": "sentinel_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/sentinel_p2; mkdir -p $O\npython3 robot_build.py -- --robot sentinel --out $O --stage sculpt --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot sentinel --out $O --stage game --tex 512 --ao 4 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot sentinel --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\npython3 _dc_views.py -- $O/sentinel_hq.blend $O/views Walk:0,17,3:-30,45 Walk:0,0,1:0,10 Walk:0,0,1:90,10 Walk:0,0,1:180,30 > $O/views.log 2>&1 || tail -20 $O/views.log\nrm -f $O/*_hi.blend; ls -la $O",
+  "out": "out/sentinel_p2"
+ },
+ {
+  "name": "the_core_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/the_core_p2; mkdir -p $O\npython3 robot_build.py -- --robot the_core --out $O --stage sculpt --shots $O/shots > $O/sculpt.log 2>&1 || (tail -40 $O/sculpt.log; exit 1)\npython3 robot_build.py -- --robot the_core --out $O --stage game --tex 512 --ao 4 > $O/game.log 2>&1 || (tail -40 $O/game.log; exit 1)\npython3 robot_build.py -- --robot the_core --out $O --stage export > $O/export.log 2>&1 || (tail -40 $O/export.log; exit 1)\nfor b in $O/*_hq.blend; do python3 robot_icon.py -- $b $O/strip --strip > $O/strip.log 2>&1 || tail -20 $O/strip.log; done\npython3 _dc_views.py -- $O/the_core_hq.blend $O/views Walk:0,45,6:-30,45 Emp:14,34,2:-30,40 Summon:4,28,2:-35,35 Enrage:0,46,3:-30,40 WalkRage:0,0,1:-30,45 Walk:0,0,1:0,60 Walk:0,0,1:150,40 > $O/views.log 2>&1 || tail -20 $O/views.log\nrm -f $O/*_hi.blend; ls -la $O",
+  "out": "out/the_core_p2"
+ }
+]
