@@ -97,7 +97,12 @@ def char_stage():
         if nm not in hi:
             continue
         g = lp.decimated_copy(hi[nm], CH.LOW_TARGETS.get(nm, 500), "Glow" + nm)
-        rig.rigid_weights(g, rules[nm][1])
+        r = rules[nm]
+        if r[0] == "rigid":
+            rig.rigid_weights(g, r[1])
+        else:                                        # (a glowing trim on a garment follows the garment: Nova's strips)
+            rig.transfer_weights(low["Skin"], g, allowed=r[1], caps=r[2])
+            rig.limit_and_normalize(g)
         g.data.materials.clear()
         g.data.materials.append(glow_material("Glow" + nm, *spec))
         glow_obs.append(g)

@@ -3480,7 +3480,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -4962,7 +4962,7 @@ func _handle_events() -> void:
 					_atk_pending[int(t0)] = true
 		elif ev0.e == "ability" and (str(ev0.get("type", "")) in ["rain", "quake"] or (str(ev0.get("type", "")) == "flare"
 				and sim.hero != null and _hq_clips(sim.hero.id)) or (str(ev0.get("type", "")) == "strike" and sim.hero != null
-				and str(sim.hero.type) in ["aldric", "maya"] and _hq_clips(sim.hero.id))):
+				and str(sim.hero.type) in ["aldric", "maya", "nova"] and _hq_clips(sim.hero.id))):
 			for t0 in ev0.get("ids", []):                # Stone Rain's boulders and the Earthquake's spikes
 				_atk_pending[int(t0)] = true
 		elif ev0.e == "impact" and _javs.has(int(ev0.pid)) and not bool(_javs[int(ev0.pid)].landed):
@@ -5571,6 +5571,62 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 		if str(u.type) == "maya":                    # v0.9.69: Maya's three-round burst: two more tracers on frames 2 and 3
 			for k in [1, 2]:
 				_fx_after(float(k) / CLIP_FPS / maxf(float(speed), 0.01), func() -> void: _burst_tracer(int(u.id), tp))
+
+
+## v0.9.78: the Digital Age's lasers: a violet bolt leaves the emitter lens in a violet flash (no smoke) and streaks to
+## the robot; Nova's double tap adds a second, cosmetic bolt on her clip's frame 3.
+const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181)}
+const LASER_SECOND := {"nova": 2}                   # (frames after the first: her second shot)
+func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
+	var lm := _mat("laser_bolt", Color(0.95, 0.6, 1.0), {"emit": Color(0.85, 0.3, 1.0), "emit_e": 4.0, "unshaded": true})
+	_mi(_box(0.06, 0.06, 0.7), lm, root)
+	root.set_meta("arrow", true)
+	root.set_meta("ball", true)
+	var e = sim._enemy_by_id(int(p.get("target", -1)))
+	var hit_h := _hit_height(e)
+	var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
+	var launch: Vector3 = yaw.global_transform * (LASER_TIPS[str(u.type)] as Vector3)
+	root.position = launch
+	var aim: Vector2 = p.aim
+	root.set_meta("h0", launch.y)
+	root.set_meta("hit_h", hit_h)
+	root.set_meta("off", Vector3(launch.x, 0.0, launch.z) - _v3(p.pos, 0.0))
+	root.set_meta("d0", maxf((aim - (p.pos as Vector2)).length(), 0.5))
+	var tp := _v3(aim, hit_h)
+	if (tp - launch).length() > 0.01 and absf((tp - launch).normalized().y) < 0.98:
+		root.look_at(tp, Vector3.UP)
+	_laser_flash(launch)
+	if LASER_SECOND.has(str(u.type)):
+		var uid := int(u.id)
+		var ty := str(u.type)
+		_fx_after(float(LASER_SECOND[ty]) / CLIP_FPS / maxf(float(speed), 0.01), func() -> void:
+			if not tower_nodes.has(uid) or not is_instance_valid(tower_nodes[uid]) or not (tower_nodes[uid] as Node3D).has_meta("yaw"):
+				return
+			var from: Vector3 = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * (LASER_TIPS[ty] as Vector3)
+			_laser_flash(from)
+			if not _fx_room(1):
+				return
+			var to := tp + Vector3(randf_range(-0.12, 0.12), randf_range(-0.1, 0.12), randf_range(-0.12, 0.12))
+			var bolt := _mi(_box(0.06, 0.06, 0.7), lm, self, from)
+			bolt.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if (to - from).length() > 0.05 and absf((to - from).normalized().y) < 0.98:
+				bolt.look_at(to, Vector3.UP)
+			var tw := create_tween()
+			tw.tween_property(bolt, "position", to, maxf((to - from).length() / 24.0, 0.04) / maxf(float(speed), 0.01))
+			tw.tween_callback(func() -> void:
+				if is_instance_valid(bolt):
+					bolt.queue_free()
+				if _fx_room(1):
+					var hf := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, to)
+					hf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					effects.append({"node": hf, "t": 0.0, "life": 0.12, "kind": "flash", "s": 0.4})))
+
+
+func _laser_flash(at: Vector3) -> void:
+	if _fx_room(1):
+		var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, at)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.1, "kind": "flash", "s": 0.45})
 
 
 ## v0.9.69: one of the burst's later rounds (cosmetic: the first carries the hit): a flash at the muzzle and a tracer
@@ -8661,6 +8717,52 @@ func _glitch_static(at: Vector3) -> void:
 		effects.append({"node": bx, "t": -0.04 * i, "life": 0.35, "kind": "flash", "s": randf_range(0.8, 1.6)})
 
 
+# v0.9.78: Nova's Orbital Laser (anim_nova.py): she docks her pistol, taps commands into her forearm deck and flings her
+# fist at the sky at frame 38 (SIGNAL): a violet flash at her fist, a thin uplink beam shoots up from it, and a moment
+# later the satellite's beam comes down on each target in turn: a column of violet-white light, a ring of fire and
+# scorched ground. The damage waits for the beams.
+const NOVA_SIGNAL := 38
+const NOVA_FIST := Vector3(0.291, 2.053, 0.050)
+const NOVA_DELAY := 0.45                            # (from her signal to the first beam)
+func _nova_orbital(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var ids: Array = ev.get("ids", [])
+	var pts: Array = ev.get("hits", [])
+	var at := float(NOVA_SIGNAL) / CLIP_FPS
+	for k in ids.size():
+		if int(ids[k]) >= 0:
+			_hold_hit(int(ids[k]), at + NOVA_DELAY + 0.14 * k + 0.1)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void:
+		var fist := hp + Vector3(0, 2.0, 0)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			fist = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * NOVA_FIST
+		if _fx_room(2):
+			var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, fist)
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": 1.0})
+			var up := _mi(_cyl(0.05, 0.05, 12.0, 6), _mat("uplink_beam", Color(0.95, 0.65, 1.0, 0.8), {"emit": Color(0.85, 0.35, 1.0), "emit_e": 4.0, "unshaded": true}), self, fist + Vector3(0, 6.0, 0))
+			up.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": up, "t": 0.0, "life": 0.3, "kind": "flash", "s": 1.0})
+		_sfx("laser", -2.0, 0.0, 0.3)
+		var spd := maxf(float(speed), 0.01)
+		var beam_m := _mat("orbital_beam", Color(1.0, 0.85, 1.0, 0.85), {"emit": Color(0.9, 0.45, 1.0), "emit_e": 5.0, "unshaded": true})
+		for k in pts.size():
+			var tid := int(ids[k]) if k < ids.size() else -1
+			var p: Vector2 = pts[k]
+			_fx_after((NOVA_DELAY + 0.14 * k) / spd, func() -> void:
+				var to := _robot_point(tid, 0.0) if tid >= 0 else Vector3.INF
+				var g := Vector3(to.x, 0.0, to.z) if to != Vector3.INF else _v3(p, 0.0)
+				var beam := _mi(_cyl(0.32, 0.4, 16.0, 12), beam_m, self, g + Vector3(0, 8.0, 0))
+				beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": beam, "t": 0.0, "life": 0.4, "kind": "flash", "s": 1.0})
+				_ring_fx(g + Vector3(0, 0.2, 0), 1.8, Color(0.9, 0.5, 1.0), 0.5)
+				_shell_burst(g, 1.1)
+				_sfx("explosion", -4.0, 0.1, 0.2)
+				shake = maxf(shake, 0.7)
+				if tid >= 0:
+					_land_hit(tid, 0.1))))
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -9170,6 +9272,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_arrow_proj(root, p, u, dt)            # v0.9.64: a steel bolt from Ada's steam launcher, in a puff of steam
 		_steam_puff(root.position, -root.global_transform.basis.z)
 		return root
+	if LASER_TIPS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		_laser_proj(root, p, u)                # v0.9.78: a violet bolt from Nova's laser pistol (a second on frame 3)
+		return root
 	if MUSKET_TIPS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		_musket_proj(root, p, u)               # v0.9.59: a ball from the HQ Musketeer's muzzle, in fire and smoke
 		return root
@@ -9442,6 +9547,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("ab_forge_fury", 0.0, 0.0, 0.5)
 			return
 		"strike":
+			if sim.hero != null and str(sim.hero.type) == "nova" and _hq_clips(sim.hero.id):
+				_nova_orbital(ev, hp)                       # v0.9.78: her uplink signal, then beams from orbit on each target
+				_banner(aname, Color(0.9, 0.5, 1.0))
+				return
 			if sim.hero != null and str(sim.hero.type) == "maya" and _hq_clips(sim.hero.id):
 				_maya_strike(ev, hp)                        # v0.9.69: her red smoke marks it, she calls it in, the jets strike
 				_banner(aname, Color(1, 0.85, 0.5))
