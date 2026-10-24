@@ -3480,7 +3480,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -3676,13 +3676,14 @@ func _atk_mat(key: String) -> StandardMaterial3D:
 		"hammer_cord":
 			m.albedo_color = Color(0.62, 0.12, 0.07)
 			m.roughness = 0.9
-		"slash", "flare_wave", "cleave":               # Kira's cuts, her flare's wave, the axe's sweep (vertex colours fade them)
+		"slash", "flare_wave", "cleave", "slash_teal":               # Kira's cuts, her flare's wave, the axe's sweep (vertex colours fade them)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			m.cull_mode = BaseMaterial3D.CULL_DISABLED
-			m.albedo_color = {"slash": Color(1.0, 0.86, 0.46), "flare_wave": Color(1.0, 0.74, 0.3), "cleave": Color(0.86, 0.93, 1.0)}[key]
+			m.albedo_color = {"slash": Color(1.0, 0.86, 0.46), "flare_wave": Color(1.0, 0.74, 0.3), "cleave": Color(0.86, 0.93, 1.0),
+				"slash_teal": Color(0.35, 1.0, 0.85)}[key]
 		"sun_beam", "sun_beam_white", "sun_beam_hot":    # the Sun Priest's beams (vertex colours fade their edges)
 			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			m.vertex_color_use_as_albedo = true
@@ -5105,6 +5106,8 @@ func _handle_events() -> void:
 					_mech_slam(u2, ev.get("targets", []))       # v0.9.74: both energy fists hammer the deck: a violet shockwave
 				elif u2 != null and u2.type == "flamethrower" and _hq_clips(ev.id):
 					_flame_jet(u2, ev.get("targets", []))       # v0.9.69: a roaring jet of fire swept across in front of him
+				elif u2 != null and u2.type == "glitch" and _hq_clips(ev.id):
+					_kira_slash(u2, ev.get("targets", []))      # v0.9.75: Glitch's energy blades cross in an X: teal cuts
 				elif u2 != null and u2.type == "kira" and _hq_clips(ev.id):
 					_kira_slash(u2, ev.get("targets", []))      # v0.9.25: golden cuts as her whirl sweeps through
 				elif u2 != null and u2.type in ["axe_warrior", "knight", "aldric", "halberdier"] and _hq_clips(ev.id):
@@ -6153,7 +6156,7 @@ func _kira_slash(u: Dictionary, targets: Array) -> void:
 			continue
 		# its cut lands as the clip reaches HIT (half a frame later for the second robot); the hit is held for as long
 		# as that takes at 1x (the game speed may change before it lands)
-		var at := (float(ATTACK_FRAME.kira) + 0.5 * i) / CLIP_FPS
+		var at := (float(ATTACK_FRAME.get(str(u.type), ATTACK_FRAME.kira)) + 0.5 * i) / CLIP_FPS
 		_hold_hit(t, at / rate + 0.02)
 		_fx_after(0.0, func() -> void: _on_clip(uid, clip, at, at / rate, func() -> void: _kira_cut(uid, t)))
 		i += 1
@@ -6172,12 +6175,14 @@ func _kira_cut(uid: int, tid: int) -> void:
 	var gl := clampi(Progress.gfx_level(), 0, 2)
 	var n: int = [4, 3, 1][gl]
 	if _fx_room(n + 2):
-		var sl := _mi(_slash_mesh(), _atk_mat("slash"), self, at + to_her * 0.1)
-		sl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# the crescent's middle (local -Z) toward her, tilted into a diagonal cut
-		var b := Basis.looking_at(to_her, Vector3.UP) * Basis(Vector3(0, 0, 1), deg_to_rad(randf_range(-24.0, 24.0)))
-		sl.basis = b
-		effects.append({"node": sl, "t": 0.0, "life": 0.2, "kind": "slash", "b0": b})
+		var teal := u != null and str(u.type) == "glitch"   # (v0.9.75: Glitch's blades: two teal cuts crossing in an X)
+		for tilt in ([-34.0, 34.0] if teal else [randf_range(-24.0, 24.0)]):
+			var sl := _mi(_slash_mesh(), _atk_mat("slash_teal" if teal else "slash"), self, at + to_her * 0.1)
+			sl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# the crescent's middle (local -Z) toward her, tilted into a diagonal cut
+			var b := Basis.looking_at(to_her, Vector3.UP) * Basis(Vector3(0, 0, 1), deg_to_rad(float(tilt)))
+			sl.basis = b
+			effects.append({"node": sl, "t": 0.0, "life": 0.2, "kind": "slash", "b0": b})
 		var f := _mi(_fx_mesh("flash"), _atk_mat("lance_flash"), self, at + to_her * 0.12)
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.5})
@@ -8604,6 +8609,52 @@ func _maya_rocket(from: Vector3, land: Vector3) -> void:
 		shake = maxf(shake, 0.6))
 
 
+# v0.9.75: Glitch's System Freeze (anim_glitch.py): he turns to face front, drops to one knee and drives his fist into
+# the data port on his base at frame 23 (SIGNAL; his eyes flash): a teal flash at his fist, then a wave of glitch static
+# rolls out over the whole map; every robot it reaches flickers with static as it slows.
+const GLITCH_SIGNAL := 23
+const GLITCH_FIST := Vector3(-0.429, 0.007, 0.355)
+func _glitch_freeze(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var tn: Node3D = tower_nodes[hid]
+	tn.set_meta("clip_face", ["Ability", (tn.get_meta("yaw") as Node3D).rotation.y, 0.0, 0.3])
+	var at := float(GLITCH_SIGNAL) / CLIP_FPS
+	var hits: Array = ev.get("hits", [])
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void:
+		var fist := hp
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			fist = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * GLITCH_FIST
+		if _fx_room(2):
+			for s2 in [1.6, 0.8]:
+				var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, fist + Vector3(0, 0.2, 0))
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.3, "kind": "flash", "s": s2})
+		var g := Vector3(fist.x, 0.2, fist.z)
+		_ring_fx(g, 30.0, Color(0.35, 1.0, 0.85), 1.4)
+		_ring_fx(g, 18.0, Color(0.85, 0.4, 1.0), 1.1)
+		shake = maxf(shake, 0.5)
+		_sfx("freeze", 0.0, 0.0, 0.5)
+		var spd := maxf(float(speed), 0.01)
+		for p in hits:
+			var pp := _v3(p, 0.3)
+			var d := Vector2(pp.x - g.x, pp.z - g.z).length()
+			_fx_after(d / 22.0 / spd, func() -> void: _glitch_static(pp))))
+
+
+## A robot caught by the static: a flicker of teal and violet pixel blocks round it and a ring at its feet.
+func _glitch_static(at: Vector3) -> void:
+	_ring_fx(at, 0.8, Color(0.35, 1.0, 0.85), 0.6)
+	var n: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
+	if not _fx_room(n):
+		return
+	for i in n:
+		var col := Color(0.35, 1.0, 0.85) if i % 2 == 0 else Color(0.85, 0.4, 1.0)
+		var bx := _mi(_box(0.12, 0.12, 0.02), _mat("glitch_px_%d" % (i % 2), col, {"emit": col, "emit_e": 3.0, "unshaded": true}), self,
+			at + Vector3(randf_range(-0.45, 0.45), randf_range(0.3, 1.3), randf_range(-0.45, 0.45)))
+		bx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": bx, "t": -0.04 * i, "life": 0.35, "kind": "flash", "s": randf_range(0.8, 1.6)})
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -9404,6 +9455,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			_sfx("airstrike", 0.0, 0.0, 0.5)
 			return
 		"freeze":
+			if sim.hero != null and str(sim.hero.type) == "glitch" and _hq_clips(sim.hero.id):
+				_glitch_freeze(ev, hp)                      # v0.9.75: his fist in the floor port, a wave of glitch static
+				_banner(aname, Color(0.35, 1.0, 0.85))
+				return
 			_ring_fx(hp, 30.0, Color(0.6, 0.9, 1.0), 1.2)
 			for p in ev.hits:
 				_ring_fx(_v3(p, 0.3), 0.8, Color(0.75, 0.95, 1.0), 0.8)
