@@ -1,0 +1,7 @@
+[
+ {
+  "name": "arc_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/arc_p2; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_base.py --module arc_cannon_base --out $O/qbase/base_q.blend --shots $O/qbase/shots > $O/qbase.log 2>&1 & BP=$!\npython3 sculpt_char.py --character arc_cannon --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character arc_cannon --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Attack --range 0,6 --step 2 --spp 8 --res 500 --tx 0.0 --ty -0.45 --tz 1.0 --dist 4.3 --az 35 --el 24 > $O/poses_Attack.log 2>&1 || tail -20 $O/poses_Attack.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 54,66 --step 6 --spp 8 --res 500 --tx 0.0 --ty -0.45 --tz 1.0 --dist 4.3 --az 35 --el 24 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nwait $BP || tail -40 $O/qbase.log\npython3 face_hq.py -- $O/qb/char_game.blend $O/poses/face.png --target 0,-0.05,1.72 --scale 0.85 > $O/face.log 2>&1 || tail -20 $O/face.log\npython3 face_hq.py -- $O/qb/char_game.blend $O/poses/face_side.png --target 0,-0.05,1.72 --scale 0.85 --az 70 > $O/face2.log 2>&1 || tail -20 $O/face2.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/arc_p2"
+ }
+]
