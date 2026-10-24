@@ -111,8 +111,8 @@ def head(fd):
         ec = eye_c(sx)
         low = sx > 0                                                                        # the left lid a touch lower
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up_z = hr(0.0235) if low else hr(0.027)
-        lo_z = -hr(0.022) if low else -hr(0.024)
+        up_z = hr(0.0195) if low else hr(0.0225)
+        lo_z = -hr(0.02) if low else -hr(0.0215)
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, up_z)), (sx * 0.16, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, lo_z)), (sx * -0.1, 0.06, 1.0)), hr(0.004))
@@ -829,9 +829,9 @@ MAT_OVERRIDES = {
     "Vent": ("modern_kit", dict(KIT, name="HQ_ArcGun", base=GUNBLACK, olive=CERAMIC, gloss=0.5)),
 }
 GLOW = {"Tip": ((1.0, 0.7, 0.25), 1.4, 0.55), "Cell": (AMBER, 1.2, 0.5), "Trim": (AMBER, 1.0, 0.5)}
-LOW_TARGETS = {"Skin": 4800, "Eyes": 300, "Teeth": 60, "Hair": 900, "Goggles": 700, "Scarf": 1300, "Suit": 2400,
-               "Armour": 3000, "Guards": 1000, "Salvage": 1100, "Trousers": 2000, "Boots": 1100, "Gloves": 900,
-               "Mount": 1300, "Yoke": 1000, "Gun": 4200, "Vent": 220, "Cell": 160, "Tip": 160, "Trim": 260}
+LOW_TARGETS = {"Skin": 4800, "Eyes": 300, "Teeth": 60, "Hair": 700, "Goggles": 700, "Scarf": 1100, "Suit": 2300,
+               "Armour": 2900, "Guards": 1000, "Salvage": 1100, "Trousers": 2000, "Boots": 1100, "Gloves": 900,
+               "Mount": 1300, "Yoke": 1000, "Gun": 3900, "Vent": 220, "Cell": 160, "Tip": 160, "Trim": 260}
 AO_EXCLUDE = ["Goggles", "Vent"]
 MACHINE_PARTS = ["Mount", "Yoke", "Gun", "Vent"]
 # the cannon is baked 6 m away from him (his rest pose stands close behind its grips)
