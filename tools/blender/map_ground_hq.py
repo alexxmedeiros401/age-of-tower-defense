@@ -1193,7 +1193,15 @@ if DIG_T:
         if not zl:
             return np.zeros(HX.shape, np.float32)
         sd_, _a, ssd_ = gH.poly_dist(zl, margin=1.5, signed=True)
-        return ((sd_ < HALF + 0.7) & ((sd_ - np.abs(ssd_)) < 0.005) & (HD["ped"] < 0)).astype(np.float32)
+        if not DC_T:
+            return ((sd_ < HALF + 0.7) & ((sd_ - np.abs(ssd_)) < 0.005) & (HD["ped"] < 0)).astype(np.float32)
+        m_ = (sd_ < HALF + 0.7) & (HD["ped"] < 0)          # (cut square only at each stretch's two ends: a curving
+        for P_ in zl:                                        # stretch keeps the outside of its bends)
+            P_ = np.asarray(P_, np.float64)
+            for e_, f_ in ((P_[0], P_[1]), (P_[-1], P_[-2])):
+                t_ = (f_ - e_) / max(np.hypot(*(f_ - e_)), 1e-9)
+                m_ &= ~((((HX - e_[0]) * t_[0] + (HZ - e_[1]) * t_[1]) < 0) & (np.hypot(HX - e_[0], HZ - e_[1]) < HALF + 0.8))
+        return m_.astype(np.float32)
 
     HD["sl"] = _zone_h(zf["slow"])
     HD["fl"] = _zone_h(zf["fast"])
@@ -2634,12 +2642,139 @@ if THEME == "cooling":
             PAINT.rect("hz", c_[0], c_[1], 0.16, 2 * HALF, math.atan2(d_[1], d_[0]))
     log("cooling: bays", len(BAYS_C), "channels", len(CH), "(free %d)" % n_free, "pipes", len(PIPES), "spills", len(SPILL),
         "valve stations", VS)
-# @@SERVER@@
+if THEME == "server":
+    # an endless server hall: raised-floor tiles on the 0.6 grid; rows of rack footprints along x, every 4.8: a rack row,
+    # a cold aisle of perforated tiles (blue lines along the racks' fronts), the facing row, a hot aisle (amber lines
+    # along the backs, a covered cable trench down it, some covers off); the racks' status lights reflected on the floor;
+    # rack plinths under the rack zones, heavy mainframe pads under the machines; open bays where racks were pulled out
+    # (left for the kit); the robots' lanes dark service aisles edged with guide lights, a blue light strip and arrows on
+    # the fast stretches
+    sv_ = np.random.default_rng(191)
+    RP = [(bx, bz, br + 0.15, br * 0.78) for (bx, bz, br, k_) in BLOCKERS if k_ == "rack"]
+    MF = [(bx, bz, br + 0.2) for (bx, bz, br, k_) in BLOCKERS if k_ == "machine"]
+    rp_d = np.full(HX.shape, 9.0, np.float32)
+    rpm = np.full(X.shape, 9.0)
+    for (bx, bz, hw, hh) in RP:
+        rp_d = np.minimum(rp_d, _rr_h(bx, bz, hw, hh, 0.1))
+        rpm = np.minimum(rpm, _rrect(bx, bz, hw, hh, 0.1))
+        LANDMARKS.append(("rack plinth (two rows of four racks, back to back, along x)", bx, bz, "%.2f x %.2f" % (2 * hw, 2 * hh)))
+    mf_d = np.full(HX.shape, 9.0, np.float32)
+    mfm = np.full(X.shape, 9.0)
+    for (bx, bz, h_) in MF:
+        mf_d = np.minimum(mf_d, _rr_h(bx, bz, h_, h_, 0.15))
+        mfm = np.minimum(mfm, _rrect(bx, bz, h_, h_, 0.15))
+        LANDMARKS.append(("mainframe pad", bx, bz, "%.2f square" % (2 * h_)))
+    HD["rp_d"], HD["mf_d"] = rp_d, mf_d
+    zon = np.minimum(rpm, mfm)
+    # the open bays (racks pulled out): kept clear of racks, hatched round
+    OB = _spots(3, 1.2, 0.9, 0.7, 0.7, 7.0, avoid=zon)
+    ob_d = np.full(HX.shape, 9.0, np.float32)
+    obm = np.full(X.shape, 9.0)
+    for (cx, cz) in OB:
+        ob_d = np.minimum(ob_d, _rr_h(cx, cz, 1.2, 0.9, 0.05))
+        obm = np.minimum(obm, _rrect(cx, cz, 1.2, 0.9, 0.05))
+        LANDMARKS.append(("open bay (racks pulled out)", cx, cz, "2.4 x 1.8"))
+    HD["ob_d"] = ob_d
+    # the rows: rack footprints 0.6 x 1.2 where the floor is clear, in runs of three or more
+    PER, Z0R = 4.8, -1.2
+    clear_ = np.minimum.reduce([ped - 0.32, BLK_ANY - 0.35, zon - 0.3, obm - 0.25, 1.0 - tun_m * 9])
+    RUNS = []                                                          # (row z0, x0, x1, front side +1 / -1)
+    rk_d = np.full(HX.shape, 9.0, np.float32)
+    rkm = np.full(X.shape, 9.0)
+    for k_ in range(-4, 5):
+        za = Z0R + k_ * PER
+        for z0, front in ((za, 1), (za + 2.4, -1)):
+            if z0 < -10.2 or z0 + 1.2 > 10.2:
+                continue
+            xs_ = np.arange(-16.2, 16.2, 0.6)
+            ok = np.array([min(_at(clear_, x_ + a_, z0 + b_) for a_ in (0.03, 0.3, 0.57) for b_ in (0.03, 0.6, 1.17)) > 0 for x_ in xs_])
+            for a, b in _runs(ok):
+                if b - a >= 3:
+                    RUNS.append((z0, xs_[a], xs_[b - 1] + 0.6, front))
+    for (z0, x0, x1, fr) in RUNS:
+        rk_d = np.minimum(rk_d, _rr_h((x0 + x1) / 2, z0 + 0.6, (x1 - x0) / 2 - 0.02, 0.58, 0.03))
+        rkm = np.minimum(rkm, _rrect((x0 + x1) / 2, z0 + 0.6, (x1 - x0) / 2, 0.6, 0.03))
+    HD["rk_d"] = rk_d
+    # perforated tiles: the cold aisles between two rows (where either has racks), a few loose ones elsewhere
+    pf = np.zeros(X.shape)
+    for (z0, x0, x1, fr) in RUNS:
+        if fr > 0:
+            pf = np.maximum(pf, ((X > x0) & (X < x1) & (Z > z0 + 1.2) & (Z < z0 + 2.4)).astype(float))
+        else:
+            pf = np.maximum(pf, ((X > x0) & (X < x1) & (Z > z0 - 1.2) & (Z < z0)).astype(float))
+    IND["perf"] = pf * (ped > 0.05) * (zon > 0.05) * (obm > 0.0)
+    # cable trenches down the hot aisles' middles where the floor is clear for 3 or more, and two across the hall
+    TRN = []
+    for k_ in range(-4, 5):
+        zc = Z0R + k_ * PER + 4.2
+        if abs(zc) > 9.0:
+            continue
+        t_ = np.arange(-16.0, 16.0, 0.05)
+        ok = np.ones(len(t_), bool)
+        for off in (-0.3, 0.0, 0.3):
+            ok &= (_smp(ped, t_, np.full(len(t_), zc + off)) > 0.4) & (_smp(np.minimum(zon, obm), t_, np.full(len(t_), zc + off)) > 0.2) & \
+                (_smp(BLK_ANY, t_, np.full(len(t_), zc + off)) > 0.3) & (_smp(tun_m, t_, np.full(len(t_), zc + off)) < 0.5)
+        for a, b in _runs(ok):
+            if (b - a) * 0.05 > 3.0:
+                TRN.append((round(t_[a] / 0.6) * 0.6 + 0.3, zc, round(t_[b - 1] / 0.6) * 0.6 - 0.3, zc))
+    HD["tr_d"], HD["tr_u"], trm = _seg_field(TRN, 0.18, 0.0)
+    # status lights reflected on the floor: little dots just off the racks' fronts (green mostly, some blue, amber, red)
+    n_led = 0
+    for (z0, x0, x1, fr) in RUNS:
+        zf_ = z0 + 1.2 + 0.06 if fr > 0 else z0 - 0.06
+        for x_ in np.arange(x0 + 0.08, x1 - 0.06, 0.6):
+            for _k in range(int(sv_.integers(1, 4))):
+                xx = x_ + sv_.uniform(0.0, 0.44)
+                ch_ = sv_.choice(["g", "m", "r"], p=[0.62, 0.26, 0.12])
+                PAINT.disc(ch_, xx, zf_ + fr * sv_.uniform(0.0, 0.03), sv_.uniform(0.018, 0.03))
+                n_led += 1
+    # paint: the rows' aisle lines (blue along the fronts, amber dashes along the backs), the open bays' hatched
+    # outlines, the service aisles' guide lights (white dots along both edges), hazard bars at the gates
+    for (z0, x0, x1, fr) in RUNS:
+        zfr, zbk = (z0 + 1.2 + 0.05, z0 - 0.05) if fr > 0 else (z0 - 0.05, z0 + 1.2 + 0.05)
+        PAINT.seg("c", (x0, zfr), (x1, zfr), 0.05)
+        PAINT.dashed("y", [(x0, zbk), (x1, zbk)], 0.05, 0.3, 0.2)
+    for (cx, cz) in OB:
+        hw, hh = 1.2 - 0.06, 0.9 - 0.06
+        PAINT.line("y", [(cx - hw, cz - hh), (cx + hw, cz - hh), (cx + hw, cz + hh), (cx - hw, cz + hh), (cx - hw, cz - hh)], 0.05)
+    n_gl = 0
+    for li, (P, T, S_) in enumerate(RS):
+        Nn = np.stack([-T[:, 1], T[:, 0]], 1)
+        for sg in (-1, 1):
+            Q = P + Nn * (HALF - 0.1) * sg
+            k = ~DUP[li] & ~_on_other(Q, T, li, S_, HALF - 0.03) & (np.abs((S_ + 0.15) % 0.3 - 0.15) < 0.016)
+            k &= _smp(ped, Q[:, 0], Q[:, 1]) > -0.16
+            for i in np.flatnonzero(k):
+                if _smp(gate_m, Q[i, 0], Q[i, 1]) > 0.2:
+                    continue
+                PAINT.disc("w", Q[i, 0], Q[i, 1], 0.026)
+                n_gl += 1
+    road_line("k", 0.0, 0.03, 0.6, 0.6, skip=lambda x, z: (_smp(bus, x, z) > 0.3) | (_smp(gate_m, x, z) > 0.2), v=150)
+    for (bx, bz, hw, hh) in RP:                                        # the plinths' rack outlines: two rows of four
+        for row in (-1, 1):
+            for k in range(4):
+                x_, z_ = bx + (k - 1.5) * 0.62, bz + row * 0.42
+                PAINT.line("k", [(x_ - 0.28, z_ - 0.38), (x_ + 0.28, z_ - 0.38), (x_ + 0.28, z_ + 0.38), (x_ - 0.28, z_ + 0.38), (x_ - 0.28, z_ - 0.38)], 0.025)
+    for (bx, bz, h_) in MF:                                            # the mainframe pads: cable entry slots in a ring
+        for k in range(12):
+            a_ = 2 * math.pi * k / 12
+            PAINT.rect("k", bx + math.cos(a_) * (h_ - 0.62), bz + math.sin(a_) * (h_ - 0.62), 0.2, 0.06, a_, 230)
+    IND["scuff"] = np.clip((fbm(0.7, 3, 801) - 0.55) / 0.2, 0, 1)
+    IND["dust"] = np.clip((fbm(1.2, 3, 802) - 0.5) / 0.25, 0, 1)
+    log("server: rack runs", len(RUNS), "racks", int(sum(round((x1 - x0) / 0.6) for _z, x0, x1, _f in RUNS)), "trenches", len(TRN),
+        "status lights", n_led, "guide lights", n_gl, "open bays", OB)
 # @@CORE@@
 if MOD_T or DIG_T:
     PNT = PAINT.arrays()
     log("paint", {k_: round(float(v_.mean()), 4) for k_, v_ in PNT.items()})
 if DIG_T:
+    if THEME == "server":
+        # the guide lights' and the status lights' glow on the floor, a longer smear toward the camera (the reflection)
+        for nm_, src_, k_ in (("hw", PNT["w"], 1.0), ("hg", PNT["g"], 1.3), ("hb", PNT["m"], 1.3), ("hr", PNT["r"], 1.3)):
+            near_ = gaussian_filter(src_, 0.05 * HPX)
+            far_ = gaussian_filter(src_, (0.3 * HPX, 0.1 * HPX))
+            HD[nm_] = np.clip((near_ * 3.0 + far_ * 6.0) * k_, 0, 1).astype(np.float32)
+        log("glow", {k_: round(float(HD[k_].mean()), 4) for k_ in ("hw", "hg", "hb", "hr")})
     if THEME == "neon":
         # the neon's glow on the wet ground: each light's halo, and a longer smear toward the camera (its reflection)
         _p = HD["ped"]
@@ -2855,7 +2990,10 @@ if THEME == "cooling":                   # a flat steel floor: the grates and th
     icr_ = _down(HD["ic_r"])
     hf += (icr_ < 1.0) * 0.016 + np.clip(1 - icr_, 0, 1) * 0.012
     hf += IND["ice"] * (0.008 + (fbm(0.2, 2, 752) - 0.5) * 0.01)
-# @@HF_SERVER@@
+if THEME == "server":                    # the raised floor; the service aisles a step down, the open bays down to the subfloor,
+    hf = (fbm(1.6, 3, 811) - 0.5) * 0.003 - road * 0.035                          # the plinths and pads up
+    hf -= np.clip(-_down(HD["tr_d"]) / 0.02, 0, 1) * 0.006 + np.clip(-_down(HD["ob_d"]) / 0.02, 0, 1) * 0.03
+    hf += np.clip(-_down(HD["rp_d"]) / 0.02, 0, 1) * 0.03 + np.clip(-_down(HD["mf_d"]) / 0.02, 0, 1) * 0.045
 # @@HF_CORE@@
 rk = blk["rocks"]
 hf += np.clip(-rk / 0.8, 0, 1) * 0.06
@@ -2946,7 +3084,8 @@ INDN = {"factory": ["flags", "cobble", "plates", "puddle", "rust", "slag", "apro
         "lab": ["b_tile", "b_raised", "b_esd", "bid", "frost", "scuff"],
         "satellite": ["pave", "cal", "drift", "berm", "stain", "trn"],
         "neon": ["l_hex", "l_grid", "l_deck", "l_park", "l_paver", "pid", "pud", "scorch", "grime"],
-        "cooling": ["b_grate", "b_panel", "bid", "frost", "ice", "wet", "melt"]}.get(THEME, [])
+        "cooling": ["b_grate", "b_panel", "bid", "frost", "ice", "wet", "melt"],
+        "server": ["perf", "scuff", "dust"]}.get(THEME, [])
 IND_IMGS = []
 PNT_IMGS = []                            # the paint and (Digital) the hi-res fields, four to an image
 if MOD_T or DIG_T:
@@ -4535,7 +4674,116 @@ elif MOD_T or DIG_T:
                                              nb.math("MULTIPLY", ins(ped_), nb.math("SUBTRACT", 0.0, nb.math("MAXIMUM", rib, tj_))))))
             bump_h = nb.math("ADD", nb.math("MULTIPLY", bump_h, nb.math("SUBTRACT", 1.0, nb.math("MAXIMUM", cover, iceish))),
                              nb.math("MULTIPLY", cover, nb.math("MULTIPLY", spk, 0.6)))
-# @@MAT_SERVER@@
+        elif THEME == "server":
+            # a server hall, lit indoors (kept light enough to read): raised-floor tiles (speckled vinyl, a pale trim, dark
+            # seams), perforated vent tiles in the cold aisles; rack footprints (clean darker tiles, dark outlines, a cable
+            # grommet and levelling feet each); covered cable trenches (checker plate, some covers off: bundles of cables);
+            # the open bays (tiles lifted: the subfloor, pedestals, cables); rack plinths and mainframe pads; the racks'
+            # status lights and their reflections; the service aisles (dark, worn paler down the middle, a steel trim,
+            # guide lights glowing along both edges), a blue light strip and arrows on the fast stretches
+            BLU, AMB, GRN, RED = (0.28, 0.62, 1.0), (1.0, 0.62, 0.16), (0.3, 1.0, 0.45), (1.0, 0.3, 0.14)
+            hazc = stripes((0.07, 0.07, 0.08), (0.95, 0.74, 0.1))
+            sx_, sy_ = nb.seam(ox_, 0.6), nb.seam(oy_, 0.6)
+            sm_ = nb.math("MINIMUM", sx_, sy_)
+            tj, tr_ = nb.brick(obj, 0.6, 0.6, 0.006, 0.1, offset=0.0, freq=1)
+            c = nb.mix(tr_, (0.34, 0.36, 0.4), (0.41, 0.43, 0.47))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(45.0, 2, 0.5), 0.55, 0.75), 0.3), c, (0.48, 0.5, 0.54))
+            scuff = nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(ox_, nb.math("MULTIPLY", oy_, 6.0)), 2.5, 3, 0.6), 0.66, 0.78), I["scuff"])
+            c = nb.mix(nb.math("MULTIPLY", scuff, 0.3), c, (0.27, 0.28, 0.31))
+            c = nb.mix(nb.math("MULTIPLY", I["dust"], 0.18), c, (0.44, 0.43, 0.41))
+            c = nb.mix(nb.ramp(sm_, 0.026, 0.016), c, (0.52, 0.54, 0.58))                              # the tiles' trim
+            holes = nb.dots(ox_, oy_, 0.05, 0.05, 0.025, 0.011)
+            pfc = nb.mix(holes, (0.46, 0.49, 0.53), (0.08, 0.09, 0.11))
+            pfc = nb.mix(nb.ramp(sm_, 0.05, 0.04), (0.5, 0.52, 0.56), pfc)
+            loose = nb.ramp(tr_, 0.935, 0.94)
+            perf = nb.math("MAXIMUM", I["perf"], loose)
+            c = nb.mix(perf, c, pfc)
+            c = nb.mix(tj, c, (0.14, 0.15, 0.17))
+            # rack footprints
+            rkd = Pn["rk_d"]
+            fpc = nb.mix(tr_, (0.27, 0.28, 0.31), (0.31, 0.32, 0.35))
+            fpc = nb.mix(nb.ramp(sm_, 0.026, 0.016), fpc, (0.38, 0.4, 0.43))
+            fpc = nb.mix(tj, fpc, (0.12, 0.13, 0.15))
+            grom = nb.dots(nb.math("ADD", ox_, 0.3), nb.math("ADD", oy_, 0.6), 0.6, 1.2, 0.0, 0.07)
+            fpc = nb.mix(grom, fpc, (0.03, 0.03, 0.04))
+            fpc = nb.mix(nb.dots(ox_, oy_, 0.6, 1.2, 0.07, 0.022), fpc, (0.62, 0.64, 0.68))
+            fpc = nb.mix(nb.math("MULTIPLY", nb.ramp(sx_, 0.014, 0.006), nb.ramp(rkd, -0.02, -0.03)), fpc, (0.07, 0.07, 0.08))
+            fpc = nb.mix(band(rkd, -0.035, 0.0), fpc, (0.06, 0.06, 0.07))
+            c = nb.mix(ins(rkd), c, fpc)
+            # cable trenches: checker-plate covers, some off (cable bundles in the trench)
+            trd, tru = Pn["tr_d"], Pn["tr_u"]
+            cell = nb.math("FRACT", nb.math("MULTIPLY", nb.math("SINE", nb.math("MULTIPLY", nb.math("FLOOR", nb.math("DIVIDE", tru, 0.6)), 12.9898)), 43758.55))
+            opn = nb.ramp(cell, 0.2, 0.19)
+            trc = nb.mix(nb.math("MULTIPLY", tread, 0.45), (0.46, 0.48, 0.52), (0.6, 0.62, 0.66))
+            trc = nb.mix(nb.ramp(nb.seam(tru, 0.6), 0.01, 0.004), trc, (0.17, 0.18, 0.2))
+            cab = nb.cramp(nb.math("FRACT", nb.math("MULTIPLY", trd, 9.0)),
+                           [(0.0, (0.1, 0.25, 0.75)), (0.25, (0.85, 0.75, 0.15)), (0.45, (0.55, 0.57, 0.6)), (0.65, (0.75, 0.2, 0.15)),
+                            (0.85, (0.15, 0.55, 0.3)), (1.0, (0.1, 0.25, 0.75))])
+            cab = nb.mix(nb.ramp(nb.math("ABSOLUTE", nb.math("SINE", nb.math("MULTIPLY", trd, 110.0))), 0.25, 0.0), cab, (0.03, 0.03, 0.035))
+            cab = nb.mix(nb.ramp(trd, -0.03, -0.01), cab, (0.04, 0.04, 0.045))
+            trc = nb.mix(opn, trc, cab)
+            trc = nb.mix(band(trd, -0.025, 0.0), trc, (0.62, 0.64, 0.68))
+            c = nb.mix(ins(trd), c, trc)
+            # the open bays: tiles lifted, the subfloor with its pedestals and cables
+            obd = Pn["ob_d"]
+            obc = nb.mix(nb.ramp(nb.noise(5.0, 3, 0.6), 0.3, 0.7), (0.17, 0.17, 0.18), (0.23, 0.22, 0.22))
+            obc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", ox_, 0.25), nb.math("MULTIPLY", oy_, 8.0)), 1.5, 2, 0.5), 0.62, 0.7), 0.9),
+                         obc, nb.mix(nb.ramp(nb.noise(3.0, 2, 0.5), 0.4, 0.6), (0.12, 0.3, 0.7), (0.7, 0.62, 0.15)))
+            obc = nb.mix(nb.dots(ox_, oy_, 0.6, 0.6, 0.0, 0.05), obc, (0.62, 0.64, 0.68))
+            obc = nb.mix(nb.dots(ox_, oy_, 0.6, 0.6, 0.0, 0.028), obc, (0.3, 0.31, 0.34))
+            c = nb.mix(ins(obd), c, obc)
+            # rack plinths and mainframe pads
+            rpd, mfd = Pn["rp_d"], Pn["mf_d"]
+            rpc = nb.mix(nb.math("MULTIPLY", tread, 0.4), (0.26, 0.28, 0.32), (0.36, 0.38, 0.42))
+            rpc = nb.mix(band(rpd, -0.2, -0.07), rpc, hazc)
+            rpc = nb.mix(band(rpd, -0.035, 0.0), rpc, (0.55, 0.57, 0.62))
+            c = nb.mix(ins(rpd), c, rpc)
+            mfc = nb.mix(nb.math("MULTIPLY", tread, 0.4), (0.2, 0.21, 0.24), (0.29, 0.3, 0.33))
+            mfc = nb.mix(band(mfd, -0.36, -0.2), mfc, hazc)
+            mfc = nb.mix(band(mfd, -0.2, 0.0), mfc, nb.mix(nb.ramp(nb.noise(8.0, 2, 0.5), 0.3, 0.7), (0.44, 0.46, 0.5), (0.5, 0.52, 0.56)))
+            mfc = nb.mix(nb.math("MULTIPLY", nb.dots(ox_, oy_, 0.3, 0.3, 0.0, 0.025), band(mfd, -0.15, -0.05)), mfc, (0.75, 0.77, 0.8))
+            mfc = nb.mix(band(mfd, -0.45, -0.4), mfc, AMB)
+            c = nb.mix(ins(mfd), c, mfc)
+            # paint on the floor: the rows' blue and amber lines, outlines ("k"), the bays' hatching
+            c = nb.mix(pk_m, c, (0.06, 0.06, 0.07))
+            c = nb.mix(Pn["c"], c, BLU)
+            c = nb.mix(py_m, c, AMB)
+            # the service aisles
+            ars = nb.math("ABSOLUTE", rsd)
+            asl = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.1, 0.11, 0.13), (0.135, 0.145, 0.165))
+            asl = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(60.0, 1, 0.5), 0.68, 0.74), 0.4), asl, (0.2, 0.21, 0.24))
+            asl = nb.mix(nb.math("MULTIPLY", nb.ramp(ars, 0.55, 0.0), 0.45), asl, (0.19, 0.2, 0.23))
+            asl = nb.mix(nb.ramp(nb.seam(ral, 1.2), 0.008, 0.003), asl, (0.06, 0.06, 0.07))
+            asl = nb.mix(nb.math("MULTIPLY", pk_m, 1.0), asl, (0.36, 0.38, 0.42))
+            fl_ = Pn["fl"]
+            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("SUBTRACT", ral, nb.math("MULTIPLY", ars, 0.7)), 1.2), 0.08, 0.05),
+                           nb.math("MULTIPLY", nb.ramp(ars, 0.22, 0.18), nb.ramp(ars, HALF - 0.3, HALF - 0.34)))
+            strip = nb.ramp(ars, 0.09, 0.07)
+            fsc = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.08, 0.11, 0.18), (0.1, 0.14, 0.22))
+            fsc = nb.mix(nb.math("MAXIMUM", chev, strip), fsc, BLU)
+            asl = nb.mix(fl_, asl, fsc)
+            asl = nb.mix(band(ped_, -0.05, 0.0), asl, (0.42, 0.44, 0.48))
+            c = nb.mix(ins(ped_), c, asl)
+            # light: the guide lights and the status lights, their glow on the floor
+            hw_, hg_, hb_, hr_ = Pn["hw"], Pn["hg"], Pn["hb"], Pn["hr"]
+            c = nb.mix(nb.math("MULTIPLY", hw_, 0.55), c, (0.55, 0.85, 1.0))
+            c = nb.mix(nb.math("MULTIPLY", hg_, 0.6), c, GRN)
+            c = nb.mix(nb.math("MULTIPLY", hb_, 0.6), c, BLU)
+            c = nb.mix(nb.math("MULTIPLY", hr_, 0.6), c, RED)
+            c = nb.mix(pw_m, c, (0.85, 0.97, 1.0))
+            c = nb.mix(Pn["g"], c, GRN)
+            c = nb.mix(Pn["m"], c, BLU)
+            c = nb.mix(pr_m, c, RED)
+            for f_, col_ in ((pw_m, (0.7, 0.95, 1.0)), (nb.math("MULTIPLY", hw_, 0.35), (0.4, 0.75, 1.0)), (Pn["g"], GRN), (Pn["m"], BLU), (pr_m, RED),
+                             (nb.math("MULTIPLY", hg_, 0.3), GRN), (nb.math("MULTIPLY", hb_, 0.3), BLU), (nb.math("MULTIPLY", hr_, 0.3), RED),
+                             (nb.math("MULTIPLY", nb.math("MAXIMUM", chev, strip), fl_), BLU), (nb.math("MULTIPLY", Pn["c"], 0.35), BLU),
+                             (nb.math("MULTIPLY", band(mfd, -0.45, -0.4), 0.8), AMB)):
+                em = nb.mix(f_, em, col_)
+            c, em = gate_plate(c, em, (0.3, 0.32, 0.36), (0.55, 0.58, 0.63))
+            stl = nb.math("MAXIMUM", nb.math("MAXIMUM", ins(rpd), ins(mfd)), nb.math("MULTIPLY", ins(trd), nb.math("SUBTRACT", 1.0, opn)))
+            rough = nb.mixf(stl, nb.mixf(ins(ped_), 0.55, 0.42), 0.38)
+            bump_h = nb.math("ADD", nb.math("MULTIPLY", nb.math("SUBTRACT", 1.0, ins(ped_)), nb.math("SUBTRACT", 0.0, nb.math("MAXIMUM", tj, nb.math("MULTIPLY", perf, holes)))),
+                             nb.math("MULTIPLY", stl, nb.math("MULTIPLY", tread, 0.4)))
 # @@MAT_CORE@@
         elif THEME == "neon":
             # a cyberpunk district at night, wet: dark pavers, slabs, deck plates, parking and hex tiles in the lots;
@@ -5948,7 +6196,21 @@ elif THEME == "cooling":
     pts = scatter(700 if not PREVIEW else 120, lambda x, z: off_rd(x, z) & (sample(IND["frost"], x, z) > 0.75) & (sample(IND["ice"], x, z) < 0.3)
                   & (sample(BLK_ANY, x, z) > 0.1) & (RNG.random(np.shape(x)) < 0.4))
     merged("Frost", blob_template(1), place_list(pts, 0.01, 0.025, sink=0.55, tilt=0.3), simple_mat("Rime", (0.88, 0.93, 0.98), 0.85))
-# @@SCAT_SERVER@@
+elif THEME == "server":
+    # in the open bays: a stack of lifted floor tiles in a corner, cables lying across the subfloor
+    st_, cb_ = [], {0: [], 1: [], 2: []}
+    for k_, (cx, cz) in enumerate(OB):
+        for j in range(4):
+            x_, z_ = cx + 0.72 + RNG.normal(0, 0.02), cz - 0.42 + RNG.normal(0, 0.02)
+            st_.append((x_, z_, RNG.normal(0, 0.12), 0.58, 0.58, 0.028, float(hgt(cx + 0.72, cz - 0.42)) + j * 0.03))
+        for j in range(3):
+            zz = cz - 0.5 + j * 0.42 + RNG.uniform(-0.08, 0.08)
+            xs_ = np.linspace(cx - 1.12, cx + 1.12, 40)
+            P_ = np.stack([xs_, zz + 0.05 * np.sin(xs_ * RNG.uniform(1.5, 3.0) + RNG.uniform(0, 6))], 1)
+            cb_[j].append((P_, 0.018, 0.018))
+    boxes_mesh("LiftedTiles", st_, simple_mat("LiftedTile", (0.4, 0.42, 0.46), 0.6, var=(0.46, 0.48, 0.52)))
+    for j, col in enumerate([(0.12, 0.3, 0.8), (0.85, 0.72, 0.15), (0.55, 0.57, 0.6)]):
+        tube_mesh("Cables%d" % j, cb_[j], simple_mat("Cable%d" % j, col, 0.5), sides=6)
 # @@SCAT_CORE@@
 elif THEME == "neon":
     rnd = lambda x: RNG.random(np.shape(x))
