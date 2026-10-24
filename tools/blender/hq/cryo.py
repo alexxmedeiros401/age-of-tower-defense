@@ -654,9 +654,11 @@ def pad_field():
     c, ax, out, acr = pad_frame()
     R = np.stack([acr, ax, out], axis=1)
     fd.add(RoundBox(c + out * 0.012, (0.04, 0.052, 0.011), 0.008, R=R), 0.0, BLACK)
-    fd.paint(RoundBox(c + out * 0.022, (0.029, 0.038, 0.006), 0.004, R=R), GLASS)
+    line = RoundBox(c + out * 0.022 + ax * 0.012, (0.022, 0.004, 0.01), 0.002, R=R)
+    glass = RoundBox(c + out * 0.022, (0.029, 0.038, 0.006), 0.004, R=R)
+    fd.paint(Func(lambda P: np.maximum(glass(P), -line(P)), c - 0.1, c + 0.1), GLASS)       # (leaving the line out)
     fd.sub(RoundBox(c + out * 0.025, (0.03, 0.039, 0.002), 0.003, R=R), 0.002)
-    fd.paint(RoundBox(c + out * 0.022 + ax * 0.012, (0.022, 0.004, 0.01), 0.002, R=R), VIOLET)
+    fd.paint(line, VIOLET)
     for e in (-1, 1):
         sc = c + ax * (e * 0.03) - out * 0.075
         fd.add(Inter(Shell(Cylinder(sc, 0.087, 0.03, R=rot_from_axes(z_axis=ax)), 0.0, 0.006),
@@ -751,7 +753,6 @@ def machine_field():
         q = P - hc.astype(F)
         u, v = q @ hx.astype(F), q @ Z.astype(F)
         return np.maximum(np.abs(u) + np.abs(v) - F(s), np.abs(q @ hd.astype(F)) - F(0.03))
-    fd.paint(Func(diamond, hc - 0.12, hc + 0.12), HAZARD)
     def flake(P):
         q = P - hc.astype(F)
         u, v = q @ hx.astype(F), q @ Z.astype(F)
@@ -762,6 +763,7 @@ def machine_field():
             acr = u * ca - v * sa
             d = np.minimum(d, np.maximum(np.abs(acr) - F(0.0045), np.abs(along) - F(0.03)))
         return np.maximum(d, np.abs(q @ hd.astype(F)) - F(0.03))
+    fd.paint(Func(lambda P: np.maximum(diamond(P), -flake(P)), hc - 0.12, hc + 0.12), HAZARD)     # (leaving the flake out)
     fd.paint(Func(flake, hc - 0.12, hc + 0.12), BLACK)
     # vents for the cold vapour: a grille of slits on its outer side
     for k in range(5):

@@ -111,8 +111,14 @@ def pad_field():
         band = np.maximum(np.abs(_rr(P) - F(PAD_R - 0.03)) - F(0.018), F(TOP_Z - 0.02) - P[:, 2])
         front = np.abs(a + F(math.pi / 2)) - F(0.62)
         return np.maximum(np.maximum(st, front), band)
-    fd.paint(Func(lambda P: np.maximum(np.abs(_rr(P) - F(PAD_R - 0.03)) - F(0.018),
-                                       np.maximum(F(TOP_Z - 0.02) - P[:, 2], np.abs(np.arctan2(P[:, 1], P[:, 0]) + F(math.pi / 2)) - F(0.62))), lo, hi), HAZ)
+    def chev_st(P):
+        a = np.arctan2(P[:, 1], P[:, 0])
+        u = a * F(PAD_R - 0.04) + (_rr(P) - F(PAD_R - 0.04)) * F(0.8)
+        return np.abs(np.mod(u, F(0.08)) - F(0.04)) - F(0.018)
+    # (the yellow leaves the chevrons out: where two painted labels overlap, the one the material mixes last wins)
+    fd.paint(Func(lambda P: np.maximum(np.maximum(np.abs(_rr(P) - F(PAD_R - 0.03)) - F(0.018),
+                                       np.maximum(F(TOP_Z - 0.02) - P[:, 2], np.abs(np.arctan2(P[:, 1], P[:, 0]) + F(math.pi / 2)) - F(0.62))),
+                                       -chev_st(P)), lo, hi), HAZ)
     fd.paint(Func(chev, lo, hi), BLACK)
     # the groove for the light strip
     fd.sub(Torus(v3((0, 0, RIM_Z)), PAD_R + 0.004, 0.012), 0.002)
