@@ -21,8 +21,8 @@ STAND = v3((-_g.YAW_PIVOT[0], -_g.YAW_PIVOT[1], TOP_Z))
 GRATE_Z = 0.07                 # the grating outside the parapet
 BAG = (0.17, 0.09, 0.052)      # a sandbag's half length, depth, height
 BAG_R = (1.31, 1.3, 1.29)      # the courses' middle radii
-GAPS = {"shells": math.radians(28.0), "radio": math.radians(76.0), "plates": math.radians(132.0)}
-GAP_W = {"shells": 0.17, "radio": 0.17, "plates": 0.0}
+GAPS = {"shells": math.radians(28.0), "radio": math.radians(72.0), "banner": math.radians(102.0), "plates": math.radians(136.0)}
+GAP_W = {"shells": 0.17, "radio": 0.17, "banner": 0.0, "plates": 0.0}
 PLATE = 0.4                    # the floor plates' size
 BASE_L, BLACK_L, AMB_L, WHITE_L, TEAL_L, GM_L, STEEL_L, GLASS_L, RUBBER_L, HAZ_L, BRASS_L = 0, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
 
@@ -246,8 +246,8 @@ def radio_field():
     # the antenna
     ab = rc + o * 0.05 - t * (ay - 0.03) + v3((0, 0, az))
     fd.add(Cylinder(ab + v3((0, 0, 0.012)), 0.014, 0.024, rr=0.004), 0.003, STEEL_L)
-    fd.add(RoundCone(ab + v3((0, 0, 0.02)), ab + v3((0.02, 0.03, 0.62)), 0.006, 0.003), 0.002, BLACK_L)
-    fd.add(Sphere(ab + v3((0.02, 0.03, 0.625)), 0.008), 0.002, BLACK_L)
+    fd.add(RoundCone(ab + v3((0, 0, 0.02)), ab + v3((0.02, 0.03, 0.46)), 0.006, 0.003), 0.002, BLACK_L)
+    fd.add(Sphere(ab + v3((0.02, 0.03, 0.465)), 0.008), 0.002, BLACK_L)
     return fd
 
 
@@ -270,25 +270,25 @@ def plates_field():
     n = norm(np.cross(t, lean))
     if n @ o > 0:
         n = -n
-    pc = c0 + v3((0, 0, GRATE_Z + 0.26)) + o * 0.04
+    pc = c0 + v3((0, 0, GRATE_Z + 0.32)) + o * 0.04
     def torso_plate(P, pc=pc, lean=lean, n=n):
         q = P - pc.astype(F)
         u, v, w = q @ t.astype(F), q @ lean.astype(F), q @ n.astype(F)
         w = w - F(0.9) * (F(0.06) - u * u) * F(0.5) - F(0.4) * (F(0.06) - v * v) * F(0.5)
-        e = np.sqrt((u / F(0.3)) ** 2 + (v / F(0.27)) ** 2) - F(1.0)
-        d2 = np.maximum(e * F(0.27), np.abs(v) - F(0.24))
+        e = np.sqrt((u / F(0.36)) ** 2 + (v / F(0.33)) ** 2) - F(1.0)
+        d2 = np.maximum(e * F(0.33), np.abs(v) - F(0.3))
         return np.maximum(d2, np.abs(w) - F(0.013)) - F(0.004)
     fd.add(Func(torso_plate, pc - 0.4, pc + 0.4), 0.0, BASE_L)
     pt = lambda u, v, w=0.0: pc + t * u + lean * v + n * (w + 0.9 * (0.06 - u * u) * 0.5 + 0.4 * (0.06 - v * v) * 0.5)
     for su in (-1, 1):
-        fd.paint(RoundCone(pt(su * 0.17, 0.12, 0.017), pt(0.0, -0.08, 0.017), 0.034, 0.034), AMB_L)
+        fd.paint(RoundCone(pt(su * 0.21, 0.16, 0.017), pt(0.0, -0.1, 0.017), 0.042, 0.042), AMB_L)
     fd.paint(RoundCone(pt(-0.26, -0.1, 0.017), pt(-0.12, -0.2, 0.017), 0.016, 0.016), HAZ_L)
     for u, v, r in ((0.15, -0.12, 0.024), (-0.12, 0.15, 0.018), (0.22, 0.12, 0.012)):
         fd.sub(Sphere(pt(u, v, 0.017 + r * 0.7), r), 0.004)
     fd.sub(RoundCone(pt(-0.2, 0.0, 0.017), pt(0.2, 0.0, 0.017), 0.004, 0.004), 0.002)                 # a panel line
     fd.paint(RoundCone(pt(0.05, 0.19, 0.017), pt(0.16, 0.16, 0.017), 0.005, 0.004), GM_L)
     # a shoulder plate leaning on its left, a shin plate on its right
-    for side, (du, w, hgt, tilt) in ((-1, (0.3, 0.13, 0.18, 0.5)), (1, (0.28, 0.1, 0.24, 0.35))):
+    for side, (du, w, hgt, tilt) in ((-1, (0.36, 0.15, 0.22, 0.5)), (1, (0.34, 0.12, 0.3, 0.35))):
         bc = c0 + t * (side * du) - o * 0.06 + v3((0, 0, GRATE_Z + hgt * 0.5))
         Rb = rot_from_axes(z_axis=norm(up + o * tilt), x_axis=t)
         def curved(P, bc=bc, Rb=Rb, w=w, hgt=hgt):
@@ -301,6 +301,42 @@ def plates_field():
     for dz in (0.12, 0.3):
         sc = c0 + o * 0.02 + v3((0, 0, GRATE_Z + dz))
         fd.add(RoundBox(sc, (0.02, 0.36, 0.014), 0.006, R=rot_from_axes(z_axis=lean, y_axis=t)), 0.004, BLACK_L)
+    return fd
+
+
+BANNER_H = 1.32                # the pole's top (z)
+BANNER = (0.17, 0.5)           # the banner's half width and its drop
+
+
+def banner_field():
+    """The Resistance banner: a gunmetal (9) pipe for a pole wedged in the parapet, a crossbar at its top; hanging from it a
+    banner of amber cloth (0) with a swallow-tailed foot and a bold black (5) chevron, frayed and scorched (5) at an edge."""
+    fd = Field("Banner")
+    c0, o, t = _gap_frame("banner", 1.36)
+    foot = c0 + v3((0, 0, GRATE_Z + 0.06))
+    top = c0 + v3((0, 0, BANNER_H))
+    fd.add(RoundCone(foot, top, 0.019, 0.016), 0.0, GM_L)
+    fd.add(Sphere(top + v3((0, 0, 0.012)), 0.022), 0.004, GM_L)
+    bar = top - v3((0, 0, 0.05)) + o * 0.02
+    hw, drop = BANNER
+    fd.add(RoundCone(bar - t * (hw + 0.03), bar + t * (hw + 0.03), 0.011, 0.011), 0.004, GM_L)
+    def cloth(P):
+        q = P - bar.astype(F)
+        u = q @ t.astype(F)
+        v = -q[:, 2]
+        w = q @ (-o).astype(F)
+        w0 = F(0.018) * np.sin(u * F(14.0) + v * F(4.0)) * np.clip(v / F(0.15), 0, 1) + F(0.006) * np.sin(v * F(20.0))
+        tail = F(drop) - F(0.12) * (F(1.0) - np.abs(u) / F(hw))
+        box = np.maximum(np.maximum(np.abs(u) - F(hw), F(0.01) - v), v - tail)
+        return np.maximum(box, np.abs(w - w0) - F(0.006))
+    lo, hi = bar - v3((0.3, 0.3, drop + 0.05)), bar + v3((0.3, 0.3, 0.05))
+    fd.add(Func(cloth, lo, hi, disp=lambda P: F(0.001) * NOISE(P * F(30)), disp_amp=0.0015), 0.004, BASE_L)
+    for su in (-1, 1):
+        a = bar + t * (su * 0.11) - v3((0, 0, 0.1))
+        b = bar - v3((0, 0, 0.3))
+        fd.paint(RoundCone(a - o * 0.05, b - o * 0.05, 0.034, 0.034), BLACK_L)
+        fd.paint(RoundCone(a + o * 0.05, b + o * 0.05, 0.034, 0.034), BLACK_L)
+    fd.paint(Sphere(bar + t * (hw - 0.01) - v3((0, 0, drop - 0.06)), 0.05), BLACK_L)
     return fd
 
 
@@ -352,12 +388,12 @@ def flower_geometry(seed=0):
 
 def fields():
     return [("Ground", ground_field(), 0.006), ("Floor", floor_field(), 0.0032), ("Sandbags", sandbags_field(), 0.004),
-            ("Shells", shells_field(), 0.0022), ("Radio", radio_field(), 0.002), ("Plates", plates_field(), 0.003),
+            ("Shells", shells_field(), 0.0022), ("Radio", radio_field(), 0.002), ("Plates", plates_field(), 0.003), ("Banner", banner_field(), 0.0024),
             ("Cables", cables_field(), 0.0024), ("Neon", neon_field(), 0.0018)]
 
 
-REGION_PARTS = ("Ground", "Floor", "Sandbags", "Shells", "Radio", "Plates", "Cables")
-LOW_TARGETS = {"Ground": 1300, "Floor": 2600, "Sandbags": 4200, "Shells": 1900, "Radio": 1100, "Plates": 1100, "Cables": 400,
+REGION_PARTS = ("Ground", "Floor", "Sandbags", "Shells", "Radio", "Plates", "Banner", "Cables")
+LOW_TARGETS = {"Ground": 1300, "Floor": 2600, "Sandbags": 4200, "Shells": 1900, "Radio": 1100, "Plates": 1100, "Banner": 700, "Cables": 400,
                "Neon": 500}
 KIT = dict(_g.KIT)
 MAT_OVERRIDES = {"Ground": ("modern_kit", dict(KIT, name="HQ_NaGrate", base=(0.2, 0.21, 0.23), weave=0.0)),
@@ -367,6 +403,7 @@ MAT_OVERRIDES = {"Ground": ("modern_kit", dict(KIT, name="HQ_NaGrate", base=(0.2
                  "Shells": ("modern_kit", dict(KIT, name="HQ_NaKit", base=_g.ARMOUR, weave=0.0)),
                  "Radio": ("modern_kit", dict(KIT, name="HQ_NaKit", base=_g.ARMOUR, weave=0.0)),
                  "Cables": ("modern_kit", dict(KIT, name="HQ_NaKit", base=_g.ARMOUR, weave=0.0)),
+                 "Banner": ("modern_kit", dict(KIT, name="HQ_NaBanner", base=_g.AMBER_P, weave=1.0)),
                  "Plates": ("modern_kit", dict(KIT, name="HQ_NaPlates", base=_g.ROBOT_WHITE, weave=0.0, gloss=0.42))}
 GLOW = {"Neon": (_g.AMBER, 1.1, 0.5)}
 FLAME_PIVOT = None

@@ -274,9 +274,9 @@ def hair_field():
 
 
 # ======================================================================================= the bandana and goggles
-BAND_OFF, BAND_T = 0.016, 0.012           # the bandana over the skull
+BAND_OFF, BAND_T = 0.009, 0.011           # the bandana over the skull (close: cloth, not a helmet)
 BAND_FACE = BAND_OFF + BAND_T / 2
-GOG_Z = 1.9                                # the goggles' strap round the bandana (design height, at the front)
+GOG_Z = 1.875                              # the goggles' strap round the bandana (design height, at the front)
 
 
 def _band_keep(P):
@@ -319,15 +319,15 @@ def bandana_field():
     # the rolled hem
     def hem(P):
         Q = hinv(P)
-        return (np.abs(Q[:, 2] - rim_z(Q) - F(0.008)) - F(0.009)) * F(HS)
-    fd.add(Inter(Shell(sk, BAND_OFF + 0.004, 0.02, pad=0.08), Func(hem, lo, hi), 0.004), 0.006)
+        return (np.abs(Q[:, 2] - rim_z(Q) - F(0.007)) - F(0.0075)) * F(HS)
+    fd.add(Inter(Shell(sk, BAND_OFF + 0.003, 0.014, pad=0.08), Func(hem, lo, hi), 0.004), 0.006)
     # the knot at the back and its tails
     kp, kn = band_point(math.pi, 1.712, 0.006)
     fd.add(Ellipsoid(kp, (0.034, 0.024, 0.026), R=rot_from_axes(z_axis=kn, x_axis=(1, 0, 0))), 0.01)
     for sx in (-1, 1):
         fd.add(Ellipsoid(kp + v3((sx * 0.026, 0.004, 0.004)), (0.024, 0.016, 0.018), R=euler(0, sx * 0.4, 0)), 0.008)
-        pts = [kp + v3((sx * 0.01, 0.012, -0.015)), kp + v3((sx * 0.028, 0.03, -0.06)), kp + v3((sx * 0.042, 0.042, -0.11)),
-               kp + v3((sx * 0.05, 0.046, -0.15))]
+        pts = [kp + v3((sx * 0.01, 0.008, -0.015)), kp + v3((sx * 0.024, 0.014, -0.06)), kp + v3((sx * 0.034, 0.016, -0.11)),
+               kp + v3((sx * 0.04, 0.014, -0.15))]
         ns = [norm(v3((sx * 0.25, 1.0, 0.25)))] * 4
         fd.add(Lock(pts, [0.026, 0.03, 0.03, 0.022], [0.006, 0.006, 0.006, 0.005], ns, k=0.006,
                     disp=lambda P: F(0.0012) * NOISE(P * F(30)), disp_amp=0.002), 0.006)
@@ -346,13 +346,13 @@ def goggles_field():
     fd.add(Inter(Shell(sk, BAND_FACE + BAND_T / 2 + 0.003, 0.007, pad=0.08), Func(strap, lo, hi), 0.003), 0.0, RUBBER_L)
     cups = []
     for sx in (-1, 1):
-        p, n = band_point(sx * 0.36, GOG_Z + 0.004)
-        n = norm(n + v3((0, 0, 0.25)))
+        p, n = band_point(sx * 0.33, GOG_Z + 0.004)
+        n = norm(n + v3((0, 0, 0.08)))
         R = rot_from_axes(z_axis=n)
-        c = p + n * 0.014
-        fd.add(Cylinder(c, 0.036, 0.03, rr=0.009, R=R), 0.004, RUBBER_L)
-        fd.add(Torus(c + n * 0.015, 0.03, 0.006, R=R), 0.003, GM_L)
-        fd.add(Cylinder(c + n * 0.012, 0.027, 0.008, rr=0.003, R=R), 0.002, GLASS_L)
+        c = p + n * 0.016
+        fd.add(Cylinder(c, 0.042, 0.034, rr=0.01, R=R), 0.004, RUBBER_L)
+        fd.add(Torus(c + n * 0.017, 0.035, 0.0075, R=R), 0.003, GM_L)
+        fd.add(Cylinder(c + n * 0.014, 0.032, 0.008, rr=0.003, R=R), 0.002, GLASS_L)
         cups.append((c, n))
     (c0, n0), (c1, n1) = cups
     mid = (c0 + c1) * 0.5 + (n0 + n1) * 0.004
@@ -469,25 +469,25 @@ GX_ = v3((1.0, 0.0, 0.0))
 BAR_UP = 0.1                               # the bore's axis above the trunnions
 S_BR = -0.56                               # (along the bore from the trunnions) the breech ring's rear face ...
 S_RING = -0.38                             # ... its front face
-RING_HALF = (0.13, 0.125)                  # its half width and half height
+RING_HALF = (0.14, 0.135)                  # its half width and half height
 S_BLK = S_BR + 0.065                       # the sliding block's middle
-BLK_HALF = (0.15, 0.036, 0.09)
+BLK_HALF = (0.16, 0.036, 0.095)
 BLK_SLIDE = 0.21                           # how far the block slides out (toward +X, away from him) to open
 S_CASE = S_BR + 0.105                      # the case's base in the chamber
 CASE_L, CASE_R, RIM_R = 0.27, 0.054, 0.063
 SHELL_L = 0.47                             # a round: base -> the nose's tip
 PROJ_R = 0.05                              # the projectile's body
 BORE_R = 0.056
-R_J = 0.106                                # the jacket under the coils
+R_J = 0.118                                # the jacket under the coils
 S_J1 = -0.05                               # ... it ends here; the tube runs on to the brake
 COIL_S = (-0.33, -0.265, -0.2, -0.135)     # the coil collars' middles
-COIL_HW, COIL_R = 0.025, 0.134             # a collar's half width and radius ...
-GROOVE_R = 0.118                           # ... its groove's bottom ...
-BAND_R0, BAND_R1, BAND_HW = 0.1, 0.128, 0.011      # ... the glowing band in the groove
-TUBE_R = (0.088, 0.077)                    # the tube (at S_J1, at the brake)
+COIL_HW, COIL_R = 0.025, 0.148             # a collar's half width and radius ...
+GROOVE_R = 0.132                           # ... its groove's bottom ...
+BAND_R0, BAND_R1, BAND_HW = 0.112, 0.142, 0.011      # ... the glowing band in the groove
+TUBE_R = (0.1, 0.088)                    # the tube (at S_J1, at the brake)
 S_MUZ = 1.02                               # the muzzle's face
 S_BRAKE = S_MUZ - 0.17                     # the muzzle brake's back
-BRAKE_R = 0.104
+BRAKE_R = 0.12
 S_BED = (-0.02, 0.48)                      # the recoil sled (bed, collar at its front end)
 REC_MAX = 0.32                             # the recoil's run (the brake stays clear of the collar)
 LEV_L = 0.2
@@ -704,14 +704,14 @@ def cradle_field():
     lo, hi = _bore_bounds(s0 - 0.05, s1 + 0.05, 0.25)
     fd.add(Func(_ring_sd(s1 - 0.14, s1, TUBE_R[0] + 0.006, TUBE_R[0] + 0.045, rr=0.01), lo, hi), 0.008, BASE_L)
     for sx in (-1, 1):
-        a, b = bore_pt(s0 - 0.03, up=0.135, side=sx * 0.072), bore_pt(s1 - 0.01, up=0.135, side=sx * 0.072)
+        a, b = bore_pt(s0 - 0.03, up=0.152, side=sx * 0.074), bore_pt(s1 - 0.01, up=0.152, side=sx * 0.074)
         fd.add(capped_cone(a, b, 0.036, 0.034, rr=0.01), 0.008, GM_L)
         fd.add(Cylinder(a - GD * 0.004, 0.024, 0.02, rr=0.005, R=rot_from_axes(z_axis=GD)), 0.003, STEEL_L)
-        fd.paint(Func(lambda P, sx=sx: np.maximum(np.abs(_bore_local(P)[0] - F(sx * 0.072)) - F(0.008),
-                                                np.abs(_bore_local(P)[2] - F(0.135 + 0.034)) - F(0.012)), lo, hi), AMB_L)
+        fd.paint(Func(lambda P, sx=sx: np.maximum(np.abs(_bore_local(P)[0] - F(sx * 0.074)) - F(0.008),
+                                                np.abs(_bore_local(P)[2] - F(0.152 + 0.034)) - F(0.012)), lo, hi), AMB_L)
         # the cylinders' brackets down to the collar and to the trunnion block
         for s in (s0 + 0.04, s1 - 0.07):
-            fd.add(RoundBox(bore_pt(s, up=0.1, side=sx * 0.06), (0.018, 0.022, 0.03), 0.006, R=_rgd()), 0.006, BASE_L)
+            fd.add(RoundBox(bore_pt(s, up=0.115, side=sx * 0.062), (0.018, 0.022, 0.032), 0.006, R=_rgd()), 0.006, BASE_L)
     fd.add(RoundBox(TRUN + GU * 0.0, (0.115, 0.12, 0.05), 0.016, R=_rgd()), 0.01, BASE_L)               # the trunnion block
     fd.add(Cylinder(TRUN, 0.04, 0.34, rr=0.006, R=rot_from_axes(z_axis=GX_)), 0.004, GM_L)
     return fd
@@ -785,7 +785,7 @@ def _shield_axis_v():
 
 
 AP_V = _shield_axis_v()
-APERTURE = (0.135, AP_V - 0.14, AP_V + 0.4)       # the barrel's notch: half width, from v up (open at the top)
+APERTURE = (0.15, AP_V - 0.19, AP_V + 0.4)       # the barrel's notch: half width, from v up (open at the top)
 
 
 def _shield_uv(P):
@@ -921,7 +921,7 @@ def carriage_field():
     for sx in (-1, 1):
         A = v3((MX + sx * LEGS[0], TY + LEGS[2], 0.38))
         B = v3((MX + sx * LEGS[1], TY + LEGS[3], 0.07))
-        beam, a, sd, up, L = beam_sd(A, B, (0.04, 0.032), (0.04, 0.03))
+        beam, a, sd, up, L = beam_sd(A, B, (0.052, 0.04), (0.05, 0.036))
         fd.add(beam, 0.01, BASE_L)
         fd.add(Cylinder(B + v3((0, 0, -0.045)), 0.07, 0.03, rr=0.008), 0.01, GM_L)
         fd.add(Cylinder(A - a * 0.02 - up * 0.03, 0.028, 0.1, rr=0.008, R=rot_from_axes(z_axis=sd)), 0.006, GM_L)
