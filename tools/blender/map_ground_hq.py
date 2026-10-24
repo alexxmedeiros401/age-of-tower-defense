@@ -2581,7 +2581,7 @@ if THEME == "cooling":
     # frost: rime over the whole floor in patches, thick round the ice pads, the channels and the chillers; the heated
     # tracks keep only a ragged fringe at their edges
     near_ch = gaussian_filter((_chc < 0).astype(np.float32), 0.35 * MPX) * 2.5
-    frost = np.clip((fbm(1.1, 4, 701) - 0.38) / 0.3, 0, 1) * 0.7
+    frost = np.clip((fbm(1.1, 4, 701) - 0.3) / 0.4, 0, 1) * 0.5 + np.clip((fbm(0.35, 3, 705) - 0.5) / 0.3, 0, 1) * 0.15
     frost = np.maximum(frost, np.clip(near_ch, 0, 1) * 0.85)
     for (bx, bz, R) in ICE:
         frost = np.maximum(frost, np.clip((R + 1.7 + (fbm(0.6, 3, 702) - 0.5) * 1.0 - np.hypot(X - bx, Z - bz)) / 1.0, 0, 1))
@@ -2872,7 +2872,7 @@ if THEME == "core":
     TR = []                                                            # (cells [(i, j)...], how it ends, joined trace id)
     tcz, tcx = int((CC[1] - gz0) / TG), int((CC[0] - gx0) / TG)
     for _try in range(4000):
-        if len(TR) >= 330:
+        if len(TR) >= 210:
             break
         i, j = int(co_.integers(1, nZ - 1)), int(co_.integers(1, nX - 1))
         if blocked[max(0, i - 2):i + 3, max(0, j - 2):j + 3].any() or (occ[max(0, i - 3):i + 4, max(0, j - 3):j + 4] > 0).any():
@@ -2924,10 +2924,10 @@ if THEME == "core":
         tid = k + 1
         if end != "join":
             col[tid] = "r" if co_.random() < 0.28 else "c"
-            wid[tid] = co_.choice([0.05, 0.065, 0.08])
+            wid[tid] = co_.choice([0.04, 0.05, 0.06])
         else:
             col[tid] = col.get(join, "c")
-            wid[tid] = max(0.035, wid.get(join, 0.06) * co_.uniform(0.65, 0.95))
+            wid[tid] = max(0.03, wid.get(join, 0.05) * co_.uniform(0.65, 0.95))
     TRACES = []
     for k, (cells, end, join) in enumerate(TR):
         tid = k + 1
@@ -2967,7 +2967,7 @@ if DIG_T:
         for nm_, src_, k_ in (("hc", np.maximum.reduce([PNT["c"], _edge * 0.7, _cd, _so]), 1.0), ("hr", PNT["r"], 1.1)):
             near_ = gaussian_filter(src_, 0.06 * HPX)
             far_ = gaussian_filter(src_, (0.36 * HPX, 0.12 * HPX))
-            HD[nm_] = np.clip((near_ * 2.4 + far_ * 3.0) * k_, 0, 1).astype(np.float32)
+            HD[nm_] = np.clip((near_ * 1.4 + far_ * 1.6) * k_, 0, 1).astype(np.float32)
         del _p, _edge, _cd, _so, near_, far_
         log("glow", {k_: round(float(HD[k_].mean()), 4) for k_ in ("hc", "hr")})
     if THEME == "neon":
@@ -4752,8 +4752,8 @@ elif MOD_T or DIG_T:
             pc = nb.mix(pj, pc, (0.14, 0.16, 0.19))
             c = nb.mix(I["b_panel"], c, pc)
             gbar = nb.math("MAXIMUM", nb.ramp(nb.seam(pw, 0.05), 0.011, 0.007), nb.ramp(nb.seam(pu, 0.3), 0.009, 0.005))
-            glo = nb.math("MULTIPLY", nb.ramp(bid, 0.55, 0.6), nb.ramp(nb.noise(1.5, 2, 0.5), 0.35, 0.65))
-            under = nb.mix(glo, (0.03, 0.045, 0.06), (0.1, 0.3, 0.42))
+            glo = nb.math("MULTIPLY", nb.ramp(bid, 0.7, 0.72), nb.ramp(nb.noise(1.5, 2, 0.5), 0.4, 0.6))
+            under = nb.mix(glo, (0.03, 0.04, 0.05), (0.07, 0.2, 0.28))
             grc = nb.mix(gbar, under, (0.5, 0.55, 0.61))
             gfj, _gr = nb.brick(obj, 1.2, 1.2, 0.03, 0.1, offset=0.0, freq=1)
             grc = nb.mix(gfj, grc, (0.36, 0.4, 0.45))
@@ -4769,8 +4769,8 @@ elif MOD_T or DIG_T:
             tj_ = nb.ramp(nb.seam(ral, 1.2), 0.012, 0.005)
             tkc = nb.mix(tj_, tkc, (0.06, 0.07, 0.08))
             melt = nb.ramp(I["melt"], 0.3, 0.6)
-            tkc = nb.mix(nb.math("MULTIPLY", melt, 0.8), tkc, nb.mix(nb.ramp(nb.noise(2.0, 2, 0.5), 0.3, 0.7), (0.08, 0.11, 0.15), (0.13, 0.17, 0.22)))
-            sheet = nb.mix(nb.ramp(nb.noise(1.6, 3, 0.6), 0.3, 0.7), (0.66, 0.84, 0.95), (0.8, 0.93, 1.0))
+            tkc = nb.mix(nb.math("MULTIPLY", melt, 0.6), tkc, nb.mix(nb.ramp(nb.noise(2.0, 2, 0.5), 0.3, 0.7), (0.11, 0.13, 0.16), (0.16, 0.19, 0.23)))
+            sheet = nb.mix(nb.math("ADD", 0.45, nb.math("MULTIPLY", nb.noise(1.6, 3, 0.6), 0.35)), tkc, (0.62, 0.82, 0.94))
             scr = nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", ral, 1.0), nb.math("MULTIPLY", rsd, 25.0)), 3.0, 2, 0.5), 0.62, 0.7), 0.6)
             sheet = nb.mix(scr, sheet, (0.92, 0.97, 1.0))
             scrk = nb.ramp(nb.voronoi(2.2, "Distance", "DISTANCE_TO_EDGE"), 0.012, 0.0)
@@ -4779,7 +4779,7 @@ elif MOD_T or DIG_T:
             tkc = nb.mix(Pn["sl"], tkc, sheet)
             fl_ = Pn["fl"]
             ars = nb.math("ABSOLUTE", rsd)
-            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("SUBTRACT", ral, nb.math("MULTIPLY", ars, 0.75)), 0.9), 0.07, 0.04),
+            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("ADD", ral, nb.math("MULTIPLY", ars, 0.75)), 0.9), 0.07, 0.04),
                            nb.ramp(ars, HALF - 0.28, HALF - 0.32))
             ipl = nb.mix(nb.ramp(nb.seam(ral, 0.3), 0.02, 0.012), (0.12, 0.2, 0.28), (0.04, 0.07, 0.1))
             ipl = nb.mix(chev, ipl, CYG)
@@ -4788,12 +4788,16 @@ elif MOD_T or DIG_T:
             tkc = nb.mix(band(ped_, -0.085, -0.07, 0.004), tkc, (0.08, 0.08, 0.09))
             c = nb.mix(ins(ped_), c, tkc)
             # rime frost: speckled where thin, a white crust where thick (on a grating only on its bars); condensation
-            fr_a = nb.math("MULTIPLY", I["frost"], nb.math("ADD", 0.6, nb.math("MULTIPLY", nb.noise(3.0, 3, 0.6), 0.6)))
+            fr_a = nb.math("MULTIPLY", I["frost"], nb.math("ADD", 0.7, nb.math("MULTIPLY", nb.noise(3.0, 3, 0.6), 0.5)))
             spk = nb.noise(38.0, 2, 0.6)
-            cover = nb.ramp(nb.math("SUBTRACT", fr_a, nb.math("MULTIPLY", spk, 0.55)), 0.05, 0.3)
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(fr_a, 0.0, 0.6), 0.32), c, (0.74, 0.82, 0.9))
+            jd_ = nb.math("MINIMUM", nb.seam(ox_, 1.2), nb.seam(oy_, 1.2))
+            jf = nb.math("MULTIPLY", nb.ramp(nb.math("ADD", nb.math("SUBTRACT", jd_, nb.math("MULTIPLY", fr_a, 0.08)), nb.math("MULTIPLY", spk, 0.03)), 0.03, 0.005),
+                         nb.ramp(fr_a, 0.12, 0.35))
+            cover = nb.math("MAXIMUM", nb.ramp(nb.math("SUBTRACT", nb.math("SUBTRACT", fr_a, nb.math("MULTIPLY", spk, 0.6)), 0.3), 0.0, 0.22), jf)
             cover = nb.math("MULTIPLY", cover, nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", grm, nb.math("SUBTRACT", 1.0, gbar))))
             cover = nb.math("MULTIPLY", cover, nb.math("SUBTRACT", 1.0, Pn["sl"]))
-            rime = nb.mix(nb.ramp(nb.voronoi(26.0, "Distance"), 0.35, 0.05), (0.76, 0.85, 0.93), (0.94, 0.97, 1.0))
+            rime = nb.mix(nb.ramp(nb.voronoi(26.0, "Distance"), 0.35, 0.05), (0.72, 0.82, 0.9), (0.92, 0.96, 0.99))
             rime = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(90.0, 1, 0.5), 0.7, 0.74), 0.7), rime, (1.0, 1.0, 1.0))
             c = nb.mix(cover, c, rime)
             strk = nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", ox_, 16.0), nb.math("MULTIPLY", oy_, 0.9)), 1.4, 3, 0.6), 0.5, 0.68)
@@ -4807,8 +4811,8 @@ elif MOD_T or DIG_T:
             # coolant channels
             chd, chu = Pn["ch_d"], Pn["ch_u"]
             flow = nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", chu, 1.5), nb.math("MULTIPLY", chd, 12.0)), 2.5, 3, 0.6), 0.45, 0.75)
-            chc = nb.mix(nb.ramp(chd, -0.03, -0.15), (0.32, 0.62, 0.78), (0.52, 0.85, 0.98))
-            chc = nb.mix(nb.math("MULTIPLY", flow, 0.5), chc, (0.75, 0.95, 1.0))
+            chc = nb.mix(nb.ramp(chd, -0.03, -0.15), (0.14, 0.46, 0.7), (0.36, 0.8, 1.0))
+            chc = nb.mix(nb.math("MULTIPLY", flow, 0.5), chc, (0.66, 0.93, 1.0))
             frz = nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", chu, 0.7), 0.0), 1.0, 2, 0.5), 0.6, 0.64)
             crust = nb.math("MAXIMUM", frz, nb.ramp(chd, -0.075, -0.045))
             crust = nb.math("MAXIMUM", crust, nb.math("MULTIPLY", nb.ramp(nb.noise(12.0, 2, 0.6), 0.55, 0.62), nb.ramp(chd, -0.1, -0.06)))
@@ -4827,9 +4831,12 @@ elif MOD_T or DIG_T:
             c = nb.mix(icv, c, icc)
             # the frozen drain pads
             t, ta = Pn["ic_r"], Pn["ic_a"]
-            pdc = nb.mix(nb.ramp(t, 0.1, 0.85), (0.9, 0.97, 1.0), (0.62, 0.81, 0.93))
-            rings = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", t, 6.0)), 0.5)), 0.42, 0.5)
-            pdc = nb.mix(nb.math("MULTIPLY", rings, 0.35), pdc, (0.96, 0.99, 1.0))
+            pdc = nb.mix(nb.ramp(t, 0.1, 0.85), (0.5, 0.7, 0.84), (0.66, 0.82, 0.92))
+            pdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(3.0, 3, 0.6), 0.45, 0.7), 0.5), pdc, (0.42, 0.62, 0.78))
+            drs = nb.ramp(nb.math("MULTIPLY", nb.seam(ta, 1.0 / 10.0), nb.math("MULTIPLY", t, 6.0)), 0.025, 0.015)
+            pdc = nb.mix(nb.math("MULTIPLY", band(t, 0.04, 0.2, 0.006), nb.math("MAXIMUM", drs, 0.4)), pdc, (0.22, 0.36, 0.48))
+            rings = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", t, 6.0)), 0.5)), 0.44, 0.5)
+            pdc = nb.mix(nb.math("MULTIPLY", rings, nb.math("MULTIPLY", nb.ramp(t, 0.3, 0.9), 0.45)), pdc, (0.9, 0.96, 1.0))
             pdc = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.voronoi(2.6, "Distance", "DISTANCE_TO_EDGE"), 0.014, 0.0), 0.8), pdc, (1.0, 1.0, 1.0))
             pdc = nb.mix(band(t, 0.88, 1.0, 0.006), pdc, (0.48, 0.53, 0.59))
             pdc = nb.mix(band(t, 0.88, 0.9, 0.004), pdc, (0.2, 0.22, 0.25))
@@ -4850,7 +4857,7 @@ elif MOD_T or DIG_T:
             fan = nb.mix(nb.ramp(fr_, 0.2, 0.19), fan, (0.5, 0.54, 0.59))
             fan = nb.mix(band(fr_, 0.96, 1.04, 0.006), fan, (0.58, 0.62, 0.67))
             plc = nb.mix(ins(nb.math("SUBTRACT", fr_, 1.04), 0.006), plc, fan)
-            plfr = nb.math("MULTIPLY", nb.math("MULTIPLY", I["frost"], nb.ramp(nb.noise(9.0, 3, 0.6), 0.45, 0.62)), 0.7)
+            plfr = nb.math("MULTIPLY", nb.math("MULTIPLY", I["frost"], nb.ramp(nb.noise(9.0, 3, 0.6), 0.52, 0.64)), 0.45)
             plc = nb.mix(plfr, plc, (0.88, 0.93, 0.98))
             c = nb.mix(ins(pld), c, plc)
             # the valve stations' grates: a bolted frame, a hazard-striped border
@@ -4888,16 +4895,17 @@ elif MOD_T or DIG_T:
             sx_, sy_ = nb.seam(ox_, 0.6), nb.seam(oy_, 0.6)
             sm_ = nb.math("MINIMUM", sx_, sy_)
             tj, tr_ = nb.brick(obj, 0.6, 0.6, 0.006, 0.1, offset=0.0, freq=1)
-            c = nb.mix(tr_, (0.34, 0.36, 0.4), (0.41, 0.43, 0.47))
+            c = nb.mix(tr_, (0.355, 0.375, 0.415), (0.39, 0.41, 0.45))
+            c = nb.mix(nb.math("MULTIPLY", nb.ramp(mid, 0.3, 0.75), 0.5), c, (0.33, 0.35, 0.39))
             c = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.noise(45.0, 2, 0.5), 0.55, 0.75), 0.3), c, (0.48, 0.5, 0.54))
             scuff = nb.math("MULTIPLY", nb.ramp(nb.noise_v(nb.vec(ox_, nb.math("MULTIPLY", oy_, 6.0)), 2.5, 3, 0.6), 0.66, 0.78), I["scuff"])
             c = nb.mix(nb.math("MULTIPLY", scuff, 0.3), c, (0.27, 0.28, 0.31))
             c = nb.mix(nb.math("MULTIPLY", I["dust"], 0.18), c, (0.44, 0.43, 0.41))
             c = nb.mix(nb.ramp(sm_, 0.026, 0.016), c, (0.52, 0.54, 0.58))                              # the tiles' trim
-            holes = nb.dots(ox_, oy_, 0.05, 0.05, 0.025, 0.011)
-            pfc = nb.mix(holes, (0.46, 0.49, 0.53), (0.08, 0.09, 0.11))
-            pfc = nb.mix(nb.ramp(sm_, 0.05, 0.04), (0.5, 0.52, 0.56), pfc)
-            loose = nb.ramp(tr_, 0.935, 0.94)
+            holes = nb.dots(ox_, oy_, 0.075, 0.075, 0.0375, 0.019)
+            pfc = nb.mix(holes, (0.45, 0.5, 0.57), (0.06, 0.08, 0.11))
+            pfc = nb.mix(nb.ramp(sm_, 0.06, 0.05), (0.5, 0.53, 0.58), pfc)
+            loose = nb.ramp(tr_, 0.965, 0.97)
             perf = nb.math("MAXIMUM", I["perf"], loose)
             c = nb.mix(perf, c, pfc)
             c = nb.mix(tj, c, (0.14, 0.15, 0.17))
@@ -4958,7 +4966,7 @@ elif MOD_T or DIG_T:
             asl = nb.mix(nb.ramp(nb.seam(ral, 1.2), 0.008, 0.003), asl, (0.06, 0.06, 0.07))
             asl = nb.mix(nb.math("MULTIPLY", pk_m, 1.0), asl, (0.36, 0.38, 0.42))
             fl_ = Pn["fl"]
-            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("SUBTRACT", ral, nb.math("MULTIPLY", ars, 0.7)), 1.2), 0.08, 0.05),
+            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("ADD", ral, nb.math("MULTIPLY", ars, 0.7)), 1.2), 0.08, 0.05),
                            nb.math("MULTIPLY", nb.ramp(ars, 0.22, 0.18), nb.ramp(ars, HALF - 0.3, HALF - 0.34)))
             strip = nb.ramp(ars, 0.09, 0.07)
             fsc = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.08, 0.11, 0.18), (0.1, 0.14, 0.22))
@@ -5018,16 +5026,16 @@ elif MOD_T or DIG_T:
             c = nb.mix(onpz, c, hexc)
             # the glow of the lights on the polished floor, then the traces
             hc_, hr_ = Pn["hc"], Pn["hr"]
-            c = nb.mix(nb.math("MULTIPLY", hc_, 0.6), c, (0.1, 0.55, 0.65))
-            c = nb.mix(nb.math("MULTIPLY", hr_, 0.6), c, (0.6, 0.08, 0.12))
+            c = nb.mix(nb.math("MULTIPLY", hc_, 0.45), c, (0.1, 0.5, 0.6))
+            c = nb.mix(nb.math("MULTIPLY", hr_, 0.45), c, (0.55, 0.08, 0.12))
             c = nb.mix(Pn["c"], c, CY)
             c = nb.mix(pr_m, c, RD)
             c = nb.mix(pw_m, c, WH)
             c = nb.mix(pk_m, c, (0.02, 0.02, 0.03))
             # conduits
             cdd, cdu = Pn["cd_d"], Pn["cd_u"]
-            pulse = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", cdu, 0.8)), 0.5)), 0.12, 0.3)
-            cdc = nb.mix(nb.ramp(cdd, -0.035, -0.11), (0.08, 0.5, 0.62), CY)
+            pulse = nb.ramp(nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", nb.math("MULTIPLY", cdu, 0.8)), 0.5)), 0.4, 0.47)
+            cdc = nb.mix(nb.ramp(cdd, -0.035, -0.1), (0.05, 0.38, 0.5), CY)
             cdc = nb.mix(nb.math("MULTIPLY", pulse, nb.ramp(cdd, -0.05, -0.1)), cdc, WH)
             cdc = nb.mix(band(cdd, -0.035, 0.0), cdc, (0.3, 0.32, 0.38))
             cdc = nb.mix(band(cdd, -0.012, 0.0, 0.004), cdc, (0.5, 0.52, 0.58))
@@ -5066,18 +5074,20 @@ elif MOD_T or DIG_T:
             c = nb.mix(oilm, c, sheen)
             # the highways
             ars = nb.math("ABSOLUTE", rsd)
-            hw_ = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.025, 0.04, 0.06), (0.04, 0.06, 0.085))
+            hw_ = nb.mix(nb.ramp(mid, 0.3, 0.7), (0.04, 0.065, 0.09), (0.055, 0.085, 0.115))
+            haze = nb.math("MULTIPLY", nb.ramp(ars, HALF - 0.4, HALF - 0.08), 0.55)
+            hw_ = nb.mix(haze, hw_, (0.08, 0.36, 0.46))
             lnf = nb.math("DIVIDE", nb.math("ADD", rsd, HALF), 0.28)
             lid = nb.math("FLOOR", lnf)
             lc = nb.math("MULTIPLY", nb.math("ABSOLUTE", nb.math("SUBTRACT", nb.math("FRACT", lnf), 0.5)), 0.28)
             hw_ = nb.mix(nb.math("MULTIPLY", nb.ramp(nb.math("SUBTRACT", 0.14, lc), 0.006, 0.0), nb.ramp(ars, HALF - 0.12, HALF - 0.14)), hw_, (0.06, 0.12, 0.16))
-            pk_ = nb.noise_v(nb.vec(nb.math("MULTIPLY", ral, 0.45), nb.math("MULTIPLY", lid, 3.7)), 4.0, 1, 0.5)
-            pkt = nb.math("MULTIPLY", nb.ramp(pk_, 0.6, 0.63), nb.math("MULTIPLY", nb.ramp(lc, 0.03, 0.018), nb.ramp(ars, HALF - 0.16, HALF - 0.2)))
+            pk_ = nb.noise_v(nb.vec(nb.math("MULTIPLY", ral, 0.3), nb.math("MULTIPLY", lid, 3.7)), 4.0, 1, 0.5)
+            pkt = nb.math("MULTIPLY", nb.ramp(pk_, 0.53, 0.56), nb.math("MULTIPLY", nb.ramp(lc, 0.03, 0.018), nb.ramp(ars, HALF - 0.16, HALF - 0.2)))
             pkc = nb.mix(nb.ramp(nb.noise_v(nb.vec(nb.math("MULTIPLY", ral, 0.2), nb.math("MULTIPLY", lid, 5.1)), 3.0, 1, 0.5), 0.62, 0.64), CY, RD)
             pkc = nb.mix(nb.ramp(pk_, 0.7, 0.74), pkc, WH)
             hw_ = nb.mix(pkt, hw_, pkc)
             fl_ = Pn["fl"]
-            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("SUBTRACT", ral, nb.math("MULTIPLY", ars, 0.8)), 1.0), 0.06, 0.035), nb.ramp(ars, HALF - 0.24, HALF - 0.28))
+            chev = nb.math("MULTIPLY", nb.ramp(nb.seam(nb.math("ADD", ral, nb.math("MULTIPLY", ars, 0.8)), 1.0), 0.06, 0.035), nb.ramp(ars, HALF - 0.24, HALF - 0.28))
             hw_ = nb.mix(nb.math("MULTIPLY", fl_, 0.6), hw_, nb.mix(chev, (0.04, 0.1, 0.16), WH))
             estrip = band(ped_, -0.075, -0.04, 0.005)
             hw_ = nb.mix(estrip, hw_, CY)
@@ -5088,14 +5098,15 @@ elif MOD_T or DIG_T:
             emf = nb.math("SUBTRACT", 1.0, onhw)
             for f_, col_ in ((nb.math("MULTIPLY", nb.math("MULTIPLY", Pn["c"], emf), burnt), CY), (nb.math("MULTIPLY", nb.math("MULTIPLY", pr_m, emf), burnt), RD),
                              (nb.math("MULTIPLY", nb.math("MULTIPLY", pw_m, emf), burnt), WH),
-                             (nb.math("MULTIPLY", nb.math("MULTIPLY", hc_, 0.3), nb.math("MULTIPLY", emf, burnt)), CY),
-                             (nb.math("MULTIPLY", nb.math("MULTIPLY", hr_, 0.3), nb.math("MULTIPLY", emf, burnt)), RD),
+                             (nb.math("MULTIPLY", nb.math("MULTIPLY", hc_, 0.2), nb.math("MULTIPLY", emf, burnt)), CY),
+                             (nb.math("MULTIPLY", nb.math("MULTIPLY", hr_, 0.2), nb.math("MULTIPLY", emf, burnt)), RD),
                              (nb.math("MULTIPLY", nb.math("MULTIPLY", oncd, nb.ramp(cdd, -0.035, -0.06)), emf), nb.mix(pulse, CY, WH)),
                              (nb.math("MULTIPLY", nb.math("MAXIMUM", ring, nb.math("MULTIPLY", slot, 0.7)), onso), CY),
                              (nb.math("MULTIPLY", band(t, 0.13, 0.16, 0.004), onso), RD),
                              (nb.math("MULTIPLY", nb.math("MULTIPLY", lit, onpz), emf), litc), (nb.math("MULTIPLY", nb.math("MULTIPLY", hseam, onpz), 0.35), CY),
                              (nb.math("MULTIPLY", hot, 0.9), (1.0, 0.25, 0.08)),
                              (nb.math("MULTIPLY", estrip, onhw), CY), (nb.math("MULTIPLY", pkt, onhw), pkc),
+                             (nb.math("MULTIPLY", nb.math("MULTIPLY", haze, 0.45), onhw), (0.1, 0.55, 0.7)),
                              (nb.math("MULTIPLY", nb.math("MULTIPLY", chev, fl_), onhw), WH)):
                 em = nb.mix(f_, em, col_)
             c, em = gate_plate(c, em, (0.16, 0.17, 0.21), (0.36, 0.38, 0.45))
@@ -6602,7 +6613,7 @@ TARGET = {"meadow": 0.41, "snow": 0.84, "volcano": 0.27, "delta": 0.43, "desert"
           "bog": 0.33, "olive": 0.5, "coast": 0.53, "acropolis": 0.56, "farmland": 0.44, "darkwood": 0.26, "castle": 0.4,
           "jungle": 0.3, "harbor": 0.56, "fortress": 0.4, "factory": 0.31, "railyard": 0.36, "smog": 0.31,
           "military": 0.42, "metro": 0.37, "suburb": 0.42, "lab": 0.62, "satellite": 0.42, "neon": 0.2,
-          "cooling": 0.5, "server": 0.3, "core": 0.17}[THEME]
+          "cooling": 0.46, "server": 0.3, "core": 0.17}[THEME]
 mask_in = (sample(outside, X, Z) < 0.5)
 mi = np.asarray(Image.fromarray((mask_in * 255).astype(np.uint8)).resize((im.shape[1], im.shape[0]))) > 127
 cur = im[mi].mean()
