@@ -1,0 +1,7 @@
+[
+ {
+  "name": "plasma_final",
+  "cmd": "O=$GITHUB_WORKSPACE/out/plasma_final; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character plasma_mortar --fine --out $O/hi/plasma_mortar_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module plasma_mortar_base --fine --out $O/hi/plasma_mortar_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character plasma_mortar --char $O/hi/plasma_mortar_hi.blend --base $O/hi/plasma_mortar_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/plasma_final"
+ }
+]
