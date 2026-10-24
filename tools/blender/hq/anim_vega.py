@@ -431,7 +431,7 @@ LOW_POLE = V(-1.0, 0.4, -0.3)
 SKY_FIST = V(0.16, -0.1, 2.12)              # (body frame) the killswitch raised high over his head ...
 SKY_ALONG = V(-0.1, 0.0, 1.0)               # ... the button up
 SKY_POLE = V(1.0, 0.3, 0.2)
-SLAM_FIST = V(0.12, -0.42, 0.74)             # ... slammed down before him (the deep crouch)
+SLAM_FIST = V(0.1, -0.5, 0.66)             # ... slammed down before him (the deep crouch)
 SLAM_ALONG = V(-0.05, -0.15, 1.0)
 SLAM_POLE = V(1.0, 0.3, -0.3)
 
@@ -448,7 +448,7 @@ def make_ability(arm, frames=AB_FR):
         slam = seg(f, 28, SIGNAL) * (1.0 - seg(f, 44, 54))
         bounce = 0.25 * math.sin(math.pi * (f - SIGNAL) / 8.0) if SIGNAL <= f <= SIGNAL + 8 else 0.0
         press = seg(f, PRESS - 2, PRESS + 1) * (1.0 - seg(f, 44, 50))
-        body, ro, rr = aim_body(arm, 0.0, 0.0, yaw=yaw, head_up=0.5 * up - 0.2 * slam, lean=-0.08 * up + 0.5 * slam,
+        body, ro, rr = aim_body(arm, 0.0, 0.0, yaw=yaw, head_up=0.5 * up - 0.2 * slam, lean=-0.08 * up + 1.3 * slam,
                                 crouch=-0.4 * up + (4.6 + bounce) * slam)
         yc = yaw + 4.0
         body["neck"] = (body["neck"][0], math.radians(-0.45 * yc * (1.0 - front)))
@@ -559,8 +559,8 @@ def make_cheer(arm, frames=CH_FR):
         T_up = up_T(Dr, lift=0.02 * pump)
         T_g = path_T(f, [(0, T_aim), (9, T_up)], G0) if f <= 20 else path_T(f, [(34, T_up), (45, T_aim)], G0)
         hp_ = hip_hold(Dr)(P0)
-        fist_lo = body_point(Dr, V(0.4, -0.18, 2.06))
-        fist_hi = body_point(Dr, V(0.44, -0.2, 2.2))
+        fist_lo = body_point(Dr, V(0.36, -0.32, 2.0))
+        fist_hi = body_point(Dr, V(0.42, -0.2, 2.22))
         mid = body_point(Dr, V(0.44, -0.4, 1.4))
         al = R @ CH_ALONG
         top = fist_lo.lerp(fist_hi, pump) if f >= 10 else fist_hi

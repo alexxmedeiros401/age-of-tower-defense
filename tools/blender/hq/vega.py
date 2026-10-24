@@ -196,7 +196,7 @@ def top_patch(P):
     Q = hinv(P)
     n = (Q - _HC_D.astype(F)) / _HR_D.astype(F)
     n = n / (np.sqrt((n * n).sum(1))[:, None] + F(1e-6))
-    w = F(0.6) + F(0.06) * smoothstep(0.2, -0.6, n[:, 1])               # (a touch wider over the brow)
+    w = F(0.7) + F(0.06) * smoothstep(0.2, -0.6, n[:, 1])               # (a touch wider over the brow)
     e = np.sqrt((n[:, 0] / w) ** 2 + (np.maximum(n[:, 1] - F(0.1), 0) / F(0.8)) ** 2)
     return np.maximum(e - F(1.0), F(0.15) - n[:, 2])
 
@@ -536,7 +536,7 @@ def _strap_plane(top, hip_f, hip_b):
 
 
 SASH = _strap_plane(v3((0.17, 0.06, 1.52)), v3((-0.25, -0.12, 0.9)), v3((-0.25, 0.2, 0.9)))   # his left shoulder -> right hip
-SASH_W = 0.048                          # half width
+SASH_W = 0.04                          # half width
 
 
 def strap_d(P, plane):
@@ -939,8 +939,8 @@ MAT_OVERRIDES = {
                                 (SCAR, (0.9, 0.68, 0.62), 0.45), (GLOVE, BLACK, 0.75))}),
     "Hair": ("hair", {"name": "HQ_VegaHair", "base": (0.12, 0.11, 0.11), "hi": (0.36, 0.35, 0.36), "low": (0.04, 0.035, 0.035),
                       "streak": (0.08, 0.075, 0.075), "tint": (0.16, 0.15, 0.15), "fleck": (0.62, 0.62, 0.64), "fleck_amt": 0.45}),
-    "Temples": ("hair", {"name": "HQ_VegaTemples", "base": (0.6, 0.6, 0.62), "hi": (0.86, 0.86, 0.88), "low": (0.36, 0.36, 0.38),
-                         "streak": (0.48, 0.48, 0.5), "tint": (0.66, 0.66, 0.68)}),
+    "Temples": ("hair", {"name": "HQ_VegaTemples", "base": (0.48, 0.48, 0.5), "hi": (0.72, 0.72, 0.74), "low": (0.28, 0.28, 0.3),
+                         "streak": (0.38, 0.38, 0.4), "tint": (0.52, 0.52, 0.54)}),
     "Under": ("uniform", {"name": "HQ_VegaUnder", "base": (0.1, 0.1, 0.11)}),
     "Armour": ("modern_kit", dict(KIT, name="HQ_VegaArmour", base=GUNMETAL, weave=0.0, gloss=0.45)),
     "Coat": ("modern_kit", dict(KIT, name="HQ_VegaCoat", base=CHARCOAL, weave=1.0)),
