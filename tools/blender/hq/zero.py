@@ -147,10 +147,10 @@ def eye_c(sx=1):
 def _head_base():
     """The helmet's shapes (no detail): what the visor, the eye and the paint are placed on."""
     fd = Field("HeadBase")
-    fd.add(RoundBox(HC + v3((0, 0.01, -0.01)), (0.2, 0.18, 0.155), 0.13), 0.0, WHITE)
-    fd.add(Ellipsoid(HC + v3((0, 0.02, 0.05)), (0.2, 0.185, 0.15)), 0.05, WHITE)
+    fd.add(RoundBox(HC + v3((0, 0.01, -0.005)), (0.222, 0.2, 0.168), 0.14), 0.0, WHITE)
+    fd.add(Ellipsoid(HC + v3((0, 0.02, 0.06)), (0.222, 0.205, 0.165)), 0.05, WHITE)
     # the jaw: a gunmetal block under the face, a little forward
-    fd.add(RoundBox(HC + v3((0, -0.035, -0.135)), (0.15, 0.135, 0.055), 0.05, R=euler(-0.12, 0, 0)), 0.04, FRAME)
+    fd.add(RoundBox(HC + v3((0, -0.04, -0.14)), (0.165, 0.15, 0.06), 0.052, R=euler(-0.12, 0, 0)), 0.04, FRAME)
     return fd
 
 
@@ -193,10 +193,10 @@ def _frame(n, up=(0, 0, 1)):
 
 FACE_N = norm(v3((0.0, -1.0, 0.16)))     # the face looks a little up (it reads from the high camera)
 VIS_Z = 1.952                            # the visor's middle (height), its half sizes and corner radius
-VIS_H = (0.158, 0.082)
+VIS_H = (0.172, 0.09)
 VIS_RC = 0.055
 EYE_Z = 1.952
-EYE_RAD = 0.074                          # the eye's radius
+EYE_RAD = 0.08                          # the eye's radius
 
 
 def face_pt(x, z, lift=0.0):
@@ -236,7 +236,7 @@ def eye_frame():
 def _cheek():
     """The ellipsoid that lifts the eye's lower edge (a smiling eye)."""
     p, R = eye_frame()
-    return Ellipsoid(p - R[:, 1] * 0.104, (0.124, 0.046, 0.093), R=R)
+    return Ellipsoid(p - R[:, 1] * 0.106, (0.092, 0.058, 0.093), R=R)
 
 
 def _eye_shape(grow=1.0, out=0.0, depth=0.014, smile=True):
@@ -277,34 +277,35 @@ def head_field():
         c = np.abs(q[:, 1] - np.abs(q[:, 0]) * F(0.62) + F(0.01)) - F(0.024)
         return np.maximum(np.maximum(c, np.abs(q[:, 0]) - F(0.15)), F(-0.02) - q[:, 2] - F(0.2))
     fd.paint(Func(chevron, lo, hi), AMBER)
-    # the jaw's grille: two slits curved up at their ends (a smile)
-    for k, z0 in enumerate((1.828, 1.806)):
-        pts = []
-        for x in np.linspace(-0.085 + 0.012 * k, 0.085 - 0.012 * k, 7):
-            q, n = face_pt(x, z0 + 3.2 * x * x)
-            pts.append(q)
-        fd.sub(Chain(pts, [0.0055] * len(pts), k=0.003), 0.002)
-        fd.paint(Chain(pts, [0.0095] * len(pts), k=0.003), CHAR)
+    # the smile: a slot across the jaw curved up at its ends (its light bar is GlowMouth), grille vents beside it
+    pts = mouth_points()
+    fd.sub(Chain(pts, [0.006, 0.008, 0.0095, 0.0095, 0.0095, 0.0095, 0.0095, 0.008, 0.006], k=0.003), 0.002)
+    fd.paint(Chain(pts, [0.011, 0.013, 0.0145, 0.0145, 0.0145, 0.0145, 0.0145, 0.013, 0.011], k=0.003), CHAR)
+    for sx in (-1, 1):
+        for k in range(3):
+            a, _ = face_pt(sx * (0.118 + 0.014 * k), 1.83 + 0.004 * k)
+            b, _ = face_pt(sx * (0.118 + 0.014 * k), 1.795 + 0.004 * k)
+            fd.sub(RoundCone(a, b, 0.0035, 0.0035), 0.0015)
     # cheek bolts beside the jaw
     for sx in (-1, 1):
-        q, n = face_pt(sx * 0.125, 1.835)
+        q, n = face_pt(sx * 0.14, 1.855)
         fd.add(Cylinder(q, 0.014, 0.012, rr=0.004, R=rot_from_axes(z_axis=n)), 0.003, STEEL)
     # ear discs (steel, an orange ring) and the antenna on his right
     for sx in (-1, 1):
-        c = HC + v3((sx * 0.205, 0.02, -0.01))
+        c = HC + v3((sx * 0.226, 0.02, -0.005))
         ax = v3((sx, 0.0, 0.0))
         Rr = rot_from_axes(z_axis=ax)
         fd.add(Cylinder(c, 0.07, 0.05, rr=0.014, R=Rr), 0.012, STEEL)
         fd.sub(Torus(c + ax * 0.025, 0.046, 0.005, R=Rr), 0.002)
         fd.add(Cylinder(c + ax * 0.022, 0.026, 0.02, rr=0.006, R=Rr), 0.003, CHAR)
         fd.paint(Torus(c + ax * 0.024, 0.058, 0.007, R=Rr), ORANGE)
-    a0 = HC + v3((-0.215, 0.05, 0.03))
+    a0 = HC + v3((-0.236, 0.05, 0.035))
     a1 = a0 + v3((-0.035, 0.04, 0.16))
     a2 = a1 + v3((0.005, 0.03, 0.06))
     fd.add(Chain([a0, a1, a2], [0.016, 0.011, 0.009], k=0.01), 0.006, FRAME)
     fd.add(Sphere(a2 + v3((0, 0.004, 0.012)), 0.022), 0.004, AMBER)
     # a dent on his crown (left), a welded patch on its right side, behind the ear
-    fd.sub(Sphere(HC + v3((0.1, 0.02, 0.2 + 0.045)), 0.06), 0.03)
+    fd.sub(Sphere(HC + v3((0.11, 0.02, 0.225 + 0.045)), 0.06), 0.03)
     p, n = _hit(hb, HC + v3((-0.6, 0.1, 0.07)), (1, 0, 0))
     Rp = _frame(n)
     fd.add(RoundBox(p + n * 0.002, (0.05, 0.04, 0.007), 0.005, R=Rp), 0.004, STEEL)
@@ -316,6 +317,25 @@ def head_field():
         bead = F(0.0006) * NOISE(P * F(260))
         return np.sqrt(ring * ring + (q[:, 2] - F(0.004)) ** 2) - F(0.0055) + bead
     fd.add(Func(weld, p - 0.1, p + 0.1), 0.003, STEEL)
+    return fd
+
+
+MOUTH_Z, MOUTH_W = 1.79, 0.09
+
+
+def mouth_points(lift=0.0):
+    pts = []
+    for x in np.linspace(-MOUTH_W, MOUTH_W, 9):
+        q, n = face_pt(x, MOUTH_Z + 3.6 * x * x, lift)
+        pts.append(q)
+    return pts
+
+
+def mouth_field():
+    """The smile's light bar (GlowMouth), in its slot."""
+    fd = Field("Mouth")
+    pts = mouth_points(-0.003)
+    fd.add(Chain(pts, [0.004, 0.0058, 0.0068, 0.007, 0.007, 0.007, 0.0068, 0.0058, 0.004], k=0.002), 0.0)
     return fd
 
 
@@ -582,13 +602,13 @@ def pauldron(fd, side):
 def upperarm_plate(fd, side):
     sx = -1 if side == "R" else 1
     sh, el = J["shoulder_" + side], J["elbow_" + side]
-    a, b = lerp(sh, el, 0.38), lerp(sh, el, 0.86)
-    fd.add(seg_box(a + v3((sx * 0.025, 0, 0)), b + v3((sx * 0.02, 0, 0)), (0.12, 0.13), 0.055, side_ref=(1, 0, 0)), 0.0, WHITE)
+    a, b = lerp(sh, el, 0.3), lerp(sh, el, 0.9)
+    fd.add(seg_box(a + v3((sx * 0.025, 0, 0)), b + v3((sx * 0.02, 0, 0)), (0.135, 0.145), 0.06, side_ref=(1, 0, 0)), 0.0, WHITE)
     fd.paint(seg_box(lerp(a, b, 0.92), lerp(a, b, 0.92) + norm(b - a) * 0.01, (0.3, 0.3), 0.0), SEAM)
 
 
 H_FRONT = -0.03             # the forearm housing's front end (u, from the wrist)
-HR0, HR1 = 0.15, 0.185      # its radius at the elbow end and at the front
+HR0, HR1 = 0.16, 0.19      # its radius at the elbow end and at the front
 
 
 def h_rad(u):
@@ -774,7 +794,7 @@ def thigh_plate(fd, side):
     hp_, kn = J["hip_" + side], J["knee_" + side]
     a, b = lerp(hp_, kn, 0.08), lerp(hp_, kn, 0.84)
     off = v3((sx * 0.03, -0.05, 0))
-    fd.add(seg_box(a + off, b + off, (0.17, 0.13), 0.065, side_ref=(1, 0, 0)), 0.0, WHITE)
+    fd.add(seg_box(a + off, b + off, (0.19, 0.145), 0.07, side_ref=(1, 0, 0)), 0.0, WHITE)
     fd.add(seg_box(a + v3((sx * 0.04, 0.06, 0)), lerp(a, b, 0.8) + v3((sx * 0.04, 0.06, 0)), (0.14, 0.1), 0.05, side_ref=(1, 0, 0)), 0.03, CHAR)
     m = lerp(a, b, 0.5) + off
     def slash(P, m=m):
@@ -782,7 +802,7 @@ def thigh_plate(fd, side):
                                      np.abs(P[:, 0] - F(m[0])) - F(0.12)), P[:, 1] - F(m[1] - 0.04))
     fd.paint(Func(slash, m - 0.3, m + 0.3), AMBER)
     if side == "L":                                   # a welded patch on the left thigh's outer side
-        p = lerp(a, b, 0.4) + off + v3((0.175, 0.0, 0.0))
+        p = lerp(a, b, 0.4) + off + v3((0.195, 0.0, 0.0))
         fd.add(RoundBox(p, (0.008, 0.05, 0.06), 0.005), 0.004, STEEL)
         fd.add(Torus(p + v3((0.004, 0, 0)), 0.055, 0.0055, R=rot_from_axes(z_axis=(1, 0, 0)),
                      disp=lambda P: F(0.0007) * NOISE(P * F(240)), disp_amp=0.001), 0.003, STEEL)
@@ -792,9 +812,9 @@ def shin_guard(fd, side):
     """A charcoal knee cap, a big white shin guard (an orange band at its top, a front ridge)."""
     sx = -1 if side == "R" else 1
     kn, an = J["knee_" + side], J["ankle_" + side]
-    fd.add(Ellipsoid(kn + v3((0, -0.12, 0.02)), (0.14, 0.085, 0.125)), 0.0, CHAR)
-    a, b = lerp(kn, an, 0.16), lerp(kn, an, 0.92)
-    fd.add(seg_box(a + v3((0, -0.03, 0)), b + v3((0, -0.01, 0)), (0.18, 0.16), 0.075, side_ref=(1, 0, 0)), 0.02, WHITE)
+    fd.add(Ellipsoid(kn + v3((0, -0.125, 0.02)), (0.15, 0.09, 0.13)), 0.0, CHAR)
+    a, b = lerp(kn, an, 0.12), lerp(kn, an, 0.95)
+    fd.add(seg_box(a + v3((0, -0.03, 0)), b + v3((0, -0.01, 0)), (0.2, 0.175), 0.08, side_ref=(1, 0, 0)), 0.02, WHITE)
     fd.add(seg_box(lerp(a, b, 0.1) + v3((0, -0.14, 0)), lerp(a, b, 0.85) + v3((0, -0.12, 0)), (0.06, 0.03), 0.025, side_ref=(1, 0, 0)), 0.03, WHITE)
     zt = lerp(a, b, 0.12)[2]
     fd.paint(Func(lambda P, zt=zt: np.abs(P[:, 2] - F(zt)) - F(0.03), a - 0.3, b + 0.3), ORANGE)
@@ -844,16 +864,16 @@ def skin_field():
         sh, el, wr = J["shoulder_" + side], J["elbow_" + side], J["wrist_" + side]
         hp_, kn, an = J["hip_" + side], J["knee_" + side], J["ankle_" + side]
         fd.add(Sphere(sh, 0.13), 0.0, FRAME)
-        fd.add(RoundCone(lerp(sh, el, 0.15), el, 0.085, 0.075), 0.02, FRAME)
+        fd.add(RoundCone(lerp(sh, el, 0.15), el, 0.1, 0.09), 0.02, FRAME)
         hz = norm(np.cross(norm(el - sh), norm(wr - el)))
-        fd.add(Cylinder(el, 0.095, 0.17, rr=0.03, R=rot_from_axes(z_axis=hz)), 0.01, FRAME)
+        fd.add(Cylinder(el, 0.11, 0.2, rr=0.035, R=rot_from_axes(z_axis=hz)), 0.01, FRAME)
         fd.add(RoundCone(lerp(el, wr, 0.1), lerp(el, wr, 0.75), 0.075, 0.07), 0.01, FRAME)
         fd.add(Sphere(wr, 0.085), 0.0, FRAME)
         fd.add(Sphere(hp_, 0.11), 0.0, FRAME)
-        fd.add(RoundCone(lerp(hp_, kn, 0.1), kn, 0.09, 0.08), 0.02, FRAME)
-        fd.add(Cylinder(kn, 0.095, 0.21, rr=0.03, R=rot_from_axes(z_axis=(1, 0, 0))), 0.01, FRAME)
-        fd.add(RoundCone(lerp(kn, an, 0.1), an, 0.075, 0.07), 0.01, FRAME)
-        fd.add(Sphere(an, 0.085), 0.0, FRAME)
+        fd.add(RoundCone(lerp(hp_, kn, 0.1), kn, 0.115, 0.1), 0.02, FRAME)
+        fd.add(Cylinder(kn, 0.11, 0.24, rr=0.035, R=rot_from_axes(z_axis=(1, 0, 0))), 0.01, FRAME)
+        fd.add(RoundCone(lerp(kn, an, 0.1), an, 0.1, 0.09), 0.01, FRAME)
+        fd.add(Sphere(an, 0.1), 0.0, FRAME)
     return fd
 
 
@@ -865,8 +885,8 @@ def _ua_hull():
     side = "L"
     f = Field("UAHull")
     sh, el = J["shoulder_" + side], J["elbow_" + side]
-    a, b = lerp(sh, el, 0.38), lerp(sh, el, 0.86)
-    f.add(seg_box(a + v3((0.025, 0, 0)), b + v3((0.02, 0, 0)), (0.12, 0.13), 0.055, side_ref=(1, 0, 0)), 0.0)
+    a, b = lerp(sh, el, 0.3), lerp(sh, el, 0.9)
+    f.add(seg_box(a + v3((0.025, 0, 0)), b + v3((0.02, 0, 0)), (0.135, 0.145), 0.06, side_ref=(1, 0, 0)), 0.0)
     f.add(RoundCone(lerp(sh, el, 0.15), el, 0.085, 0.075), 0.02)
     return f
 
@@ -937,16 +957,16 @@ MESH_NAME = "Zero"
 BASE_MODULE = "zero_base"
 ANIM_MODULE = "anim_zero"
 PARTS = ["Skin", "Head", "Hull", "Arms", "Launcher", "Hand", "Legs", "Cloth", "Pupil",
-         "Eye", "Spark", "Smile", "Core", "Flare", "Bore"]
+         "Eye", "Spark", "Smile", "Mouth", "Core", "Flare", "Bore"]
 REGION_PARTS = ("Skin", "Head", "Hull", "Arms", "Launcher", "Hand", "Legs", "Cloth", "Pupil")
 MAT_KW = dict(suit=(0.12, 0.12, 0.14), graphite=(0.22, 0.23, 0.25), navy=(0.13, 0.13, 0.15), violet=(0.92, 0.55, 0.12),
               steel=(0.56, 0.58, 0.62), white=(0.88, 0.88, 0.85), orange=(0.95, 0.36, 0.07), yellow=(1.0, 0.64, 0.14),
               wear=1.4)
 MAT_OVERRIDES = {nm: ("android", dict(MAT_KW, name="HQ_Zero" + nm)) for nm in REGION_PARTS}
-GLOW = {"Eye": (AMBER_GLOW, 1.3, 0.55), "Spark": ((1.0, 0.97, 0.9), 1.0, 0.95), "Smile": (AMBER_GLOW, 1.3, 0.55),
+GLOW = {"Eye": (AMBER_GLOW, 1.3, 0.55), "Mouth": (AMBER_GLOW, 1.2, 0.55), "Spark": ((1.0, 0.97, 0.9), 1.0, 0.95), "Smile": (AMBER_GLOW, 1.3, 0.55),
         "Core": (AMBER_GLOW, 1.3, 0.5), "Flare": (FLARE_GLOW, 1.5, 0.7), "Bore": (AMBER_GLOW, 1.3, 0.5)}
 LOW_TARGETS = {"Skin": 2600, "Head": 2800, "Hull": 5000, "Arms": 4200, "Launcher": 2200, "Hand": 2000, "Legs": 4000,
-               "Cloth": 900, "Pupil": 80, "Eye": 300, "Spark": 60, "Smile": 160, "Core": 160, "Flare": 160, "Bore": 80}
+               "Cloth": 900, "Pupil": 80, "Eye": 300, "Spark": 60, "Smile": 160, "Mouth": 120, "Core": 160, "Flare": 160, "Bore": 80}
 AO_EXCLUDE = ["Cloth"]
 
 
@@ -970,7 +990,7 @@ def prop_bones():
 def weight_rules():
     return {
         "Head": ("rigid", "head"), "Pupil": ("rigid", "eye"), "Eye": ("rigid", "eye"), "Spark": ("rigid", "eye"),
-        "Smile": ("rigid", "smile"), "Core": ("rigid", "chest"), "Flare": ("rigid", "flare"), "Bore": ("rigid", "barrel"),
+        "Smile": ("rigid", "smile"), "Mouth": ("rigid", "head"), "Core": ("rigid", "chest"), "Flare": ("rigid", "flare"), "Bore": ("rigid", "barrel"),
         "Hull": ("custom", island_weights(hull_field)),
         "Arms": ("custom", island_weights(arms_field)),
         "Launcher": ("custom", island_weights(launcher_field)),
@@ -1008,6 +1028,7 @@ def sculpt_parts(fine=True):
         ("Eye", eye_field(), 0.0016 if fine else 0.002),
         ("Spark", spark_field(), 0.001 if fine else 0.0013),
         ("Smile", smile_field(), 0.0016 if fine else 0.002),
+        ("Mouth", mouth_field(), 0.0012 if fine else 0.0016),
         ("Core", core_field(), 0.002 if fine else 0.0026),
         ("Flare", flare_field(), 0.002 if fine else 0.0026),
         ("Bore", bore_field(), 0.0016 if fine else 0.002),

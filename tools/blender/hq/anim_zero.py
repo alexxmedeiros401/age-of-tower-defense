@@ -209,8 +209,8 @@ def idle_pose(arm, t, rest):
 # ---------------------------------------------------------------------------------------------- combat
 C_FEET = dict(lf=(0.33, -0.02), rf=(-0.33, 0.1), turn=(8.0, -14.0))
 C_CROUCH = 0.05
-AIM_U = V(-0.2, 0.28, -0.94)          # the launcher arm: the upper arm down and back ...
-AIM_D = V(0.1, -0.86, 0.5)            # ... the forearm (and barrel) forward and up at the robots
+AIM_U = V(-0.34, 0.26, -0.9)          # the launcher arm: the upper arm down and back ...
+AIM_D = V(0.04, -0.9, 0.42)            # ... the forearm (and barrel) forward and up at the robots
 GUARD_L = V(0.52, -0.36, 1.06)        # the big hand's wrist, clenched by his hip, forward
 GUARD_POLE_L = V(1.0, 0.6, -0.3)
 
