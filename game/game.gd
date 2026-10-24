@@ -5224,6 +5224,8 @@ func _handle_events() -> void:
 					elif pnode.has_meta("bolt_hq"):
 						bolt = true
 						_bolt_hit(pnode, ev)                # it drives into the ground there
+					elif pnode.has_meta("plasma_lob"):
+						_plasma_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 2.0))  # v0.9.79: it bursts in violet fire
 					elif pnode.has_meta("shell"):
 						_shell_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))   # v0.9.61: it bursts
 					elif pnode.has_meta("ball"):
@@ -7721,7 +7723,8 @@ func _drone_heal(did: int, radius: float) -> void:
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
 const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85],
 	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
-	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75]}   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
+	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
+	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0]}        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
 	if str(u.type) == "field_gun":
@@ -7729,6 +7732,9 @@ func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	elif str(u.type) == "missile_launcher":
 		_proj_model(root, "missile", "")                     # (nose first, its motor burning, a smoke trail behind it)
 		root.set_meta("rocket", true)
+	elif str(u.type) == "plasma_mortar":
+		_proj_model(root, "plasma", "")                      # (a glowing violet ball trailing sparks of plasma)
+		root.set_meta("plasma_lob", true)
 	else:
 		_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
 	if str(u.type) == "marco":
@@ -7747,6 +7753,21 @@ func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	root.set_meta("lob_h", float(g[2]))
 	root.set_meta("lob_tid", int(u.id))
 	root.visible = false
+
+
+## v0.9.79: a plasma ball bursts: a violet flash, a ring of violet light over its splash, burning plasma left on the
+## ground (violet-tinted flames) and a scorch.
+func _plasma_burst(ground: Vector3, r: float) -> void:
+	if _fx_room(2):
+		for s2 in [1.8 * r, 0.9 * r]:
+			var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, ground + Vector3(0, 0.4, 0))
+			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": s2})
+	_ring_fx(ground + Vector3(0, 0.2, 0), r, Color(0.85, 0.35, 1.0), 0.45)
+	_fire_splash(ground, 0.8 * r)
+	_ground_decal(ground, "crack", 0.8 * r, 1.4)
+	_sfx("plasma", -4.0, 0.1, 0.15)
+	shake = maxf(shake, 0.18)
 
 
 ## A shell bursts: a ball of fire, dark smoke rolling up, earth and sparks thrown out, a scorch on the ground.
@@ -7950,7 +7971,12 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 			if go:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
 				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
-				if pn.has_meta("rocket"):                    # (the missile's motor lights: a flash, smoke out of the tube)
+				if pn.has_meta("plasma_lob"):                # (the tube's coils discharge: a violet flash at the mouth)
+					var mf := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, pn.get_meta("lob_from"))
+					mf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+					effects.append({"node": mf, "t": 0.0, "life": 0.18, "kind": "flash", "s": 1.1})
+					shake = maxf(shake, 0.08)
+				elif pn.has_meta("rocket"):                  # (the missile's motor lights: a flash, smoke out of the tube)
 					var dir2 := (yt.basis * Vector3(0, 0.44, 0.9)).normalized()
 					_gun_blast(pn.get_meta("lob_from"), dir2, 1.2)
 					_steam_puff(pn.get_meta("lob_from") - dir2 * 0.3, -dir2)
@@ -9846,6 +9872,11 @@ func _sync_visuals(alpha: float) -> void:
 				_arrow_embers(pn, newp.distance_to(pn.position), pdt)
 		elif pn.has_meta("lob_from"):
 			newp = _torsion_flight(pn, p, alpha)
+			if pn.has_meta("plasma_lob") and pn.visible and _fx_room(1) and time_s - float(pn.get_meta("trail_t", -9.0)) > 0.05:
+				pn.set_meta("trail_t", time_s)              # v0.9.79: the plasma ball's glowing trail
+				var tr := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, pn.position)
+				tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": tr, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.35})
 			if pn.has_meta("rocket") and pn.visible and _fx_room(1) and time_s - float(pn.get_meta("trail_t", -9.0)) > 0.035:
 				pn.set_meta("trail_t", time_s)              # v0.9.70: the missile's smoke trail
 				var sm := _mi(_fx_mesh("dust"), _puff_mat(Color(0.88, 0.88, 0.86, 0.5)), self, pn.position)

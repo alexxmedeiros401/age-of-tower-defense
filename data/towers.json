@@ -3994,7 +3994,7 @@
   "name": "Plasma Mortar",
   "lineage": "Siege",
   "era": "Digital Age",
-  "model_scale": 0.56,
+  "model_scale": 0.6,
   "swing": [
    -0.15,
    2.0
