@@ -81,17 +81,18 @@ def head(fd):
         on = _on_face(fd, brows[sx], lift=0.001)
         fd.add(Chain(on, [hr(0.0036), hr(0.0046), hr(0.0042), hr(0.002)], k=hr(0.006)), hr(0.004), BROW)
         fd.paint(Chain(on, [hr(0.0095), hr(0.0115), hr(0.0105), hr(0.0055)], k=hr(0.008)), BROW)
-    # eyes: open and bright; the upper lids up clear of the irises, the lower lids lifted a little by her cheeks;
+    # eyes: open and bright, the opening centred on the irises (the upper lids just touching their tops, the lower lids
+    # just under them);
     # lashes along the upper lids, flicked out into small wings
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.0235))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, hr(0.018))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0165))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0046)), Plane(ec + v3((0, 0, -hr(0.0215))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
         fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
-        flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.016)))
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.015))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
+        flick = ec + v3((sx * hr(0.039), -hr(0.012), hr(0.012)))
         fd.add(RoundCone(flick, flick + v3((sx * hr(0.016), hr(0.006), hr(0.009))), hr(0.004), hr(0.0014)), hr(0.004), LASH)
     # a small, upturned nose
     fd.add(RoundCone(hp((0, -0.178, 1.722)), hp((0, -0.211, 1.654)), hr(0.0102), hr(0.0142)), hr(0.016), SKIN)
