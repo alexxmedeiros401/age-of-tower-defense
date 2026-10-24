@@ -50,7 +50,7 @@ DARK = (0.22, 0.23, 0.26)
 BLACK = (0.07, 0.07, 0.08)
 DECKC = (0.56, 0.58, 0.61)
 RED_GLOW = (1.0, 0.16, 0.08)
-RAGE = (1.0, 0.1, 0.05)
+RAGE = (1.0, 0.07, 0.16)                   # (a crimson, apart from the eye's orange-red)
 CYAN = (0.3, 0.88, 1.0)
 LAMP = (1.0, 0.55, 0.15)
 
@@ -295,8 +295,7 @@ def parts(fine=False):
     f.add(Ellipsoid(CC + EYE_D * (CORE_R + 0.056), (0.07, 0.07, 0.014), R=Re))
     out.append(("Pupil", f, vs * 0.8, "core", "socket"))
     f = Field("Pulse")                                      # the EMP's ring of light (hidden until it fires)
-    f.add(Torus(CC, 0.72, 0.05))
-    f.add(Ellipsoid(CC, (0.62, 0.62, 0.012)), k=0.04)
+    f.add(Torus(CC, 0.72, 0.045))
     out.append(("Pulse", f, vs, "pulse", "glow"))
     # ---- the gyroscope rings: chrome hoops clamped with white plates (8 on A, 6 on B), each in its own plane
     for nm, n, R, cnt in (("RingA", NA, RA, 8), ("RingB", NB, RB, 6)):
@@ -627,7 +626,8 @@ def emp(arm):
         core = 1.0 + 0.06 * charge + 0.03 * charge * math.sin(f * 2.1)
         if f >= EMP_FIRE:
             core = 1.0 + 0.12 * math.exp(-(f - EMP_FIRE) * 0.4)
-        pu = {0: 1.05, 1: 1.7, 2: 2.3, 3: 2.8, 4: 3.15, 5: 3.4}.get(f - EMP_FIRE, HIDE)
+        pu = {0: 1.05, 1: 1.45, 2: 1.85, 3: 2.2, 4: 2.45, 5: 2.65}.get(f - EMP_FIRE)
+        pu = (pu, 0.8, pu) if pu else HIDE                     # (the ring widens; its tube stays slim)
         sc = {"core": core, "pulse": pu, "crown": 1.0 + 0.04 * charge}
         _pose(arm, P, f, t, root_add=(0.0, 0.0, -0.06 * brace + 0.04 * jolt), pitch=0.02 * brace - 0.03 * jolt,
               look=(0.0, -0.1 * brace), ring=spin[f], sc=sc,
