@@ -6,7 +6,7 @@ in front of his belly, its electrode fork a metre and a half out), the tower tur
 Him: the Laser gunner's burly body (torsion.py; the Field Gun's gripping hands) with his own face: a weathered
 medium-brown face, a square jaw with a greying stubble, a scar through his right brow and down his cheek, a cocked right
 brow and the left drawn a little down, steady dark eyes, a straight nose with a bump, a wry half-smile (the right corner
-up); short salt-and-pepper hair cropped close. Black goggles pushed up on his forehead (amber lenses, a black strap round
+up); short salt-and-pepper hair cropped close. Black goggles pushed up on his forehead (amber lenses, a worn tan strap round
 his head). A smoky teal-grey scarf wound round his neck, knotted at his left, its ends on his chest. Charcoal fatigues
 (long sleeves, an amber armband round his right upper arm); a gunmetal plate vest over them (borders and shoulder straps in
 charcoal, a field battery pack on his back); a gunmetal pauldron on his right shoulder and forearm guards; on his left
@@ -100,9 +100,9 @@ def head(fd):
     # brows: the right one cocked up, the left level and a little low (sceptical); the scar notches the right one
     for sx in (-1, 1):
         if sx < 0:
-            pts = [hp((sx * 0.024, -0.214, 1.756)), hp((sx * 0.064, -0.208, 1.776)), hp((sx * 0.11, -0.186, 1.782)), hp((sx * 0.154, -0.144, 1.768))]
+            pts = [hp((sx * 0.026, -0.213, 1.766)), hp((sx * 0.066, -0.207, 1.789)), hp((sx * 0.11, -0.186, 1.794)), hp((sx * 0.154, -0.144, 1.776))]
         else:
-            pts = [hp((sx * 0.024, -0.215, 1.745)), hp((sx * 0.066, -0.209, 1.756)), hp((sx * 0.112, -0.187, 1.762)), hp((sx * 0.155, -0.146, 1.756))]
+            pts = [hp((sx * 0.026, -0.214, 1.758)), hp((sx * 0.066, -0.209, 1.765)), hp((sx * 0.112, -0.187, 1.768)), hp((sx * 0.155, -0.146, 1.758))]
         fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.009), hr(0.012), hr(0.01), hr(0.005)], k=hr(0.008)), hr(0.009), BROW)
         fd.paint(Chain(pts, [hr(0.02), hr(0.022), hr(0.019), hr(0.011)], k=hr(0.01)), BROW)
     sc = [hp(p) for p in SCAR_PTS]
@@ -111,8 +111,8 @@ def head(fd):
         ec = eye_c(sx)
         low = sx > 0                                                                        # the left lid a touch lower
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up_z = hr(0.0175) if low else hr(0.021)
-        lo_z = -hr(0.019) if low else -hr(0.021)
+        up_z = hr(0.0235) if low else hr(0.027)
+        lo_z = -hr(0.022) if low else -hr(0.024)
         up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, up_z)), (sx * 0.16, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.0055)), Plane(ec + v3((0, 0, lo_z)), (sx * -0.1, 0.06, 1.0)), hr(0.004))
@@ -122,22 +122,22 @@ def head(fd):
             a = hp((sx * (0.112 + 0.004 * k), -0.13 + 0.006 * k, 1.672 - 0.012 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, -0.004 - 0.008 * k)), hr(0.0022), hr(0.0015)), hr(0.003))
     # a straight nose with a bump on the bridge (broken once)
-    fd.add(RoundCone(hp((0, -0.188, 1.73)), hp((0, -0.236, 1.636)), hr(0.015), hr(0.02)), hr(0.016), SKIN)
+    fd.add(RoundCone(hp((0, -0.188, 1.73)), hp((0, -0.23, 1.64)), hr(0.015), hr(0.019)), hr(0.016), SKIN)
     fd.add(S((0.003, -0.214, 1.69), 0.017), hr(0.01), SKIN)
-    fd.add(S((0, -0.236, 1.628), 0.022), hr(0.014), SKIN)
+    fd.add(S((0, -0.23, 1.634), 0.02), hr(0.014), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.03, -0.216, 1.606), 0.019), hr(0.011), SKIN)
         fd.sub(Ellipsoid(hp((sx * 0.015, -0.23, 1.594)), v3((0.008, 0.01, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
     # the mouth: a wry half-smile, the right corner up
-    slot = [hp((-0.064, -0.163, 1.571)), hp((-0.035, -0.19, 1.556)), hp((0, -0.198, 1.549)), hp((0.034, -0.19, 1.547)), hp((0.06, -0.165, 1.55))]
+    slot = [hp((-0.068, -0.16, 1.579)), hp((-0.037, -0.189, 1.559)), hp((0, -0.198, 1.55)), hp((0.034, -0.19, 1.548)), hp((0.06, -0.165, 1.553))]
     fd.sub(Chain(slot, [hr(0.0025), hr(0.0032), hr(0.0034), hr(0.003), hr(0.0024)], k=hr(0.003)), hr(0.003))
     fd.paint(Chain(slot, [hr(0.0032), hr(0.0045), hr(0.0048), hr(0.0042), hr(0.003)], k=hr(0.004)), MOUTH)
-    up_lip = [(-0.06, -0.162, 1.575), (-0.034, -0.184, 1.562), (-0.008, -0.19, 1.558), (0.012, -0.189, 1.556), (0.034, -0.183, 1.553), (0.056, -0.164, 1.553)]
+    up_lip = [(-0.064, -0.159, 1.582), (-0.034, -0.184, 1.562), (-0.008, -0.19, 1.558), (0.012, -0.189, 1.556), (0.034, -0.183, 1.553), (0.056, -0.164, 1.553)]
     lo_lip = [(-0.048, -0.169, 1.558), (-0.028, -0.185, 1.542), (0, -0.189, 1.537), (0.028, -0.184, 1.537), (0.05, -0.167, 1.542)]
     fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0045), hr(0.005), hr(0.005), hr(0.0045), hr(0.003)], k=hr(0.005)), hr(0.006), LIP)
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0065), hr(0.0075), hr(0.0065), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    fd.add(Sphere(hp((-0.072, -0.159, 1.573)), hr(0.008)), hr(0.008), SKIN)                 # the cheek bunched by the smile
-    fd.sub(Sphere(hp((-0.069, -0.168, 1.566)), hr(0.004)), hr(0.004))
+    fd.add(Sphere(hp((-0.076, -0.156, 1.58)), hr(0.009)), hr(0.008), SKIN)                 # the cheek bunched by the smile
+    fd.sub(Sphere(hp((-0.073, -0.165, 1.572)), hr(0.004)), hr(0.004))
     fd.sub(Chain([hp((-0.046, -0.198, 1.6)), hp((-0.064, -0.176, 1.575)), hp((-0.07, -0.161, 1.548))], [hr(0.0025), hr(0.003), hr(0.002)], k=hr(0.003)), hr(0.004))
     # the scar: a pale seam from the brow past the eye's outer corner down the cheek (painted, a faint ridge)
     fd.paint(Chain(sc, [hr(0.0055), hr(0.006), hr(0.0065), hr(0.006), hr(0.0045)], k=hr(0.004)), SCAR)
@@ -238,7 +238,7 @@ def goggle_frames():
 
 def goggles_field():
     """Black (5) rubber-framed goggles pushed up over his brow: two round cups with rolled rims (12) and amber lenses
-    (11), a bridge between them; the black strap (12) round his head over the hair."""
+    (11), a bridge between them; the strap (13: worn tan webbing) round his head over the hair."""
     fd = Field("Goggles")
     hull = hair_outer()
     sk = skull()
@@ -248,7 +248,7 @@ def goggles_field():
         band = np.abs((Q - STRAP_C.astype(F)) @ STRAP_N.astype(F)) - F(0.016)
         d = sk.eval(P, margin=0.06) - F(hair_shell_out())
         return np.maximum(np.abs(d - F(0.004)) - F(0.0045), band * F(HS))
-    fd.add(Func(strap, lo, hi), 0.0, RUBBER_L)
+    fd.add(Func(strap, lo, hi), 0.0, HAZ_L)
     fr = goggle_frames()
     for p, a in fr:
         R = rot_from_axes(z_axis=a)
@@ -813,7 +813,8 @@ MAT_OVERRIDES = {
                                 (SCAR, (0.72, 0.52, 0.44), 0.45, 0.8))}),
     "Hair": ("hair", {"name": "HQ_ArcHair", "base": (0.09, 0.08, 0.075), "hi": (0.3, 0.28, 0.27), "low": (0.04, 0.035, 0.03),
                       "streak": (0.07, 0.065, 0.06), "tint": (0.14, 0.13, 0.12), "fleck": (0.6, 0.58, 0.56), "fleck_amt": 0.55}),
-    "Goggles": ("modern_kit", dict(KIT, name="HQ_ArcGoggles", base=BLACK, gloss=0.5)),
+    "Goggles": ("modern_kit", dict(KIT, name="HQ_ArcGoggles", base=BLACK, gloss=0.5, coyote=(0.42, 0.34, 0.24),
+                                   glass=(0.5, 0.27, 0.05), glass_hi=(1.0, 0.75, 0.35))),
     "Scarf": ("cloth", {"name": "HQ_ArcScarf", "col": TEALGREY}),
     "Suit": ("modern_kit", dict(KIT, name="HQ_ArcSuit", base=CHARCOAL, weave=1.0, black=(0.05, 0.05, 0.055))),
     "Armour": ("modern_kit", dict(KIT, name="HQ_ArcArmour", base=GUNBLACK, olive=CHARCOAL, gloss=0.62)),

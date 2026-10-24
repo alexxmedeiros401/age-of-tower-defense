@@ -36,8 +36,8 @@ TRUN = vec(ac.TRUN)
 GD0, GU0, GX0 = vec(ac.GD), vec(ac.GU), vec(ac.GX_)
 HINGE = vec(ac.hinge_pt())
 GRIP = {"R": vec(ac.grip_pt(-1, 0.58)), "L": vec(ac.grip_pt(1, 0.58))}
-CELL_TOUCH = vec(ac.cell_pt(-0.115, -0.026, ac.CELL_R + 0.014))     # (rest) where his palm taps the cell (its back cap)
-CELL_N = V(-0.25, 0.0, 1.0).normalized()                              # (rest) the cage's surface normal there
+CELL_TOUCH = vec(ac.cell_pt(-0.1, -(ac.CELL_R + 0.012), 0.012))       # (rest) where his palm taps the cell (the cage's right side)
+CELL_N = V(-1.0, 0.0, 0.15).normalized()                              # (rest) the cage's surface normal there
 
 # ---------------------------------------------------------------------------------------------- timing (24 fps)
 PRESS = 1          # his thumbs come down on the bar
@@ -159,7 +159,7 @@ def idle_pose(arm, t, rest):
     scan = (1.0 - reach) * (30.0 * math.sin(w) + 8.0 * math.sin(w * 3 + 0.4))
     look = yaw + 4.0 + scan - 8.0 * reach
     torso(aims, yaw, bend=0.06 + 0.3 * reach, side=0.03 * math.sin(w) - 0.03 * reach, chest=-3.0 + 2.0 * math.sin(w) - 5.0 * reach,
-          look=look, pitch=0.02 + 0.02 * br - 0.35 * reach, br=br)
+          look=look, pitch=0.02 + 0.02 * br - 0.22 * reach, br=br)
     g, Mg = cannon_aims(rest, tr, el)
     aims.update(g)
     q = rz(yaw)
@@ -173,10 +173,10 @@ def idle_pose(arm, t, rest):
         R3 = Mg.to_3x3()
         nrm = (R3 @ CELL_N).normalized()
         c = Mg @ CELL_TOUCH + nrm * (0.012 + 0.035 * tap)
-        Rc = palm_rot("R", -nrm, (R3 @ GD0).normalized() * 0.85 + (R3 @ GX0) * 0.3)
+        Rc = palm_rot("R", -nrm, (R3 @ GD0).normalized() * 0.85 + (R3 @ GU0) * 0.35)
         target = (palm_to_fist("R", c, Rc), Rc)
         p, R = blend_hand(hip, target, reach, 0.05)
-        apply_hand(arm, aims, "R", p, R, q @ V(-1.0, 0.4, -0.6))
+        apply_hand(arm, aims, "R", p, R, q @ V(-1.0, 0.5, -0.4))
     else:
         apply_hand(arm, aims, "R", hip[0], hip[1], q @ V(-1.0, 0.5, 0.1))
     return aims, ro, yaw, {"tip": 1.0, "cell": 1.0}
