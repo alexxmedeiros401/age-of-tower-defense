@@ -138,17 +138,17 @@ def head(fd):
     fd.paint(Func(face_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
     # straight brows with a gentle arch, set level over the eyes (keen, not cross: their inner ends not drawn down)
     for sx in (-1, 1):
-        pts = [hp((sx * 0.028, -0.207, 1.772)), hp((sx * 0.066, -0.201, 1.787)), hp((sx * 0.107, -0.182, 1.79)), hp((sx * 0.147, -0.143, 1.775))]
-        fd.add(Chain([p + v3((0, 0.006, 0)) for p in pts], [hr(0.0068), hr(0.0078), hr(0.0068), hr(0.0038)], k=hr(0.007)), hr(0.009), BROW)
+        pts = [hp((sx * 0.028, -0.207, 1.781)), hp((sx * 0.066, -0.201, 1.79)), hp((sx * 0.107, -0.182, 1.79)), hp((sx * 0.147, -0.143, 1.776))]
+        fd.add(Chain([p + v3((0, 0.008, 0)) for p in pts], [hr(0.0058), hr(0.0066), hr(0.0058), hr(0.0034)], k=hr(0.007)), hr(0.01), BROW)
         fd.paint(Chain(pts, [hr(0.012), hr(0.0135), hr(0.012), hr(0.007)], k=hr(0.01)), BROW)
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0066)), Plane(ec + v3((0, 0, hr(0.0285))), (sx * 0.16, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.022))), (sx * 0.16, 0.08, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0052)), Plane(ec + v3((0, 0, -hr(0.025))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0054)), Plane(ec + v3((0, 0, -hr(0.0235))), (sx * -0.12, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.027))), (sx * 0.16, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.0075)), Plane(ec + v3((0, 0, hr(0.0205))), (sx * 0.16, 0.08, -1.0)), hr(0.002)), LASH)
     # a straight nose
     fd.add(RoundCone(hp((0, -0.186, 1.726)), hp((0, -0.229, 1.636)), hr(0.012), hr(0.017)), hr(0.016), SKIN)
     fd.add(S((0, -0.23, 1.618), 0.021), hr(0.014), SKIN)

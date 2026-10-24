@@ -24,7 +24,7 @@ Z = v3((0.0, 0.0, 1.0))
 PROP_R = 1.15                  # the props' ring
 RACK_A = math.radians(138.0)   # the pried-open server rack: behind him, on his right (the camera's left)
 BAGS_A = math.radians(-50.0)   # the sandbags: in front on his left
-BANNER_A = math.radians(-18.0) # the banner's pole: at the sandbags' right end
+BANNER_A = math.radians(-70.0) # the banner's pole: at the sandbags' near end
 RADIO_A = math.radians(58.0)   # the ammo can and radio: behind him on his left
 CAN_A = math.radians(-140.0)   # the energy drink: in front on his right
 COIL_A = math.radians(98.0)    # cable coils: behind him
@@ -240,7 +240,7 @@ def banner_into(fd):
 
 
 BANNER_POLE = [ring_pt(BANNER_A, PROP_R + 0.07) + Z * FLOOR_TOP, ring_pt(BANNER_A, PROP_R + 0.075) + Z * (FLOOR_TOP + 0.45),
-               ring_pt(BANNER_A + 0.02, PROP_R + 0.09) + Z * (FLOOR_TOP + 0.8), ring_pt(BANNER_A + 0.04, PROP_R + 0.1) + Z * (FLOOR_TOP + 1.08)]
+               ring_pt(BANNER_A - 0.01, PROP_R + 0.09) + Z * (FLOOR_TOP + 0.8), ring_pt(BANNER_A - 0.02, PROP_R + 0.1) + Z * (FLOOR_TOP + 1.08)]
 
 
 def banner_field():
@@ -249,7 +249,7 @@ def banner_field():
     fd = Field("Banner")
     top = BANNER_POLE[-1] - Z * 0.03
     out, along = ring_frame(BANNER_A)
-    hang = norm(along * -1.0 + out * -0.35)                 # it hangs off the pole toward the camera's side
+    hang = norm(along * 1.0 + out * 0.1)                     # it flies off the pole along the sandbags, its face to the front
     n = norm(np.cross(hang, Z))
     W, H = 0.3, 0.46
     wave = lambda P: F(0.012) * np.sin(((P - top.astype(F)) @ hang.astype(F)) * F(22) + P[:, 2] * F(6)) + F(0.002) * NOISE(P * F(30))
