@@ -1035,6 +1035,8 @@ if MOD_T or DIG_T:
             if nb_:
                 nb_ = np.asarray(nb_)
                 far = (_aL[nb_] != li) | (np.abs(_aS[nb_] - S_[i]) > 3.0)
+                if DIG_T:                        # (another path's copy of this same stretch is not a road joining it)
+                    far &= _own[li].query(_aP[nb_])[0] > 0.1
                 out[i] = bool(np.any(far & (np.abs(_aT[nb_] @ T[i]) < 0.8)))
         return out
 
@@ -1048,6 +1050,7 @@ if MOD_T or DIG_T:
         return out
 
     DUP = [_dup(P, T, li, S_) for li, (P, T, S_) in enumerate(RS)]
+    _own = [cKDTree(P) for (P, T, S_) in RS]
 
     def _runs(k):
         idx = np.flatnonzero(np.diff(np.concatenate([[0], k.astype(np.int8), [0]])))
