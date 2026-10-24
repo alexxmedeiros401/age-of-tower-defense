@@ -274,7 +274,7 @@ def hair_field():
 
 
 # ======================================================================================= the bandana and goggles
-BAND_OFF, BAND_T = 0.009, 0.011           # the bandana over the skull (close: cloth, not a helmet)
+BAND_OFF, BAND_T = 0.006, 0.01            # the bandana over the skull (close: cloth, not a helmet)
 BAND_FACE = BAND_OFF + BAND_T / 2
 GOG_Z = 1.875                              # the goggles' strap round the bandana (design height, at the front)
 
@@ -314,7 +314,9 @@ def bandana_field():
     def creases(P):
         Q = hinv(P)
         a = np.arctan2(Q[:, 0], -(Q[:, 1] - F(0.02)))
-        return F(0.0016) * np.sin(a * F(9) + Q[:, 2] * F(30) + F(1.2) * NOISE(P * F(4))) + F(0.001) * NOISE(P * F(25))
+        rad = np.sqrt(Q[:, 0] ** 2 + (Q[:, 1] - F(0.02)) ** 2)
+        fade = smoothstep(0.03, 0.1, rad)                                   # (no pinch at the crown, where a is undefined)
+        return F(0.0018) * fade * np.sin(a * F(9) + Q[:, 2] * F(30) + F(1.2) * NOISE(P * F(4))) + F(0.001) * NOISE(P * F(25))
     fd.add(Inter(Shell(sk, BAND_OFF, BAND_T, pad=0.08, disp=creases, disp_amp=0.003), Func(_band_keep, lo, hi), 0.006), 0.0)
     # the rolled hem
     def hem(P):
