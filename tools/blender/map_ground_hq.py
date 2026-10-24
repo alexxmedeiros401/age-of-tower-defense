@@ -1195,13 +1195,15 @@ if DIG_T:
         sd_, _a, ssd_ = gH.poly_dist(zl, margin=1.5, signed=True)
         if not DC_T:
             return ((sd_ < HALF + 0.7) & ((sd_ - np.abs(ssd_)) < 0.005) & (HD["ped"] < 0)).astype(np.float32)
-        m_ = (sd_ < HALF + 0.7) & (HD["ped"] < 0)          # (cut square only at each stretch's two ends: a curving
-        for P_ in zl:                                        # stretch keeps the outside of its bends)
+        m_ = np.zeros(HX.shape, bool)                        # (each stretch cut square only at its own two ends: a
+        for P_ in zl:                                        # curving one keeps the outside of its bends)
             P_ = np.asarray(P_, np.float64)
+            k_ = gH.poly_dist([P_], margin=1.5)[0] < HALF + 0.7
             for e_, f_ in ((P_[0], P_[1]), (P_[-1], P_[-2])):
                 t_ = (f_ - e_) / max(np.hypot(*(f_ - e_)), 1e-9)
-                m_ &= ~((((HX - e_[0]) * t_[0] + (HZ - e_[1]) * t_[1]) < 0) & (np.hypot(HX - e_[0], HZ - e_[1]) < HALF + 0.8))
-        return m_.astype(np.float32)
+                k_ &= ~((((HX - e_[0]) * t_[0] + (HZ - e_[1]) * t_[1]) < 0) & (np.hypot(HX - e_[0], HZ - e_[1]) < HALF + 0.8))
+            m_ |= k_
+        return (m_ & (HD["ped"] < 0)).astype(np.float32)
 
     HD["sl"] = _zone_h(zf["slow"])
     HD["fl"] = _zone_h(zf["fast"])
@@ -4793,7 +4795,7 @@ elif MOD_T or DIG_T:
             c = nb.mix(nb.math("MULTIPLY", nb.ramp(fr_a, 0.0, 0.6), 0.32), c, (0.74, 0.82, 0.9))
             jd_ = nb.math("MINIMUM", nb.seam(ox_, 1.2), nb.seam(oy_, 1.2))
             jf = nb.math("MULTIPLY", nb.ramp(nb.math("ADD", nb.math("SUBTRACT", jd_, nb.math("MULTIPLY", fr_a, 0.08)), nb.math("MULTIPLY", spk, 0.03)), 0.03, 0.005),
-                         nb.ramp(fr_a, 0.12, 0.35))
+                         nb.math("MULTIPLY", nb.ramp(fr_a, 0.3, 0.6), nb.ramp(nb.noise(2.5, 3, 0.6), 0.38, 0.56)))
             cover = nb.math("MAXIMUM", nb.ramp(nb.math("SUBTRACT", nb.math("SUBTRACT", fr_a, nb.math("MULTIPLY", spk, 0.6)), 0.3), 0.0, 0.22), jf)
             cover = nb.math("MULTIPLY", cover, nb.math("SUBTRACT", 1.0, nb.math("MULTIPLY", grm, nb.math("SUBTRACT", 1.0, gbar))))
             cover = nb.math("MULTIPLY", cover, nb.math("SUBTRACT", 1.0, Pn["sl"]))
