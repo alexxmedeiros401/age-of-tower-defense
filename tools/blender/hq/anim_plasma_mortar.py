@@ -43,7 +43,7 @@ GRIP_C, GRIP_A = vec(pm.GRIP_W), vec(pm.GRIP_A)
 GRIP_CAP = vec(pm.GRIP_CAP_W)
 _rm, _ra = pm.rack_slot(pm.HIS_SLOT)
 RACK_MID = vec(_rm)
-HOLD = 0.075                    # his fist round the cell: this far up its axis from its middle
+HOLD = 0.1                    # his fist round the cell: this far up its axis from its middle
 
 # ---------------------------------------------------------------------------------------------- timing (24 fps)
 PRESS = 2          # his fist squeezes the trigger
