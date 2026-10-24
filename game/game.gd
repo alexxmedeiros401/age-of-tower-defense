@@ -3480,7 +3480,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -5577,7 +5577,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.78: the Digital Age's lasers: a violet bolt leaves the emitter lens in a violet flash (no smoke) and streaks to
 ## the robot; Nova's double tap adds a second, cosmetic bolt on her clip's frame 3.
-const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181)}
+const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181), "laser_turret": Vector3(0.000, 1.094, 0.945)}
 const LASER_SECOND := {"nova": 2}                   # (frames after the first: her second shot)
 func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 	var lm := _mat("laser_bolt", Color(0.95, 0.6, 1.0), {"emit": Color(0.85, 0.3, 1.0), "emit_e": 4.0, "unshaded": true})
