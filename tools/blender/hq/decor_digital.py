@@ -1835,12 +1835,14 @@ def glow_planter(seed=0):
 
 
 # ------------------------------------------------------------------------------------------------ Neon Grid: landmarks
-def _lit_strips(gf, cx, cy, hx, hy, z0, z1, seed, p=0.45, floor=0.3, inset=0.06):
-    """Lit window runs on a block's four faces (field gf): on each floor of each face, maybe a run of glowing windows
-    over part of its width."""
+def _lit_strips(gf, cx, cy, hx, hy, z0, z1, seed, p=0.45, floor=0.3, inset=0.06, faces=None):
+    """Lit window runs on a block's four faces (field gf; `faces`: only those, as (nx, ny)): on each floor of each face,
+    maybe a run of glowing windows over part of its width."""
     rng = np.random.default_rng(seed)
     nfl = int((z1 - z0) / floor)
     for (nx, ny, hw) in ((0, -1, hx), (0, 1, hx), (-1, 0, hy), (1, 0, hy)):
+        if faces is not None and (nx, ny) not in faces:
+            continue
         for j in range(nfl):
             if rng.random() > p:
                 continue
@@ -2224,7 +2226,17 @@ def lab_city(seed=0):
     edge; a drone on its landing pad on one flank, a row of dishes and a lattice mast on the other, cooling units
     behind."""
     out = []
-    glows = G("glow_violet", "glow_cyan", "glow_green", "glow_red", "glow_window_cool", "glow_flood", "glow_screen")
+    regions = {}
+
+    def GL(region, key):
+        """A glow field local to one part of the campus (one field spanning the whole campus would be meshed on a grid
+        of billions of voxels)."""
+        if (region, key) not in regions:
+            regions[(region, key)] = Field(region + "".join(w.capitalize() for w in key.split("_")[1:]))
+        return regions[(region, key)]
+
+    def cstrip(*a, **k):
+        strip(*a, t=0.009, **k)
     # ---- the plaza and the road into the gate
     pz = Field("Plaza")
     box(pz, (2.4, 0, 0.0), (3.4, 3.0, 0.035), 0.02)
@@ -2235,10 +2247,10 @@ def lab_city(seed=0):
     ground_cut(pz, -0.03)
     out.append(("Plaza", pz, fine(0.012, 0.024), "asphalt"))
     for sy in (-1, 1):
-        strip(glows["glow_violet"], (-0.9, sy * 0.95, 0.04), (1.6, sy * 0.95, 0.04), 0.035)
+        cstrip(GL("Road", "glow_violet"), (-0.9, sy * 0.95, 0.04), (1.6, sy * 0.95, 0.04), 0.035)
     for k in range(5):                                              # retracted bollards, ringed with light
         y = -0.68 + k * 0.34
-        glows["glow_violet"].add(Torus((-0.25, y, 0.036), 0.07, 0.014), k=0.0)
+        GL("Road", "glow_violet").add(Torus((-0.25, y, 0.036), 0.07, 0.014), k=0.0)
     bl = Field("Bollards")
     for k in range(5):
         bl.add(Cylinder((-0.25, -0.68 + k * 0.34, 0.03), 0.055, 0.03, rr=0.01), k=0.0)
@@ -2251,11 +2263,11 @@ def lab_city(seed=0):
         box(bo, c + Z * 0.95, (0.38, 0.34, 0.05), 0.02, k=0.0, label=7)
         bo.sub(RoundBox(c + v3((-0.3, 0, 0.55)), (0.03, 0.2, 0.2), 0.01), k=0.0)
         bo.sub(RoundBox(c + v3((0, -sy * 0.26, 0.55)), (0.22, 0.03, 0.2), 0.01), k=0.0)
-        glows["glow_window_cool"].add(RoundBox(c + v3((-0.285, 0, 0.55)), (0.006, 0.2, 0.2), 0.004), k=0.0)
-        glows["glow_window_cool"].add(RoundBox(c + v3((0, -sy * 0.245, 0.55)), (0.22, 0.006, 0.2), 0.004), k=0.0)
+        GL("Gate", "glow_window_cool").add(RoundBox(c + v3((-0.285, 0, 0.55)), (0.006, 0.2, 0.2), 0.004), k=0.0)
+        GL("Gate", "glow_window_cool").add(RoundBox(c + v3((0, -sy * 0.245, 0.55)), (0.22, 0.006, 0.2), 0.004), k=0.0)
         for (a, b) in (((-0.38, -0.34), (0.38, -0.34)), ((-0.38, 0.34), (0.38, 0.34))):
-            strip(glows["glow_violet"], c + v3((a[0], a[1], 0.95)), c + v3((b[0], b[1], 0.95)), 0.025, up=(0, a[1], 0))
-        strip(glows["glow_violet"], c + v3((-0.385, -0.3, 0.95)), c + v3((-0.385, 0.3, 0.95)), 0.025, up=(-1, 0, 0))
+            cstrip(GL("Gate", "glow_violet"), c + v3((a[0], a[1], 0.95)), c + v3((b[0], b[1], 0.95)), 0.025, up=(0, a[1], 0))
+        cstrip(GL("Gate", "glow_violet"), c + v3((-0.385, -0.3, 0.95)), c + v3((-0.385, 0.3, 0.95)), 0.025, up=(-1, 0, 0))
         # the barrier arm, raised
         pv = v3((0.0, sy * 1.0, 0.52))
         box(ar, pv - Z * 0.26, (0.09, 0.09, 0.27), 0.02, label=7)
@@ -2266,16 +2278,16 @@ def lab_city(seed=0):
         for k in range(6):
             ar.paint(RoundBox(pv + d * (0.15 + k * 0.24), (0.06, 0.08, 0.08), 0.0, R=Ra), 8)
         ar.add(Cylinder(pv, 0.07, 0.24, rr=0.02, R=RX), k=0.0, label=7)
-        strip(glows["glow_violet"], pv + d * 0.1 + v3((-0.037, 0, 0)), pv + d * 1.45 + v3((-0.037, 0, 0)), 0.02, up=(-1, 0, 0))
+        cstrip(GL("Gate", "glow_violet"), pv + d * 0.1 + v3((-0.037, 0, 0)), pv + d * 1.45 + v3((-0.037, 0, 0)), 0.02, up=(-1, 0, 0))
         # the portal frame's column, its light
         q = v3((-0.1, sy * 1.85, 0.0))
         box(gt, q + Z * 1.25, (0.13, 0.13, 1.25), 0.02)
         box(gt, q + Z * 0.05, (0.2, 0.2, 0.06), 0.015, k=0.003, label=7)
-        strip(glows["glow_violet"], q + v3((-0.132, 0, 0.2)), q + v3((-0.132, 0, 2.35)), 0.03, up=(-1, 0, 0))
+        cstrip(GL("Gate", "glow_violet"), q + v3((-0.132, 0, 0.2)), q + v3((-0.132, 0, 2.35)), 0.03, up=(-1, 0, 0))
     box(gt, (-0.1, 0, 2.52), (0.16, 2.0, 0.17), 0.03)
-    strip(glows["glow_violet"], (-0.1, -1.7, 2.34), (-0.1, 1.7, 2.34), 0.05, up=(0, 0, -1))
+    cstrip(GL("Gate", "glow_violet"), (-0.1, -1.7, 2.34), (-0.1, 1.7, 2.34), 0.05, up=(0, 0, -1))
     box(gt, (-0.27, 0, 2.52), (0.02, 0.5, 0.15), 0.01, label=7)
-    _hex_emblem(glows["glow_violet"], (-0.3, 0, 2.52), (-1, 0, 0), 0.13, t=0.012)
+    _hex_emblem(GL("Gate", "glow_violet"), (-0.3, 0, 2.52), (-1, 0, 0), 0.13, t=0.012)
     for f in (gt, bo, ar):
         ground_cut(f, -0.02)
     out += [("Gate", gt, fine(0.008, 0.016), "graphite"), ("Booths", bo, fine(0.006, 0.012), "graphite"), ("Arms", ar, fine(0.005, 0.01), "white_tech")]
@@ -2288,7 +2300,7 @@ def lab_city(seed=0):
             box(wl, (0.0, sy * (y + 0.475), h / 2), (0.1, 0.46, h / 2), 0.015)
             box(wl, (0.0, sy * y, (h + 0.08) / 2), (0.15, 0.06, (h + 0.08) / 2), 0.015, k=0.0, label=7)
             if i < len(ys) - 1:
-                strip(glows["glow_violet"], (-0.104, sy * (y + 0.06), h - 0.06), (-0.104, sy * (y + 0.89), h - 0.06), 0.022, up=(-1, 0, 0))
+                cstrip(GL("Wall%d" % (sy + 1), "glow_violet"), (-0.104, sy * (y + 0.06), h - 0.06), (-0.104, sy * (y + 0.89), h - 0.06), 0.022, up=(-1, 0, 0))
         ground_cut(wl, -0.02)
         out.append(("Wall%d" % (sy + 1), wl, fine(0.008, 0.016), "navy"))
     # ---- floodlights on poles at the gate
@@ -2299,7 +2311,7 @@ def lab_city(seed=0):
         seg(fp, b, b + Z * 2.7, 0.035, 0.025)
         seg(fp, b + v3((0, -0.22, 2.62)), b + v3((0, 0.22, 2.62)), 0.018)
         for dy in (-0.17, 0.17):
-            flood_head(fh, glows["glow_flood"], b + v3((-0.06, dy, 2.55)), (-0.8, -sy * 0.35, -0.55), s=1.2)
+            flood_head(fh, GL("Flood", "glow_flood"), b + v3((-0.06, dy, 2.55)), (-0.8, -sy * 0.35, -0.55), s=1.2)
     ground_cut(fp, -0.02)
     out += [("FloodPoles", fp, fine(0.005, 0.01), "galv"), ("FloodHeads", fh, fine(0.004, 0.008), "graphite")]
     # ---- the lab: the ground floor's glass and the racks glowing through it, the cantilevered upper floor, the roof
@@ -2324,22 +2336,25 @@ def lab_city(seed=0):
         for sy in (-1, 1):
             racks.append((v3((x + 0.1, sy * (LY + 0.014), 0.0)), v3((0, sy, 0))))
     for (q, n) in racks:
+        face = "F" if n[0] < 0 else ("L" if n[1] < 0 else "R")
         s_ = unit(np.cross(Z, n))
         R = np.stack([s_, n, Z], axis=1)
-        glows["glow_violet"].add(RoundBox(q + Z * 0.68, (0.012, 0.005, 0.42), 0.004, R=R), k=0.0)
+        GL("Rack" + face, "glow_violet").add(RoundBox(q + Z * 0.68, (0.012, 0.005, 0.42), 0.004, R=R), k=0.0)
         for j in range(5):
             if rng.random() < 0.75:
                 k = "glow_green" if rng.random() < 0.6 else "glow_cyan"
-                glows[k].add(RoundBox(q + s_ * rng.uniform(0.05, 0.12) * rng.choice([-1, 1]) + Z * (0.38 + j * 0.13), (0.035, 0.005, 0.012), 0.004, R=R), k=0.0)
+                GL("Rack" + face, k).add(RoundBox(q + s_ * rng.uniform(0.05, 0.12) * rng.choice([-1, 1]) + Z * (0.38 + j * 0.13), (0.035, 0.005, 0.012), 0.004, R=R), k=0.0)
     # the entrance: lit sliding doors in the front glass
     cw.sub(RoundBox((LX0 + 0.1, 0, 0.55), (0.06, 0.42, 0.45), 0.01), k=0.0)
-    glows["glow_window_cool"].add(RoundBox((LX0 + 0.13, 0, 0.55), (0.008, 0.42, 0.45), 0.004), k=0.0)
+    GL("Front", "glow_window_cool").add(RoundBox((LX0 + 0.13, 0, 0.55), (0.008, 0.42, 0.45), 0.004), k=0.0)
     for y in (-0.42, 0.0, 0.42):
         box(fr, (LX0 + 0.1, y, 0.55), (0.025, 0.025, 0.46), 0.006, label=7)
     # the upper floor, cantilevered forward over the entrance
     UX0 = LX0 - 0.45
     curtain_box(cw, gw, (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 1, bands=(), cell=(0.16, 0.3), p=0.2, rc=0.02)
-    _lit_strips(glows["glow_window_cool"], (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 2, p=0.35)
+    for i, (fc, (fnx, fny)) in enumerate((("F", (-1, 0)), ("B", (1, 0)), ("L", (0, -1)), ("R", (0, 1)))):
+        _lit_strips(GL("Upper" + fc, "glow_window_cool"), (UX0 + LX1) / 2, 0, (LX1 - UX0) / 2, LY + 0.15, z1 + 0.02, z2 - 0.05, seed + 2 + i * 13, p=0.35,
+                    faces=((fnx, fny),))
     for sy in (-1, 1):                                              # raked steel columns under the overhang
         seg(fr, (LX0 + 0.12, sy * 1.3, 0.12), (UX0 + 0.08, sy * 1.45, z1), 0.05)
         seg(fr, (LX0 + 0.12, sy * 0.6, 0.12), (UX0 + 0.08, sy * 0.5, z1), 0.04)
@@ -2349,13 +2364,13 @@ def lab_city(seed=0):
     out.append(("Bands", bnd, fine(0.01, 0.02), "graphite"))
     for y in np.linspace(-LY - 0.15, LY + 0.15, 9):                  # fins on the upper floor's front
         box(fr, (UX0 - 0.03, y, (z1 + z2) / 2), (0.05, 0.018, (z2 - z1) / 2), 0.006)
-    strip(glows["glow_violet"], (UX0 - 0.065, -LY - 0.2, z1 - 0.02), (UX0 - 0.065, LY + 0.2, z1 - 0.02), 0.035, up=(-1, 0, 0))
-    strip(glows["glow_violet"], (UX0 - 0.065, -LY - 0.2, z2 + 0.03), (UX0 - 0.065, LY + 0.2, z2 + 0.03), 0.035, up=(-1, 0, 0))
+    cstrip(GL("Front", "glow_violet"), (UX0 - 0.065, -LY - 0.2, z1 - 0.02), (UX0 - 0.065, LY + 0.2, z1 - 0.02), 0.035, up=(-1, 0, 0))
+    cstrip(GL("Front", "glow_violet"), (UX0 - 0.065, -LY - 0.2, z2 + 0.03), (UX0 - 0.065, LY + 0.2, z2 + 0.03), 0.035, up=(-1, 0, 0))
     box(rf, ((UX0 + LX1) / 2, 0, z2 + 0.1), ((LX1 - UX0) / 2 + 0.04, LY + 0.19, 0.06), 0.02)
     rf.sub(RoundBox(((UX0 + LX1) / 2, 0, z2 + 0.2), ((LX1 - UX0) / 2 - 0.06, LY + 0.09, 0.08), 0.01), k=0.0)
     ground_cut(lf, -0.02)
     ground_cut(fr, -0.02)
-    out += [("LabFloor", lf, fine(0.01, 0.02), "white_tech"), ("Curtain", cw, fine(0.012, 0.024), "curtain"), ("Steel", fr, fine(0.006, 0.012), "graphite"),
+    out += [("LabFloor", lf, fine(0.01, 0.02), "white_tech"), ("Curtain", cw, fine(0.012, 0.024), "curtain"), ("Steel", fr, fine(0.007, 0.012), "graphite"),
             ("RoofSlab", rf, fine(0.012, 0.024), "white_tech")]
     if any(op[0] == "add" for op in gw.ops):
         out.append(("LitBands", gw, fine(0.008, 0.016), "glow_window_cool"))
@@ -2372,7 +2387,7 @@ def lab_city(seed=0):
     ms = Field("Masts")
     for (x, y, h) in ((4.4, -1.4, 1.9), (3.6, -1.7, 1.3), (4.7, -0.5, 1.1)):
         lattice_mast(ms, (x, y, 0), zr, zr + h, 0.1, 0.05, legs=3, step=0.2, rod=0.009)
-        glows["glow_red"].add(Sphere((x, y, zr + h + 0.04), 0.035), k=0.0)
+        GL("Roof", "glow_red").add(Sphere((x, y, zr + h + 0.04), 0.035), k=0.0)
     for (x, y, az) in ((3.2, -1.3, 2.6), (3.6, -0.6, 3.4)):
         ax = unit(v3((math.cos(az) * 0.6, math.sin(az) * 0.6, 0.8)))
         vt = v3((x, y, zr + 0.45))
@@ -2381,10 +2396,10 @@ def lab_city(seed=0):
         seg(ms, vt, vt + ax * 0.2, 0.008)
     pj = v3((2.0, 0, zr))
     box(rk, pj + Z * 0.1, (0.18, 0.3, 0.1), 0.03, label=7)
-    glows["glow_violet"].add(Cylinder(pj + Z * 0.21, 0.09, 0.03, rr=0.01), k=0.0)
+    GL("Emblem", "glow_violet").add(Cylinder(pj + Z * 0.21, 0.09, 0.03, rr=0.01), k=0.0)
     em = pj + Z * 1.15 - v3((0.1, 0, 0))
-    glows["glow_violet"].add(Torus(em, 0.62, 0.03, R=rot_from_axes(z_axis=(-1, 0, 0.12))), k=0.0)
-    _hex_emblem(glows["glow_violet"], em, (-1, 0, 0.12), 0.46, t=0.026)
+    GL("Emblem", "glow_violet").add(Torus(em, 0.62, 0.03, R=rot_from_axes(z_axis=(-1, 0, 0.12))), k=0.0)
+    _hex_emblem(GL("Emblem", "glow_violet"), em, (-1, 0, 0.12), 0.46, t=0.026)
     out += [("RoofKit", rk, fine(0.008, 0.016), "instrument"), ("Masts", ms, fine(0.005, 0.01), "galv")]
     # ---- the drone on its pad on the +Y flank
     dp = Field("Pad")
@@ -2396,7 +2411,7 @@ def lab_city(seed=0):
                   P0 - 1, P0 + 1), 9)
     for k in range(6):
         a = math.pi / 6 + k * math.pi / 3
-        glows["glow_green"].add(RoundBox(P0 + v3((math.cos(a) * 0.74, math.sin(a) * 0.74, 0.2)), (0.04, 0.04, 0.012), 0.008), k=0.0)
+        GL("Pad", "glow_green").add(RoundBox(P0 + v3((math.cos(a) * 0.74, math.sin(a) * 0.74, 0.2)), (0.04, 0.04, 0.012), 0.008), k=0.0)
     ground_cut(dp, -0.02)
     out.append(("Pad", dp, fine(0.008, 0.016), "epoxy"))
     drone(out, P0 + Z * 0.2, 0.4)
@@ -2417,8 +2432,8 @@ def lab_city(seed=0):
         dr.add(Sphere(vt + ax * 0.33, 0.035), k=0.004, label=7)
     lm = Field("Lattice")
     lattice_mast(lm, (4.5, -3.9, 0), -0.05, 3.6, 0.26, 0.1, legs=3, step=0.3, rod=0.013)
-    glows["glow_red"].add(Sphere((4.5, -3.9, 3.66), 0.045), k=0.0)
-    glows["glow_red"].add(Sphere((4.62, -3.9, 1.8), 0.035), k=0.0)
+    GL("Mast", "glow_red").add(Sphere((4.5, -3.9, 3.66), 0.045), k=0.0)
+    GL("Mast", "glow_red").add(Sphere((4.62, -3.9, 1.8), 0.035), k=0.0)
     for f in (dr, lm):
         ground_cut(f, -0.02)
     out += [("Dishes", dr, fine(0.006, 0.012), "radome"), ("Lattice", lm, fine(0.006, 0.012), "galv")]
@@ -2433,7 +2448,10 @@ def lab_city(seed=0):
             cu.sub(RoundBox((5.3, y, 0.15 + k * 0.12), (0.02, 0.4, 0.02), 0.006), k=0.0)
     ground_cut(cu, -0.02)
     out.append(("Coolers", cu, fine(0.008, 0.016), "instrument"))
-    return finish_glows(out, glows)
+    for g in regions.values():
+        if any(op[0] == "add" for op in g.ops):
+            out.append((g.name, g, fine(0.005, 0.008), next(k for (r, k), f in regions.items() if f is g)))
+    return out
 
 
 # game.gd (prop-local, Blender x, y, z; Godot x, z, -y): the floodlights [(position, aim)], the emblem's violet glow
