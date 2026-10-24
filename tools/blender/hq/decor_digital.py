@@ -1564,31 +1564,30 @@ def big_dish(seed=0):
 
 
 def solar_array(seed=0):
-    """A solar array: two rows of three panels on a steel racking tilted up toward -Y, an inverter cabinet on its posts
-    with a status light and display, the cable conduit from the rows to it."""
+    """A solar array on its bed: three rows of panels tilted up toward -Y, each row carried on single steel posts set on
+    the ground's footings (rows at y = -0.8, 0, 0.8, posts every 0.55 in x), an inverter cabinet on its posts at the
+    east end with a status light and display, the cable conduit from the rows to it."""
     out = []
     sl, fr, rk, iv = Field("Cells"), Field("Frames"), Field("Racking"), Field("Inverter")
     glows = G("glow_green", "glow_screen")
-    tilt = 0.5
-    for j, y in enumerate((-0.42, 0.48)):
-        for x in (-0.78, 0.0, 0.78):
-            _panel(sl, fr, (x, y, 0.6), 0.0, tilt, W=0.37, Hh=0.3)
-        for x in (-1.15, -0.39, 0.39, 1.15):
-            seg(rk, (x, y - 0.2, 0.0), (x, y - 0.2, 0.42), 0.022)
-            seg(rk, (x, y + 0.2, 0.0), (x, y + 0.2, 0.65), 0.022)
-            seg(rk, (x, y - 0.2, 0.4), (x, y + 0.2, 0.64), 0.016)
-        for (dy, h) in ((-0.15, 0.48), (0.15, 0.64)):
-            seg(rk, (-1.2, y + dy, h), (1.2, y + dy, h), 0.016)
-    box(iv, (1.45, 0.02, 0.55), (0.12, 0.16, 0.22), 0.02)
+    tilt, zr = 0.5, 0.5
+    xs = [-1.375, -0.825, -0.275, 0.275, 0.825, 1.375]
+    for y in (-0.8, 0.0, 0.8):
+        for x in (-0.92, 0.0, 0.92):
+            _panel(sl, fr, (x, y, zr + 0.08), 0.0, tilt, W=0.45, Hh=0.26)
+        for x in xs:
+            seg(rk, (x, y, 0.0), (x, y, zr), 0.024)
+            rk.add(Cylinder((x, y, 0.02), 0.05, 0.05, rr=0.01), k=0.0, label=7)
+            seg(rk, (x, y - 0.18, zr - 0.02), (x, y + 0.18, zr + 0.16), 0.016)
+        seg(rk, (-1.4, y, zr + 0.02), (1.4, y, zr + 0.02), 0.018)
+    box(iv, (1.62, 0.0, 0.55), (0.1, 0.16, 0.22), 0.02)
     for sy in (-1, 1):
-        seg(iv, (1.45, sy * 0.1, 0.0), (1.45, sy * 0.1, 0.35), 0.02, label=7)
-    iv.sub(RoundBox((1.57, 0.02, 0.62), (0.02, 0.1, 0.06), 0.006), k=0.0)
-    glows["glow_screen"].add(RoundBox((1.565, 0.02, 0.62), (0.006, 0.09, 0.05), 0.003), k=0.0)
-    glows["glow_green"].add(RoundBox((1.575, 0.1, 0.48), (0.006, 0.015, 0.012), 0.004), k=0.0)
-    for k in range(4):
-        iv.sub(RoundBox((1.45, 0.185, 0.45 + k * 0.06), (0.08, 0.02, 0.01), 0.004), k=0.0)
+        seg(iv, (1.62, sy * 0.1, 0.0), (1.62, sy * 0.1, 0.35), 0.02, label=7)
+    iv.sub(RoundBox((1.72, 0.0, 0.62), (0.02, 0.1, 0.06), 0.006), k=0.0)
+    glows["glow_screen"].add(RoundBox((1.715, 0.0, 0.62), (0.006, 0.09, 0.05), 0.003), k=0.0)
+    glows["glow_green"].add(RoundBox((1.725, 0.08, 0.48), (0.006, 0.015, 0.012), 0.004), k=0.0)
     cd = Field("Conduit")
-    cd.add(Chain([v3((1.3, 0.05, 0.4)), v3((1.2, 0.05, 0.03)), v3((0.9, 0.05, 0.03)), v3((0.9, -0.42, 0.03)), v3((-0.9, -0.42, 0.03))], [0.025] * 5, k=0.04), k=0.0)
+    cd.add(Chain([v3((1.52, 0.0, 0.4)), v3((1.45, 0.05, 0.03)), v3((1.2, 0.1, 0.03)), v3((1.2, 0.45, 0.03)), v3((-1.3, 0.45, 0.03))], [0.025] * 5, k=0.04), k=0.0)
     for f in (rk, iv, cd):
         ground_cut(f, -0.02)
     out += [("Cells", sl, fine(0.004, 0.008), "solar"), ("Frames", fr, fine(0.004, 0.008), "galv"), ("Racking", rk, fine(0.004, 0.008), "galv"),
@@ -2514,7 +2513,7 @@ def KITS(theme):
             "Rock_A": (lambda: sandrock(1.4, 0.5, 742), 500), "Rock_B": (lambda: sandrock(0.9, 0.34, 743, 1), 350),
             "Telescope": (lambda: radio_telescope(744), 5200), "Control": (lambda: control_building(745), 3400),
             "Radar": (lambda: radar_tower(746), 2600), "FuelTank": (lambda: fuel_tank(747), 2000), "Truck": (lambda: utility_truck(748), 1800),
-            "BigDish": (lambda: big_dish(749), 2600), "Array": (lambda: solar_array(750), 2200),
+            "BigDish": (lambda: big_dish(749), 2600), "Array": (lambda: solar_array(750), 2600),
         }
     if theme == "neon":
         return {
