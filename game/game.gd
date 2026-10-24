@@ -2281,7 +2281,7 @@ func _build_decor_v2() -> void:
 			var n := _decor_single(mk[0], _v3(p), yaw, mk[2])
 			taken.append([p, float(mk[3])])
 			if bool(opt.get("force", false)) and p.x > b[0] and p.x < b[2] and p.y > b[1] and p.y < b[3]:
-				_yard_marks.append([n, p, float(mk[3]) * 0.6])
+				_yard_marks.append([n, p, float(mk[3])])      # (its whole reach: a parked jet's wings too)
 			if mk[0] in ["Boat", "Ship"]:         # (rocking gently on the current)
 				effects.append({"node": n, "t": r.randf() * 6.0, "life": INF, "kind": "bob", "y0": n.position.y})
 			elif mk[0] == "Smelter":              # (its furnace burns)
