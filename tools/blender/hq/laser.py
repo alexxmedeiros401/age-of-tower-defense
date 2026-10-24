@@ -541,7 +541,9 @@ def trousers_field():
         z = P[:, 2]
         return F(0.014) + F(0.012) * smoothstep(0.42, 0.56, z) + F(0.012) * smoothstep(0.42, 0.34, z)
     def fn(P):
-        d = hull.eval(P, margin=0.1)
+        # (a wide margin: where the hull's shapes are skipped it reads 1.0, and a shell of that jump would leave
+        # stray fragments at the edges of their bounds, beside his hips)
+        d = hull.eval(P, margin=0.3)
         return np.abs(d - off(P)) - F(0.01)
     folds = lambda P: (F(0.003) * np.sin(np.arctan2(P[:, 1] - F(0.03), np.abs(P[:, 0]) - F(0.17)) * F(6) + P[:, 2] * F(26)
                                          + F(0.8) * NOISE(P * F(4))) * smoothstep(0.38, 0.5, P[:, 2]) + F(0.001) * NOISE(P * F(25)))
@@ -587,7 +589,8 @@ def trousers_field():
     bh = Field("BeltHull")
     tb = shirt_hull()
     bh.add(Func(lambda P: tb.eval(P, margin=0.12) - F(SHIRT_FACE), (-0.5, -0.45, 0.8), (0.5, 0.45, 1.05)), 0.0)
-    fd.add(Inter(Shell(bh, 0.012, 0.014, pad=0.06), Func(lambda P: np.abs(P[:, 2] - F(BELT_Z)) - F(0.026), (-0.6, -0.5, 0.8), (0.6, 0.5, 1.1)), 0.004), 0.004, BLACK_L)
+    fd.add(Inter(Shell(bh, 0.012, 0.014, pad=0.06), Func(lambda P: np.maximum(np.abs(P[:, 2] - F(BELT_Z)) - F(0.026), np.sqrt(P[:, 0] ** 2 + (P[:, 1] - F(0.03)) ** 2) - F(0.42)),
+                                                   (-0.6, -0.5, 0.8), (0.6, 0.5, 1.1)), 0.004), 0.004, BLACK_L)    # (round his waist only, not his wrists)
     h, ok = ray_hit(bh, [v3((0, -0.7, BELT_Z))], [v3((0, 1, 0))], tmax=0.8)
     c = h[0] if ok[0] else v3((0, -0.3, BELT_Z))
     R = rot_from_axes(z_axis=(0, -1, 0), y_axis=(0, 0, 1))
