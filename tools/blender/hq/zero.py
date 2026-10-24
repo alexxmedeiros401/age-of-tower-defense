@@ -193,10 +193,10 @@ def _frame(n, up=(0, 0, 1)):
 
 FACE_N = norm(v3((0.0, -1.0, 0.16)))     # the face looks a little up (it reads from the high camera)
 VIS_Z = 1.952                            # the visor's middle (height), its half sizes and corner radius
-VIS_H = (0.15, 0.072)
+VIS_H = (0.158, 0.082)
 VIS_RC = 0.055
 EYE_Z = 1.952
-EYE_RAD = 0.064                          # the eye's radius
+EYE_RAD = 0.074                          # the eye's radius
 
 
 def face_pt(x, z, lift=0.0):
@@ -236,7 +236,7 @@ def eye_frame():
 def _cheek():
     """The ellipsoid that lifts the eye's lower edge (a smiling eye)."""
     p, R = eye_frame()
-    return Ellipsoid(p - R[:, 1] * 0.088, (0.105, 0.04, 0.08), R=R)
+    return Ellipsoid(p - R[:, 1] * 0.104, (0.124, 0.046, 0.093), R=R)
 
 
 def _eye_shape(grow=1.0, out=0.0, depth=0.014, smile=True):
@@ -266,7 +266,7 @@ def head_field():
     # a steel rim round the visor
     def rim(P):
         d = hb.eval(P, margin=0.05)
-        return np.maximum(np.abs(_vis2d(P, 0.012)) - F(0.008), np.abs(d - F(0.002)) - F(0.008))
+        return np.maximum(np.abs(_vis2d(P, 0.01)) - F(0.0065), np.abs(d - F(0.001)) - F(0.006))
     fd.add(Func(rim, lo, hi), 0.004, CHAR)
     # the crown's orange stripe (front to back over the top), the amber chevron sprayed over its front
     def stripe(P):
@@ -330,7 +330,7 @@ def pupil_field():
     """The eye's dark pupil (dark glass 11), on the lens."""
     fd = Field("Pupil")
     p, R = eye_frame()
-    fd.add(Ellipsoid(p + R[:, 2] * 0.014 + R[:, 1] * 0.004, (0.027, 0.029, 0.006), R=R), 0.0, GLASS)
+    fd.add(Ellipsoid(p + R[:, 2] * 0.014 + R[:, 1] * 0.006, (0.031, 0.034, 0.006), R=R), 0.0, GLASS)
     return fd
 
 
@@ -338,8 +338,8 @@ def spark_field():
     """A white catchlight high on his left of the eye (over the lens and the pupil's edge)."""
     fd = Field("Spark")
     p, R = eye_frame()
-    fd.add(Ellipsoid(p + R[:, 1] * 0.026 + R[:, 0] * 0.022 + R[:, 2] * 0.0185, (0.015, 0.017, 0.004), R=R), 0.0)
-    fd.add(Ellipsoid(p - R[:, 1] * 0.012 - R[:, 0] * 0.026 + R[:, 2] * 0.017, (0.006, 0.006, 0.003), R=R), 0.0)
+    fd.add(Ellipsoid(p + R[:, 1] * 0.032 + R[:, 0] * 0.026 + R[:, 2] * 0.0185, (0.017, 0.019, 0.004), R=R), 0.0)
+    fd.add(Ellipsoid(p - R[:, 1] * 0.008 - R[:, 0] * 0.03 + R[:, 2] * 0.017, (0.007, 0.007, 0.003), R=R), 0.0)
     return fd
 
 
@@ -349,7 +349,7 @@ def smile_field():
     p, R = eye_frame()
     pts = []
     for a in np.linspace(math.radians(18), math.radians(162), 9):
-        pts.append(p + R[:, 0] * (0.056 * math.cos(a)) + R[:, 1] * (0.05 * math.sin(a) - 0.026) + R[:, 2] * 0.006)
+        pts.append(p + R[:, 0] * (0.064 * math.cos(a)) + R[:, 1] * (0.058 * math.sin(a) - 0.03) + R[:, 2] * 0.006)
     fd.add(Chain(pts, [0.011, 0.014, 0.016, 0.017, 0.017, 0.017, 0.016, 0.014, 0.011], k=0.006), 0.0)
     return fd
 
@@ -365,8 +365,9 @@ CORE_Z = 1.38
 
 def _hull_base():
     fd = Field("HullBase")
-    fd.add(RoundBox((0, 0.05, 1.42), (0.42, 0.29, 0.26), 0.17), 0.0, WHITE)
-    fd.add(Ellipsoid((0, -0.1, 1.43), (0.36, 0.215, 0.25)), 0.08, WHITE)
+    fd.add(Ellipsoid((0, 0.04, 1.47), (0.47, 0.33, 0.29)), 0.0, WHITE)
+    fd.add(RoundBox((0, 0.05, 1.25), (0.31, 0.24, 0.11), 0.08), 0.12, WHITE)
+    fd.add(Ellipsoid((0, -0.1, 1.42), (0.36, 0.23, 0.26)), 0.08, WHITE)
     fd.add(RoundBox((0, 0.17, 1.66), (0.33, 0.18, 0.11), 0.1), 0.1, WHITE)
     return fd
 
@@ -490,13 +491,13 @@ def collar(fd):
 
 def pelvis(fd):
     """The charcoal pelvis (6), a white front plate (13) with an amber chevron, white tassets over the hips."""
-    fd.add(RoundBox((0, 0.04, 0.96), (0.3, 0.21, 0.08), 0.06), 0.0, CHAR)
+    fd.add(RoundBox((0, 0.04, 0.96), (0.33, 0.22, 0.085), 0.06), 0.0, CHAR)
     Rf = euler(-0.18, 0, 0)
     c = v3((0, -0.19, 0.91))
     fd.add(RoundBox(c, (0.15, 0.04, 0.1), 0.04, R=Rf), 0.01, WHITE)
     fd.paint(Func(lambda P: np.maximum(_chev2d(P[:, 0], P[:, 2], 0.885, 0.6, 0.022, 0.12), P[:, 1] + F(0.18)), c - 0.3, c + 0.3), AMBER)
     for sx in (-1, 1):
-        t = v3((sx * 0.36, 0.02, 0.9))
+        t = v3((sx * 0.39, 0.02, 0.9))
         fd.add(RoundBox(t, (0.06, 0.15, 0.1), 0.045, R=euler(0, sx * 0.25, 0)), 0.01, WHITE)
         fd.paint(RoundBox(t + v3((0, 0, -0.08)), (0.2, 0.3, 0.025), 0.0), ORANGE)
 
@@ -513,7 +514,6 @@ def hull_field():
     waist_plates(subs[1][1])
     hull_chest(subs[2][1])
     back_pack(subs[2][1])
-    collar(subs[2][1])
     for side in ("R", "L"):
         sx = -1 if side == "R" else 1
         f = Field("HullShoulder" + side)                          # the shoulder actuator (on the clavicle)
@@ -583,12 +583,12 @@ def upperarm_plate(fd, side):
     sx = -1 if side == "R" else 1
     sh, el = J["shoulder_" + side], J["elbow_" + side]
     a, b = lerp(sh, el, 0.38), lerp(sh, el, 0.86)
-    fd.add(seg_box(a + v3((sx * 0.025, 0, 0)), b + v3((sx * 0.02, 0, 0)), (0.105, 0.115), 0.05, side_ref=(1, 0, 0)), 0.0, WHITE)
+    fd.add(seg_box(a + v3((sx * 0.025, 0, 0)), b + v3((sx * 0.02, 0, 0)), (0.12, 0.13), 0.055, side_ref=(1, 0, 0)), 0.0, WHITE)
     fd.paint(seg_box(lerp(a, b, 0.92), lerp(a, b, 0.92) + norm(b - a) * 0.01, (0.3, 0.3), 0.0), SEAM)
 
 
 H_FRONT = -0.03             # the forearm housing's front end (u, from the wrist)
-HR0, HR1 = 0.13, 0.165      # its radius at the elbow end and at the front
+HR0, HR1 = 0.15, 0.185      # its radius at the elbow end and at the front
 
 
 def h_rad(u):
@@ -629,8 +629,10 @@ def forearm_housing(fd, side):
 def arms_field():
     subs = []
     for side in ("R", "L"):
-        f = Field("ArmsUpper" + side)
+        f = Field("ArmsPauldron" + side)
         pauldron(f, side)
+        subs.append(("clavicle." + side, f))
+        f = Field("ArmsUpper" + side)
         upperarm_plate(f, side)
         subs.append(("upperarm." + side, f))
         f = Field("ArmsFore" + side)
@@ -641,7 +643,7 @@ def arms_field():
 
 # ======================================================================================= the shell launcher (right arm)
 BARREL_U0, MUZZLE_U = 0.05, 0.43          # the barrel: from inside the jacket to the muzzle (u, from the wrist)
-BORE_R = 0.056
+BORE_R = 0.064
 DRUM_DIR = 60.0                           # the drum magazine: this far round from the thumb side toward the back
 
 
@@ -652,14 +654,14 @@ def launcher_body(fd):
     side = "R"
     wr, A, W, M = gframe(side)
     R = gR(side)
-    fd.add(Cylinder(gp(side, 0.0, 0, 0), 0.135, 0.07, rr=0.02, R=rot_from_axes(z_axis=A)), 0.0, FRAME)
-    fd.add(RoundBox(gp(side, 0.09, 0, 0), (0.13, 0.13, 0.07), 0.05, R=R), 0.02, CHAR)
+    fd.add(Cylinder(gp(side, 0.0, 0, 0), 0.15, 0.07, rr=0.02, R=rot_from_axes(z_axis=A)), 0.0, FRAME)
+    fd.add(RoundBox(gp(side, 0.09, 0, 0), (0.15, 0.15, 0.075), 0.055, R=R), 0.02, CHAR)
     fd.paint(Func(lambda P: np.abs(_uvw(P, side)[0] - F(0.09)) - F(0.022), gp(side, 0.09, 0, 0) - 0.3, gp(side, 0.09, 0, 0) + 0.3), AMBER)
-    fd.add(Cylinder(gp(side, 0.2, 0, 0), 0.098, 0.15, rr=0.02, R=rot_from_axes(z_axis=A)), 0.01, FRAME)
-    fd.add(Torus(gp(side, 0.272, 0, 0), 0.098, 0.012, R=rot_from_axes(z_axis=A)), 0.004, CHAR)
+    fd.add(Cylinder(gp(side, 0.2, 0, 0), 0.112, 0.15, rr=0.02, R=rot_from_axes(z_axis=A)), 0.01, FRAME)
+    fd.add(Torus(gp(side, 0.272, 0, 0), 0.112, 0.013, R=rot_from_axes(z_axis=A)), 0.004, CHAR)
     # the drum magazine
     e = gdir(side, DRUM_DIR)
-    dc = gp(side, 0.1, 0, 0) + e * 0.16
+    dc = gp(side, 0.1, 0, 0) + e * 0.18
     Rd = rot_from_axes(z_axis=A)
     fd.add(Cylinder(dc, 0.095, 0.15, rr=0.025, R=Rd), 0.02, CHAR)
     fd.add(Cylinder(dc + A * 0.08, 0.06, 0.02, rr=0.006, R=Rd), 0.004, FRAME)
@@ -685,10 +687,10 @@ def barrel(fd):
     wr, A, W, M = gframe(side)
     Ra = rot_from_axes(z_axis=A)
     c = gp(side, (BARREL_U0 + MUZZLE_U - 0.06) / 2, 0, 0)
-    fd.add(Cylinder(c, 0.076, MUZZLE_U - 0.06 - BARREL_U0, rr=0.012, R=Ra), 0.0, FRAME)
-    fd.add(Cylinder(gp(side, MUZZLE_U - 0.045, 0, 0), 0.104, 0.09, rr=0.022, R=Ra), 0.012, CHAR)
+    fd.add(Cylinder(c, 0.088, MUZZLE_U - 0.06 - BARREL_U0, rr=0.012, R=Ra), 0.0, FRAME)
+    fd.add(Cylinder(gp(side, MUZZLE_U - 0.045, 0, 0), 0.12, 0.09, rr=0.024, R=Ra), 0.012, CHAR)
     for s in (-1, 1):
-        fd.sub(RoundBox(gp(side, MUZZLE_U - 0.045, 0, s * 0.1), (0.05, 0.03, 0.022), 0.01, R=gR(side)), 0.004)
+        fd.sub(RoundBox(gp(side, MUZZLE_U - 0.045, 0, s * 0.115), (0.05, 0.03, 0.022), 0.01, R=gR(side)), 0.004)
     fd.sub(Cylinder(gp(side, MUZZLE_U - 0.05, 0, 0), BORE_R, 0.24, rr=0.004, R=Ra), 0.006)
     fd.paint(Cylinder(gp(side, MUZZLE_U - 0.05, 0, 0), BORE_R + 0.004, 0.24, R=Ra), SEAM)
 
@@ -717,7 +719,7 @@ def muzzle_point():
 
 
 # ======================================================================================= the big hand (left arm)
-FINGER_V = (0.078, 0.0, -0.078)            # index (thumb side) .. ring
+FINGER_V = (0.088, 0.0, -0.088)            # index (thumb side) .. ring
 HINGE_U, HINGE_W = 0.19, -0.02
 
 
@@ -731,14 +733,14 @@ def hand_palm(fd):
     side = "L"
     wr, A, W, M = gframe(side)
     R = gR(side)
-    fd.add(Cylinder(gp(side, 0.01, 0, 0), 0.12, 0.07, rr=0.02, R=rot_from_axes(z_axis=A)), 0.0, FRAME)
-    fd.add(RoundBox(gp(side, 0.11, 0.0, 0.015), (0.125, 0.055, 0.09), 0.045, R=R), 0.02, FRAME)
-    fd.add(RoundBox(gp(side, 0.105, 0.0, -0.04), (0.13, 0.03, 0.095), 0.03, R=R), 0.02, WHITE)
+    fd.add(Cylinder(gp(side, 0.01, 0, 0), 0.135, 0.07, rr=0.02, R=rot_from_axes(z_axis=A)), 0.0, FRAME)
+    fd.add(RoundBox(gp(side, 0.11, 0.0, 0.015), (0.14, 0.06, 0.095), 0.048, R=R), 0.02, FRAME)
+    fd.add(RoundBox(gp(side, 0.105, 0.0, -0.045), (0.145, 0.032, 0.1), 0.03, R=R), 0.02, WHITE)
     fd.paint(Func(lambda P: np.maximum(np.abs(_uvw(P, side)[0] - F(0.03)) - F(0.016), _uvw(P, side)[2] + F(0.02)),
                   gp(side, 0.1, 0, 0) - 0.3, gp(side, 0.1, 0, 0) + 0.3), ORANGE)
-    th = [gp(side, 0.05, 0.11, 0.03), gp(side, 0.12, 0.16, 0.07), gp(side, 0.19, 0.15, 0.1), gp(side, 0.23, 0.11, 0.11)]
-    fd.add(Chain(th, [0.045, 0.042, 0.038, 0.034], k=0.012), 0.02, FRAME)
-    fd.add(RoundBox(gp(side, 0.13, 0.16, 0.05), (0.035, 0.03, 0.05), 0.02, R=R @ euler(0, 0, -0.3)), 0.012, WHITE)
+    th = [gp(side, 0.05, 0.12, 0.03), gp(side, 0.12, 0.18, 0.07), gp(side, 0.19, 0.17, 0.1), gp(side, 0.235, 0.125, 0.11)]
+    fd.add(Chain(th, [0.052, 0.049, 0.045, 0.04], k=0.012), 0.02, FRAME)
+    fd.add(RoundBox(gp(side, 0.13, 0.18, 0.05), (0.04, 0.034, 0.055), 0.02, R=R @ euler(0, 0, -0.3)), 0.012, WHITE)
 
 
 def hand_fingers(fd):
@@ -753,10 +755,10 @@ def hand_fingers(fd):
         K2 = gp(side, 0.29 + du, v, -0.005)
         K3 = gp(side, 0.36 + du, v * 1.02, 0.035)
         K4 = gp(side, 0.385 + du, v * 1.03, 0.085)
-        fd.add(Chain([K1, K2, K3, K4], [r * s for r in (0.04, 0.038, 0.034, 0.03)], k=0.01), 0.008, FRAME)
-        fd.add(RoundBox(gp(side, 0.27 + du, v, -0.032), (0.034 * s, 0.018, 0.05), 0.014, R=R), 0.01, WHITE)
-        fd.add(Sphere(gp(side, 0.37 + du, v * 1.03, 0.09), 0.026 * s), 0.008, RUBBER)
-    fd.add(RoundBox(gp(side, 0.205, 0.0, -0.03), (0.125, 0.04, 0.03), 0.025, R=R), 0.012, CHAR)
+        fd.add(Chain([K1, K2, K3, K4], [r * s for r in (0.047, 0.045, 0.041, 0.036)], k=0.01), 0.008, FRAME)
+        fd.add(RoundBox(gp(side, 0.27 + du, v, -0.038), (0.04 * s, 0.02, 0.055), 0.015, R=R), 0.01, WHITE)
+        fd.add(Sphere(gp(side, 0.372 + du, v * 1.03, 0.092), 0.031 * s), 0.008, RUBBER)
+    fd.add(RoundBox(gp(side, 0.205, 0.0, -0.032), (0.14, 0.045, 0.032), 0.026, R=R), 0.012, CHAR)
 
 
 def hand_field():
@@ -770,16 +772,17 @@ def hand_field():
 def thigh_plate(fd, side):
     sx = -1 if side == "R" else 1
     hp_, kn = J["hip_" + side], J["knee_" + side]
-    a, b = lerp(hp_, kn, 0.18), lerp(hp_, kn, 0.8)
+    a, b = lerp(hp_, kn, 0.08), lerp(hp_, kn, 0.84)
     off = v3((sx * 0.03, -0.05, 0))
-    fd.add(seg_box(a + off, b + off, (0.15, 0.11), 0.06, side_ref=(1, 0, 0)), 0.0, WHITE)
+    fd.add(seg_box(a + off, b + off, (0.17, 0.13), 0.065, side_ref=(1, 0, 0)), 0.0, WHITE)
+    fd.add(seg_box(a + v3((sx * 0.04, 0.06, 0)), lerp(a, b, 0.8) + v3((sx * 0.04, 0.06, 0)), (0.14, 0.1), 0.05, side_ref=(1, 0, 0)), 0.03, CHAR)
     m = lerp(a, b, 0.5) + off
     def slash(P, m=m):
         return np.maximum(np.maximum(np.abs((P[:, 2] - F(m[2])) - (P[:, 0] - F(m[0])) * F(-sx * 0.8)) - F(0.028),
                                      np.abs(P[:, 0] - F(m[0])) - F(0.12)), P[:, 1] - F(m[1] - 0.04))
     fd.paint(Func(slash, m - 0.3, m + 0.3), AMBER)
     if side == "L":                                   # a welded patch on the left thigh's outer side
-        p = lerp(a, b, 0.4) + off + v3((0.155, 0.0, 0.0))
+        p = lerp(a, b, 0.4) + off + v3((0.175, 0.0, 0.0))
         fd.add(RoundBox(p, (0.008, 0.05, 0.06), 0.005), 0.004, STEEL)
         fd.add(Torus(p + v3((0.004, 0, 0)), 0.055, 0.0055, R=rot_from_axes(z_axis=(1, 0, 0)),
                      disp=lambda P: F(0.0007) * NOISE(P * F(240)), disp_amp=0.001), 0.003, STEEL)
@@ -789,9 +792,9 @@ def shin_guard(fd, side):
     """A charcoal knee cap, a big white shin guard (an orange band at its top, a front ridge)."""
     sx = -1 if side == "R" else 1
     kn, an = J["knee_" + side], J["ankle_" + side]
-    fd.add(Ellipsoid(kn + v3((0, -0.11, 0.02)), (0.12, 0.075, 0.11)), 0.0, CHAR)
-    a, b = lerp(kn, an, 0.2), lerp(kn, an, 0.92)
-    fd.add(seg_box(a + v3((0, -0.03, 0)), b + v3((0, -0.01, 0)), (0.16, 0.145), 0.07, side_ref=(1, 0, 0)), 0.02, WHITE)
+    fd.add(Ellipsoid(kn + v3((0, -0.12, 0.02)), (0.14, 0.085, 0.125)), 0.0, CHAR)
+    a, b = lerp(kn, an, 0.16), lerp(kn, an, 0.92)
+    fd.add(seg_box(a + v3((0, -0.03, 0)), b + v3((0, -0.01, 0)), (0.18, 0.16), 0.075, side_ref=(1, 0, 0)), 0.02, WHITE)
     fd.add(seg_box(lerp(a, b, 0.1) + v3((0, -0.14, 0)), lerp(a, b, 0.85) + v3((0, -0.12, 0)), (0.06, 0.03), 0.025, side_ref=(1, 0, 0)), 0.03, WHITE)
     zt = lerp(a, b, 0.12)[2]
     fd.paint(Func(lambda P, zt=zt: np.abs(P[:, 2] - F(zt)) - F(0.03), a - 0.3, b + 0.3), ORANGE)
@@ -802,10 +805,10 @@ def shin_guard(fd, side):
 def boot(fd, side):
     """A charcoal boot, a white toe cap with an amber stripe, a rubber sole."""
     an = J["ankle_" + side]
-    fd.add(RoundBox(an + v3((0, -0.07, -0.11)), (0.16, 0.25, 0.065), 0.05), 0.0, CHAR)
-    fd.add(RoundBox(an + v3((0, -0.235, -0.115)), (0.15, 0.1, 0.06), 0.045, R=euler(0.1, 0, 0)), 0.02, WHITE)
+    fd.add(RoundBox(an + v3((0, -0.07, -0.11)), (0.175, 0.26, 0.065), 0.05), 0.0, CHAR)
+    fd.add(RoundBox(an + v3((0, -0.235, -0.11)), (0.165, 0.11, 0.065), 0.045, R=euler(0.1, 0, 0)), 0.02, WHITE)
     fd.add(RoundBox(an + v3((0, 0.13, -0.11)), (0.13, 0.07, 0.07), 0.04), 0.02, CHAR)
-    fd.add(RoundBox(an + v3((0, -0.06, -0.162)), (0.165, 0.27, 0.02), 0.012), 0.008, RUBBER)
+    fd.add(RoundBox(an + v3((0, -0.06, -0.162)), (0.18, 0.28, 0.02), 0.012), 0.008, RUBBER)
     c = an + v3((0, -0.26, -0.08))
     fd.paint(Func(lambda P, c=c: np.maximum(np.abs(P[:, 0] - F(c[0])) - F(0.03), P[:, 2] - F(c[2] + 0.1)), c - 0.2, c + 0.2), AMBER)
 
@@ -863,7 +866,7 @@ def _ua_hull():
     f = Field("UAHull")
     sh, el = J["shoulder_" + side], J["elbow_" + side]
     a, b = lerp(sh, el, 0.38), lerp(sh, el, 0.86)
-    f.add(seg_box(a + v3((0.025, 0, 0)), b + v3((0.02, 0, 0)), (0.105, 0.115), 0.05, side_ref=(1, 0, 0)), 0.0)
+    f.add(seg_box(a + v3((0.025, 0, 0)), b + v3((0.02, 0, 0)), (0.12, 0.13), 0.055, side_ref=(1, 0, 0)), 0.0)
     f.add(RoundCone(lerp(sh, el, 0.15), el, 0.085, 0.075), 0.02)
     return f
 

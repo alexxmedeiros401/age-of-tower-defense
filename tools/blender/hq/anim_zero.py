@@ -253,7 +253,7 @@ def attack_pose(arm, f, rest):
     kick = 0.0
     if f > SHOT:
         x = f - SHOT
-        kick = 0.34 * math.exp(-((x - 1.4) / 1.6) ** 2)
+        kick = 0.28 * math.exp(-((x - 1.4) / 1.6) ** 2)
         kick += 0.1 * math.exp(-((x - 6.0) / 5.0) ** 2)
         kick *= 1.0 - smooth01((f - 20) / (FR - 20))
     rock = 0.0
@@ -273,7 +273,7 @@ def attack_pose(arm, f, rest):
     aims = feet(arm, 0.0, **C_FEET)
     torso(aims, yaw, bend=0.12 + 0.06 * lean - 0.1 * rock, chest=-4.0 - 3.0 * rock, look=0.0, pitch=0.16 + 0.12 * rock,
           roll=0.1 - 0.05 * rock, shrug=(0.0, 0.1 * rock), reach=(0.0, 0.08 * lean - 0.12 * rock))
-    aims.update(combat_arms(arm, yaw, ro, b, rest, lift=-0.05 * lean, kick=kick, back=0.25 * rock * (1 - settle)))
+    aims.update(combat_arms(arm, yaw, ro, b, rest, lift=-0.05 * lean, kick=kick, back=0.18 * rock * (1 - settle)))
     aims.update(fingers(rest, -0.95))
     squint = 1.0 - 0.45 * math.exp(-((f - SHOT - 1.0) / 1.8) ** 2) if f >= SHOT - 1 else 1.0
     return aims, ro, rz(yaw), props(barrel=bar, blink=squint)
@@ -341,7 +341,7 @@ def ability_pose(arm, f, rest):
         hold = max(0.0, (f - 45) / 7.0)
         ro = V(0.0, 0.03 * k, lerp(-0.14, -0.08, k) - 0.01 * hold)
         aims = feet(arm, 0.0, **WIDE_FEET)
-        torso(aims, 0.0, bend=lerp(0.28, -0.16, k), look=0.0, pitch=lerp(-0.02, 0.32, k), shrug=(lerp(0.17, 0.08, k),) * 2,
+        torso(aims, 0.0, bend=lerp(0.28, -0.16, k), look=0.0, pitch=lerp(-0.02, 0.32, k), shrug=(lerp(0.17, 0.3, k),) * 2,
               reach=(lerp(0.06, -0.12, k),) * 2)
         aims.update(arm_fk("R", mixd(CHARGE_R[0], WIDE_R[0], k), mixd(CHARGE_R[1], WIDE_R[1], k)))
         wc = ROOT + V(0.0, 0.0, -0.14) + (CHARGE_L - ROOT)
@@ -361,7 +361,7 @@ def ability_pose(arm, f, rest):
     yaw = lerp(0.0, yaw0, k)
     ro = V(0.0, 0.03, -0.09).lerp(ro0, k)
     torso(aims, yaw, bend=lerp(-0.16, 0.12, k), chest=lerp(0.0, -4.0, k), look=0.0, pitch=lerp(0.32, 0.16, k), roll=lerp(0.0, 0.1, k),
-          shrug=(lerp(0.08, 0.0, k),) * 2, reach=(lerp(-0.12, 0.0, k),) * 2)
+          shrug=(lerp(0.3, 0.0, k),) * 2, reach=(lerp(-0.12, 0.0, k),) * 2)
     q = rz(yaw)
     aims.update(arm_fk("R", mixd(WIDE_R[0], q @ AIM_U, k), mixd(WIDE_R[1], q @ AIM_D, k)))
     wl = ROOT + ro0 + rz(yaw0) @ (GUARD_L - ROOT)
@@ -392,7 +392,7 @@ def cheer_pose(arm, f, rest):
     ro = ro0.lerp(V(0.0, 0.0, -0.03), up) + V(0.0, 0.0, -0.05 * bounce)
     aims = feet(arm, 0.0, lift=(0.03 * bounce * (wave > 0), 0.03 * bounce * (wave <= 0)), **C_FEET)
     torso(aims, yaw, bend=lerp(0.12, -0.04, up), side=0.06 * wave * up, chest=lerp(-4.0, 0.0, up), look=0.0,
-          pitch=lerp(0.16, 0.3, up), roll=lerp(0.1, 0.0, up) + 0.22 * wave * up)
+          pitch=lerp(0.16, 0.3, up), roll=lerp(0.1, 0.0, up) + 0.22 * wave * up, shrug=(0.32 * up, 0.28 * up))
     q0 = rz(yaw0)
     # the big hand waving high
     swing = Quaternion(V(0, -1, 0), 0.38 * wave)
