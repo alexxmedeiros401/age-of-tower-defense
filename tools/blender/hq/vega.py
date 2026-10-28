@@ -211,7 +211,7 @@ def teeth_field():
     """His teeth, behind his closed lips."""
     fd = Field("Teeth")
     for sx in (-1, 1):
-        fd.add(RoundBox(hp((sx * 0.009 + 0.003, -0.178, 1.551)), v3((0.008, 0.006, 0.006)) * HS, hr(0.003)), 0.0)
+        fd.add(RoundBox(hp((sx * 0.009 + 0.003, -0.152, 1.551)), v3((0.008, 0.006, 0.006)) * HS, hr(0.003)), 0.0)   # (well behind his closed lips)
     return fd
 
 
