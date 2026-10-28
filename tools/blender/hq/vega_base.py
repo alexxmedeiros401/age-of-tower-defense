@@ -1,5 +1,5 @@
 """Vega's stand: the Resistance's forward command post inside the robots' data center. A round deck of steel floor
-grating (square panels of grate in a solid frame, a chamfered rim with bolts and amber floor markings), the hero ring a
+grating (square panels of grate in a solid frame, a chamfered rim with bolts), the hero ring a
 dashed amber light strip set into it (its own glowing mesh). Round him on the deck: behind him a low curved wall of
 sandbags, two salvaged white robot armour plates propped against it as cover, sprayed with the Resistance's amber
 chevron; behind him on his left the amber Resistance banner hanging from a crossbar on a steel pole (the charcoal
@@ -63,8 +63,7 @@ HEAD = _placed(-150.0, 0.93)
 # ---------------------------------------------------------------------------------------------- the deck
 def deck_field():
     """modern_kit: the deck (label 0, dark gunmetal, smooth) and its rim; inside the ring a steel grate (square holes in a
-    grid of bars, sunk a little) in four panels with a solid frame between them; bolts (9) round the rim; amber (6) floor
-    markings (dashes round the outer deck)."""
+    grid of bars, sunk a little) in four panels with a solid frame between them; bolts (9) round the rim."""
     fd = Field("Deck")
     def slab(P):
         r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
@@ -98,13 +97,6 @@ def deck_field():
             perp = np.abs(P[:, 0] * F(-d[1]) + P[:, 1] * F(d[0]))
             return np.maximum(np.maximum(perp - F(0.003), F(RING_R + 0.04) - r), np.abs(P[:, 2] - F(TOP_Z)) - F(0.006))
         fd.sub(Func(seam, (-1.3, -1.3, TOP_Z - 0.02), (1.3, 1.3, TOP_Z + 0.02)), 0.0015)
-    # amber floor markings: short dashes round the outer deck, inside the rim
-    def marks(P):
-        r = np.sqrt(P[:, 0] ** 2 + P[:, 1] ** 2)
-        a = np.arctan2(P[:, 1], P[:, 0])
-        s = np.sin(a * F(24))
-        return np.maximum(np.maximum(np.abs(r - F(1.04)) - F(0.022), F(0.35) - s), F(TOP_Z - 0.006) - P[:, 2])
-    fd.paint(Func(marks, (-1.2, -1.2, TOP_Z - 0.02), (1.2, 1.2, TOP_Z + 0.02)), 6)
     # bolts round the rim
     for i in range(28):
         a = 2 * math.pi * (i + 0.5) / 28

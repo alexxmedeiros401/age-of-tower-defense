@@ -125,8 +125,8 @@ def head(fd):
     for seg_ in ([(-0.082, 1.806), (-0.084, 1.784), (-0.086, 1.762), (-0.088, 1.738)],
                  [(-0.09, 1.642), (-0.093, 1.622), (-0.097, 1.6), (-0.101, 1.582)]):
         sc = _on_face(fd, seg_, lift=0.0)
-        fd.sub(Chain(sc, [hr(0.0012), hr(0.0018), hr(0.0016), hr(0.001)], k=hr(0.002)), hr(0.002))
-        fd.paint(Chain(sc, [hr(0.0045), hr(0.006), hr(0.0055), hr(0.0035)], k=hr(0.004)), SCAR)
+        fd.sub(Chain(sc, [hr(0.0016), hr(0.0024), hr(0.0022), hr(0.0014)], k=hr(0.002)), hr(0.002))
+        fd.paint(Chain(sc, [hr(0.0065), hr(0.0085), hr(0.008), hr(0.005)], k=hr(0.004)), SCAR)
 
 
 def body_parts(fd):
@@ -217,7 +217,7 @@ def hair_field():
         Q = hinv(P)
         inside = smoothstep(0.0, 0.32, -top_patch(P))
         front = smoothstep(-0.08, -0.17, Q[:, 1])
-        th = F(0.004) + (F(0.016) + F(0.01) * front) * inside
+        th = (F(0.004) + (F(0.016) + F(0.01) * front) * inside) * (F(0.3) + F(0.7) * smoothstep(0.0, 0.035, -hairline(P)))
         return np.abs(d - (F(0.003) + th * F(0.5))) - th * F(0.5)
     def region(P):
         return np.maximum(np.maximum(hairline(P) * F(HS), top_patch(P) * F(0.05)), ears_out(P))
@@ -554,7 +554,7 @@ def sash_off(P):
 
 def sash_field():
     """Amber cloth (uniform's cloth, label 0) over his left shoulder, across his chest (over the coat, bridging its V) to
-    his right hip, knotted there over the belt, two ends hanging down his thigh, their tips fringed (5)."""
+    his right hip, knotted there over the belt, two ends hanging down his thigh, their tips banded (5)."""
     fd = Field("Sash")
     base = coat_hull(arms=False)
     lo, hi = (-0.4, -0.35, 0.82), (0.4, 0.36, 1.6)
@@ -573,7 +573,6 @@ def sash_field():
     kd = norm(v3((d[0], d[1], 0.0)))
     fd.add(Ellipsoid(knot + kd * 0.012, (0.04, 0.034, 0.034), R=rot_from_axes(z_axis=kd), disp=wrinkle, disp_amp=0.004), 0.008)
     fd.add(Ellipsoid(knot + kd * 0.008 + v3((-0.026, 0, 0.016)), (0.032, 0.026, 0.026), R=rot_from_axes(z_axis=kd)), 0.008)
-    fringe = lambda P: F(0.004) * np.abs(np.sin((P[:, 0] + P[:, 1]) * F(260)))
     for k, (dx, L, sw) in enumerate(((0.0, 0.26, 1.0), (-0.045, 0.21, -1.0))):
         a0 = knot + kd * 0.014 + v3((dx, 0, -0.024))
         pts = [a0]
@@ -584,10 +583,11 @@ def sash_field():
             if ok2[0] and float((h2[0] - q) @ kd) > 0:
                 q = h2[0] + kd * 0.004
             pts.append(q)
-        fd.add(Lock(pts, [0.044, 0.046, 0.047, 0.048, 0.048, 0.046], [0.009] * 6, [kd] * 6, k=0.006, disp=wrinkle, disp_amp=0.003), 0.006)
+        fd.add(Lock(pts, [0.044, 0.046, 0.047, 0.048, 0.048, 0.046], [0.009] * 6, [kd] * 6, k=0.006,
+                    disp=lambda P: F(0.0012) * NOISE(P * F(14)), disp_amp=0.0015), 0.006)
         tip = pts[-1]
         dd = norm(pts[-1] - pts[-2])
-        fd.add(Lock([tip - dd * 0.01, tip + dd * 0.03], [0.046, 0.048], [0.008, 0.006], [kd] * 2, k=0.004, disp=fringe, disp_amp=0.003), 0.004, 5)
+        fd.add(Lock([tip - dd * 0.01, tip + dd * 0.03], [0.046, 0.048], [0.008, 0.006], [kd] * 2, k=0.004), 0.004, 5)
     return fd
 
 
@@ -935,8 +935,8 @@ KIT = dict(black=(0.05, 0.05, 0.055), red=AMBER, white=WHITE, gunmetal=GUNMETAL,
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_VegaSkin", "base": (0.8, 0.6, 0.48), "ruddy": (0.84, 0.5, 0.42), "lips": (0.66, 0.4, 0.36),
                       "brow": ((0.11, 0.1, 0.1), (0.3, 0.29, 0.29)),
-                      "extra": ((LASH, (0.07, 0.06, 0.06), 0.5), (STUBBLE, (0.38, 0.34, 0.33), 0.55, 0.4),
-                                (SCAR, (0.9, 0.68, 0.62), 0.45), (GLOVE, BLACK, 0.75))}),
+                      "extra": ((LASH, (0.07, 0.06, 0.06), 0.5), (STUBBLE, (0.36, 0.32, 0.31), 0.55, 0.55),
+                                (SCAR, (0.95, 0.76, 0.7), 0.4), (GLOVE, BLACK, 0.75))}),
     "Hair": ("hair", {"name": "HQ_VegaHair", "base": (0.12, 0.11, 0.11), "hi": (0.36, 0.35, 0.36), "low": (0.04, 0.035, 0.035),
                       "streak": (0.08, 0.075, 0.075), "tint": (0.16, 0.15, 0.15), "fleck": (0.62, 0.62, 0.64), "fleck_amt": 0.45}),
     "Temples": ("hair", {"name": "HQ_VegaTemples", "base": (0.48, 0.48, 0.5), "hi": (0.72, 0.72, 0.74), "low": (0.28, 0.28, 0.3),
