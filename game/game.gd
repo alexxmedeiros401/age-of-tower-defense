@@ -3620,7 +3620,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2, "firewall": 10}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -5296,7 +5296,7 @@ func _handle_events() -> void:
 				elif u3 != null and u3.type == "druid" and not tg3.is_empty() and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_druid_call(u3, tg3)                        # Iron Age: roots burst up round them (lightning on Path B)
-				elif u3 != null and u3.type in ["emp_tower", "ken", "cryo_field"] and _hq_clips(ev.id):
+				elif u3 != null and u3.type in ["emp_tower", "ken", "cryo_field", "firewall"] and _hq_clips(ev.id):
 					_face_targets(ev.id, u3, tg3)
 					_emp_pulse(u3, tg3)                         # v0.9.68: the pulse leaves the emitter head (Ken: his plate)
 				elif u3 != null and u3.type == "tesla_coil" and _hq_clips(ev.id):
@@ -8649,7 +8649,7 @@ func _theron_sun(uid: int, p: Vector3) -> Vector3:
 # v0.9.68: the EMP Tower (anim_emp.py): its operator slams the trigger on frame 10 (DISCHARGE) and the emitter head at
 # the top of its mast flashes blue-white; rings of blue light roll out over its reach and every robot in it crackles.
 # Dr. Ken Ito's ground pound (anim_ken.py, HIT 9-11) sends the same pulse rolling out from his gauntlet's plate.
-const EMP_POINTS := {"emp_tower": Vector3(0.540, 2.200, -0.300), "ken": Vector3(-0.280, 0.012, 0.385), "cryo_field": Vector3(0.533, 1.900, -0.300)}
+const EMP_POINTS := {"emp_tower": Vector3(0.540, 2.200, -0.300), "ken": Vector3(-0.280, 0.012, 0.385), "cryo_field": Vector3(0.533, 1.900, -0.300), "firewall": Vector3(0.494, 1.930, -0.340)}
 func _emp_pulse(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var ids := targets.duplicate()
@@ -8660,14 +8660,17 @@ func _emp_pulse(u: Dictionary, targets: Array) -> void:
 		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
 			at = ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform * (EMP_POINTS.get(ty, Vector3.ZERO) as Vector3)
 		if _fx_room(2):
-			for s2 in ([1.2, 0.6] if ty == "emp_tower" else [0.8]):
-				var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, at + Vector3(0, 0.1, 0))
+			for s2 in ([1.2, 0.6] if ty in ["emp_tower", "firewall"] else [0.8]):
+				var f := _mi(_fx_mesh("flash"), _flash_mat_amber() if ty == "firewall" else _atk_mat("storm_flash"), self, at + Vector3(0, 0.1, 0))
 				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": s2})
 		var g := Vector3(at.x, 0.3, at.z)
 		var cryo := ty == "cryo_field"                # v0.9.77: the Cryo Field's frost rings, frost bursting on each robot
-		_ring_fx(g, R, Color(0.7, 0.92, 1.0) if cryo else Color(0.45, 0.85, 1.0), 0.6 if cryo else 0.55)
-		_ring_fx(g, R * 0.6, Color(0.92, 0.98, 1.0) if cryo else Color(0.8, 0.95, 1.0), 0.42)
+		var hack := ty == "firewall"                  # v0.9.87: the Firewall's amber hack pulse, glitch static on each robot
+		var c1 := Color(1.0, 0.62, 0.15) if hack else (Color(0.7, 0.92, 1.0) if cryo else Color(0.45, 0.85, 1.0))
+		var c2 := Color(1.0, 0.85, 0.5) if hack else (Color(0.92, 0.98, 1.0) if cryo else Color(0.8, 0.95, 1.0))
+		_ring_fx(g, R, c1, 0.6 if cryo or hack else 0.55)
+		_ring_fx(g, R * 0.6, c2, 0.42)
 		if cryo:
 			_ring_fx(g, R * 0.3, Color(1.0, 1.0, 1.0), 0.3)
 			_dust_fx(Vector3(at.x, 0.15, at.z), 6, 1.1, Color(0.9, 0.97, 1.0, 0.6))
@@ -8687,6 +8690,8 @@ func _emp_pulse(u: Dictionary, targets: Array) -> void:
 			effects.append({"node": f2, "t": 0.0, "life": 0.2, "kind": "flash", "s": 0.45})
 			if cryo:
 				_dust_fx(p, 3, 0.4, Color(0.92, 0.98, 1.0, 0.7))
+			elif hack:
+				_glitch_static(p, true)
 			i += 1)
 
 
@@ -8930,14 +8935,14 @@ func _glitch_freeze(ev: Dictionary, hp: Vector3) -> void:
 
 
 ## A robot caught by the static: a flicker of teal and violet pixel blocks round it and a ring at its feet.
-func _glitch_static(at: Vector3) -> void:
-	_ring_fx(at, 0.8, Color(0.35, 1.0, 0.85), 0.6)
+func _glitch_static(at: Vector3, amber := false) -> void:
+	_ring_fx(at, 0.8, Color(1.0, 0.62, 0.15) if amber else Color(0.35, 1.0, 0.85), 0.6)
 	var n: int = [6, 4, 2][clampi(Progress.gfx_level(), 0, 2)]
 	if not _fx_room(n):
 		return
 	for i in n:
-		var col := Color(0.35, 1.0, 0.85) if i % 2 == 0 else Color(0.85, 0.4, 1.0)
-		var bx := _mi(_box(0.12, 0.12, 0.02), _mat("glitch_px_%d" % (i % 2), col, {"emit": col, "emit_e": 3.0, "unshaded": true}), self,
+		var col := (Color(1.0, 0.62, 0.15) if i % 2 == 0 else Color(1.0, 0.92, 0.6)) if amber else (Color(0.35, 1.0, 0.85) if i % 2 == 0 else Color(0.85, 0.4, 1.0))
+		var bx := _mi(_box(0.12, 0.12, 0.02), _mat("glitch_px_%d%s" % [i % 2, "a" if amber else ""], col, {"emit": col, "emit_e": 3.0, "unshaded": true}), self,
 			at + Vector3(randf_range(-0.45, 0.45), randf_range(0.3, 1.3), randf_range(-0.45, 0.45)))
 		bx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		effects.append({"node": bx, "t": -0.04 * i, "life": 0.35, "kind": "flash", "s": randf_range(0.8, 1.6)})
