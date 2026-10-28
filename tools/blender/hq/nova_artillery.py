@@ -131,11 +131,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0178))), (sx * 0.14, 0.06, -1.0)), hr(0.004))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0068)), Plane(ec + v3((0, 0, hr(0.0192))), (sx * 0.14, 0.06, -1.0)), hr(0.004))
         fd.add(up, hr(0.005), SKIN)
         lo = Inter(Sphere(ec, EYE_R + hr(0.006)), Plane(ec + v3((0, 0, -hr(0.0198))), (sx * -0.1, 0.06, 1.0)), hr(0.004))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.016))), (sx * 0.14, 0.06, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0174))), (sx * 0.14, 0.06, -1.0)), hr(0.002)), LASH)
         for k in range(3):                                                                    # crow's feet
             a = hp((sx * (0.111 + 0.003 * k), -0.132 + 0.005 * k, 1.684 - 0.011 * k))
             fd.sub(RoundCone(a, a + v3((sx * 0.024, 0.013, 0.006 - 0.008 * k)), hr(0.0021), hr(0.0014)), hr(0.003))
@@ -279,13 +279,26 @@ BAND_FACE = BAND_OFF + BAND_T / 2
 GOG_Z = 1.875                              # the goggles' strap round the bandana (design height, at the front)
 
 
+_HH = []
+
+
+def head_hull():
+    """His head as sculpted (the skin's head prims): the bandana and the goggles lie over it. (skull() sits up to 2 cm
+    inside the skin at the crown, where the many smooth unions swell it: a close shell over skull() sank into it there.)"""
+    if not _HH:
+        fd = Field("HeadHull")
+        head(fd)
+        _HH.append(fd)
+    return _HH[0]
+
+
 def _band_keep(P):
     Q = hinv(P)
     return (rim_z(Q) - Q[:, 2]) * F(HS)
 
 
 def bandana_outer():
-    sk = skull()
+    sk = head_hull()
     return Func(lambda P: sk.eval(P, margin=0.1) - F(BAND_FACE), HEAD_C - 0.4, HEAD_C + 0.4)
 
 
@@ -309,7 +322,7 @@ def bandana_field():
     """Teal-grey cloth (0, woven): tied over his head, creased where it pulls, a rolled edge round its hem, the knot at the
     back of his head and its two tails hanging over the nape."""
     fd = Field("Bandana")
-    sk = skull()
+    sk = head_hull()
     lo, hi = HEAD_C - 0.4, HEAD_C + 0.4
     def creases(P):
         Q = hinv(P)
@@ -340,7 +353,7 @@ def goggles_field():
     """Black rubber (12): two lens cups pushed up on the bandana's front (amber lenses 11 in gunmetal rims 9), the bridge
     between them, the strap round his head over the bandana; a gunmetal buckle on the strap."""
     fd = Field("Goggles")
-    sk = skull()
+    sk = head_hull()
     lo, hi = HEAD_C - 0.4, HEAD_C + 0.4
     def strap(P):
         Q = hinv(P)
@@ -1019,7 +1032,7 @@ KIT = dict(red=AMBER_P, white=ROBOT_WHITE, olive=TEAL, gunmetal=GUNMETAL, steel=
            rubber=(0.08, 0.08, 0.085), coyote=(0.9, 0.42, 0.1), black=(0.06, 0.06, 0.065), glass_hi=(1.0, 0.68, 0.25))
 GREY = {"base": GREY_HAIR, "hi": (0.84, 0.83, 0.8), "low": (0.36, 0.35, 0.33), "streak": (0.5, 0.49, 0.47), "tint": (0.7, 0.68, 0.64)}
 MAT_OVERRIDES = {
-    "Skin": ("skin", {"name": "HQ_NaSkin", "base": (0.74, 0.52, 0.4), "ruddy": (0.76, 0.42, 0.33), "lips": (0.6, 0.36, 0.3),
+    "Skin": ("skin", {"name": "HQ_NaSkin", "base": (0.8, 0.58, 0.46), "ruddy": (0.8, 0.47, 0.38), "lips": (0.6, 0.36, 0.3),
                       "brow": ((0.5, 0.49, 0.46), (0.74, 0.72, 0.68)),
                       "extra": ((LASH, (0.2, 0.17, 0.14), 0.5), (STUBBLE, (0.6, 0.56, 0.52), 0.6, 0.5),
                                 (SCAR, (0.88, 0.66, 0.58), 0.45, 0.85))}),
