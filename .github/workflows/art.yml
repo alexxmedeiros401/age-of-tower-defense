@@ -85,7 +85,7 @@ jobs:
           done
           [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
           echo "release $rid"
-          for a in $(gh api "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+          for a in $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
           done
           for i in 1 2 3 4; do
@@ -95,7 +95,7 @@ jobs:
               echo "attached $NAME.zip"; exit 0
             fi
             sleep 20
-            for a in $(gh api "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+            for a in $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
             done
           done
