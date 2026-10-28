@@ -7923,10 +7923,11 @@ func _drone_heal(did: int, radius: float) -> void:
 const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85],
 	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
-	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0]}        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
+	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0],
+	"zero": [Vector3(-0.800, 1.440, 0.662), 0.125, 0.8]}      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
-	if str(u.type) == "field_gun":
+	if str(u.type) in ["field_gun", "zero"]:
 		_proj_model(root, "shell", "")                       # (a pointed shell, flying nose first)
 	elif str(u.type) == "missile_launcher":
 		_proj_model(root, "missile", "")                     # (nose first, its motor burning, a smoke trail behind it)
@@ -8992,6 +8993,43 @@ func _nova_orbital(ev: Dictionary, hp: Vector3) -> void:
 					_land_hit(tid, 0.1))))
 
 
+# v0.9.86: Unit Zero's Overload (anim_zero.py): he turns to face front, hunches over his core while it swells and he
+# trembles, then throws his arms wide at frame 46 (SIGNAL): an amber blast bursts from his chest core and rolls out
+# over the radius in rings of amber fire; every robot it reaches is scorched. The damage waits for the blast.
+const ZERO_SIGNAL := 46
+const ZERO_CORE := Vector3(0.000, 1.338, 0.257)
+func _zero_overload(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var tn: Node3D = tower_nodes[hid]
+	tn.set_meta("clip_face", ["Ability", (tn.get_meta("yaw") as Node3D).rotation.y, 0.0, 0.3])
+	var at := float(ZERO_SIGNAL) / CLIP_FPS
+	var R := float(ev.get("radius", 5.5))
+	var hits: Array = ev.get("hits", [])
+	for tid in ev.get("ids", []):
+		_hold_hit(int(tid), at + 0.15)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void:
+		var core := hp + Vector3(0, 1.0, 0)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			core = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * ZERO_CORE
+		if _fx_room(2):
+			for s2 in [3.0, 1.6]:
+				var f := _mi(_fx_mesh("flash"), _flash_mat_amber(), self, core)
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.4, "kind": "flash", "s": s2})
+		var g := Vector3(core.x, 0.3, core.z)
+		_ring_fx(g, R, Color(1.0, 0.6, 0.15), 0.6)
+		_ring_fx(g, R * 0.6, Color(1.0, 0.85, 0.45), 0.45)
+		_ring_fx(g, R * 0.3, Color(1.0, 1.0, 0.8), 0.3)
+		_dust_fx(Vector3(core.x, 0.2, core.z), 8, 1.4)
+		shake = maxf(shake, 0.9)
+		_sfx("explosion", 0.0, 0.0, 0.5)
+		var spd := maxf(float(speed), 0.01)
+		for p in hits:
+			var pp := _v3(p, 0.0)
+			var d := Vector2(pp.x - g.x, pp.z - g.z).length()
+			_fx_after(d / 14.0 / spd, func() -> void: _fire_splash(pp, 0.6))))
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -9739,6 +9777,10 @@ func _ability_fx(ev: Dictionary) -> void:
 			if sim.hero != null and str(sim.hero.type) == "theron" and _hq_clips(sim.hero.id):
 				_theron_prophecy(ev, hp)                    # v0.9.46: the great eye opens over him, the sun burns them
 				_banner(aname, Color(1.0, 0.86, 0.45))
+				return
+			if sim.hero != null and str(sim.hero.type) == "zero" and _hq_clips(sim.hero.id):
+				_zero_overload(ev, hp)                      # v0.9.86: his core swells, then the blast goes out from his chest
+				_banner(aname, Color(1.0, 0.65, 0.2))
 				return
 			if sim.hero != null and str(sim.hero.type) == "marco" and _hq_clips(sim.hero.id):
 				_marco_keg(ev, hp)                          # v0.9.61: he heaves the lit keg and it goes up in a huge blast
