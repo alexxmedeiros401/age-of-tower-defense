@@ -1,0 +1,7 @@
+[
+ {
+  "name": "vega_p3",
+  "cmd": "O=$GITHUB_WORKSPACE/out/vega_p3; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character vega --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character vega --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Combat --range 0,0 --step 1 --spp 8 --res 500 --tx -0.1 --ty 0.0 --tz 1.1 --dist 5.4 --az 30 --el 28 > $O/poses_Combat.log 2>&1 || tail -20 $O/poses_Combat.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,0 --step 1 --spp 8 --res 500 --tx -0.1 --ty 0.0 --tz 1.1 --dist 5.4 --az 30 --el 28 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Ability --range 27,34 --step 7 --spp 8 --res 500 --tx -0.1 --ty 0.0 --tz 1.1 --dist 5.4 --az 30 --el 28 > $O/poses_Ability.log 2>&1 || tail -20 $O/poses_Ability.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/vega_p3"
+ }
+]
