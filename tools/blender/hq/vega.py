@@ -41,7 +41,7 @@ from musketeer import (J, hp, hr, hinv, HS, HEAD_C, HEAD_RAD, EYE_R, eye_c, smoo
                        foot, torso_prims, traps, neck_prim, deltoid, upper_arm_prims, forearm_prims, leg_prims, shin_prims,
                        _arm_seg_dist, _fgrad, torso_bones, TORSO_Z, TORSO, stubble_mask)
 import ken as kn
-from ken import hand, _on_face, _frame, _seg_dist, forearm_frame, eyes_field
+from ken import hand, _on_face, _frame, _seg_dist, forearm_frame
 from ada import ScaledField
 
 SKIN, NAIL, LIP, MOUTH, BROW, LASH, STUBBLE, SCAR, GLOVE = 0, 1, 2, 3, 4, 8, 9, 10, 11
@@ -59,60 +59,81 @@ Z = v3((0.0, 0.0, 1.0))
 
 
 # ======================================================================================= head
+EYE_SPAN = 0.071                          # (design) the eyes' half spacing: a touch wider than Ken's ...
+EYE_Y = -0.138                            # ... and set deeper in the head (they sit in their sockets, never bulging)
+EYE_R = hr(0.0335)                        # (a little smaller than the house eye: a grown man's, not a goggle)
+
+
+def eye_c(sx):
+    return hp((sx * EYE_SPAN, EYE_Y, 1.676))
+
+
+GAZE = lambda sx: (sx * 0.03, -1.0, -0.08)    # straight ahead (the shared painter's gaze converges a little: crossed)
+
+
+def eyes_field():
+    fd = Field("Eyes")
+    for sx in (-1, 1):
+        fd.add(Sphere(eye_c(sx), EYE_R))
+    return fd
+
+
 def head(fd):
-    """Ken's face (ken.py), reviewed and proven, made older and commanding: a broader square jaw, a strong chin with a
-    small cleft, cheekbones, a defined brow ridge; level brows lying on it (his left one lifted a little); clear open
-    eyes with smile creases at their outer corners; a straight nose; a closed mouth in a half-smile (his left corner drawn
-    up into the cheek); a shadow of stubble; the scar straight down through his right brow and on below the eye."""
+    """A lean, square, commanding face on Ken's skull (ken.py): a strong jaw with flat planes and defined corners, a
+    firm chin with a small cleft, clear cheekbones without padding under them; a single soft brow ridge with level dark
+    brows lying on it (his left one lifted a little); clear eyes set in their sockets under calm, level upper lids; a
+    straight strong nose; a firm closed mouth under a clear philtrum, a slight lift at his left corner; Ken's ears; a
+    shadow of stubble; a thin old scar straight down through his right brow and on below the eye."""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
-    fd.add(E((0, -0.05, 1.588), (0.133, 0.126, 0.122)), 0.07, SKIN)                          # a broad jaw
-    fd.add(E((0, -0.132, 1.501), (0.075, 0.063, 0.063)), 0.05, SKIN)                         # a strong chin
+    fd.add(E((0, -0.046, 1.584), (0.13, 0.122, 0.118)), 0.06, SKIN)                          # a lean, strong jaw
+    fd.add(E((0, -0.105, 1.69), (0.122, 0.062, 0.05)), 0.05, SKIN)                           # (the face's plane round the eyes)
+    fd.add(E((0, -0.134, 1.5), (0.069, 0.06, 0.058)), 0.04, SKIN)                            # a firm chin
     for sx in (-1, 1):
-        fd.add(S((sx * 0.108, -0.118, 1.64), 0.042), 0.05, SKIN)                              # cheekbones
-        fd.add(S((sx * 0.118, -0.044, 1.56), 0.045), 0.05, SKIN)                              # square jaw corners
-        fd.add(S((sx * 0.074, -0.14, 1.604), 0.024), 0.03, SKIN)                              # (cheeks, a little round: warm)
-        pts = [hp((sx * 0.15, -0.055, 1.744)), hp((sx * 0.114, -0.128, 1.752)), hp((sx * 0.06, -0.17, 1.75)), hp((0.0, -0.18, 1.748))]
-        fd.add(Chain(pts, [hr(0.009), hr(0.015), hr(0.017), hr(0.017)], k=hr(0.02)), hr(0.03), SKIN)   # a defined brow ridge
-    fd.sub(Ellipsoid(hp((0.0, -0.196, 1.488)), v3((0.004, 0.007, 0.012)) * HS), hr(0.005))     # the cleft in his chin
+        fd.add(E((sx * 0.112, -0.034, 1.54), (0.03, 0.05, 0.03), R=euler(0, 0, sx * 0.35)), 0.035, SKIN)   # the jaw's corners
+        fd.add(E((sx * 0.106, -0.126, 1.644), (0.038, 0.028, 0.022), R=euler(0, 0, sx * -0.45)), 0.035, SKIN)  # cheekbones
+        pts = [hp((sx * 0.148, -0.06, 1.742)), hp((sx * 0.112, -0.136, 1.748)), hp((sx * 0.058, -0.172, 1.747)), hp((0.0, -0.18, 1.744))]
+        fd.add(Chain(pts, [hr(0.006), hr(0.011), hr(0.0125), hr(0.0125)], k=hr(0.025)), hr(0.04), SKIN)  # a single, soft brow ridge
+    fd.sub(Ellipsoid(hp((0.0, -0.194, 1.484)), v3((0.0035, 0.006, 0.01)) * HS), hr(0.004))    # the small cleft in his chin
     fd.paint(Func(stubble_mask, HEAD_C - 0.4, HEAD_C + 0.2), STUBBLE)
-    # brows: strong and level, lying on the brow; his left one (+X) lifted a little (warm, wry; never knitted)
-    brows = {-1: [(-0.026, 1.779), (-0.064, 1.789), (-0.106, 1.789), (-0.148, 1.774)],
-             1: [(0.026, 1.782), (0.064, 1.795), (0.106, 1.797), (0.148, 1.783)]}
-    for sx in (-1, 1):
-        on = _on_face(fd, brows[sx], lift=0.001)
-        fd.add(Chain(on, [hr(0.0055), hr(0.0068), hr(0.006), hr(0.003)], k=hr(0.006)), hr(0.004), BROW)
-        fd.paint(Chain(on, [hr(0.0125), hr(0.0145), hr(0.013), hr(0.007)], k=hr(0.008)), BROW)
-    # eyes: open and clear (Ken's lids: the upper lids clear of the irises, the lower lids just under them); lashes;
-    # smile creases at their outer corners
+    # eyes: set in their sockets; thin lids; the upper lids in a calm level line just over the irises' tops
     for sx in (-1, 1):
         ec = eye_c(sx)
-        fd.sub(Sphere(ec, EYE_R + hr(0.006)), hr(0.012))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0058)), Plane(ec + v3((0, 0, hr(0.0212))), (sx * 0.16, 0.05, -1.0)), hr(0.004))
-        fd.add(up, hr(0.005), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0048)), Plane(ec + v3((0, 0, -hr(0.0168))), (sx * -0.3, 0.05, 1.0)), hr(0.004))
-        fd.add(lo, hr(0.006), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.009)), 0.0, hr(0.007)), Plane(ec + v3((0, 0, hr(0.0192))), (sx * 0.16, 0.05, -1.0)), hr(0.002)), LASH)
-        for k in range(2):
-            a = hp((sx * (0.11 + 0.004 * k), -0.13 + 0.006 * k, 1.682 - 0.013 * k))
-            fd.sub(RoundCone(a, a + v3((sx * 0.022, 0.012, 0.004 - 0.009 * k)), hr(0.0019), hr(0.0012)), hr(0.003))
-    # a straight nose, a firm tip
-    fd.add(RoundCone(hp((0, -0.18, 1.726)), hp((0, -0.226, 1.646)), hr(0.0125), hr(0.017)), hr(0.016), SKIN)
-    fd.add(S((0, -0.229, 1.633), 0.02), hr(0.013), SKIN)
+        fd.sub(Sphere(ec, EYE_R + hr(0.0022)), hr(0.006))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0038)), Plane(ec + v3((0, 0, hr(0.0142))), (sx * 0.06, 0.08, -1.0)), hr(0.003))
+        fd.add(up, hr(0.004), SKIN)
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0032)), Plane(ec + v3((0, 0, -hr(0.019))), (sx * -0.15, 0.08, 1.0)), hr(0.003))
+        fd.add(lo, hr(0.005), SKIN)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.006)), 0.0, hr(0.006)), Plane(ec + v3((0, 0, hr(0.0122))), (sx * 0.06, 0.08, -1.0)), hr(0.002)), LASH)
+        a = hp((sx * 0.112, -0.122, 1.676))                                                       # a crease at the outer corner
+        fd.sub(RoundCone(a, a + v3((sx * 0.018, 0.012, -0.004)), hr(0.0014), hr(0.001)), hr(0.002))
+    # brows: level dark bars lying on the brow ridge, his left one (+X) lifted a little at its outer end
+    brows = {-1: [(-0.03, 1.749), (-0.066, 1.755), (-0.104, 1.755), (-0.142, 1.745)],
+             1: [(0.03, 1.75), (0.066, 1.758), (0.104, 1.761), (0.142, 1.753)]}
     for sx in (-1, 1):
-        fd.add(S((sx * 0.025, -0.208, 1.618), 0.017), hr(0.01), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.013, -0.223, 1.606)), v3((0.008, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
-    # the closed mouth (the Musketeer's line on the same jaw): firm, his left corner (+X) drawn up into the cheek
-    slot = [hp((-0.05, -0.174, 1.552)), hp((-0.026, -0.194, 1.547)), hp((0, -0.199, 1.547)), hp((0.027, -0.193, 1.551)),
-            hp((0.053, -0.171, 1.563))]
-    fd.sub(Chain(slot, [hr(0.0022), hr(0.003), hr(0.0034), hr(0.003), hr(0.0024)], k=hr(0.003)), hr(0.003))
-    fd.paint(Chain(slot, [hr(0.0038), hr(0.0044), hr(0.0044), hr(0.0044), hr(0.004)], k=hr(0.004)), MOUTH)
-    up_lip = [(-0.046, -0.174, 1.557), (-0.024, -0.191, 1.553), (0.0, -0.196, 1.554), (0.025, -0.19, 1.557), (0.048, -0.172, 1.567)]
-    lo_lip = [(-0.04, -0.174, 1.541), (-0.021, -0.19, 1.534), (0, -0.194, 1.532), (0.022, -0.189, 1.535), (0.042, -0.174, 1.546)]
-    fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0045), hr(0.005), hr(0.0045), hr(0.003)], k=hr(0.005)), hr(0.007), LIP)
-    fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0062), hr(0.007), hr(0.0062), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    fd.add(S((0.066, -0.158, 1.578), 0.011), hr(0.018), SKIN)                                   # the smile's cheek
+        on = _on_face(fd, brows[sx], lift=0.001)
+        fd.add(Chain(on, [hr(0.0058), hr(0.0068), hr(0.0062), hr(0.0036)], k=hr(0.005)), hr(0.004), BROW)
+        fd.paint(Chain(on, [hr(0.0135), hr(0.0155), hr(0.0145), hr(0.009)], k=hr(0.006)), BROW)
+    # a straight, strong nose: a broad bridge running into a firm tip (no ball), the wings
+    fd.add(RoundCone(hp((0, -0.174, 1.722)), hp((0, -0.204, 1.64)), hr(0.0145), hr(0.0185)), hr(0.016), SKIN)
+    fd.add(E((0, -0.208, 1.629), (0.019, 0.016, 0.016)), hr(0.014), SKIN)
+    for sx in (-1, 1):
+        fd.add(S((sx * 0.023, -0.192, 1.618), 0.0155), hr(0.01), SKIN)
+        fd.sub(Ellipsoid(hp((sx * 0.012, -0.204, 1.607)), v3((0.0065, 0.008, 0.0042)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+    # the philtrum: a shallow groove from the nose to the lip
+    ph = _on_face(fd, [(0.0, 1.603), (0.0, 1.586), (0.0, 1.57)], lift=-0.0012)
+    fd.sub(Chain(ph, [hr(0.0035), hr(0.0042), hr(0.005)], k=hr(0.003)), hr(0.004))
+    # the mouth: a firm closed line, a slight lift at his left corner (+X); thin lips lying on the face
+    slot = _on_face(fd, [(-0.048, 1.553), (-0.024, 1.55), (0.0, 1.55), (0.025, 1.552), (0.048, 1.559)], lift=-0.0015)
+    fd.sub(Chain(slot, [hr(0.0016), hr(0.0022), hr(0.0024), hr(0.0022), hr(0.0018)], k=hr(0.002)), hr(0.002))
+    fd.paint(Chain(slot, [hr(0.0032), hr(0.0038), hr(0.004), hr(0.0038), hr(0.0034)], k=hr(0.003)), MOUTH)
+    up_lip = _on_face(fd, [(-0.042, 1.557), (-0.02, 1.557), (0.0, 1.558), (0.021, 1.559), (0.043, 1.563)], lift=0.0008)
+    lo_lip = _on_face(fd, [(-0.036, 1.545), (-0.018, 1.541), (0.0, 1.54), (0.019, 1.542), (0.038, 1.549)], lift=0.0008)
+    fd.add(Chain(up_lip, [hr(0.0022), hr(0.0034), hr(0.0036), hr(0.0034), hr(0.0022)], k=hr(0.004)), hr(0.005), LIP)
+    fd.add(Chain(lo_lip, [hr(0.0028), hr(0.0044), hr(0.0048), hr(0.0044), hr(0.0028)], k=hr(0.005)), hr(0.006), LIP)
+    c = _on_face(fd, [(0.056, 1.562)], lift=-0.0006)[0]
+    fd.sub(Sphere(c, hr(0.0026)), hr(0.003))                                                   # (the lifted corner's dimple)
     # ears: a rim, a hollow, a lobe (Ken's)
     for sx in (-1, 1):
         R = euler(0, sx * 0.25, sx * -0.35)
@@ -121,12 +142,47 @@ def head(fd):
         o = norm(R @ v3((sx, 0, 0)))
         fd.sub(Ellipsoid(c + o * hr(0.016) + v3((0, -0.004, -0.004)), v3((0.008, 0.022, 0.028)) * HS, R=R), hr(0.006))
         fd.add(Ellipsoid(c + v3((0, 0.002, -0.042)) + o * hr(0.004), v3((0.012, 0.016, 0.016)) * HS, R=R), hr(0.01), SKIN)
-    # the scar: a pale, slightly sunken line straight down through his right brow (splitting it) and on below the eye
-    for seg_ in ([(-0.082, 1.806), (-0.084, 1.784), (-0.086, 1.762), (-0.088, 1.738)],
-                 [(-0.09, 1.642), (-0.093, 1.622), (-0.097, 1.6), (-0.101, 1.582)]):
+    # the scar: a thin line straight down through his right brow (splitting it) and on below the eye, a shade lighter
+    for seg_ in ([(-0.083, 1.79), (-0.085, 1.771), (-0.087, 1.752), (-0.089, 1.733)],
+                 [(-0.092, 1.64), (-0.094, 1.622), (-0.097, 1.604), (-0.1, 1.588)]):
         sc = _on_face(fd, seg_, lift=0.0)
-        fd.sub(Chain(sc, [hr(0.0016), hr(0.0024), hr(0.0022), hr(0.0014)], k=hr(0.002)), hr(0.002))
-        fd.paint(Chain(sc, [hr(0.0065), hr(0.0085), hr(0.008), hr(0.005)], k=hr(0.004)), SCAR)
+        fd.paint(Chain(sc, [hr(0.0022), hr(0.0028), hr(0.0026), hr(0.0016)], k=hr(0.002)), SCAR)
+
+
+def paint_extra(hi):
+    """Repaint the eyes with his own gaze (straight ahead): prep.paint_eyes's gaze turns the irises in a little."""
+    import math as _m
+    from mats import lin
+    if "Eyes" not in hi:
+        return
+    me = hi["Eyes"].data
+    V = np.zeros(len(me.vertices) * 3, np.float32)
+    me.vertices.foreach_get("co", V)
+    V = V.reshape(-1, 3).astype(np.float64)
+    io, ii = IRIS
+    sclera, iris_o, iris_i, pupil, hl = lin((0.95, 0.93, 0.88)), lin(io), lin(ii), lin((0.03, 0.02, 0.02)), lin((1, 1, 1))
+    cols = np.zeros((len(V), 4), np.float32)
+    for i, p in enumerate(V):
+        sx = 1 if p[0] > 0 else -1
+        v = norm(p - eye_c(sx))
+        g = norm(v3(GAZE(sx)))
+        ang = _m.degrees(_m.acos(max(-1.0, min(1.0, float(v @ g)))))
+        hdir = axis_angle(norm(np.cross(g, (0.6, 0, 1.0))), _m.radians(-13)) @ g
+        hang = _m.degrees(_m.acos(max(-1.0, min(1.0, float(v @ hdir)))))
+        if hang < 5.0:
+            col = hl
+        elif ang < 12.0:
+            col = pupil
+        elif ang < 30.0:
+            t = (ang - 12.0) / 18.0
+            col = tuple(iris_i[k] * (1 - t) + iris_o[k] * t for k in range(4))
+        elif ang < 33.0:
+            col = tuple(x * 0.45 for x in iris_o[:3]) + (1,)
+        else:
+            col = sclera
+        cols[i] = col
+    a = me.color_attributes.get("eyecol") or me.color_attributes.new("eyecol", "FLOAT_COLOR", "POINT")
+    a.data.foreach_set("color", cols.ravel())
 
 
 def body_parts(fd):
@@ -155,7 +211,7 @@ def teeth_field():
     """His teeth, behind his closed lips."""
     fd = Field("Teeth")
     for sx in (-1, 1):
-        fd.add(RoundBox(hp((sx * 0.009 + 0.003, -0.178, 1.551)), v3((0.008, 0.006, 0.006)) * HS, hr(0.003)), 0.0)
+        fd.add(RoundBox(hp((sx * 0.009 + 0.003, -0.152, 1.551)), v3((0.008, 0.006, 0.006)) * HS, hr(0.003)), 0.0)   # (well behind his closed lips)
     return fd
 
 
@@ -936,11 +992,11 @@ MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_VegaSkin", "base": (0.8, 0.6, 0.48), "ruddy": (0.84, 0.5, 0.42), "lips": (0.66, 0.4, 0.36),
                       "brow": ((0.11, 0.1, 0.1), (0.3, 0.29, 0.29)),
                       "extra": ((LASH, (0.07, 0.06, 0.06), 0.5), (STUBBLE, (0.38, 0.34, 0.33), 0.55, 0.38),
-                                (SCAR, (0.95, 0.76, 0.7), 0.4), (GLOVE, BLACK, 0.75))}),
+                                (SCAR, (0.88, 0.66, 0.56), 0.45), (GLOVE, BLACK, 0.75))}),
     "Hair": ("hair", {"name": "HQ_VegaHair", "base": (0.12, 0.11, 0.11), "hi": (0.36, 0.35, 0.36), "low": (0.04, 0.035, 0.035),
                       "streak": (0.08, 0.075, 0.075), "tint": (0.16, 0.15, 0.15), "fleck": (0.62, 0.62, 0.64), "fleck_amt": 0.45}),
-    "Temples": ("hair", {"name": "HQ_VegaTemples", "base": (0.48, 0.48, 0.5), "hi": (0.72, 0.72, 0.74), "low": (0.28, 0.28, 0.3),
-                         "streak": (0.38, 0.38, 0.4), "tint": (0.52, 0.52, 0.54)}),
+    "Temples": ("hair", {"name": "HQ_VegaTemples", "base": (0.26, 0.255, 0.26), "hi": (0.52, 0.52, 0.54), "low": (0.12, 0.115, 0.12),
+                         "streak": (0.2, 0.195, 0.2), "tint": (0.3, 0.3, 0.31), "fleck": (0.78, 0.78, 0.8), "fleck_amt": 0.75}),
     "Under": ("uniform", {"name": "HQ_VegaUnder", "base": (0.1, 0.1, 0.11)}),
     "Armour": ("modern_kit", dict(KIT, name="HQ_VegaArmour", base=GUNMETAL, weave=0.0, gloss=0.45)),
     "Coat": ("modern_kit", dict(KIT, name="HQ_VegaCoat", base=CHARCOAL, weave=1.0)),
