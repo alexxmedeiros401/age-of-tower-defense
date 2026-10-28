@@ -4350,7 +4350,7 @@
   "name": "Titan Mech",
   "lineage": "Brute",
   "era": "The Data Center",
-  "model_scale": 0.56,
+  "model_scale": 0.6,
   "swing": [
    -0.5,
    1.2

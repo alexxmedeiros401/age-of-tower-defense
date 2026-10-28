@@ -3774,7 +3774,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2, "firewall": 10}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2, "firewall": 10, "titan_mech": 9}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -5396,7 +5396,7 @@ func _handle_events() -> void:
 					                                            # and the Legionary's gladius thrust round his shield, too)
 				elif u2 != null and u2.type in ["steam_brawler", "jim"] and _hq_clips(ev.id):
 					_brawler_punch(u2, ev.get("targets", []))   # v0.9.64: the piston-driven fist rams out in a burst of steam
-				elif u2 != null and u2.type == "mech_brawler" and _hq_clips(ev.id):
+				elif u2 != null and u2.type in ["mech_brawler", "titan_mech"] and _hq_clips(ev.id):
 					_mech_slam(u2, ev.get("targets", []))       # v0.9.74: both energy fists hammer the deck: a violet shockwave
 				elif u2 != null and u2.type == "flamethrower" and _hq_clips(ev.id):
 					_flame_jet(u2, ev.get("targets", []))       # v0.9.69: a roaring jet of fire swept across in front of him
@@ -5424,8 +5424,10 @@ func _handle_events() -> void:
 					elif u2.type == "flamethrower":
 						ss = "flame"
 						slam_col = Color(1, 0.5, 0.1)
-					elif u2.type in ["mech_brawler", "titan_mech"]:
+					elif u2.type == "mech_brawler":
 						slam_col = Color(0.9, 0.4, 1.0)
+					elif u2.type == "titan_mech":
+						slam_col = Color(1.0, 0.62, 0.15)
 					_sfx(ss, -4.0, 0.12, 0.05)
 					if u2.type == "flamethrower" and not _hq_clips(ev.id):
 						_dust_fx(_v3(u2.pos + u2.facing * 1.2, 0.5), 4, 0.9)
@@ -6755,13 +6757,17 @@ func _brawler_punch(u: Dictionary, targets: Array) -> void:
 # v0.9.74: the Mech Brawler (anim_mech_brawler.py): it rears up, swings both fists over its head and hammers its glowing
 # knuckles into the ground before it on Attack frame 8 (BLOW): a violet flash at each fist, a shockwave of violet light
 # rolling out over its reach with dust and grit, and every robot it hits throws sparks. The hits wait for the blow.
+# v0.9.89: the Titan Mech (anim_titan_mech.py) throws a sweeping right haymaker instead: its welded knuckle bar strikes
+# across the front at a robot's chest height on frame 9: an amber flash at the knuckles, an amber shockwave over its reach.
 const MECH_FISTS := [Vector3(-0.294, 0.078, 0.892), Vector3(0.294, 0.078, 0.892)]
+const TITAN_KNUCKLE := [Vector3(0.020, 0.879, 0.969)]
 func _mech_slam(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var tn: Node3D = tower_nodes[uid]
 	var clip := str(tn.get_meta("clip_attack", "Attack"))
 	var rate := maxf(float(tn.get_meta("throw_rate", 1.0)), 0.01)
-	var at := float(ATTACK_FRAME.mech_brawler) / CLIP_FPS
+	var titan := str(u.type) == "titan_mech"
+	var at := float(ATTACK_FRAME[str(u.type)]) / CLIP_FPS
 	var R := float(u.stats.get("range", 2.5))
 	var ids := []
 	for tid in targets:
@@ -6773,16 +6779,20 @@ func _mech_slam(u: Dictionary, targets: Array) -> void:
 		var c := _v3(u.pos, 0.1)
 		if tower_nodes.has(uid) and is_instance_valid(tower_nodes[uid]) and (tower_nodes[uid] as Node3D).has_meta("yaw"):
 			var yt := ((tower_nodes[uid] as Node3D).get_meta("yaw") as Node3D).global_transform
-			for fp in MECH_FISTS:
+			for fp in (TITAN_KNUCKLE if titan else MECH_FISTS):
 				var p: Vector3 = yt * (fp as Vector3)
 				if _fx_room(1):
-					var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, p + Vector3(0, 0.15, 0))
+					var f := _mi(_fx_mesh("flash"), _flash_mat_amber() if titan else _atk_mat("violet_flash"), self, p + Vector3(0, 0.15, 0))
 					f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-					effects.append({"node": f, "t": 0.0, "life": 0.2, "kind": "flash", "s": 0.9})
+					effects.append({"node": f, "t": 0.0, "life": 0.2, "kind": "flash", "s": 1.1 if titan else 0.9})
 			c = yt * Vector3(0.0, 0.078, 0.892)
 			c.y = 0.1
-		_ring_fx(c + Vector3(0, 0.15, 0), R, Color(0.8, 0.3, 1.0), 0.45)
-		_ring_fx(c + Vector3(0, 0.15, 0), R * 0.55, Color(0.95, 0.7, 1.0), 0.35)
+		if titan:
+			_ring_fx(c + Vector3(0, 0.15, 0), R, Color(1.0, 0.62, 0.15), 0.45)
+			_ring_fx(c + Vector3(0, 0.15, 0), R * 0.55, Color(1.0, 0.85, 0.5), 0.35)
+		else:
+			_ring_fx(c + Vector3(0, 0.15, 0), R, Color(0.8, 0.3, 1.0), 0.45)
+			_ring_fx(c + Vector3(0, 0.15, 0), R * 0.55, Color(0.95, 0.7, 1.0), 0.35)
 		_dust_fx(c + Vector3(0, 0.15, 0), 6, 0.9, Color(0.6, 0.58, 0.62, 0.7))
 		shake = maxf(shake, 0.25)
 		_sfx("hammer_hit", -6.0, 0.1, 0.1)
