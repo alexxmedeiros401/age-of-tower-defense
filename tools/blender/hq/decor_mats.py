@@ -1712,9 +1712,9 @@ def frost(name="DK_Frost"):
     return g.finish(c, 0.55, g.bump(g.math("ADD", g.noise(p, 50.0, 3.0), g.math("MULTIPLY", fl, 0.5)), 0.35, 0.003))
 
 
-def cryo(name="DK_Cryo", base=(0.86, 0.88, 0.9)):
+def cryo(name="DK_Cryo", base=(0.86, 0.88, 0.9), col5=None, col8=(0.1, 0.5, 0.26)):
     """A cryogenic tank's white steel: frost creeping up from its foot and round its fittings in patches; label 6
-    steel bands, 7 the dark skirt, 8 the placard's green, 9 white."""
+    steel bands, 7 the dark skirt, 8 the placard's green (col8), 9 white; col5: a paint for label 5 (bands)."""
     g = new(name)
     p = g.obj()
     c = _paint_col(g, p, base, 0.25)
@@ -1723,7 +1723,7 @@ def cryo(name="DK_Cryo", base=(0.86, 0.88, 0.9)):
     low = g.math("SUBTRACT", 1.0, g.smooth(g.math("ADD", sep.outputs["Z"], g.math("MULTIPLY", g.noise(p, 3.0, 3.0), 0.5)), 0.4, 0.9))
     fr = g.mix(g.noise(p, 30.0, 3.0), g.rgb((0.84, 0.9, 0.97)), g.rgb((0.98, 0.99, 1.0)))
     c = g.mix(g.math("MULTIPLY", low, 0.85), c, fr)
-    for k, col in ((7, (0.12, 0.12, 0.13)), (8, (0.1, 0.5, 0.26)), (9, (0.95, 0.95, 0.94))):
+    for k, col in ((7, (0.12, 0.12, 0.13)), (8, col8), (9, (0.95, 0.95, 0.94))) + (((5, col5),) if col5 is not None else ()):
         c = g.mix(g.reg(k), c, g.rgb(col))
     ch = g.mix(g.math("MULTIPLY", g.smooth(g.geo("Pointiness"), 0.5, 0.56), 0.8), g.rgb((0.6, 0.62, 0.66)), g.rgb((0.95, 0.96, 1.0)))
     c = g.mix(g.reg(6), c, ch)
@@ -1756,3 +1756,36 @@ def asphalt(name="DK_Asphalt", base=(0.13, 0.13, 0.15)):
     c = g.mix(g.reg(8), c, g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.72, 0.08)), g.rgb((0.05, 0.05, 0.05))))
     c = g.mix(g.reg(9), c, g.rgb((0.9, 0.9, 0.88)))
     return g.finish(c, 0.3, g.bump(g.noise(p, 80.0, 2.0), 0.15, 0.002))
+
+
+# ------------------------------------------------------------------------------------------------ Data Center
+def deck_plate(name="DK_Deck", base=(0.4, 0.42, 0.45), pitch=0.05, frost=0.0):
+    """Steel deck plate (tread plate): raised lozenges in alternating rows, lighter where boots wore them, grime in
+    the recesses; frost: rime gathered in the hollows and over top faces (0 to 1); label 5 yellow walkway paint, 7
+    dark rubber or grime, 8 hazard stripes, 9 white line paint."""
+    g = new(name)
+    p = g.obj()
+    sep = g.node("ShaderNodeSeparateXYZ")
+    g.put(sep.inputs[0], p)
+    u = g.math("FRACT", g.math("DIVIDE", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), pitch))
+    v = g.math("FRACT", g.math("DIVIDE", g.math("SUBTRACT", sep.outputs["X"], sep.outputs["Y"]), pitch))
+    lz1 = g.smooth(g.math("ADD", g.math("MULTIPLY", g.math("ABSOLUTE", g.math("SUBTRACT", u, 0.5)), 3.2), g.math("ABSOLUTE", g.math("SUBTRACT", v, 0.5))), 0.55, 0.42)
+    lz2 = g.smooth(g.math("ADD", g.math("MULTIPLY", g.math("ABSOLUTE", g.math("SUBTRACT", v, 0.5)), 3.2), g.math("ABSOLUTE", g.math("SUBTRACT", u, 0.5))), 0.55, 0.42)
+    row = g.math("GREATER_THAN", g.math("FRACT", g.math("DIVIDE", sep.outputs["X"], pitch * 1.414)), 0.5)
+    lz = g.math("ADD", g.math("MULTIPLY", lz1, row), g.math("MULTIPLY", lz2, g.math("SUBTRACT", 1.0, row)))
+    c = g.mix(g.remap(g.noise(p, 3.0, 3.0), 0.3, 0.7, 0.0, 1.0), g.rgb(tuple(x * 0.9 for x in base)), g.rgb(tuple(min(1.0, x * 1.1) for x in base)))
+    c = g.mix(g.math("MULTIPLY", lz, 0.45), c, g.rgb(tuple(min(1.0, x * 1.45 + 0.05) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(g.noise(p, 12.0, 3.0), 0.58, 0.72), 0.4), c, g.rgb(tuple(x * 0.6 for x in base)))
+    pt = g.geo("Pointiness")
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.51, 0.57), 0.5), c, g.rgb(tuple(min(1.0, x * 1.6 + 0.1) for x in base)))
+    c = g.mix(g.math("MULTIPLY", g.smooth(pt, 0.48, 0.43), 0.5), c, g.rgb(tuple(x * 0.4 for x in base)))
+    if frost > 0:
+        fr = g.math("MULTIPLY", g.math("MULTIPLY", g.math("SUBTRACT", 1.0, lz), _up(g, 0.5, 0.85)), g.smooth(g.noise(p, 4.0, 3.0), 0.4, 0.6))
+        c = g.mix(g.math("MULTIPLY", fr, frost), c, g.rgb((0.88, 0.93, 0.98)))
+    c = g.mix(g.reg(5), c, _paint_col(g, p, (0.92, 0.72, 0.12), 0.2))
+    c = g.mix(g.reg(7), c, g.rgb((0.08, 0.08, 0.085)))
+    diag = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("ADD", sep.outputs["X"], sep.outputs["Y"]), sep.outputs["Z"]), 0.16))
+    c = g.mix(g.reg(8), c, g.mix(g.smooth(diag, 0.47, 0.53), g.rgb((0.95, 0.72, 0.08)), g.rgb((0.06, 0.06, 0.06))))
+    c = g.mix(g.reg(9), c, g.rgb((0.92, 0.92, 0.9)))
+    return g.finish(c, g.mixf(lz, 0.55, 0.3), g.bump(lz, 0.35, 0.003))
+

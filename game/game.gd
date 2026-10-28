@@ -426,7 +426,7 @@ func _build_world() -> void:
 		if not ((base_id == "hillfort" and _iron_city_kit(end_pt)) or (base_id == "temple" and _classical_city_kit(end_pt))
 				or (base_id == "castle" and _medieval_city_kit(end_pt)) or (base_id == "fort" and _gunpowder_city_kit(end_pt))
 				or (base_id == "factory" and _industrial_city_kit(end_pt)) or (base_id == "bunker" and _modern_city_kit(end_pt))
-				or (base_id == "lab" and _digital_city_kit(end_pt))):
+				or (base_id == "lab" and _digital_city_kit(end_pt)) or (base_id == "camp" and _datacenter_city_kit(end_pt))):
 			EraDecor.build_base(self, base_id, end_pt)
 	elif _v2_kit(str(map.get("theme", "meadow"))):
 		_build_cave_v2(end_pt)
@@ -1632,6 +1632,54 @@ func _digital_city_kit(p: Vector2) -> bool:
 	return true
 
 
+## v0.9.88: the Resistance's forward camp at the end of every Data Center road (decor_datacenter.py camp_city)
+func _datacenter_city_kit(p: Vector2) -> bool:
+	var path := "res://assets/decor/datacenter_city.glb"
+	if not _style2() or not ResourceLoader.exists(path):
+		return false
+	var src := _inst(path)
+	var mi := src.find_child("City", true, false) as MeshInstance3D
+	var mesh: Mesh = _kit_outline(mi.mesh, false) if mi != null else null
+	src.free()
+	if mesh == null:
+		return false
+	var n := Node3D.new()
+	n.position = _v3(p, 0)
+	add_child(n)
+	var body := MeshInstance3D.new()
+	body.mesh = mesh
+	n.add_child(body)
+	for fp in [Vector3(-0.45, 0.31, 1.42), Vector3(-0.45, 0.31, -1.42), Vector3(2.55, 0.31, -1.45)]:   # the burn barrels
+		_campfire(n, fp, 1.0, 0.3)
+	_smoke_column(n.position + Vector3(1.40, 1.30, 3.20))            # the generator's exhaust
+	if Progress.gfx_level() < 2:
+		for fl in [[Vector3(0.69, 2.08, 2.29), Vector3(-0.8, -0.5, -0.3)], [Vector3(0.69, 2.08, 2.01), Vector3(-0.8, -0.5, -0.3)],
+				[Vector3(0.69, 2.08, -2.01), Vector3(-0.8, -0.5, 0.3)], [Vector3(0.69, 2.08, -2.29), Vector3(-0.8, -0.5, 0.3)]]:
+			var sl := SpotLight3D.new()
+			sl.light_color = Color(1.0, 0.82, 0.55)
+			sl.light_energy = 2.0
+			sl.spot_range = 6.0
+			sl.spot_angle = 35.0
+			sl.position = fl[0]
+			n.add_child(sl)
+			sl.look_at(n.global_transform * (fl[0] + fl[1]), Vector3.UP)
+		for ol in [[Vector3(0.0, 2.5, 1.2), 0.9, 3.0], [Vector3(0.0, 2.5, -1.2), 0.9, 3.0], [Vector3(-0.24, 2.05, 0.0), 1.1, 3.0],
+				[Vector3(4.85, 4.25, 3.10), 1.0, 3.5]]:
+			var o := OmniLight3D.new()
+			o.light_color = Color(1.0, 0.62, 0.15)
+			o.light_energy = float(ol[1])
+			o.omni_range = float(ol[2])
+			o.position = ol[0]
+			n.add_child(o)
+		var dl := OmniLight3D.new()                                  # the command post's lit doorway
+		dl.light_color = Color(1.0, 0.8, 0.5)
+		dl.light_energy = 0.8
+		dl.omni_range = 2.5
+		dl.position = Vector3(3.65, 0.6, 2.5)
+		n.add_child(dl)
+	return true
+
+
 ## A thin column of smoke rising from pos (a roundhouse's thatch, a furnace's mouth, a charcoal clamp's vents).
 func _smoke_column(pos: Vector3) -> void:
 	if Progress.gfx_level() >= 2:
@@ -2073,6 +2121,65 @@ const DECOR_V2 := {
 			["NoodleBar", Vector2(13.4, 4.6), 0.85, 1.2, {"yaw": -PI * 0.5, "force": true}], ["Planter", Vector2(13.0, 2.6), 0.9, 0.5, {"force": true}],
 			["FoodCart", Vector2(-1.8, -6.6), 0.9, 0.8, {"yaw": 0.0, "force": true}], ["Vending", Vector2(0.3, -6.8), 0.9, 0.6, {"yaw": 0.0, "force": true}],
 			["Planter", Vector2(1.3, -6.2), 0.9, 0.5, {"force": true}]]},
+	# v0.9.88: the Data Center kits (decor_datacenter.py)
+	"cooling": {"kit": "datacenter_decor_cooling", "count": 84, "ambient": true,
+		"scatter": [["Pipe_A", 8], ["Pipe_B", 6], ["Canisters", 7], ["Ice_A", 10], ["Ice_B", 12], ["Pump", 5], ["Barrier", 6], ["Crates", 7], ["Cables", 6]],
+		"cover": [["Slick", 1]], "cover_n": 24, "cover_s": 0.9,
+		"marks": [["CoolTower", Vector2(-4.0, -11.1), 0.9, 1.8, {"yaw": 0.0}], ["Exchanger", Vector2(1.5, -11.0), 0.85, 2.0, {"yaw": 0.0}],
+			["PumpStation", Vector2(12.0, -10.9), 0.85, 1.7, {"yaw": 0.0}], ["Chiller_A", Vector2(-10.5, -10.8), 0.9, 1.6, {"yaw": 0.0}],
+			["Tank_Ice", Vector2(-16.2, -10.4), 0.8, 1.3], ["IceBig_B", Vector2(15.8, -10.4), 0.75, 1.3],
+			["FrozenBot", Vector2(-4.5, 10.8), 0.95, 1.3, {"yaw": PI}], ["Exchanger", Vector2(4.5, 11.0), 0.8, 1.9, {"yaw": PI}],
+			["Chiller_B", Vector2(10.5, 10.8), 0.9, 1.6, {"yaw": PI}], ["IceBig_A", Vector2(15.6, 10.6), 0.8, 1.4],
+			["Ice_A", Vector2(-8.5, 10.4), 1.0, 0.6], ["IceBig_A", Vector2(-16.4, 10.6), 0.75, 1.3],
+			["CoolTower", Vector2(-17.4, 1.0), 0.8, 1.6, {"yaw": PI * 0.5}], ["PumpStation", Vector2(-17.3, 6.0), 0.8, 1.6, {"yaw": PI * 0.5}],
+			["Tank_Ice", Vector2(-17.3, -9.0), 0.75, 1.2, {"yaw": PI * 0.5}],
+			# the ground's valve-station grates
+			["Pump", Vector2(6.0, 2.1), 1.0, 0.9, {"yaw": 0.0, "force": true}], ["Pipe_B", Vector2(13.8, 5.7), 0.95, 0.9, {"yaw": 0.0, "force": true}],
+			["Canisters", Vector2(-10.8, -2.7), 1.1, 0.8, {"yaw": 0.0, "force": true}]]},
+	"server": {"kit": "datacenter_decor_server", "count": 84, "ambient": true,
+		"scatter": [["Rack_A", 12], ["Rack_B", 8], ["Tray", 7], ["Cart", 6], ["Fan", 5], ["Drone", 5], ["Toppled", 4]],
+		"cover": [["Vent", 1]], "cover_n": 30, "cover_s": 1.0,
+		"marks": [["Mainframe", Vector2(-1.0, -11.3), 0.9, 2.1, {"yaw": 0.0}], ["Duct", Vector2(6.0, -10.9), 0.9, 1.3],
+			["Breach", Vector2(-8.5, -11.0), 0.9, 1.6, {"yaw": 0.0}], ["Workstation", Vector2(11.5, -10.6), 0.95, 1.2, {"yaw": 0.0}],
+			["Rack_B", Vector2(-15.0, -10.6), 1.0, 1.0, {"yaw": 0.0}], ["Duct", Vector2(15.8, -10.6), 0.8, 1.2],
+			["Duct", Vector2(-6.0, 10.9), 0.85, 1.3], ["Workstation", Vector2(1.0, 10.6), 0.95, 1.2, {"yaw": PI}],
+			["Breach", Vector2(7.5, 10.9), 0.85, 1.6, {"yaw": PI}], ["Rack_B", Vector2(13.0, 10.5), 1.0, 1.0, {"yaw": PI}],
+			["Toppled", Vector2(-12.0, 10.4), 1.0, 1.0, {"yaw": 0.3}], ["Rack_A", Vector2(-15.5, 10.5), 1.0, 0.9, {"yaw": PI}],
+			["Duct", Vector2(-17.4, -1.0), 0.85, 1.2], ["Mainframe", Vector2(-17.6, 7.5), 0.7, 1.6, {"yaw": PI * 0.5}],
+			# the ground's open bays (racks pulled out)
+			["Toppled", Vector2(12.6, 7.5), 0.8, 1.0, {"yaw": 0.0, "force": true}], ["Cart", Vector2(5.2, 7.6), 1.0, 0.6, {"yaw": 0.4, "force": true}],
+			["Drone", Vector2(-12.2, -7.4), 1.0, 0.7, {"yaw": 0.3, "force": true}],
+			# racks on the ground's rack-row strips, off the roads (fronts: yaw 0 = +z, PI = -z)
+			["Rack_A", Vector2(-9.60, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_B", Vector2(-8.10, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(-6.60, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_B", Vector2(-5.10, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(-3.60, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_B", Vector2(-2.10, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(-0.60, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_B", Vector2(0.90, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(2.40, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_B", Vector2(3.90, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(5.40, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_A", Vector2(6.60, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(7.80, -7.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(-15.60, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(-14.10, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-12.60, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(-11.10, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-9.60, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(-8.10, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-6.60, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(-5.10, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-3.60, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_A", Vector2(-2.40, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-1.20, 9.00), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(10.20, 4.20), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(11.70, 4.20), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(12.60, 1.80), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(6.00, -0.60), 1.0, 0.7, {"yaw": 0.0, "force": true}], ["Rack_B", Vector2(7.50, -0.60), 1.0, 0.7, {"yaw": 0.0, "force": true}],
+			["Rack_A", Vector2(-9.60, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_A", Vector2(-8.40, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}],
+			["Rack_A", Vector2(-7.20, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}]]},
+	"core": {"kit": "datacenter_decor_core", "count": 84, "ambient": true,
+		"scatter": [["Conduit", 8], ["Spire", 9], ["CableRun", 7], ["Debris_A", 8], ["Debris_B", 8], ["RobotParts", 5], ["Crystals", 9]],
+		"cover": [["Scorch", 1]], "cover_n": 18, "cover_s": 0.9,
+		"marks": [["DataSpire", Vector2(-2.0, -11.2), 0.9, 1.5], ["Giant", Vector2(4.0, -10.9), 0.85, 2.6, {"yaw": 0.0}],
+			["CableColumn", Vector2(-9.0, -11.0), 0.9, 0.9], ["Tank", Vector2(14.0, -10.6), 0.85, 2.2, {"yaw": 0.3}],
+			["CableColumn", Vector2(-16.0, -10.8), 0.85, 0.9], ["DataSpire", Vector2(-17.4, 1.5), 0.8, 1.3],
+			["Tank", Vector2(-13.0, 10.6), 0.85, 2.2, {"yaw": PI + 0.2}], ["CableColumn", Vector2(0.5, 11.0), 0.9, 0.9],
+			["Wreck_Bot", Vector2(5.5, 10.6), 0.8, 1.6, {"yaw": PI}], ["DataSpire", Vector2(10.5, 11.2), 0.8, 1.3],
+			["Pillar_B", Vector2(-17.3, 7.0), 0.85, 1.0], ["Wreck_Car", Vector2(-17.2, -3.0), 0.8, 1.5, {"yaw": PI * 0.5}],
+			# the ground's hex plazas (the rift gate plates stay clear)
+			["Spire", Vector2(-8.4, 6.3), 1.25, 0.6, {"force": true}], ["Crystals", Vector2(-14.4, 0.3), 1.5, 0.6, {"force": true}],
+			["RobotParts", Vector2(0.6, -8.1), 1.0, 0.9, {"yaw": 0.2, "force": true}]]},
 	# Castle Siege: the besiegers' camp: pavilions and ridge tents, mantlets, a battering ram, a siege tower, supplies, a
 	# pile of catapult stones, a campfire, banners and spears; oaks and boulders
 	"castle": {"kit": "medieval_decor_castle", "count": 92, "ambient": true,
@@ -2093,7 +2200,8 @@ const MARK_SMOKE := {"Tank_A": Vector3(0.8, 1.98, -0.45), "Tank_B": Vector3(-1.0
 	"SignalBox": Vector3(0.35, 1.95, -0.25), "Terrace": Vector3(-0.475, 2.3, 0.0), "Pub": Vector3(-0.35, 2.3, -0.3), "Chimney": Vector3(0.0, 4.65, 0.0),
 	"Roundhouse": Vector3(0, 2.05, 0), "Crannog": Vector3(0, 2.2, 0), "Clamp": Vector3(0.0, 0.55, 0.0),
 	"Bloomery": Vector3(-0.45, 1.45, 0.05), "Altar": Vector3(0, 1.0, 0), "Cottage": Vector3(-0.73, 1.72, -0.12),
-	"Hut": Vector3(0.3, 1.2, 0.0), "Campfire": Vector3(0, 0.4, 0)}
+	"Hut": Vector3(0.3, 1.2, 0.0), "Campfire": Vector3(0, 0.4, 0),
+	"CoolTower": Vector3(0.25, 4.77, -0.15), "Tank": Vector3(-0.35, 1.09, -0.07), "Tank_Ice": Vector3(0.45, 1.88, -0.15)}
 
 
 ## v0.9.28: a theme's HQ kit is used once its GLB is in the game.
@@ -2486,6 +2594,10 @@ var _machine_n := 0                  # (v0.9.65: Foundry Row's machines take tur
 var _coal_n := 0
 var _crater_n := 0
 var _tank_n := 0                     # (v0.9.81: the Cleanroom's tank zones take turns)
+var _ice_n := 0                      # (v0.9.88: the Data Center's blocker zones take turns)
+var _rack_n := 0
+var _wreck_n := 0
+var _pillar_n := 0
 const LAB_VENTS := {"Tank_A": [Vector3(0.8, 1.98, -0.45)], "Tank_B": [Vector3(-1.05, 1.78, -0.25), Vector3(1.17, 0.25, 0.05)]}                   # (v0.9.71: the Airbase's first crater gets the burnt-out Humvee)
 var _ruins_n := 0                    # (Jungle Outpost's ruins zones: the second gets the pyramid)
 var _building_n := 0                 # (the farmland's building zones take turns: a cottage, then a barn)
@@ -2631,7 +2743,41 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single("Shot", Vector3(rad * 0.2, 0, rad * 0.6), r.randf() * TAU, 0.95, n)
 				return true
 			return false
+		"ice":                                # v0.9.88: Coolant Vaults: great ice formations and an ice-crusted tank (it vapours)
+			if th != "cooling":
+				return false
+			_ice_n += 1
+			var iv: String = ["IceBig_A", "Tank_Ice", "IceBig_B"][(_ice_n - 1) % 3]
+			var ik := _decor_single(iv, Vector3.ZERO, r.randf() * TAU, rad / float({"IceBig_A": 1.25, "Tank_Ice": 1.3, "IceBig_B": 1.45}[iv]), n)
+			if iv == "Tank_Ice" and ik != null:
+				_smoke_column(n.transform * ik.transform * Vector3(0.45, 1.88, -0.15))
+			return true
+		"rack":                               # v0.9.88: Server Hall: two rows of racks back to back on the ground's plinths
+			if th != "server":
+				return false
+			_rack_n += 1
+			_decor_single("RackRow_A", Vector3(-0.15, 0, 0.47), 0.0, 1.0, n)
+			_decor_single("RackRow_B" if _rack_n == 2 else "RackRow_A", Vector3(0.15, 0, -0.47), PI, 1.0, n)
+			return true
+		"wreck":                              # v0.9.88: The Core: a wrecked robot or a burnt-out Resistance car on the craters
+			if th != "core":
+				return false
+			_wreck_n += 1
+			var wv := "Wreck_Bot" if _wreck_n % 2 == 1 else "Wreck_Car"
+			var wk := _decor_single(wv, Vector3.ZERO, r.randf() * TAU, rad / 1.45, n)
+			if wv == "Wreck_Car" and wk != null:
+				_smoke_column(n.transform * wk.transform * Vector3(-0.33, 0.48, -0.12))
+			return true
 		"machine":                            # v0.9.65: Foundry Row's machines: a steam hammer, a beam engine, a steam crane
+			if th == "cooling":               # v0.9.88: chillers square on the ground's plinths (their pipes run off the -x end)
+				_machine_n += 1
+				var cv := "Chiller_A" if _machine_n % 2 == 1 else "Chiller_B"
+				_decor_single(cv, Vector3(rad * 0.18, 0, 0), float(r.randi() % 2) * PI, rad / (1.5 if cv == "Chiller_A" else 1.4), n)
+				return true
+			if th == "server":                # a mainframe or a power unit on the ground's pads
+				_machine_n += 1
+				_decor_single("MainframeUnit" if _machine_n % 2 == 1 else "PowerUnit", Vector3(0, 0, rad * 0.3), 0.0, rad / 1.3, n)
+				return true
 			if th == "lab":                   # v0.9.81: the Cleanroom's machines on the ground's square plinths
 				_machine_n += 1
 				var mk4: Array = [["Robot", 0.95, Vector2.ZERO], ["Centrifuge", 1.1, Vector2(0.29, -0.08)], ["Scanner", 0.85, Vector2(-0.15, -0.12)]][(_machine_n - 1) % 3]
@@ -2714,6 +2860,10 @@ func _blocker_v2(kind: String, n: Node3D, rad: float, r: RandomNumberGenerator) 
 				_decor_single(rim[k], Vector3(cos(a12), 0, sin(a12)) * rad * 1.15, PI * 0.5 - a12, rs[k], n)
 			return true
 		"pillar":
+			if th == "core":                  # v0.9.88: an energy pillar in the ground's glowing socket ring
+				_pillar_n += 1
+				_decor_single("Pillar" if _pillar_n % 2 == 1 else "Pillar_B", Vector3.ZERO, r.randf() * TAU, 0.8, n)
+				return true
 			_decor_single("Pillar", Vector3.ZERO, r.randf() * TAU, rad / 1.5, n)
 			return true
 		"building":                       # the Medieval Age: a cottage and its haystack, or a barn and the hay cart
@@ -2799,6 +2949,10 @@ func _build_blockers() -> void:
 	_coal_n = 0
 	_crater_n = 0
 	_tank_n = 0
+	_ice_n = 0
+	_rack_n = 0
+	_wreck_n = 0
+	_pillar_n = 0
 	var th: String = map.get("theme", "meadow")
 	for bl in map.get("blockers", []):
 		var pos := Vector3(bl[0], 0, bl[1])
