@@ -290,7 +290,9 @@ def stubble_mask(P):
     top = F(1.602) + F(0.01) * smoothstep(0.05, 0.12, ax) - F(0.012) * smoothstep(0.06, 0.0, ax) * smoothstep(-0.16, -0.2, y)
     lips = np.sqrt((x / F(0.058)) ** 2 + ((y + F(0.19)) / F(0.05)) ** 2 + ((z - F(1.551)) / F(0.015)) ** 2) - F(1.0)
     back = y - F(0.06) + F(0.04) * smoothstep(1.58, 1.5, z)
-    return np.maximum(np.maximum(np.maximum(z - top, F(1.43) - z), back), -lips * F(0.02))
+    # no stubble over the upper lip (a dark patch there reads as a little moustache at a distance)
+    lip = np.sqrt((x / F(0.085)) ** 2 + ((y + F(0.2)) / F(0.07)) ** 2 + ((z - F(1.58)) / F(0.04)) ** 2) - F(1.0)
+    return np.maximum(np.maximum(np.maximum(z - top, F(1.43) - z), back), np.maximum(-lips * F(0.02), -lip * F(0.02)))
 
 
 BROW_D = [(0.022, -0.214, 1.741), (0.064, -0.21, 1.756), (0.108, -0.19, 1.765), (0.152, -0.148, 1.761)]
@@ -303,7 +305,7 @@ def brow_pts(sx):
 def head(fd):
     """A grim, determined face (missile.py's square-jawed head): a square jaw and chin, cheekbones over flat cheeks, a
     straight nose, thick level brows drawn down a little at their inner ends, steady open eyes under them, a firm closed
-    mouth, its corners level; a scar through his left brow and down his cheek. (No ears: the cap's flaps cover them.)"""
+    mouth, its corners level; a pale scar through his left brow (a gap in it) and on down his cheek. (No ears: the cap's flaps cover them.)"""
     E = lambda c, r, R=None: Ellipsoid(hp(c), v3(r) * HS, R=R)
     S = lambda c, r: Sphere(hp(c), hr(r))
     fd.add(Ellipsoid(HEAD_C, HEAD_RAD), 0.06, SKIN)
@@ -353,13 +355,11 @@ def head(fd):
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0072), hr(0.008), hr(0.0072), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
     fd.add(RoundCone(hp((0.0, -0.215, 1.594)), hp((0.0, -0.205, 1.566)), hr(0.007), hr(0.006)), hr(0.008), SKIN)      # philtrum
     # the scar: through his left brow (a gap in it) and on down his cheek below the eye
-    for a, b in (((0.09, -0.21, 1.8), (0.104, -0.196, 1.728)), ((0.112, -0.165, 1.648), (0.13, -0.135, 1.592))):
+    for k, (a, b) in enumerate((((0.09, -0.21, 1.8), (0.104, -0.196, 1.728)), ((0.112, -0.165, 1.648), (0.13, -0.135, 1.592)))):
         pa, pb = hp(a), hp(b)
-        fd.sub(RoundCone(pa, pb, hr(0.0025)), hr(0.002))
+        if k == 0:
+            fd.sub(RoundCone(pa, pb, hr(0.0025)), hr(0.002))
         fd.paint(RoundCone(pa + v3((0, -0.01, 0)), pb + v3((0, -0.01, 0)), hr(0.0055)), SCAR)
-    # a smear of soot on his right cheek
-    fd.paint(Func(lambda P: np.sqrt(((hinv(P) - np.array([-0.12, -0.13, 1.6], F)) / np.array([0.045, 0.2, 0.03], F)) ** 2 @ np.ones(3, F)) - F(1.0)
-                  + F(0.4) * NOISE(P * F(60)), HEAD_C - 0.3, HEAD_C + 0.3), SOOT)
 
 
 def neck_prim():
@@ -1118,7 +1118,7 @@ MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_TitanPilotSkin", "base": (0.8, 0.59, 0.46), "ruddy": (0.8, 0.5, 0.4), "lips": (0.6, 0.37, 0.32),
                       "brow": ((0.06, 0.045, 0.035), (0.14, 0.1, 0.075)),
                       "extra": ((LASH, (0.05, 0.035, 0.03), 0.5), (STUBBLE, (0.42, 0.33, 0.28), 0.6, 0.45),
-                                (SCAR, (0.86, 0.6, 0.52), 0.45), (SOOT, (0.3, 0.26, 0.24), 0.8, 0.4))}),
+                                (SCAR, (0.86, 0.6, 0.52), 0.45))}),
     "Cap": ("modern_kit", dict(KIT, name="HQ_TitanCap", base=(0.17, 0.135, 0.11))),
     "Pilot": ("modern_kit", dict(KIT, name="HQ_TitanPilot", weave=1.0)),
     "Cockpit": ("modern_kit", dict(KIT, name="HQ_TitanKit")),
