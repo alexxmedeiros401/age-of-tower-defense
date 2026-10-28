@@ -1,6 +1,6 @@
 """Head-and-shoulders portrait (assets/ui/face_<id>.png) of an HQ hero, rendered from its *_hq.blend.
 
-    python3 face_hq.py -- HQ_BLEND OUT.png [--action Idle] [--frame 0] [--target X,Y,Z] [--scale 0.8] [--az 22] [--el 6]
+    python3 face_hq.py -- HQ_BLEND OUT.png [--action Idle] [--frame 0] [--target X,Y,Z] [--scale 0.8] [--az 22] [--el 6] [--char-only]
 """
 import sys, os, math
 HQ = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +24,10 @@ sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
 arm.animation_data.action = bpy.data.actions[ACTION]
 sc.frame_set(FRAME)
+if "--char-only" in ARGS:                       # hide the base (a tall prop behind the head: Unit Zero's gantry)
+    for o in sc.objects:
+        if o.type == "MESH" and o.parent is not arm:
+            o.hide_render = True
 look.setup(samples=128, res=(512, 512), transparent=True)
 FILL = float(opt("--fill", "2.0"))
 for o in bpy.data.objects:                      # portraits read best with a softer, brighter fill

@@ -5,10 +5,11 @@ Idle    : (96 frames) a gentle giant at ease: his weight sways slowly from foot 
           bone squashed flat for a few frames).
 Combat  : (40 frames) planted wide, knees bent, the launcher raised before him at the robots (its barrel tipped up for a
           lob), the big hand clenched by his hip; a slow heavy bob, his head up and a little tilted.
-Attack  : (32 frames = 1.33 s, inside the 1.4 s cooldown) he leans in (0-3) and the shell leaves the muzzle at SHOT
-          (frame 3: game.gd's shell leaves `barrel`'s tail, the muzzle); the barrel slams back into its jacket (`barrel`
-          scaled short along its length, 3-5), the launcher kicks up and his body rocks back, his eye squints; the barrel
-          runs out again (5-12) and he settles back into the Combat pose (frame 32 = Combat's first frame).
+Attack  : (32 frames = 1.33 s, inside the 1.4 s cooldown) he leans in (0-2) and holds the aim (2-4): the shell leaves
+          the muzzle at SHOT (frame 3: game.gd's shell leaves `barrel`'s tail, the muzzle; the held aim keeps the 30 Hz
+          samples either side in agreement); from REC (frame 4) the barrel slams back into its jacket (`barrel` scaled
+          short along its length, 4-5.5), the launcher kicks up and his body rocks back, his eye squints; the barrel runs
+          out again (6-13) and he settles back into the Combat pose (frame 32 = Combat's first frame).
 Ability : Overload (72 frames = 3 s): he steps his feet out wide and sinks (0-12), fists clenched low by his hips, elbows
           out, hunched over his core; the core's flare (`flare`) swells brighter and brighter while he trembles harder
           (12-40); he throws his arms wide and arches back (40-45), and at SIGNAL (frame 46: game.gd's blast goes out from
@@ -42,7 +43,8 @@ for _s in ("R", "L"):
     OPEN_AX[_s] = vec(_A).cross(-vec(_M)).normalized()
     S0[_s] = 1.0 if U_REST[_s].cross(A_REST[_s]).dot(H_REST[_s]) > 0 else -1.0
 
-SHOT = 3              # Attack: the shell leaves the muzzle (game.gd ATTACK_FRAME)
+SHOT = 3              # Attack: the shell leaves the muzzle (game.gd ATTACK_FRAME), inside the held aim (2-4)
+REC = 4               # Attack: the recoil starts
 FR = 32               # the Attack's length (1.33 s at 24 fps; the cooldown is 1.4 s)
 SIGNAL = 46           # Ability: the blast goes out from the core
 AB_FR = 72
@@ -247,35 +249,36 @@ def combat_pose(arm, t, rest):
 
 # ---------------------------------------------------------------------------------------------- attack
 def attack_pose(arm, f, rest):
-    """0-3 lean in, SHOT at 3, recoil 3-6, run out 5-12, back to Combat (t = 0) by FR."""
+    """0-2 lean in, held 2-4 (the shell leaves at SHOT, 3), recoil from REC (4), run out 6-13, back to Combat (t = 0) by FR."""
     w, b, yaw0, ro0 = combat_state(0.0)
-    lean = smooth01(f / 3.0) if f <= SHOT else 1.0 - smooth01((f - SHOT) / 2.0)
-    kick = 0.0
-    if f > SHOT:
-        x = f - SHOT
-        kick = 0.28 * math.exp(-((x - 1.4) / 1.6) ** 2)
-        kick += 0.1 * math.exp(-((x - 6.0) / 5.0) ** 2)
+    if f <= 2:
+        lean = smooth01(f / 2.0)
+    elif f <= REC:
+        lean = 1.0
+    else:
+        lean = 1.0 - smooth01((f - REC) / 2.0)
+    kick = rock = 0.0
+    if f > REC:
+        x = f - REC
+        kick = 0.16 * math.exp(-((x - 1.4) / 1.6) ** 2) + 0.08 * math.exp(-((x - 6.0) / 5.0) ** 2)
         kick *= 1.0 - smooth01((f - 20) / (FR - 20))
-    rock = 0.0
-    if f > SHOT:
-        x = f - SHOT
         rock = math.exp(-((x - 2.2) / 2.6) ** 2)
     settle = smooth01((f - 12) / (FR - 12))
-    # the barrel slams back (3 -> 4.5) and runs out (5 -> 12)
-    if f <= SHOT:
+    # the barrel slams back (4 -> 5.5) and runs out (6 -> 13)
+    if f <= REC:
         bar = 1.0
-    elif f <= SHOT + 1.5:
-        bar = 1.0 - 0.3 * smooth01((f - SHOT) / 1.5)
+    elif f <= REC + 1.5:
+        bar = 1.0 - 0.3 * smooth01((f - REC) / 1.5)
     else:
-        bar = 0.7 + 0.3 * smooth01((f - SHOT - 2) / 7.0)
+        bar = 0.7 + 0.3 * smooth01((f - REC - 2) / 7.0)
     yaw = yaw0
-    ro = ro0 + V(0.0, -0.025 * lean + 0.045 * rock, -0.012 * lean - 0.02 * rock)
+    ro = ro0 + V(0.0, -0.025 * lean + 0.035 * rock, -0.012 * lean - 0.02 * rock)
     aims = feet(arm, 0.0, **C_FEET)
-    torso(aims, yaw, bend=0.12 + 0.06 * lean - 0.1 * rock, chest=-4.0 - 3.0 * rock, look=0.0, pitch=0.16 + 0.12 * rock,
-          roll=0.1 - 0.05 * rock, shrug=(0.0, 0.1 * rock), reach=(0.0, 0.08 * lean - 0.12 * rock))
-    aims.update(combat_arms(arm, yaw, ro, b, rest, lift=-0.05 * lean, kick=kick, back=0.18 * rock * (1 - settle)))
+    torso(aims, yaw, bend=0.12 + 0.06 * lean - 0.06 * rock, chest=-4.0 - 2.0 * rock, look=0.0, pitch=0.16 + 0.12 * rock,
+          roll=0.1 - 0.05 * rock, shrug=(0.0, 0.1 * rock), reach=(0.0, 0.08 * lean - 0.06 * rock))
+    aims.update(combat_arms(arm, yaw, ro, b, rest, lift=-0.05 * lean, kick=kick, back=0.08 * rock * (1 - settle)))
     aims.update(fingers(rest, -0.95))
-    squint = 1.0 - 0.45 * math.exp(-((f - SHOT - 1.0) / 1.8) ** 2) if f >= SHOT - 1 else 1.0
+    squint = 1.0 - 0.45 * math.exp(-((f - REC - 1.0) / 1.8) ** 2) if f >= REC - 1 else 1.0
     return aims, ro, rz(yaw), props(barrel=bar, blink=squint)
 
 
