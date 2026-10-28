@@ -60,8 +60,8 @@ Z = v3((0.0, 0.0, 1.0))
 
 # ======================================================================================= head
 EYE_SPAN = 0.071                          # (design) the eyes' half spacing: a touch wider than Ken's ...
-EYE_Y = -0.139                            # ... and set deeper in the head (they sit in their sockets, never bulging)
-EYE_R = hr(0.0315)                        # (a little smaller than the house eye: a grown man's, not a goggle)
+EYE_Y = -0.138                            # ... and set deeper in the head (they sit in their sockets, never bulging)
+EYE_R = hr(0.0335)                        # (a little smaller than the house eye: a grown man's, not a goggle)
 
 
 def eye_c(sx):
@@ -101,11 +101,11 @@ def head(fd):
     for sx in (-1, 1):
         ec = eye_c(sx)
         fd.sub(Sphere(ec, EYE_R + hr(0.0022)), hr(0.006))
-        up = Inter(Sphere(ec, EYE_R + hr(0.0038)), Plane(ec + v3((0, 0, hr(0.0118))), (sx * 0.06, 0.08, -1.0)), hr(0.003))
+        up = Inter(Sphere(ec, EYE_R + hr(0.0038)), Plane(ec + v3((0, 0, hr(0.0142))), (sx * 0.06, 0.08, -1.0)), hr(0.003))
         fd.add(up, hr(0.004), SKIN)
-        lo = Inter(Sphere(ec, EYE_R + hr(0.0032)), Plane(ec + v3((0, 0, -hr(0.0175))), (sx * -0.15, 0.08, 1.0)), hr(0.003))
+        lo = Inter(Sphere(ec, EYE_R + hr(0.0032)), Plane(ec + v3((0, 0, -hr(0.019))), (sx * -0.15, 0.08, 1.0)), hr(0.003))
         fd.add(lo, hr(0.005), SKIN)
-        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.006)), 0.0, hr(0.006)), Plane(ec + v3((0, 0, hr(0.0098))), (sx * 0.06, 0.08, -1.0)), hr(0.002)), LASH)
+        fd.paint(Inter(Shell(Sphere(ec, EYE_R + hr(0.006)), 0.0, hr(0.006)), Plane(ec + v3((0, 0, hr(0.0122))), (sx * 0.06, 0.08, -1.0)), hr(0.002)), LASH)
         a = hp((sx * 0.112, -0.122, 1.676))                                                       # a crease at the outer corner
         fd.sub(RoundCone(a, a + v3((sx * 0.018, 0.012, -0.004)), hr(0.0014), hr(0.001)), hr(0.002))
     # brows: level dark bars lying on the brow ridge, his left one (+X) lifted a little at its outer end
