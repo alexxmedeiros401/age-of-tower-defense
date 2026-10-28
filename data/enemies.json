@@ -261,7 +261,8 @@
    "radius": 2.8,
    "pct": 0.06
   },
-  "bar_h": 1.71
+  "bar_h": 1.71,
+  "walk_speed": 1.15
  },
  "iron_colossus": {
   "name": "IRON COLOSSUS",
@@ -415,7 +416,7 @@
   },
   "bar_h": 3.8,
   "boss": true,
-  "walk_speed": 0.42
+  "walk_speed": 0.56
  },
  "the_core": {
   "name": "THE CORE",
@@ -443,6 +444,7 @@
   "shield": 1200,
   "shield_delay": 3.0,
   "bar_h": 3.8,
-  "boss": true
+  "boss": true,
+  "walk_speed": 0.38
  }
 }

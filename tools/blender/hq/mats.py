@@ -1928,12 +1928,13 @@ def pavement(name="HQ_Pavement", asphalt=(0.22, 0.22, 0.23), concrete=(0.62, 0.6
 # ======================================================================================= Modern Age: the Sniper
 def modern_kit(name="HQ_ModernKit", base=(0.6, 0.5, 0.36), weave=1.0, black=(0.075, 0.075, 0.08), red=(0.74, 0.1, 0.08),
                white=(0.93, 0.92, 0.88), olive=(0.36, 0.38, 0.26), gunmetal=(0.24, 0.25, 0.27), steel=(0.6, 0.62, 0.66),
-               glass=(0.05, 0.1, 0.12), rubber=(0.1, 0.1, 0.1), coyote=(0.6, 0.5, 0.36), gloss=0.6, glass_hi=(0.45, 0.8, 0.85)):
+               glass=(0.05, 0.1, 0.12), rubber=(0.1, 0.1, 0.1), coyote=(0.6, 0.5, 0.36), gloss=0.6, glass_hi=(0.45, 0.8, 0.85), brass=(0.8, 0.55, 0.22)):
     """Modern kit, hand-painted: label 0 = `base` (cordura nylon with a fine weave when `weave` > 0, else smooth matte
     polymer with a fine stipple), lighter on worn edges, darker in the recesses; 5 black nylon or polymer; 6 red and 7 white
     (patches); 8 olive-drab paint; 9 gunmetal (parkerized steel, bright on its edges); 10 bright steel; 11 lens glass
     (glossy, a cyan sheen on the edge: `glass_hi`); 12 black rubber; 13 coyote. `gloss`: the roughness of smooth polymer
-    (weave 0; the Digital Age's gloss-black housings and armour shells go lower than the default 0.6)."""
+    (weave 0; the Digital Age's gloss-black housings and armour shells go lower than the default 0.6). Label 14 = polished
+    `brass` (pass a copper colour for copper: the Arc Cannon's electrodes)."""
     g = new(name)
     p = g.obj()
     pt = g.geo("Pointiness")
@@ -1959,7 +1960,7 @@ def modern_kit(name="HQ_ModernKit", base=(0.6, 0.5, 0.36), weave=1.0, black=(0.0
     c = g.mix(g.reg(11), c, gl)
     rb = g.mix(g.math("MULTIPLY", hi_, 0.5), g.rgb(rubber), g.rgb(tuple(min(1.0, x * 2.2) for x in rubber)))
     c = g.mix(g.reg(12), c, rb)
-    c = g.mix(g.reg(14), c, _brass_col(g, pt))
+    c = g.mix(g.reg(14), c, _brass_col(g, pt, brass))
     rough = g.mixf(g.reg(5), 0.82 if weave > 0 else gloss, 0.7)
     rough = g.mixf(g.reg(9), rough, g.mixf(rs, 0.38, 0.7))
     rough = g.mixf(g.reg(10), rough, 0.25)

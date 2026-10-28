@@ -4230,7 +4230,7 @@
   "name": "Arc Cannon",
   "lineage": "Ranged",
   "era": "The Data Center",
-  "model_scale": 0.56,
+  "model_scale": 0.63,
   "swing": [
    -0.9,
    0.5

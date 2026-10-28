@@ -55,9 +55,10 @@ def rot_dir(d, axis, ang):
 
 
 def walk(arm, J, name="Walk", frames=24, step=0.42, lift=0.08, bob=0.025, sway=0.02, arm_swing=0.45, lean=0.12,
-         twist=0.12, heavy=0.0, head_lag=0.5, extra=None):
+         twist=0.12, heavy=0.0, head_lag=0.5, extra=None, scales=None):
     """A two-step march. step: stride of one foot (model units); heavy > 0 gives a stompier gait (a dip at contact, a
-    slower lift); extra(t, aims) may add bone aims (antenna wobble, back exhaust, a boss's swaying crest)."""
+    slower lift); extra(t, aims) may add bone aims (antenna wobble, back exhaust, a boss's swaying crest); scales(t) may
+    return bone scales ({bone: factor}: a pulsing emitter)."""
     P = Poser(arm)
     act = new_action(arm, name)
     rest = {b.name: b for b in arm.data.bones}
@@ -109,7 +110,7 @@ def walk(arm, J, name="Walk", frames=24, step=0.42, lift=0.08, bob=0.025, sway=0
                 aims["hand." + side] = fo
         if extra is not None:
             extra(t, aims)
-        ch, _ = P.solve(aims, root_off=root_off, root_rot=root_rot)
+        ch, _ = P.solve(aims, root_off=root_off, root_rot=root_rot, scales=scales(t) if scales is not None else None)
         P.key(ch, f)
     finish_action(arm, act, frames, True)
     return act

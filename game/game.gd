@@ -3378,6 +3378,9 @@ func _make_robot(type: String) -> Node3D:
 			if type == "juggernaut":               # v0.9.62: a long, tall walking locomotive (funnel crown at 3.47)
 				bubble.scale = Vector3(0.8, 1.0, 1.2)
 				bubble.position = Vector3(0, 1.4, 0.45)
+			elif type == "the_core":               # v0.9.84: a tall cage round its core (centre 2.5, spires to 3.55)
+				bubble.scale = Vector3(0.95, 0.9, 0.95)
+				bubble.position = Vector3(0, 1.5, 0)
 		bubble.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		bubble.name = "Bubble"
 	var mark := TorusMesh.new()
@@ -3617,7 +3620,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -5422,6 +5425,9 @@ func _handle_events() -> void:
 						elif _robot_type(eid0) == "orbital_uplink":
 							slam = UPLINK_EMP / maxf(float(speed), 0.01)
 							_fx_after(slam, func() -> void: _uplink_flash(eid0))
+						elif _robot_type(eid0) == "the_core":
+							slam = THE_CORE_EMP / maxf(float(speed), 0.01)
+							_fx_after(slam, func() -> void: _uplink_flash(eid0, THE_CORE_HEART))
 				var epos: Vector2 = ev.pos
 				var erad := float(ev.radius)
 				if slam > 0.0:
@@ -5759,6 +5765,43 @@ func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 					var hf := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, to)
 					hf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					effects.append({"node": hf, "t": 0.0, "life": 0.12, "kind": "flash", "s": 0.4})))
+
+
+## v0.9.83: the Arc Cannon (anim_arc_cannon.py) fires on Attack frame 2: a crackling amber arc leaps from the centre
+## electrode's ball to the robot (the sim's bolt flies on, unseen, carrying the hit and its chain to further robots).
+const ARC_TIP := Vector3(0.000, 1.097, 1.060)
+func _arc_shot(root: Node3D, p: Dictionary, u) -> void:
+	var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
+	var tip: Vector3 = yaw.global_transform * ARC_TIP
+	var e = sim._enemy_by_id(int(p.get("target", -1)))
+	var to := _v3(p.aim, _hit_height(e))
+	if e != null and enemy_nodes.has(int(e.id)):
+		var rp := _robot_point(int(e.id), _hit_height_of(_robot_type(int(e.id))))
+		if rp != Vector3.INF:
+			to = rp
+	_tesla_arc(tip, to, true)
+	_tesla_arc(tip, to, true)
+	if _fx_room(1):
+		var f := _mi(_fx_mesh("flash"), _flash_mat_amber(), self, tip)
+		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		effects.append({"node": f, "t": 0.0, "life": 0.14, "kind": "flash", "s": 0.7})
+	_mi(_sph_c(0.12, 8), _mat("arc_ball_amber", Color(1.0, 0.8, 0.4), {"emit": Color(1.0, 0.6, 0.15), "emit_e": 4.0, "unshaded": true}), root)
+	root.position = tip
+	root.visible = false                       # (the arc carries the look; the bolt only carries the hit)
+
+
+func _flash_mat_amber() -> StandardMaterial3D:
+	if not _atk_cache.has("amber_flash"):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.billboard_keep_scale = true
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(1.0, 0.65, 0.2)
+		m.albedo_texture = _mote_tex()
+		_atk_cache["amber_flash"] = m
+	return _atk_cache["amber_flash"]
 
 
 func _laser_flash(at: Vector3) -> void:
@@ -7738,7 +7781,8 @@ func _dread_broadside(eid: int) -> void:
 # (its Summon clip's frame 16); a jet's body flies 1.8 over its node (the flying lift plus its own height in its model).
 const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
 	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.329, -0.451), 16.0 / CLIP_FPS, 1.8],
-	"nano_swarm": ["orbital_uplink", [Vector3(0.872, 1.521, 0.0), Vector3(-0.927, 1.552, 0.0)], 18.0 / CLIP_FPS, 0.4]}
+	"nano_swarm": ["orbital_uplink", [Vector3(0.872, 1.521, 0.0), Vector3(-0.927, 1.552, 0.0)], 18.0 / CLIP_FPS, 0.4],
+	"sentinel": ["the_core", Vector3(-0.003, 0.280, 1.618), 22.0 / CLIP_FPS, 0.0]}   # (v0.9.84: down the bay's ramp)
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
 	var bl: Array = BAY_LAUNCH[str(e.type)]
 	for b in sim.enemies:
@@ -7778,11 +7822,29 @@ func _bay_lift(n: Node3D) -> void:
 # v0.9.73: the ORBITAL UPLINK (robot_orbital_uplink.py): its Emp clip swings the dish, locks it and fires a ring of
 # light from its feed on frame 22; its Summon drops both flank hatches and a Nano Swarm rolls out of each (frame 18).
 const UPLINK_EMP := 22.0 / CLIP_FPS
+# v0.9.84: THE CORE (robot_the_core.py): its Emp clip spins its rings up and fires a pulse from the core on frame 24;
+# its Summon drops the prow's bay door into a ramp and a Sentinel walks down it (frame 22); its Enrage burns the core
+# crimson from frame 13 (then its WalkRage loop keeps it red).
+const THE_CORE_EMP := 24.0 / CLIP_FPS
+const THE_CORE_RAGE := 13.0 / CLIP_FPS
+const THE_CORE_HEART := Vector3(-0.026, 2.470, -0.162)
+func _flash_mat_red() -> StandardMaterial3D:
+	if not _atk_cache.has("red_flash"):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		m.billboard_keep_scale = true
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_color = Color(1.0, 0.25, 0.18)
+		m.albedo_texture = _mote_tex()
+		_atk_cache["red_flash"] = m
+	return _atk_cache["red_flash"]
 const UPLINK_DISH := Vector3(0.0, 2.74, 0.2)
-func _uplink_flash(eid: int) -> void:
+func _uplink_flash(eid: int, pt := UPLINK_DISH) -> void:
 	if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
 		return
-	var at := (enemy_nodes[eid] as Node3D).global_transform * UPLINK_DISH
+	var at := (enemy_nodes[eid] as Node3D).global_transform * pt
 	if _fx_room(2):
 		for s2 in [2.2, 1.1]:
 			var f := _mi(_fx_mesh("flash"), _atk_mat("storm_flash"), self, at)
@@ -8961,11 +9023,12 @@ func _tesla_zap(u: Dictionary, targets: Array) -> void:
 
 
 ## A fork of lightning from a to b: a jagged line of glowing segments that flickers out, a flash where it strikes.
-func _tesla_arc(a: Vector3, b: Vector3) -> void:
+func _tesla_arc(a: Vector3, b: Vector3, amber := false) -> void:
 	var n := 5
 	if not _fx_room(n + 1):
 		return
-	var m := _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
+	var m := _mat("arc_bolt_amber", Color(1.0, 0.82, 0.45), {"emit": Color(1.0, 0.6, 0.15), "emit_e": 4.5, "unshaded": true}) if amber \
+		else _mat("chain_bolt", Color(0.7, 0.95, 1.0), {"emit": Color(0.5, 0.85, 1.0), "emit_e": 4.0, "unshaded": true})
 	var pts := [a]
 	var side := (b - a).cross(Vector3.UP).normalized()
 	for k in range(1, n):
@@ -9439,6 +9502,9 @@ func _make_projectile(p: Dictionary) -> Node3D:
 		_arrow_proj(root, p, u, dt)            # v0.9.64: a steel bolt from Ada's steam launcher, in a puff of steam
 		_steam_puff(root.position, -root.global_transform.basis.z)
 		return root
+	if utype == "arc_cannon" and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
+		_arc_shot(root, p, u)                  # v0.9.83: an amber lightning arc from the Resistance gun's electrode
+		return root
 	if LASER_TIPS.has(utype) and u != null and _hq_clips(int(u.id)) and (tower_nodes[u.id] as Node3D).has_meta("yaw"):
 		_laser_proj(root, p, u)                # v0.9.78: a violet bolt from Nova's laser pistol (a second on frame 3)
 		return root
@@ -9852,6 +9918,20 @@ func _robot_enrage(eid: int) -> void:
 	if not ap.has_animation("Enrage"):
 		return
 	ap.play("Enrage", 0.15)
+	if _robot_type(eid) == "the_core":         # v0.9.84: THE CORE burns crimson (its Enrage clip, red from frame 13)
+		if ap.has_animation("WalkRage"):
+			n.set_meta("loop", "WalkRage")         # (and keeps burning red as it marches on)
+		_fx_after(THE_CORE_RAGE / maxf(float(speed), 0.01), func() -> void:
+			if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
+				return
+			var at2: Vector3 = ((enemy_nodes[eid] as Node3D).get_node("Model") as Node3D).global_transform * THE_CORE_HEART
+			for s2 in [2.6, 1.3]:
+				var f := _mi(_fx_mesh("flash"), _flash_mat_red(), self, at2)
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.4, "kind": "flash", "s": s2})
+			_ring_fx((enemy_nodes[eid] as Node3D).global_position + Vector3(0, 0.3, 0), 3.5, Color(1, 0.2, 0.15), 0.6)
+			shake = maxf(shake, 0.8))
+		return
 	_fx_after(10.0 / CLIP_FPS / maxf(float(speed), 0.01), func() -> void:
 		if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
 			return
@@ -9884,7 +9964,7 @@ func _robot_anim_tick(n: Node3D, e: Dictionary, stunned: bool) -> void:
 	if ap.current_animation != loop:         # a one-shot (the boss's Summon) plays at game speed, not at the gait's
 		ap.speed_scale = float(speed)
 		return
-	if ws > 0.0 and loop == "Walk":
+	if ws > 0.0 and loop in ["Walk", "WalkRage"]:
 		var v: float = (e.pos as Vector2).distance_to(e.prev_pos) / Sim.TICK * float(speed)
 		var g := lerpf(float(n.get_meta("gait", v)), v, 0.15)
 		n.set_meta("gait", g)
@@ -15859,7 +15939,7 @@ func _run_demo() -> void:
 			fwd.y = 0.0
 			fwd = fwd.normalized()
 			var side := fwd.cross(Vector3.UP)
-			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut", "hunter_killer", "orbital_uplink"] else 1.0
+			var big := 2.4 if type in ["prime_walker", "siege_crawler", "iron_colossus", "hydra_swarm", "black_knight", "dreadnought", "juggernaut", "hunter_killer", "orbital_uplink", "the_core"] else 1.0
 			var fly_y := 0.9 if defs.enemies[type].get("flying", false) else 0.0   # (flyers hover over the road)
 			if defs.enemies[type].get("cloak", false):
 				be.revealed_until = 999999                 # (a Cloaker shown as it is, not as its cloaked ghost)
@@ -15889,7 +15969,7 @@ func _run_demo() -> void:
 					shake = 0.0
 					await _wait_ticks(int(0.15 / TICK))
 					await _shot("bots_summon_%d.png" % k)
-			if type == "juggernaut":              # v0.9.62: its whistle shrieks (the Enrage clip)
+			if type in ["juggernaut", "the_core"]:   # v0.9.62: its whistle shrieks (the Enrage clip)
 				_robot_enrage(int(be.id))
 				for k in 10:
 					cam.global_position = bn.global_position + (fwd * 4.2 + side * 2.0 + Vector3(0, 3.0, 0)) * big
@@ -15898,7 +15978,7 @@ func _run_demo() -> void:
 					shake = 0.0
 					await _wait_ticks(int(0.15 / TICK))
 					await _shot("bots_enrage_%d.png" % k)
-			if type in ["dreadnought", "orbital_uplink"]:   # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
+			if type in ["dreadnought", "orbital_uplink", "the_core"]:   # v0.9.60: its hatch opens and Bombers lift off, then the broadside and EMP
 				be.emp_cd = 99.0
 				be.summon_cd = 0.0
 				for k in 8:
