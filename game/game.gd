@@ -2169,7 +2169,7 @@ const DECOR_V2 := {
 			["Rack_A", Vector2(-9.60, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}], ["Rack_A", Vector2(-8.40, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}],
 			["Rack_A", Vector2(-7.20, 6.60), 1.0, 0.7, {"yaw": PI, "force": true}]]},
 	"core": {"kit": "datacenter_decor_core", "count": 84, "ambient": true,
-		"scatter": [["Conduit", 8], ["Spire", 9], ["CableRun", 7], ["Debris_A", 8], ["Debris_B", 8], ["RobotParts", 5], ["Crystals", 9]],
+		"scatter": [["Conduit", 8], ["Spire", 9], ["CableRun", 7], ["Debris_A", 8], ["Debris_B", 4], ["RobotParts", 2], ["Crystals", 9]],
 		"cover": [["Scorch", 1]], "cover_n": 18, "cover_s": 0.9,
 		"marks": [["DataSpire", Vector2(-2.0, -11.2), 0.9, 1.5], ["Giant", Vector2(4.0, -10.9), 0.85, 2.6, {"yaw": 0.0}],
 			["CableColumn", Vector2(-9.0, -11.0), 0.9, 0.9], ["Tank", Vector2(14.0, -10.6), 0.85, 2.2, {"yaw": 0.3}],
