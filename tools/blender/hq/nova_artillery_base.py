@@ -1,5 +1,5 @@
 """Nova Artillery base: the Resistance's gun emplacement inside the robots' data center. A round floor of steel tread
-plates (seams between them, bolts at their corners, some plates scuffed bright) inside a parapet of grey sandbags laid in
+plates (seams between them, bolts at their corners) inside a parapet of grey sandbags laid in
 two staggered courses (a third in stretches); nothing on the floor stands proud of it: the gun turns over it. Round the
 parapet the data center's floor of steel grating. In the gaps of the parapet, behind the gun: a rack of glowing amber
 shells standing nose up in a salvaged crate, the field radio on an ammo crate (a gunmetal case with a teal canvas cover,
@@ -78,7 +78,7 @@ def ground_field():
 
 def floor_field():
     """The emplacement's floor: steel tread plates (0) with seams, a raised diamond tread on some, gunmetal (9) bolts at
-    their corners, a few plates scuffed bright (10); its side wall black."""
+    their corners; its side wall black."""
     fd = Field("Floor")
     R = FLOOR_R + 0.02
     lo, hi = (-R - 0.02, -R - 0.02, -0.12), (R + 0.02, R + 0.02, TOP_Z + 0.03)
@@ -106,11 +106,6 @@ def floor_field():
                     q = v3((cx + dx, cy + dy, TOP_Z))
                     if math.hypot(q[0], q[1]) < FLOOR_R - 0.04:
                         fd.add(Cylinder(q + v3((0, 0, 0.002)), 0.009, 0.006, rr=0.002), 0.001, GM_L)
-    def scuff(P):
-        e, rnd, fu, fv = _cells(P, PLATE)
-        wear = NOISE(P * F(9.0))
-        return np.where((rnd < F(0.18)) & (wear > F(0.15)) & (np.abs(P[:, 2] - F(TOP_Z)) < F(0.01)), F(-1.0), F(1.0))
-    fd.paint(Func(scuff, lo, hi), STEEL_L)
     fd.paint(Func(lambda P: P[:, 2] - F(TOP_Z - 0.03), lo, hi), BLACK_L)
     return fd
 
