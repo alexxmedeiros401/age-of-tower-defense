@@ -4465,7 +4465,7 @@
   "name": "Nova Artillery",
   "lineage": "Siege",
   "era": "The Data Center",
-  "model_scale": 0.56,
+  "model_scale": 0.62,
   "swing": [
    -0.15,
    2.0

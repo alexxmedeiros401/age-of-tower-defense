@@ -3774,7 +3774,7 @@ func _pebble_fx(pos: Vector3, count := 2) -> void:
 const CLIP_FPS := 24.0
 const ATTACK_FRAME := {"tar_shaman": 8, "mara": 10, "club_warrior": 4, "spear_guard": 7, "brenna": 7, "kira": 11, "tarek": 2, "torsion_catapult": 7, "sun_priest": 11,
 	"axe_warrior": 7, "druid": 10, "legionary": 11, "oracle": 14, "cassia": 6, "theron": 9, "knight": 9, "crossbowman": 1, "alchemist": 10, "aldric": 7, "halberdier": 9,
-	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2, "firewall": 10, "titan_mech": 9}
+	"war_drummer": 8, "isla": 1, "marco": 10, "ada": 1, "tesla_coil": 8, "steam_brawler": 11, "rifleman": 1, "jim": 8, "emp_tower": 10, "ken": 10, "maya": 1, "sniper": 1, "flamethrower": 3, "mech_brawler": 8, "glitch": 5, "cryo_field": 10, "nova": 1, "laser_turret": 2, "arc_cannon": 2, "firewall": 10, "titan_mech": 9, "vega": 2}
 var _fx_queue: Array = []
 var _atk_cache: Dictionary = Progress.fx_cache    # meshes, materials, textures: built once per app run (kept in the
                                                  # autoload, so they outlive scene reloads and are freed cleanly at exit)
@@ -5521,7 +5521,7 @@ func _handle_events() -> void:
 						bolt = true
 						_bolt_hit(pnode, ev)                # it drives into the ground there
 					elif pnode.has_meta("plasma_lob"):
-						_plasma_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 2.0))  # v0.9.79: it bursts in violet fire
+						_plasma_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 2.0), pnode.has_meta("amber"))  # v0.9.79: it bursts in violet fire (v0.9.90: amber)
 					elif pnode.has_meta("shell"):
 						_shell_burst(_v3(ev.pos, 0.0), clampf(float(ev.splash), 0.6, 1.6))   # v0.9.61: it bursts
 					elif pnode.has_meta("ball"):
@@ -5876,11 +5876,17 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.78: the Digital Age's lasers: a violet bolt leaves the emitter lens in a violet flash (no smoke) and streaks to
 ## the robot; Nova's double tap adds a second, cosmetic bolt on her clip's frame 3.
-const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181), "laser_turret": Vector3(0.000, 1.094, 0.945)}
+const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181), "laser_turret": Vector3(0.000, 1.094, 0.945), "vega": Vector3(-0.159, 1.425, 1.370)}   # (v0.9.91: Vega's plasma pistol, amber)
 const LASER_SECOND := {"nova": 2}                   # (frames after the first: her second shot)
 func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
-	var lm := _mat("laser_bolt", Color(0.95, 0.6, 1.0), {"emit": Color(0.85, 0.3, 1.0), "emit_e": 4.0, "unshaded": true})
-	_mi(_box(0.06, 0.06, 0.7), lm, root)
+	var amber := str(u.type) == "vega"
+	var lm := _mat("plasma_bolt_amber", Color(1.0, 0.8, 0.45), {"emit": Color(1.0, 0.6, 0.15), "emit_e": 4.0, "unshaded": true}) if amber \
+		else _mat("laser_bolt", Color(0.95, 0.6, 1.0), {"emit": Color(0.85, 0.3, 1.0), "emit_e": 4.0, "unshaded": true})
+	if amber:
+		_mi(_sph_c(0.09, 8), lm, root)                     # (a fat plasma slug with a short tail)
+		_mi(_box(0.07, 0.07, 0.45), lm, root, Vector3(0, 0, 0.2))
+	else:
+		_mi(_box(0.06, 0.06, 0.7), lm, root)
 	root.set_meta("arrow", true)
 	root.set_meta("ball", true)
 	var e = sim._enemy_by_id(int(p.get("target", -1)))
@@ -5896,7 +5902,13 @@ func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 	var tp := _v3(aim, hit_h)
 	if (tp - launch).length() > 0.01 and absf((tp - launch).normalized().y) < 0.98:
 		root.look_at(tp, Vector3.UP)
-	_laser_flash(launch)
+	if amber:
+		if _fx_room(1):
+			var mf := _mi(_fx_mesh("flash"), _flash_mat_amber(), self, launch)
+			mf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			effects.append({"node": mf, "t": 0.0, "life": 0.12, "kind": "flash", "s": 0.6})
+	else:
+		_laser_flash(launch)
 	if LASER_SECOND.has(str(u.type)):
 		var uid := int(u.id)
 		var ty := str(u.type)
@@ -8088,7 +8100,8 @@ const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco":
 	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0],
-	"zero": [Vector3(-0.800, 1.440, 0.662), 0.125, 0.8]}      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
+	"zero": [Vector3(-0.800, 1.440, 0.662), 0.125, 0.8],
+	"nova_artillery": [Vector3(0.380, 1.161, 1.059), 0.125, 0.65]}      # (v0.9.90: the coil howitzer's muzzle, Attack frame 3)      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
 	if str(u.type) in ["field_gun", "zero"]:
@@ -8099,6 +8112,10 @@ func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	elif str(u.type) == "plasma_mortar":
 		_proj_model(root, "plasma", "")                      # (a glowing violet ball trailing sparks of plasma)
 		root.set_meta("plasma_lob", true)
+	elif str(u.type) == "nova_artillery":
+		_proj_model(root, "shell", "")                       # (v0.9.90: a glowing amber round, trailing amber light)
+		root.set_meta("plasma_lob", true)
+		root.set_meta("amber", true)
 	else:
 		_mi(_sph_c(0.17, 14), _mat("cannonball", Color(0.12, 0.12, 0.13), {"metal": 0.5, "rough": 0.4}), root)
 	if str(u.type) == "marco":
@@ -8121,13 +8138,15 @@ func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.79: a plasma ball bursts: a violet flash, a ring of violet light over its splash, burning plasma left on the
 ## ground (violet-tinted flames) and a scorch.
-func _plasma_burst(ground: Vector3, r: float) -> void:
+func _plasma_burst(ground: Vector3, r: float, amber := false) -> void:
 	if _fx_room(2):
 		for s2 in [1.8 * r, 0.9 * r]:
-			var f := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, ground + Vector3(0, 0.4, 0))
+			var f := _mi(_fx_mesh("flash"), _flash_mat_amber() if amber else _atk_mat("violet_flash"), self, ground + Vector3(0, 0.4, 0))
 			f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			effects.append({"node": f, "t": 0.0, "life": 0.25, "kind": "flash", "s": s2})
-	_ring_fx(ground + Vector3(0, 0.2, 0), r, Color(0.85, 0.35, 1.0), 0.45)
+	_ring_fx(ground + Vector3(0, 0.2, 0), r, Color(1.0, 0.62, 0.15) if amber else Color(0.85, 0.35, 1.0), 0.45)
+	if amber:
+		_glitch_static(ground + Vector3(0, 0.5, 0), true)   # (the round's stun: amber static over the blast)
 	_fire_splash(ground, 0.8 * r)
 	_ground_decal(ground, "crack", 0.8 * r, 1.4)
 	_sfx("plasma", -4.0, 0.1, 0.15)
@@ -8336,7 +8355,9 @@ func _torsion_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 				var yt := (tn.get_meta("yaw") as Node3D).global_transform
 				pn.set_meta("lob_from", yt * (pn.get_meta("lob_at", TORSION_BALL) as Vector3))
 				if pn.has_meta("plasma_lob"):                # (the tube's coils discharge: a violet flash at the mouth)
-					var mf := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, pn.get_meta("lob_from"))
+					if pn.has_meta("amber"):                 # (v0.9.90: the howitzer's blast and smoke too)
+						_gun_blast(pn.get_meta("lob_from"), (yt.basis * Vector3(0, 0.259, 0.966)).normalized(), 2.0)
+					var mf := _mi(_fx_mesh("flash"), _flash_mat_amber() if pn.has_meta("amber") else _atk_mat("violet_flash"), self, pn.get_meta("lob_from"))
 					mf.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					effects.append({"node": mf, "t": 0.0, "life": 0.18, "kind": "flash", "s": 1.1})
 					shake = maxf(shake, 0.08)
@@ -9199,6 +9220,41 @@ func _zero_overload(ev: Dictionary, hp: Vector3) -> void:
 			_fx_after(d / 14.0 / spd, func() -> void: _fire_splash(pp, 0.6))))
 
 
+# v0.9.91: Commander Vega's Killswitch (anim_vega.py): he draws the salvaged robot control rod from his hip, raises it
+# overhead and thumbs it (the amber button swells), then slams it down before him in a crouch at frame 34 (SIGNAL): an
+# amber flash at the device, amber rings rolling out over the radius and glitch static over every robot shut down.
+const VEGA_SIGNAL := 34
+const VEGA_SWITCH := Vector3(0.156, 0.863, 0.467)
+func _vega_killswitch(ev: Dictionary, hp: Vector3) -> void:
+	var hid := int(sim.hero.id)
+	var tn: Node3D = tower_nodes[hid]
+	tn.set_meta("clip_face", ["Ability", (tn.get_meta("yaw") as Node3D).rotation.y, 0.0, 0.3])
+	var at := float(VEGA_SIGNAL) / CLIP_FPS
+	var R := float(ev.get("radius", 6.0))
+	var hits: Array = ev.get("hits", [])
+	for tid in ev.get("ids", []):
+		_hold_hit(int(tid), at + 0.15)
+	_fx_after(0.0, func() -> void: _on_clip(hid, "Ability", at, at, func() -> void:
+		var dev := hp + Vector3(0, 0.6, 0.3)
+		if tower_nodes.has(hid) and is_instance_valid(tower_nodes[hid]) and (tower_nodes[hid] as Node3D).has_meta("yaw"):
+			dev = ((tower_nodes[hid] as Node3D).get_meta("yaw") as Node3D).global_transform * VEGA_SWITCH
+		if _fx_room(2):
+			for s2 in [2.4, 1.2]:
+				var f := _mi(_fx_mesh("flash"), _flash_mat_amber(), self, dev)
+				f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				effects.append({"node": f, "t": 0.0, "life": 0.35, "kind": "flash", "s": s2})
+		var g := Vector3(dev.x, 0.3, dev.z)
+		_ring_fx(g, R, Color(1.0, 0.6, 0.15), 0.7)
+		_ring_fx(g, R * 0.55, Color(1.0, 0.85, 0.45), 0.5)
+		shake = maxf(shake, 0.7)
+		_sfx("emp", 0.0, 0.0, 0.5)
+		var spd := maxf(float(speed), 0.01)
+		for p in hits:
+			var pp := _v3(p, 0.8)
+			var d := Vector2(pp.x - g.x, pp.z - g.z).length()
+			_fx_after(d / 14.0 / spd, func() -> void: _glitch_static(pp, true))))
+
+
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
 const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
@@ -10029,6 +10085,10 @@ func _ability_fx(ev: Dictionary) -> void:
 				_ken_grenade(ev, hp)                        # v0.9.68: he arms the grenade on his tablet and lobs it
 				_banner(aname, Color(0.5, 0.85, 1.0))
 				return
+			if sim.hero != null and str(sim.hero.type) == "vega" and _hq_clips(sim.hero.id):
+				_vega_killswitch(ev, hp)                    # v0.9.91: he thumbs the killswitch and slams it down
+				_banner(aname, Color(1.0, 0.65, 0.2))
+				return
 			_ring_fx(hp, float(ev.radius), Color(0.45, 0.85, 1.0), 0.7)
 			_ring_fx(hp, float(ev.radius) * 0.55, Color(0.8, 0.95, 1.0), 0.5)
 			for p in ev.hits:
@@ -10306,7 +10366,7 @@ func _sync_visuals(alpha: float) -> void:
 			newp = _torsion_flight(pn, p, alpha)
 			if pn.has_meta("plasma_lob") and pn.visible and _fx_room(1) and time_s - float(pn.get_meta("trail_t", -9.0)) > 0.05:
 				pn.set_meta("trail_t", time_s)              # v0.9.79: the plasma ball's glowing trail
-				var tr := _mi(_fx_mesh("flash"), _atk_mat("violet_flash"), self, pn.position)
+				var tr := _mi(_fx_mesh("flash"), _flash_mat_amber() if pn.has_meta("amber") else _atk_mat("violet_flash"), self, pn.position)
 				tr.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				effects.append({"node": tr, "t": 0.0, "life": 0.3, "kind": "flash", "s": 0.35})
 			if pn.has_meta("rocket") and pn.visible and _fx_room(1) and time_s - float(pn.get_meta("trail_t", -9.0)) > 0.035:
