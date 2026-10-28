@@ -1875,9 +1875,9 @@ def debris(seed=0, variant=0):
             c = v3((rng.uniform(-0.5, 0.5), rng.uniform(-0.35, 0.35), 0.06))
             n = unit(v3((rng.uniform(-0.8, 0.8), rng.uniform(-0.8, 0.8), 1)))
             plate(ar, c, n, (rng.uniform(-1, 1), 1, 0), rng.uniform(0.18, 0.32), rng.uniform(0.14, 0.26), t=0.025, bow=0.04)
-            if i % 2:
-                ar.paint(Sphere(c, 0.12), 5)
-        ar.paint(Sphere((0.2, -0.1, 0.0), 0.3, **wob(5.0, 0.08, seed)), 9)
+            if i % 2:                                                    # a hazard-orange stripe across it
+                ar.paint(RoundBox(c, (0.03, 0.4, 0.2), 0.0, R=Rz(rng.uniform(0, 3))), 5)
+        ar.paint(Sphere((0.2, -0.1, 0.0), 0.16, **wob(5.0, 0.05, seed)), 9)
         for i in range(4):
             a = v3((rng.uniform(-0.5, 0.5), rng.uniform(-0.4, 0.4), 0.04))
             b = a + v3((rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(0.0, 0.15)))

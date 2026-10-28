@@ -584,13 +584,13 @@ def datacenter_materials(dark):
         })
     if th == "core":
         m.update({
-            "core_dark": T("DK_CoreDark", (0.09, 0.095, 0.11), col5=(0.12, 0.55, 0.66), col7=(0.04, 0.04, 0.05), col9=(0.05, 0.045, 0.04), grime=0.2, edge=0.5),
+            "core_dark": T("DK_CoreDark", (0.13, 0.135, 0.155), col5=(0.12, 0.55, 0.66), col7=(0.04, 0.04, 0.05), col9=(0.05, 0.045, 0.04), grime=0.2, edge=0.5),
             "scorch": DM.flat("DK_Scorch", (0.05, 0.045, 0.04), 0.95, var=0.35),
             "rust": DM.rusty_iron("DK_Rust"),
         })
     if th == "camp_city":
         m.update({
-            "canvas": mats.linen("DK_Canvas", base=(0.2, 0.27, 0.28), border=charcoal, stripe=amber),
+            "canvas": DM.multi("DK_Canvas", (0.2, 0.27, 0.28), {5: amber, 6: amber, 7: charcoal}, 0.8, var=0.12, edge=0.15),
             "banner": mats.wool("DK_Banner", base=charcoal, border=amber, stripe=amber),
             "res_crate": T("DK_ResCrate", (0.24, 0.26, 0.23), col5=amber, col7=(0.07, 0.07, 0.08), col9=(0.9, 0.9, 0.86), grime=0.4),
             "container": T("DK_ResContainer", (0.2, 0.22, 0.23), col5=amber, col7=(0.07, 0.07, 0.08), col9=(0.9, 0.9, 0.86), grime=0.5, edge=0.45),
