@@ -80,7 +80,7 @@ jobs:
           (cd "$OUT" && zip -qr "$RUNNER_TEMP/$NAME.zip" .)
           ls -la "$RUNNER_TEMP/$NAME.zip"
           for i in 1 2 3 4 5 6; do
-            rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[0].id // empty'); [ -n "$rid" ] && break
+            rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[-1].id // empty'); [ -n "$rid" ] && break
             sleep 10
           done
           [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
