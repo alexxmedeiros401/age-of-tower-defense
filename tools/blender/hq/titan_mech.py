@@ -344,7 +344,7 @@ def head(fd):
     fd.add(S((0, -0.24, 1.618), 0.023), hr(0.014), SKIN)
     for sx in (-1, 1):
         fd.add(S((sx * 0.031, -0.222, 1.602), 0.02), hr(0.012), SKIN)
-        fd.sub(Ellipsoid(hp((sx * 0.016, -0.238, 1.592)), v3((0.009, 0.011, 0.006)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))
+        fd.sub(Ellipsoid(hp((sx * 0.017, -0.231, 1.6)), v3((0.008, 0.009, 0.005)) * HS, R=euler(0.5, 0, sx * 0.3)), hr(0.004))   # nostrils, under the tip
     # a firm closed mouth, its corners level
     slot = [hp(p) for p in ((-0.05, -0.176, 1.55), (-0.026, -0.197, 1.549), (0.0, -0.203, 1.549), (0.026, -0.197, 1.549), (0.05, -0.176, 1.55))]
     fd.sub(Chain(slot, [hr(0.002), hr(0.0026), hr(0.0028), hr(0.0026), hr(0.002)], k=hr(0.003)), hr(0.003))
@@ -353,7 +353,8 @@ def head(fd):
     fd.add(Chain([hp(p) for p in up_lip], [hr(0.003), hr(0.0056), hr(0.006), hr(0.0056), hr(0.003)], k=hr(0.005)), hr(0.006), LIP)
     lo_lip = [(-0.044, -0.176, 1.542), (-0.022, -0.194, 1.534), (0, -0.199, 1.532), (0.022, -0.194, 1.534), (0.044, -0.176, 1.542)]
     fd.add(Chain([hp(p) for p in lo_lip], [hr(0.004), hr(0.0072), hr(0.008), hr(0.0072), hr(0.004)], k=hr(0.006)), hr(0.007), LIP)
-    fd.add(RoundCone(hp((0.0, -0.215, 1.594)), hp((0.0, -0.205, 1.566)), hr(0.007), hr(0.006)), hr(0.008), SKIN)      # philtrum
+    fd.add(E((0.0, -0.19, 1.59), (0.05, 0.019, 0.024)), hr(0.016), SKIN)                     # the upper lip's fullness under the nose
+    fd.add(RoundCone(hp((0.0, -0.21, 1.594)), hp((0.0, -0.204, 1.568)), hr(0.005), hr(0.005)), hr(0.008), SKIN)      # philtrum
     # the scar: through his left brow (a gap in it) and on down his cheek below the eye
     for k, (a, b) in enumerate((((0.09, -0.21, 1.8), (0.104, -0.196, 1.728)), ((0.112, -0.165, 1.648), (0.13, -0.135, 1.592)))):
         pa, pb = hp(a), hp(b)
