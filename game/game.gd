@@ -192,7 +192,9 @@ func _ready() -> void:
 	demo = "--demo" in OS.get_cmdline_user_args()
 	if Progress.current_map == "" and not demo and not "--autowin" in OS.get_cmdline_user_args():
 		_start_attract()
-	if "--shoot-menu" in OS.get_cmdline_user_args():
+	if "--shoot-ui" in OS.get_cmdline_user_args():
+		_shoot_ui()
+	elif "--shoot-menu" in OS.get_cmdline_user_args():
 		_shoot_menu()
 	if "--autowin" in OS.get_cmdline_user_args():
 		_run_autowin()
@@ -10842,6 +10844,110 @@ func _on_hero_button() -> void:
 		_toast("%s is recharging" % sim.hero_def.ability.name, C_TEXT)
 
 
+# =================================================================== v0.9.92: the UI kit
+## Every screen past the main menu is built from one kit, rendered in the main menu's style (tools/blender/ui/ui_art.py):
+## navy enamel in a polished gold frame, glossy gem buttons in a few fixed colours, gold tabs. The textures are drawn as
+## 9-patches at 1:1; each margin is the piece's round corner (buttons 22, tabs and chips 20, cards 30, the dialog frame 72).
+const KIT_TEXT := Color(0.96, 0.95, 0.9)          # body text: warm white
+const KIT_DIM := Color(0.7, 0.76, 0.86)           # secondary text
+const KIT_HEAD := Color(1.0, 0.84, 0.42)          # headings: gold
+func _kit_sb(tex: String, margin: int, pad := Vector4(16, 10, 16, 10), tint := Color.WHITE) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = _res("res://assets/ui/%s.png" % tex)
+	sb.set_texture_margin_all(margin)
+	sb.content_margin_left = pad.x
+	sb.content_margin_top = pad.y
+	sb.content_margin_right = pad.z
+	sb.content_margin_bottom = pad.w
+	sb.modulate_color = tint
+	return sb
+
+
+## The kit button colour nearest a requested one: green (go), blue, navy (neutral), red (danger), gold, purple, grey (off).
+func _btn_kind(c: Color) -> String:
+	if c.v < 0.24:
+		return "grey"
+	if c.s < 0.45:
+		return "navy"
+	var hd := c.h * 360.0
+	if hd < 22.0 or hd >= 330.0:
+		return "red"
+	if hd < 60.0:
+		return "gold"
+	if hd < 170.0:
+		return "green"
+	if hd < 255.0:
+		return "blue" if c.v >= 0.5 else "navy"
+	return "purple"
+
+
+## Skins a button as a kit gem button (kind: green, blue, navy, red, gold, purple, grey) or a tab ("tab_on", "tab_off").
+func _skin_button(b: Button, kind: String) -> void:
+	var tex := ("ui_" + kind) if kind.begins_with("tab") else ("ui_btn_" + kind)
+	var m := 20 if kind.begins_with("tab") else 22
+	var pad := Vector4(14, 6, 14, 10)
+	b.add_theme_stylebox_override("normal", _kit_sb(tex, m, pad))
+	b.add_theme_stylebox_override("hover", _kit_sb(tex, m, pad, Color(1.13, 1.13, 1.13)))
+	b.add_theme_stylebox_override("pressed", _kit_sb(tex, m, Vector4(pad.x, pad.y + 4, pad.z, pad.w - 4), Color(0.8, 0.8, 0.8)))
+	b.add_theme_stylebox_override("hover_pressed", _kit_sb(tex, m, Vector4(pad.x, pad.y + 4, pad.z, pad.w - 4), Color(0.85, 0.85, 0.85)))
+	b.add_theme_stylebox_override("disabled", _kit_sb("ui_btn_grey", 22, pad, Color(0.8, 0.8, 0.8)))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.set_meta("kit", kind)
+	# dark lettering on the gold tab (white on gold doesn't read); white with its outline on every other face
+	var dark := kind == "tab_on"
+	var fc := Color(0.2, 0.1, 0.02) if dark else Color.WHITE
+	for cn in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(cn, fc)
+	if dark:
+		b.add_theme_constant_override("outline_size", 0)
+	else:
+		b.add_theme_constant_override("outline_size", clampi(int(round(float(b.get_theme_font_size("font_size")) * 0.2)), 4, 10))
+
+
+## Skins a button (a tile, a shop entry) as a kit card: "card" (navy), "card_hi" (selected, bright gold), "card_dim" (locked).
+func _skin_card_button(b: Button, kind := "card", pad := Vector4(12, 10, 12, 10)) -> void:
+	var tex := "ui_" + kind
+	b.add_theme_stylebox_override("normal", _kit_sb(tex, 30, pad))
+	b.add_theme_stylebox_override("hover", _kit_sb(tex, 30, pad, Color(1.15, 1.15, 1.15)))
+	b.add_theme_stylebox_override("pressed", _kit_sb(tex, 30, pad, Color(0.85, 0.85, 0.85)))
+	b.add_theme_stylebox_override("hover_pressed", _kit_sb(tex, 30, pad, Color(0.9, 0.9, 0.9)))
+	b.add_theme_stylebox_override("disabled", _kit_sb(tex, 30, pad, Color(0.8, 0.8, 0.8)))
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## A kit card panel (PanelContainer stylebox).
+func _card_sb(kind := "card", pad := 16.0) -> StyleBoxTexture:
+	return _kit_sb("ui_" + kind, 30, Vector4(pad, pad, pad, pad))
+
+
+## A screen's title on the gold-framed plaque (the main menu's labels), centred in its row.
+func _title_bar(text: String, size := 50) -> Control:
+	var c := CenterContainer.new()
+	c.add_child(_plaque(text, _fs(size)))
+	return c
+
+
+## "the Stone Age", "The Data Center" (an age's name with its article once).
+func _the_era(era: String) -> String:
+	return era if era.begins_with("The ") else "the " + era
+
+
+## A section heading: gold text over a gold rule with a gem.
+func _section_head(text: String, col := KIT_HEAD, size := 30) -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	var l := _label(text, size, col, 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(l)
+	var d := TextureRect.new()
+	d.texture = _res("res://assets/ui/ui_divider.png")
+	d.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	d.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	d.custom_minimum_size = Vector2(0, 22)
+	v.add_child(d)
+	return v
+
+
 # =================================================================== HUD
 func _style(col: Color, radius := 16, border := Color(0, 0, 0, 0), bw := 4) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -10871,26 +10977,14 @@ func _button(text: String, col: Color, font := 28) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.add_theme_font_size_override("font_size", font)
-	var normal := _style(col, 18, col.darkened(0.45), 4)
-	normal.border_width_bottom = 9
-	var hover := _style(col.lightened(0.1), 18, col.darkened(0.4), 4)
-	hover.border_width_bottom = 9
-	var pressed := _style(col.darkened(0.08), 18, col.darkened(0.45), 4)
-	pressed.border_width_bottom = 4
-	pressed.content_margin_top = 17
-	var dis := _style(Color(0.19, 0.24, 0.32), 18, Color(0.13, 0.16, 0.22), 4)
-	dis.border_width_bottom = 9
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
-	b.add_theme_stylebox_override("disabled", dis)
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_skin_button(b, _btn_kind(col))                  # v0.9.92: a kit gem button in the nearest kit colour
 	b.add_theme_color_override("font_color", Color.WHITE)
 	b.add_theme_color_override("font_hover_color", Color.WHITE)
-	b.add_theme_color_override("font_pressed_color", Color.WHITE)
-	b.add_theme_color_override("font_disabled_color", Color(0.62, 0.58, 0.52))
-	b.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 0.9))
-	b.add_theme_constant_override("outline_size", _outline_for(font))
+	b.add_theme_color_override("font_pressed_color", Color(0.9, 0.9, 0.9))
+	b.add_theme_color_override("font_hover_pressed_color", Color(0.9, 0.9, 0.9))
+	b.add_theme_color_override("font_disabled_color", Color(0.78, 0.8, 0.84))
+	b.add_theme_color_override("font_outline_color", Color(0.02, 0.03, 0.08, 0.95))
+	b.add_theme_constant_override("outline_size", clampi(int(round(float(font) * 0.2)), 4, 10))
 	if "autowrap_mode" in b:
 		b.set("autowrap_mode", TextServer.AUTOWRAP_WORD_SMART)
 	return b
@@ -10905,7 +10999,18 @@ func _label(text: String, size := 28, col := C_TEXT, outline := 9) -> Label:
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", col)
 	l.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.1, 1.0))
-	l.add_theme_constant_override("outline_size", 0 if outline == 0 else maxi(outline, _outline_for(size)))
+	# v0.9.92: reading text gets a thin outline and a soft drop shadow (a thick outline crowds the letters together);
+	# headings and big numbers keep the heavy outline
+	if outline == 0:
+		l.add_theme_constant_override("outline_size", 0)
+	elif size < 40:
+		l.add_theme_constant_override("outline_size", clampi(int(round(float(size) * 0.14)), 3, 6))
+		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
+		l.add_theme_constant_override("shadow_offset_x", 0)
+		l.add_theme_constant_override("shadow_offset_y", 2)
+		l.add_theme_constant_override("line_spacing", 3)
+	else:
+		l.add_theme_constant_override("outline_size", maxi(outline, _outline_for(size)))
 	return l
 
 
@@ -10928,7 +11033,7 @@ func _build_hud() -> void:
 	ui_theme.default_font_size = 28
 	for tn in ["Label", "Button", "CheckBox", "CheckButton", "OptionButton", "LinkButton", "LineEdit", "RichTextLabel", "MenuButton"]:
 		ui_theme.set_color("font_outline_color", tn, Color(0.02, 0.04, 0.1, 0.95))     # outlined text everywhere
-		ui_theme.set_constant("outline_size", tn, 8)
+		ui_theme.set_constant("outline_size", tn, 5)
 	for sbn in ["VScrollBar", "HScrollBar"]:          # no scroll bars anywhere: areas scroll by drag or wheel
 		for k in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
 			ui_theme.set_stylebox(k, sbn, StyleBoxEmpty.new())
@@ -10945,7 +11050,7 @@ func _build_hud() -> void:
 	# --- top-left stat bar
 	var top := PanelContainer.new()
 	hud_top = top
-	top.add_theme_stylebox_override("panel", _style(Color(0.06, 0.09, 0.15, 0.82), 22, C_PANEL_EDGE, 4))
+	top.add_theme_stylebox_override("panel", _kit_sb("ui_card", 30, Vector4(20, 8, 24, 8), Color(1, 1, 1, 0.95)))     # v0.9.92
 	top.position = Vector2(20, 16)
 	root.add_child(top)
 	var hb := HBoxContainer.new()
@@ -10980,11 +11085,7 @@ func _build_hud() -> void:
 	# --- right sidebar
 	var side := PanelContainer.new()
 	hud_side = side
-	var side_sb := _style(C_PANEL, 0, C_PANEL_EDGE, 0)
-	side_sb.border_width_left = 6
-	side_sb.shadow_size = 12
-	side_sb.set_content_margin_all(14)
-	side.add_theme_stylebox_override("panel", side_sb)
+	side.add_theme_stylebox_override("panel", _kit_sb("ui_panel", 72, Vector4(18, 22, 16, 20)))     # v0.9.92: the kit frame
 	side.anchor_left = 1.0
 	side.anchor_right = 1.0
 	side.anchor_bottom = 1.0
@@ -11002,7 +11103,7 @@ func _build_hud() -> void:
 
 	# hero card
 	hero_card = PanelContainer.new()
-	hero_card.add_theme_stylebox_override("panel", _style(Color(0.1, 0.16, 0.26), 16, C_GOLD.darkened(0.3), 3))
+	hero_card.add_theme_stylebox_override("panel", _card_sb("card", 12))
 	col.add_child(hero_card)
 	var hrow := HBoxContainer.new()
 	hrow.add_theme_constant_override("separation", 10)
@@ -11016,6 +11117,7 @@ func _build_hud() -> void:
 	lbl_hero_name.clip_text = true
 	hcol.add_child(lbl_hero_name)
 	lbl_hero_level = _label("", 18, C_TEXT, 5)
+	lbl_hero_level.clip_text = true                  # (v0.9.92: the hero card must fit the sidebar's width)
 	hcol.add_child(lbl_hero_level)
 	var xp_bg := ColorRect.new()
 	xp_bg.color = Color(0.04, 0.06, 0.1)
@@ -11026,7 +11128,7 @@ func _build_hud() -> void:
 	hero_xp_fill.size = Vector2(0, 10)
 	xp_bg.add_child(hero_xp_fill)
 	btn_hero = _button("", Color(0.2, 0.55, 0.2), 16)
-	btn_hero.custom_minimum_size = Vector2(136, 72)
+	btn_hero.custom_minimum_size = Vector2(128, 72)
 	btn_hero.clip_text = true
 	btn_hero.pressed.connect(_on_hero_button)
 	hrow.add_child(btn_hero)
@@ -11054,6 +11156,7 @@ func _build_hud() -> void:
 		var def: Dictionary = defs.towers[type]
 		var c := Color(def.color[0], def.color[1], def.color[2])
 		var b := _button("", c.lerp(Color(0.17, 0.27, 0.45), 0.35), 26)
+		_skin_card_button(b, "card", Vector4(12, 8, 70, 8))        # v0.9.92: each tower on a kit card
 		b.set_meta("col", c.lerp(Color(0.1, 0.16, 0.3), 0.45))
 		b.icon = _icon_tex(type)
 		b.expand_icon = true
@@ -11096,9 +11199,12 @@ func _build_hud() -> void:
 		_sfx("click", -6.0)
 		_deselect())
 	head.add_child(close)
-	lbl_t_info = _label("", 21, Color(0.84, 0.88, 0.93), 6)
+	lbl_t_info = _label("", 21, KIT_TEXT, 6)
 	lbl_t_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tower_box.add_child(lbl_t_info)
+	var info_card := PanelContainer.new()            # v0.9.92: the tower's stats on a card
+	info_card.add_theme_stylebox_override("panel", _kit_sb("ui_card", 30, Vector4(14, 10, 14, 10)))
+	info_card.add_child(lbl_t_info)
+	tower_box.add_child(info_card)
 	up_box = VBoxContainer.new()
 	up_box.add_theme_constant_override("separation", 8)
 	tower_box.add_child(up_box)
@@ -11829,9 +11935,9 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 24)
 	box.add_child(head)
-	var ttl := _label("TOWERS  -  %s" % era.to_upper(), 44, C_GOLD, 12)
+	var ttl := HBoxContainer.new()                # v0.9.92: the title on the gold-framed plaque
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ttl.clip_text = true
+	ttl.add_child(_plaque("TOWERS  -  %s" % era.to_upper(), _fs(40)))
 	head.add_child(ttl)
 	var sc := HBoxContainer.new()
 	sc.custom_minimum_size = Vector2(230, 0)
@@ -11862,15 +11968,15 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 	box.add_child(tabs)
 	for en in _eras():
 		var open := Progress.is_unlocked(_first_map_of(en))
-		var tb := _button(en.to_upper() if open else "LOCKED", Color(0.2, 0.36, 0.6) if en == era else (Color(0.16, 0.24, 0.38) if open else Color(0.12, 0.14, 0.18)), 17)
+		var tb := _button(en.to_upper() if open else "LOCKED", Color(0.2, 0.36, 0.6), 17)
+		_skin_button(tb, "tab_on" if en == era else ("tab_off" if open else "grey"))      # v0.9.92: gold = the open tab
 		tb.custom_minimum_size = Vector2(230, 44)
 		tb.clip_text = true
 		if not open:
 			tb.disabled = true
 			tb.icon = ICON_LOCK
 			tb.add_theme_constant_override("icon_max_width", 26)
-		elif en == era:
-			tb.add_theme_color_override("font_color", C_GOLD)
+		pass
 		tb.pressed.connect(func():
 			if en == era:
 				return
@@ -11891,7 +11997,7 @@ func _open_workshop(era: String, reuse: Control = null) -> void:
 		var own := Progress.tower_unlocked(tid)
 		var cost := Progress.tower_scrap_cost(tid)
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", _style(Color(0.09, 0.15, 0.25) if own else Color(0.09, 0.13, 0.18), 18, C_GOLD.darkened(0.3) if own else C_PANEL_EDGE, 3))
+		card.add_theme_stylebox_override("panel", _card_sb("card" if own else "card_dim", 16))
 		card.custom_minimum_size = Vector2(300, 430)
 		cards.add_child(card)
 		var v := VBoxContainer.new()
@@ -12002,11 +12108,7 @@ func _fill_hero_picker(box: VBoxContainer) -> void:
 		hb.add_theme_constant_override("icon_max_width", 104)
 		hb.custom_minimum_size = Vector2(150, 168)
 		hb.clip_text = true
-		if hid == cur:
-			var sel := _style(col.lerp(Color(1, 0.85, 0.3), 0.35), 18, Color(1, 0.85, 0.3), 6)
-			sel.border_width_bottom = 9
-			hb.add_theme_stylebox_override("normal", sel)
-			hb.add_theme_stylebox_override("hover", sel)
+		_skin_card_button(hb, "card_hi" if hid == cur else ("card" if owned else "card_dim"), Vector4(10, 12, 10, 12))
 		var avail := owned or Progress.hero_available(hd)
 		if not owned:
 			# not owned: the face stays shaded; the lock only shows until the hero's age is reached
@@ -12052,7 +12154,7 @@ func _hero_price_button(hd: Dictionary, picker_box: VBoxContainer, size: Vector2
 	b.add_theme_constant_override("icon_max_width", int(size.y * 0.62))
 	b.custom_minimum_size = size
 	b.disabled = not avail
-	b.tooltip_text = "Reach the %s to unlock" % str(hd.era) if not avail else "Buy for %d Time Shards" % cost
+	b.tooltip_text = "Reach %s to unlock" % _the_era(str(hd.era)) if not avail else "Buy for %d Time Shards" % cost
 	if avail:
 		var glow := b.create_tween().set_loops()
 		glow.tween_property(b, "modulate", Color(1.25, 1.2, 1.35), 0.7).set_trans(Tween.TRANS_SINE)
@@ -12358,9 +12460,7 @@ func _robot_roster(mid: String, intro := false) -> void:
 			toast_t = 4.5
 			_path_preview(true)
 	_on_close(dlg, close)
-	var ttl := _label(("INCOMING!  -  %s" if intro else "ROBOTS  -  %s") % str(me.get("name", mid)).to_upper(), 48, Color(1.0, 0.55, 0.5), 12)
-	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(ttl)
+	box.add_child(_title_bar(("INCOMING!  -  %s" if intro else "ROBOTS  -  %s") % str(me.get("name", mid)).to_upper(), 44))
 	var sub_txt := "%s   -   Map %d of %d   -   20 waves. Stats are for this map." % [str(me.get("era", "")), map_order.find(mid) + 1, map_order.size()]
 	if intro:
 		sub_txt = "These robots attack on this map. " + ("NEW! marks robots you haven't faced yet." if not fresh.is_empty() else "You've faced all of them before.")
@@ -12378,7 +12478,7 @@ func _robot_roster(mid: String, intro := false) -> void:
 		var boss := bool(d.get("boss", false))
 		var card := PanelContainer.new()
 		var cc := Color(0.55, 0.15, 0.15) if boss else Color(0.25, 0.32, 0.45)
-		card.add_theme_stylebox_override("panel", _style(Color(0.08, 0.09, 0.13), 18, cc, 4 if boss else 3))
+		card.add_theme_stylebox_override("panel", _card_sb("card", 16) if not boss else _kit_sb("ui_card", 30, Vector4(16, 16, 16, 16), Color(1.35, 0.75, 0.7)))
 		card.custom_minimum_size = Vector2(440, 0)
 		grid.add_child(card)
 		var h := HBoxContainer.new()
@@ -12393,7 +12493,7 @@ func _robot_roster(mid: String, intro := false) -> void:
 		ic.position = Vector2(0, 30)
 		ic.size = Vector2(120, 120)
 		if fresh.has(t):
-			card.add_theme_stylebox_override("panel", _style(Color(0.08, 0.09, 0.13), 18, Color(1.0, 0.8, 0.15), 4))
+			card.add_theme_stylebox_override("panel", _card_sb("card_hi", 16))
 			var badge := PanelContainer.new()
 			var bs := _style(Color(1.0, 0.82, 0.12), 12, Color(0.55, 0.3, 0.0), 3)
 			bs.set_content_margin_all(4)
@@ -12607,10 +12707,12 @@ func _upgrade_card(tid: String, o: Dictionary, tier: int, tower_id: int, tall :=
 	var key := str(o.key)
 	var pc := _path_color(key, tier)
 	var b := Button.new()
+	# v0.9.92: a kit card washed in the path's colour (tiers I-II teal, Path A amber, Path B blue)
+	var tint := Color(0.85, 1.25, 1.15) if tier <= 2 else (Color(1.6, 1.05, 0.6) if key == "A" else Color(0.85, 1.05, 1.5))
 	for stn in ["normal", "disabled"]:
-		b.add_theme_stylebox_override(stn, _style(pc.darkened(0.55), 16, pc, 3))
-	b.add_theme_stylebox_override("hover", _style(pc.darkened(0.4), 16, pc.lightened(0.3), 3))
-	b.add_theme_stylebox_override("pressed", _style(pc.darkened(0.3), 16, C_GOLD, 3))
+		b.add_theme_stylebox_override(stn, _kit_sb("ui_card_hi", 30, Vector4(8, 8, 8, 8), tint))
+	b.add_theme_stylebox_override("hover", _kit_sb("ui_card_hi", 30, Vector4(8, 8, 8, 8), tint * 1.15))
+	b.add_theme_stylebox_override("pressed", _kit_sb("ui_card_hi", 30, Vector4(8, 8, 8, 8), tint * 0.85))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	b.custom_minimum_size = Vector2(0, 104)
 	b.clip_contents = true
@@ -12795,9 +12897,9 @@ func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 24)
 	box.add_child(head)
-	var ttl := _label("TECH TREE  -  %s" % era.to_upper(), 44, C_GOLD, 12)
+	var ttl := HBoxContainer.new()                # v0.9.92: the title on the gold-framed plaque
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ttl.clip_text = true
+	ttl.add_child(_plaque("TECH TREE  -  %s" % era.to_upper(), _fs(40)))
 	head.add_child(ttl)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
 	done.custom_minimum_size = Vector2(200, 62)
@@ -12813,15 +12915,15 @@ func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
 	for en in _eras():
 		var open := Progress.is_unlocked(_first_map_of(en))
 		var short: String = str(en).to_upper().replace(" AGE", "").replace("THE ", "")
-		var tb := _button(short if open else "", Color(0.2, 0.36, 0.6) if en == era else (Color(0.16, 0.24, 0.38) if open else Color(0.12, 0.14, 0.18)), 15)
+		var tb := _button(short if open else "", Color(0.2, 0.36, 0.6), 15)
+		_skin_button(tb, "tab_on" if en == era else ("tab_off" if open else "grey"))
 		tb.custom_minimum_size = Vector2(126, 46)
 		tb.clip_text = true
 		if not open:
 			tb.disabled = true
 			tb.icon = ICON_LOCK
 			tb.add_theme_constant_override("icon_max_width", 26)
-		elif en == era:
-			tb.add_theme_color_override("font_color", C_GOLD)
+		pass
 		tb.pressed.connect(func():
 			if en == era:
 				return
@@ -12835,7 +12937,8 @@ func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
 	box.add_child(picks)
 	for ot in towers:
 		var sel: bool = ot == tid
-		var pb := _button("", Color(0.22, 0.4, 0.66) if sel else Color(0.14, 0.2, 0.3), 18)
+		var pb := _button("", Color(0.22, 0.4, 0.66), 18)
+		_skin_card_button(pb, "card_hi" if sel else "card", Vector4(12, 8, 12, 8))
 		pb.custom_minimum_size = Vector2(300, 72)
 		var ph := HBoxContainer.new()
 		ph.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -12861,7 +12964,7 @@ func _open_techtree(era: String, tid: String, reuse: Control = null) -> void:
 			_open_techtree(era, str(ot), dlg))
 		picks.add_child(pb)
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _style(Color(0.06, 0.08, 0.12), 18, Color(0.22, 0.3, 0.44), 3))
+	panel.add_theme_stylebox_override("panel", _card_sb("card", 18))
 	panel.custom_minimum_size = Vector2(0, 470)
 	box.add_child(panel)
 	var pv2 := VBoxContainer.new()
@@ -12891,9 +12994,7 @@ func _tower_detail(tid: String) -> void:
 		_sfx("click")
 		dlg.queue_free())
 	var col := Color(d.color[0], d.color[1], d.color[2])
-	var ttl := _label(str(d.name).to_upper(), 52, col.lightened(0.4), 12)
-	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(ttl)
+	box.add_child(_title_bar(str(d.name).to_upper(), 48))
 	var roles := {"Ranged": "single-target damage", "Control": "slows, stuns and spotting", "Brute": "close-range area damage", "Siege": "splash and long range"}
 	var sub := _label("%s tower (%s)   -   %s   -   %d gold" % [d.lineage, roles.get(str(d.lineage), ""), d.era, int(d.cost)], 24, C_GOLD, 7)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -12904,8 +13005,7 @@ func _tower_detail(tid: String) -> void:
 	row.add_theme_constant_override("h_separation", 26)
 	box.add_child(row)
 	var stage := PanelContainer.new()
-	var ssb := _style(Color(col.darkened(0.6), 0.85), 24, col.darkened(0.2), 5)
-	stage.add_theme_stylebox_override("panel", ssb)
+	stage.add_theme_stylebox_override("panel", _card_sb("card_hi", 14))      # v0.9.92: the model on the kit card
 	row.add_child(stage)
 	stage.add_child(_model_viewer("res://assets/towers/%s.glb" % tid, Vector2(360, 400)))
 	var info := VBoxContainer.new()
@@ -12936,10 +13036,10 @@ func _tower_detail(tid: String) -> void:
 		stats.append(["TARGETS", "%d per hit" % int(b.max_targets)])
 	for st in stats:
 		var chip := PanelContainer.new()
-		var csb := _style(Color(0.05, 0.07, 0.11), 12, col.darkened(0.3), 3)
-		csb.content_margin_left = 12
-		csb.content_margin_right = 12
-		csb.content_margin_top = 4
+		var csb := _kit_sb("ui_tab_off", 20, Vector4(14, 6, 14, 6))
+		csb.content_margin_left = 14
+		csb.content_margin_right = 14
+		csb.content_margin_top = 6
 		csb.content_margin_bottom = 4
 		chip.add_theme_stylebox_override("panel", csb)
 		var cv := VBoxContainer.new()
@@ -12971,9 +13071,9 @@ func _tower_detail(tid: String) -> void:
 		l2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		cv2.add_child(l2)
 	# upgrade tree: tiers I-II, then Path A or Path B
-	box.add_child(_label("UPGRADE TREE", 30, C_GOLD, 8))
+	box.add_child(_section_head("UPGRADE TREE"))
 	var tree_p := PanelContainer.new()
-	tree_p.add_theme_stylebox_override("panel", _style(Color(0.06, 0.08, 0.12), 18, Color(0.22, 0.3, 0.44), 3))
+	tree_p.add_theme_stylebox_override("panel", _card_sb("card", 18))
 	box.add_child(tree_p)
 	tree_p.add_child(_upgrade_tree(tid, 88))
 	var note := _label("At tier 3 you pick Path A or Path B. The other path locks for that tower.", 17, Color(1, 0.75, 0.5), 4)
@@ -13003,9 +13103,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	dlg.tree_exiting.connect(func(): detail_open = maxi(0, detail_open - 1))
 	dlg.set_meta("hero_detail", hid)
 	var col := Color(hd.color[0], hd.color[1], hd.color[2])
-	var ttl := _label(str(hd.name).to_upper(), 52, col.lightened(0.35), 12)
-	ttl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(ttl)
+	box.add_child(_title_bar(str(hd.name).to_upper(), 48))
 	var sub := _label("%s   -   %s" % [hd.title, hd.era], 26, C_GOLD, 7)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
@@ -13041,9 +13139,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 	row.add_theme_constant_override("h_separation", 28)
 	box.add_child(row)
 	var stage := PanelContainer.new()
-	var ssb := _style(col.darkened(0.55), 24, col.darkened(0.2), 5)
-	ssb.bg_color = Color(col.darkened(0.6), 0.85)
-	stage.add_theme_stylebox_override("panel", ssb)
+	stage.add_theme_stylebox_override("panel", _card_sb("card_hi", 14))      # v0.9.92
 	row.add_child(stage)
 	stage.add_child(_hero_viewer(hid, Vector2(380, 430)))
 	var info := VBoxContainer.new()
@@ -13110,7 +13206,7 @@ func _hero_detail(hid: String, picker_box: VBoxContainer) -> void:
 			_sfx("click")
 			dlg.queue_free())
 		btns.add_child(back2)
-		var why := "Reach the %s to unlock %s. " % [str(hd.era), _short_name(str(hd.name))] if not avail else ""
+		var why := "Reach %s to unlock %s. " % [_the_era(str(hd.era)), _short_name(str(hd.name))] if not avail else ""
 		var wallet := _label("%sYou have %d Time Shards.%s" % [why, have, ("  Need %d more: earn them by playing maps and leveling up heros." % (cost - have)) if avail and have < cost else ""], 20, Color(0.8, 0.72, 1.0), 5)
 		wallet.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		wallet.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -13132,8 +13228,9 @@ func _open_heroes() -> void:
 	box.add_theme_constant_override("separation", 14)
 	var head := HBoxContainer.new()
 	box.add_child(head)
-	var ttl := _label("HEROS", 60, C_GOLD, 14)
+	var ttl := HBoxContainer.new()                # v0.9.92: the title on the gold-framed plaque
 	ttl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ttl.add_child(_plaque("HEROS", _fs(46)))
 	head.add_child(ttl)
 	var done := _button("DONE", Color(0.2, 0.58, 0.18), 30)
 	done.custom_minimum_size = Vector2(200, 70)
@@ -13205,7 +13302,8 @@ func _build_map_select(root: Control) -> void:
 			_map_card(row, m)
 		if era_open and default_tab == "":
 			pass
-		var tbtn := _button(era_name.to_upper(), Color(0.18, 0.28, 0.46) if era_open else Color(0.18, 0.21, 0.27), 20)
+		var tbtn := _button(era_name.to_upper(), Color(0.18, 0.28, 0.46), 20)
+		_skin_button(tbtn, "tab_off" if era_open else "grey")
 		tbtn.custom_minimum_size = Vector2(244, 58)
 		tbtn.set_meta("open", era_open)
 		tabs.add_child(tbtn)
@@ -13221,7 +13319,7 @@ func _build_map_select(root: Control) -> void:
 		for k in rows:
 			rows[k].visible = k == era_name
 			var b: Button = tab_buttons[k]
-			b.modulate = Color(1.25, 1.2, 0.95) if k == era_name else (Color(0.8, 0.8, 0.8) if b.get_meta("open") else Color(0.55, 0.55, 0.55))
+			_skin_button(b, "tab_on" if k == era_name else ("tab_off" if b.get_meta("open") else "grey"))     # v0.9.92
 		Progress.data.tab = era_name
 		if map_select.has_meta("built") and map_select.visible and era_name == Progress.new_age():
 			Progress.clear_new_age()
@@ -13241,9 +13339,7 @@ func _build_map_select(root: Control) -> void:
 		if map_select.visible and str(Progress.data.get("tab", "")) == Progress.new_age():
 			Progress.clear_new_age())
 	# hero select
-	var hhead := _label("CHOOSE YOUR HERO", 30, C_GOLD, 8)
-	hhead.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(hhead)
+	box.add_child(_section_head("CHOOSE YOUR HERO"))
 	_hero_picker(box)
 	var hint := _label("Beat a map to unlock the next.  Stars: 1 = win, 2 = lose 50 lives or fewer, 3 = lose 10 or fewer.  Your hero joins every match for free.", 18, Color(0.68, 0.75, 0.85), 5)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -13330,8 +13426,7 @@ func _map_card(row: HBoxContainer, m: Dictionary) -> void:
 	var mid: String = m.id
 	var unlocked := Progress.is_unlocked(mid)
 	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", _style(Color(0.09, 0.15, 0.25) if unlocked else Color(0.1, 0.13, 0.18), 20,
-		C_PANEL_EDGE if unlocked else Color(0.3, 0.25, 0.2), 4))
+	card.add_theme_stylebox_override("panel", _card_sb("card" if unlocked else "card_dim", 16))
 	card.custom_minimum_size = Vector2(390, 0)
 	row.add_child(card)
 	var v := VBoxContainer.new()
@@ -13392,10 +13487,7 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.add_child(center)
 	var panel := PanelContainer.new()
-	var sb := _style(Color(0.06, 0.1, 0.17, 1.0), 30, C_PANEL_EDGE, 6)
-	sb.set_content_margin_all(30)
-	sb.shadow_size = 24
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.add_theme_stylebox_override("panel", _kit_sb("ui_panel", 72, Vector4(40, 36, 40, 36)))   # v0.9.92
 	center.add_child(panel)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -13411,9 +13503,15 @@ func _modal(root: Control, dim := 0.45) -> Control:
 	shade.set_meta("scroll", scroll)
 	shade.set_meta("panel", panel)
 	# red X in the corner: every dialog can be closed (its action is set with _on_close)
-	var xb := _button("X", Color(0.8, 0.12, 0.1), 36)
-	xb.custom_minimum_size = Vector2(76, 76)
-	xb.size = Vector2(76, 76)
+	var xb := Button.new()                         # v0.9.92: the red gem X
+	for st in ["normal", "focus", "disabled"]:
+		xb.add_theme_stylebox_override(st, _kit_sb("ui_close", 0, Vector4.ZERO))
+	xb.add_theme_stylebox_override("hover", _kit_sb("ui_close", 0, Vector4.ZERO, Color(1.15, 1.15, 1.15)))
+	xb.add_theme_stylebox_override("pressed", _kit_sb("ui_close", 0, Vector4.ZERO, Color(0.8, 0.8, 0.8)))
+	xb.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	xb.custom_minimum_size = Vector2(88, 88)
+	xb.size = Vector2(88, 88)
+	xb.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	xb.visible = false
 	shade.add_child(xb)
 	xb.pressed.connect(func():
@@ -13507,7 +13605,7 @@ func _fit_modals() -> void:
 			var pr := (m.get_meta("panel") as Control).get_rect()
 			var cc := (m.get_meta("panel") as Control).get_parent() as Control
 			pr.position += cc.position
-			xb.position = Vector2(pr.end.x - 56.0, pr.position.y - 20.0)
+			xb.position = Vector2(minf(pr.end.x - 66.0, ui_root.size.x - 96.0), maxf(pr.position.y - 22.0, 4.0))
 
 
 func _start_game() -> void:
@@ -13670,7 +13768,7 @@ func _banner(text: String, col: Color) -> void:
 func _update_hero_card() -> void:
 	var ab: Dictionary = sim.hero_def.ability
 	if sim.hero == null:
-		lbl_hero_level.text = "Ready to deploy"
+		lbl_hero_level.text = "Ready"
 		hero_xp_fill.size.x = 0
 		btn_hero.text = "PLACE\nFREE"
 		btn_hero.disabled = false
@@ -13804,10 +13902,7 @@ func _show_results_page() -> void:
 
 
 func _results_title(box: VBoxContainer, text: String, col: Color, size := 76) -> void:
-	var t := _label(text, size, col, 16)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(t)
+	box.add_child(_title_bar(text, mini(size, 56)))       # v0.9.92: on the gold-framed plaque
 
 
 ## Page 1: win or lose, the match stats, and the best tower of the match.
@@ -13851,7 +13946,7 @@ func _results_summary_page(box: VBoxContainer, won: bool, stars: int) -> void:
 	]
 	for c in cells:
 		var cell := PanelContainer.new()
-		cell.add_theme_stylebox_override("panel", _style(Color(0.08, 0.12, 0.2), 14, C_PANEL_EDGE.darkened(0.2), 3))
+		cell.add_theme_stylebox_override("panel", _card_sb("card", 12))
 		cell.custom_minimum_size = Vector2(300, 0)
 		var cv := VBoxContainer.new()
 		cv.add_theme_constant_override("separation", -2)
@@ -13866,7 +13961,7 @@ func _results_summary_page(box: VBoxContainer, won: bool, stars: int) -> void:
 	var best := sim.best_tower()
 	if not best.is_empty():
 		var bp := PanelContainer.new()
-		bp.add_theme_stylebox_override("panel", _style(Color(0.1, 0.16, 0.27), 18, C_GOLD, 4))
+		bp.add_theme_stylebox_override("panel", _card_sb("card_hi", 16))
 		bp.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		box.add_child(bp)
 		var bh := HBoxContainer.new()
@@ -14750,6 +14845,7 @@ func _era_title_card(era: String, on_done: Callable) -> void:
 func _set_paused(on: bool) -> void:
 	paused = on
 	pause_menu.visible = on
+	btn_pause.visible = not on                      # (v0.9.92: its spot is the dialog's close button while paused)
 	if on:
 		_cancel_placing()
 		var lbl: Label = pause_menu.get_meta("sub")
@@ -14766,9 +14862,7 @@ func _build_pause_menu(root: Control) -> void:
 	var box: VBoxContainer = pause_menu.get_meta("box")
 	box.set_meta("want_w", 620.0)
 	box.add_theme_constant_override("separation", 16)
-	var t := _label("PAUSED", 84, C_GOLD, 16)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
+	box.add_child(_title_bar("PAUSED", 60))
 	var sub := _label("", 26, C_TEXT, 7)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
@@ -14832,11 +14926,11 @@ func _refresh_auto_button() -> void:
 
 func _toggle_button(key: String) -> Button:
 	var b := _button("", Color(0.3, 0.3, 0.3), 24)
-	b.custom_minimum_size = Vector2(160, 60)
+	b.custom_minimum_size = Vector2(160, 64)
 	var paint := func():
 		var on := bool(Progress.setting(key))
 		b.text = "ON" if on else "OFF"
-		b.modulate = Color(0.7, 1.5, 0.7) if on else Color(1.0, 0.85, 0.85)
+		_skin_button(b, "green" if on else "navy")
 	paint.call()
 	b.pressed.connect(func():
 		_sfx("click", -6.0)
@@ -14852,7 +14946,8 @@ func _gfx_picker() -> HBoxContainer:
 	var btns := []
 	for i in 3:
 		var b := _button(Progress.GFX_NAMES[i], Color(0.3, 0.3, 0.36), 17)
-		b.custom_minimum_size = Vector2(120, 60)
+		b.custom_minimum_size = Vector2(138, 60)
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
 		btns.append(b)
 		row.add_child(b)
 		b.pressed.connect(func():
@@ -14862,9 +14957,9 @@ func _gfx_picker() -> HBoxContainer:
 			_apply_settings()
 			_toast("Graphics: %s (fully applies on the next map load)" % Progress.GFX_NAMES[i], C_GOLD)
 			for j in btns.size():
-				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+				_skin_button(btns[j], "tab_on" if j == i else "tab_off"))
 	for j in btns.size():
-		btns[j].modulate = Color(0.7, 1.5, 0.7) if j == Progress.gfx_level() else Color.WHITE
+		_skin_button(btns[j], "tab_on" if j == Progress.gfx_level() else "tab_off")
 	return row
 
 
@@ -14879,7 +14974,8 @@ func _place_picker() -> HBoxContainer:
 	var btns := []
 	for i in 3:
 		var b := _button(Progress.PLACE_MODES[i], Color(0.3, 0.3, 0.36), 17)
-		b.custom_minimum_size = Vector2(120, 60)
+		b.custom_minimum_size = Vector2(138, 60)
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
 		b.tooltip_text = PLACE_HELP[i]
 		btns.append(b)
 		row.add_child(b)
@@ -14891,9 +14987,9 @@ func _place_picker() -> HBoxContainer:
 			_toast(PLACE_HELP[i], C_GOLD)
 			toast_t = 4.0
 			for j in btns.size():
-				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+				_skin_button(btns[j], "tab_on" if j == i else "tab_off"))
 	for j in btns.size():
-		btns[j].modulate = Color(0.7, 1.5, 0.7) if j == _place_mode() else Color.WHITE
+		_skin_button(btns[j], "tab_on" if j == _place_mode() else "tab_off")
 	return row
 
 
@@ -14904,8 +15000,9 @@ func _scale_picker() -> HBoxContainer:
 	var btns := []
 	for i in Progress.UI_SCALES.size():
 		var v: float = Progress.UI_SCALES[i]
-		var b := _button(names[i], Color(0.3, 0.3, 0.36), 20)
-		b.custom_minimum_size = Vector2(120, 60)
+		var b := _button(names[i], Color(0.3, 0.3, 0.36), 18)
+		b.custom_minimum_size = Vector2(138, 60)
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
 		btns.append(b)
 		row.add_child(b)
 		b.pressed.connect(func():
@@ -14913,9 +15010,9 @@ func _scale_picker() -> HBoxContainer:
 			Progress.data.settings.ui_scale = v
 			_apply_settings()
 			for j in btns.size():
-				btns[j].modulate = Color(0.7, 1.5, 0.7) if j == i else Color.WHITE)
+				_skin_button(btns[j], "tab_on" if j == i else "tab_off"))
 	for j in btns.size():
-		btns[j].modulate = Color(0.7, 1.5, 0.7) if is_equal_approx(float(Progress.setting("ui_scale")), Progress.UI_SCALES[j]) else Color.WHITE
+		_skin_button(btns[j], "tab_on" if is_equal_approx(float(Progress.setting("ui_scale")), Progress.UI_SCALES[j]) else "tab_off")
 	return row
 
 
@@ -14927,15 +15024,16 @@ func _slider(key: String) -> HSlider:
 	sl.value = float(Progress.setting(key))
 	sl.custom_minimum_size = Vector2(320, 48)
 	sl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var track := _style(Color(0.04, 0.06, 0.1), 8, C_PANEL_EDGE, 2)
-	track.set_content_margin_all(6)
-	track.shadow_size = 0
-	sl.add_theme_stylebox_override("slider", track)
-	var fill := _style(C_GOLD.darkened(0.15), 8)
-	fill.set_content_margin_all(6)
+	sl.add_theme_stylebox_override("slider", _kit_sb("ui_track", 18, Vector4(10, 14, 10, 14)))    # v0.9.92: the gold-framed groove
+	var fill := _style(Color(0.35, 0.78, 1.0), 10)
+	fill.set_content_margin_all(7)
 	fill.shadow_size = 0
+	fill.set_expand_margin_all(-7)
 	sl.add_theme_stylebox_override("grabber_area", fill)
 	sl.add_theme_stylebox_override("grabber_area_highlight", fill)
+	var knob: Texture2D = _res("res://assets/ui/ui_knob.png")
+	sl.add_theme_icon_override("grabber", knob)
+	sl.add_theme_icon_override("grabber_highlight", knob)
 	sl.value_changed.connect(func(v: float):
 		Progress.data.settings[key] = v
 		_apply_settings())
@@ -14948,9 +15046,8 @@ func _open_settings() -> void:
 	_clear_box(box)
 	box.set_meta("want_w", 760.0)
 	box.add_theme_constant_override("separation", 16)
-	var t := _label("SETTINGS", 64, C_GOLD, 14)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
+	box.add_child(_title_bar("SETTINGS"))
+	box.add_theme_constant_override("separation", 10)
 	var rows := [
 		["Text and button size", _scale_picker()],
 		["Music volume", _slider("music")],
@@ -14963,15 +15060,34 @@ func _open_settings() -> void:
 		["Tower placement", _place_picker()],
 	]
 	for r in rows:
+		# v0.9.92: each setting on its own card: the name (and a quiet hint under it), its control on the right
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", _kit_sb("ui_card", 30, Vector4(16, 8, 14, 8)))
+		box.add_child(card)
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 20)
-		var l := _label(r[0], 28, C_TEXT, 7)
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.add_child(hb)
+		var txt := str(r[0])
+		var hint := ""
+		if txt.contains(" ("):
+			hint = txt.substr(txt.find(" (") + 2).trim_suffix(")")
+			txt = txt.substr(0, txt.find(" ("))
+		var lv := VBoxContainer.new()
+		lv.add_theme_constant_override("separation", 0)
+		lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lv.alignment = BoxContainer.ALIGNMENT_CENTER
+		hb.add_child(lv)
+		var l := _label(txt, 28, KIT_TEXT, 7)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		hb.add_child(l)
+		lv.add_child(l)
+		if hint != "":
+			var hl := _label(hint[0].to_upper() + hint.substr(1), 18, KIT_DIM, 4)
+			hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			lv.add_child(hl)
+		(r[1] as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		hb.add_child(r[1])
-		box.add_child(hb)
-	var note := _label("Auto-start: after you start wave 1, each next wave starts 2 seconds after the last one is cleared.", 18, Color(0.68, 0.75, 0.85), 5)
+	var note := _label("Auto-start: after you start wave 1, each next wave starts 2 seconds after the last one is cleared.", 18, KIT_DIM, 5)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(note)
 	if Progress.crash_recovered:
@@ -15011,23 +15127,25 @@ func _confirm_new_timeline() -> void:
 	box.add_theme_constant_override("separation", 18)
 	var nxt := Progress.timeline() + 1
 	var lt: Dictionary = Progress.legacy.timeline
-	var t := _label("BEGIN TIMELINE %d?" % nxt, 64, Color(0.85, 0.6, 1.0), 14)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(t)
+	box.add_child(_title_bar("BEGIN TIMELINE %d?" % nxt))
 	var story := _label("You won. But the machine you built to destroy the Data Center has already gone back in time to hunt humanity again. The war starts over in the Stone Age.", 26, C_TEXT, 6)
 	story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	story.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(story)
-	var keep := _label("YOU KEEP:  every perk you bought, all your heros and their levels, and your Time Shards.", 26, Color(0.6, 1.0, 0.6), 6)
-	keep.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(keep)
-	var gain := _label("YOU GAIN:  +%d Upgrade Points, and every perk can go %d rank higher." % [
-		int(lt.bonus_points_per), int(lt.max_rank_per)], 26, C_GOLD, 6)
-	gain.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(gain)
-	var lose := _label("RESETS:  map unlocks and stars. Robots in the new timeline are %d%% tougher." % int(round(float(lt.robot_hp_per) * 100)), 26, Color(1, 0.6, 0.55), 6)
-	lose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(lose)
+	# v0.9.92: what you keep, gain and lose, each on its own card with its heading
+	for term in [["YOU KEEP", "Every perk you bought, all your heros and their levels, and your Time Shards.", Color(0.6, 1.0, 0.6)],
+			["YOU GAIN", "+%d Upgrade Points, and every perk can go %d rank higher." % [int(lt.bonus_points_per), int(lt.max_rank_per)], C_GOLD],
+			["RESETS", "Map unlocks and stars. Robots in the new timeline are %d%% tougher." % int(round(float(lt.robot_hp_per) * 100)), Color(1, 0.6, 0.55)]]:
+		var tc := PanelContainer.new()
+		tc.add_theme_stylebox_override("panel", _kit_sb("ui_card", 30, Vector4(18, 10, 18, 12)))
+		box.add_child(tc)
+		var tv := VBoxContainer.new()
+		tv.add_theme_constant_override("separation", 0)
+		tc.add_child(tv)
+		tv.add_child(_label(str(term[0]), 24, term[2], 6))
+		var tl := _label(str(term[1]), 24, KIT_TEXT, 6)
+		tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tv.add_child(tl)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 24)
@@ -15122,14 +15240,17 @@ func _build_legacy_contents() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 30)
 	box.add_child(head)
-	head.add_child(_label("UPGRADES", 64, C_GOLD, 14))
+	head.add_child(_plaque("UPGRADES", _fs(46)))          # v0.9.92
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(gap)
 	var pts := Progress.points_free()
-	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [pts, "" if pts == 1 else "S"], 36, C_GOLD if pts > 0 else Color(0.6, 0.64, 0.7), 9)
+	var plbl := _label("%d UPGRADE POINT%s TO SPEND" % [maxi(pts, 0), "" if pts == 1 else "S"], 32, KIT_HEAD if pts > 0 else KIT_DIM, 9)
 	plbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(plbl)
+	var xroom := Control.new()                     # (room for the close button)
+	xroom.custom_minimum_size = Vector2(56, 0)
+	head.add_child(xroom)
 	var intro_t := "Upgrade Points are earned only by starting a New Timeline. The perks you buy carry into every map and every timeline after that. (Heros level up on their own: each hero gets stronger from the robots it destroys.)"
 	if Progress.timeline() > 1:
 		intro_t += "\nTimeline %d bonus: +%d points, and every perk can go %d rank%s higher." % [Progress.timeline(), Progress.timeline_bonus_points(),
@@ -15149,9 +15270,7 @@ func _build_legacy_contents() -> void:
 		col.add_theme_constant_override("separation", 8)
 		col.custom_minimum_size = Vector2(500, 0)
 		cols.add_child(col)
-		var bl := _label(str(br.name), 32, bc.lightened(0.3), 8)
-		bl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		col.add_child(bl)
+		col.add_child(_section_head(str(br.name), bc.lightened(0.35), 32))
 		for p in br.perks:
 			col.add_child(_perk_card(p, bc))
 	# footer
@@ -15183,10 +15302,7 @@ func _perk_card(p: Dictionary, bc: Color) -> Control:
 	var rank := Progress.perk_rank(id)
 	var mx := Progress.perk_max(id)
 	var card := PanelContainer.new()
-	var sb := _style(Color(0.09, 0.14, 0.23) if rank == 0 else bc.darkened(0.62), 14, bc.darkened(0.2) if rank > 0 else Color(0.16, 0.24, 0.37), 3)
-	sb.set_content_margin_all(10)
-	sb.shadow_size = 0
-	card.add_theme_stylebox_override("panel", sb)
+	card.add_theme_stylebox_override("panel", _card_sb("card_hi" if rank > 0 else "card", 14))     # v0.9.92
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 10)
 	card.add_child(hb)
@@ -15305,6 +15421,52 @@ func _run_autowin() -> void:
 
 
 ## Screenshot of the main menu with the attract-mode background (and the workshop / heroes screens).
+
+## Every menu screen in one quick run (the 3D hub off unless --with-3d): the UI review sheet.
+func _shoot_ui() -> void:
+	var args := OS.get_cmdline_user_args()
+	if not "--with-3d" in args:
+		get_viewport().disable_3d = true
+	Progress.data.legacy_xp = 2650
+	Progress.data.perks = {"start_gold": 2, "bounty": 1, "damage": 2, "hero_level": 1}
+	for i in 20:
+		await get_tree().process_frame
+	await _shot("ui_00_main.png")
+	var steps := [
+		["ui_01_settings", func(): _open_settings()],
+		["ui_02_heroes", func(): _open_heroes()],
+		["ui_03_hero_owned", func(): _hero_detail("ugo", VBoxContainer.new())],
+		["ui_04_hero_locked", func(): _hero_detail("vega", VBoxContainer.new())],
+		["ui_05_workshop", func(): _open_workshop("Stone Age")],
+		["ui_06_workshop_dc", func(): _open_workshop("The Data Center")],
+		["ui_07_tower_detail", func(): _tower_detail(str(Progress.era_towers("Bronze Age")[1]))],
+		["ui_08_tech", func(): _open_techtree("", "")],
+		["ui_09_robots", func(): _robot_roster("railyard")],
+		["ui_10_select", func():
+			title_screen.visible = false
+			map_select.visible = true],
+		["ui_11_legacy", func():
+			title_screen.visible = false
+			map_select.visible = true
+			_open_legacy()],
+		["ui_12_timeline", func(): _confirm_new_timeline()],
+	]
+	for st in steps:
+		for m in modals.duplicate():
+			if is_instance_valid(m) and m != map_select:
+				(m as Control).visible = false
+				if m != settings_panel and m != legacy_panel and m != heroes_panel:
+					modals.erase(m)
+					m.queue_free()
+		map_select.visible = false
+		title_screen.visible = true
+		await get_tree().process_frame
+		(st[1] as Callable).call()
+		await get_tree().create_timer(0.8).timeout
+		await _shot(str(st[0]) + ".png")
+	print("UI SHOTS DONE")
+	get_tree().quit()
+
 func _shoot_menu() -> void:
 	await get_tree().create_timer(8.0).timeout
 	if "--test-menu-still" in OS.get_cmdline_user_args():
@@ -15955,8 +16117,7 @@ func _run_demo() -> void:
 		sim.start_wave()
 		await _wait_ticks(int(6.0 / TICK))
 		_set_paused(true)
-		for i in 3:
-			await get_tree().process_frame
+		await get_tree().create_timer(0.6).timeout
 		await _shot("demo_pause.png")
 		_set_paused(false)
 		demo = false   # let auto-start run like a real match
