@@ -411,7 +411,13 @@ def ears_out(P):
 
 def top_z(y):
     """The fade's line (design z by design y): above it the long top, below it the short silver sides and back."""
-    return F(1.83) - F(0.012) * smoothstep(-0.1, 0.0, y) + F(0.012) * smoothstep(0.06, 0.2, y)
+    return F(1.83) - F(0.012) * smoothstep(-0.1, 0.0, y) + F(0.004) * smoothstep(0.06, 0.2, y)
+
+
+def fade_z(P):
+    """The fade's line at P, ragged (the top's hair grows down into the short sides in uneven points)."""
+    Q = hinv(P)
+    return top_z(Q[:, 1]) + F(0.008) * NOISE(P * F(np.array([45.0, 45.0, 12.0]))) + F(0.005) * np.sin(Q[:, 0] * F(110) + F(3) * NOISE(P * F(8)))
 
 
 def head_pt(d, off=0.0):
@@ -439,13 +445,13 @@ def lock_spec(j, n=N_LOCKS):
     crown, tapering down into the fade; widths, heights and a little sideways drift vary from lock to lock (clumps)."""
     jj = int(round(j * 2)) % 32
     jit_u, jit_w, jit_s = LOCK_JIT[jj]
-    u = -1.0 + 2.0 * (j + jit_u * 0.35) / (n - 1.0)
+    u = -1.0 + 2.0 * (j + jit_u * 0.2) / (n - 1.0)
     u = max(-1.08, min(1.08, u))
     au = abs(u)
     temple = _sm(0.3, 0.95, au)
     dirs = [(u * 0.56, -0.5 + 0.12 * temple, 0.68 + 0.04 * temple), (u * 0.59, -0.38 + 0.08 * temple, 0.8),
             (u * 0.62, -0.2, 0.92), (u * 0.64 + 0.03 * jit_s, 0.1, 0.95), (u * 0.64 + 0.05 * jit_s, 0.4, 0.8),
-            (u * 0.6 + 0.06 * jit_s, 0.6, 0.6), (u * 0.58 + 0.06 * jit_s, 0.7, 0.42)]
+            (u * 0.6 + 0.06 * jit_s, 0.5, 0.72), (u * 0.58 + 0.06 * jit_s, 0.62, 0.6)]
     vol = (1.0 - 0.5 * au ** 1.6) * (0.85 + 0.15 * jit_w)
     offs = [0.013, 0.025, 0.027, 0.023, 0.016, 0.009, 0.004]
     wf = (1.0 - 0.15 * au) * jit_w
@@ -482,14 +488,14 @@ def hair_field():
     def cap(P):
         d = _hull_d(hh, P)
         Q = hinv(P)
-        up = smoothstep(-0.006, 0.03, Q[:, 2] - top_z(Q[:, 1]))
+        up = smoothstep(-0.004, 0.026, Q[:, 2] - fade_z(P))
         h = -hairline(P)
         quiff = smoothstep(0.004, 0.04, h) * smoothstep(0.02, -0.1, Q[:, 1]) * smoothstep(0.15, 0.06, np.abs(Q[:, 0]))
         th = (F(0.002) + F(0.008) * up + F(0.014) * quiff) * (F(0.3) + F(0.7) * smoothstep(0.0, 0.016, h))
         return np.abs(d - (F(0.0025) + th * F(0.5))) - th * F(0.5)
     def region(P):
         Q = hinv(P)
-        return np.maximum(np.maximum(hairline(P) * F(HS), (top_z(Q[:, 1]) - Q[:, 2]) * F(HS)), ears_out(P))
+        return np.maximum(np.maximum(hairline(P) * F(HS), (fade_z(P) - Q[:, 2]) * F(HS)), ears_out(P))
     fd.add(Inter(Func(cap, lo, hi, disp=_strands, disp_amp=0.0012), Func(region, lo, hi), 0.003), 0.0)
     for j in range(N_LOCKS):
         pts, w, th, nr = lock_spec(j)
@@ -498,9 +504,8 @@ def hair_field():
 
 
 def _side_comb(P):
-    """The short sides combed back (fine grooves running back and a little up), a fine buzz."""
-    Q = hinv(P)
-    return F(0.0004) * NOISE(P * F(40)) + F(0.0004) * NOISE(P * F(130))
+    """The short sides: a fine grain of short hair standing up a little (stretched upward), a fine buzz."""
+    return F(0.0006) * NOISE(P * F(np.array([70.0, 70.0, 18.0]))) + F(0.0004) * NOISE(P * F(130))
 
 
 def temples_field():
@@ -518,7 +523,7 @@ def temples_field():
     def region(P):
         Q = hinv(P)
         nape = F(1.585) - Q[:, 2] + F(0.006) * np.sin(Q[:, 0] * F(70))
-        under = Q[:, 2] - (top_z(Q[:, 1]) + F(0.02))
+        under = Q[:, 2] - (fade_z(P) + F(0.014))
         return np.maximum(np.maximum(np.maximum(hairline(P), nape), under) * F(HS), ears_out(P))
     fd.add(Inter(Func(layer, lo, hi, disp=_side_comb, disp_amp=0.0008), Func(region, lo, hi), 0.002), 0.0)
     return fd
@@ -1221,7 +1226,7 @@ KIT = dict(black=(0.05, 0.05, 0.055), red=AMBER, white=WHITE, gunmetal=GUNMETAL,
 MAT_OVERRIDES = {
     "Skin": ("skin", {"name": "HQ_VegaSkin", "base": (0.8, 0.6, 0.48), "ruddy": (0.83, 0.5, 0.42), "lips": (0.7, 0.43, 0.39),
                       "brow": ((0.1, 0.09, 0.09), (0.36, 0.35, 0.35)),
-                      "extra": ((SHADE, (0.6, 0.41, 0.35), 0.5, 0.45), (CREASE, (0.55, 0.36, 0.3), 0.5, 0.5),
+                      "extra": ((SHADE, (0.6, 0.41, 0.35), 0.5, 0.45), (CREASE, (0.6, 0.4, 0.33), 0.5, 0.3),
                                 (LASH, (0.06, 0.05, 0.05), 0.5), (STUBBLE, (0.4, 0.39, 0.4), 0.55, 0.42),
                                 (SCAR, (0.9, 0.72, 0.62), 0.45, 0.8), (GLOVE, BLACK, 0.75))}),
     "Hair": ("hair", {"name": "HQ_VegaHair", "base": (0.16, 0.15, 0.15), "hi": (0.44, 0.43, 0.44), "low": (0.05, 0.045, 0.045),
@@ -1242,7 +1247,7 @@ MAT_OVERRIDES = {
     "Switch": ("modern_kit", dict(KIT, name="HQ_VegaSwitch", base=GUNMETAL, weave=0.0)),
 }
 GLOW = {"Chamber": (AMBER_GLOW, 1.3, 0.55), "Button": (AMBER_GLOW, 1.2, 0.55)}
-LOW_TARGETS = {"Skin": 8000, "Teeth": 90, "Hair": 2200, "Temples": 450, "Under": 300, "Armour": 1100, "Coat": 4600, "Sash": 1500,
+LOW_TARGETS = {"Skin": 7500, "Teeth": 90, "Hair": 1900, "Temples": 400, "Under": 300, "Armour": 1100, "Coat": 4600, "Sash": 1500,
                "Belt": 1100, "Epaulette": 700, "Pauldron": 1700, "Trousers": 1500, "Boots": 1100, "Pistol": 2200, "Chamber": 160,
                "Switch": 900, "Button": 80}
 AO_EXCLUDE = ["Pistol", "Chamber", "Switch", "Button"]
