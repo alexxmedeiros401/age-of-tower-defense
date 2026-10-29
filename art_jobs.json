@@ -1,0 +1,12 @@
+[
+ {
+  "name": "vegahd_final2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/vegahd_final2; mkdir -p $O/hi $O/final\npython3 sculpt_char.py --character vega --fine --out $O/hi/vega_hi.blend --shots $O/hi/shots_fine > $O/char.log 2>&1 & CP=$!\npython3 sculpt_base.py --module vega_base --fine --out $O/hi/vega_base_hi.blend --shots $O/hi/base_shots_fine > $O/base.log 2>&1 || (tail -40 $O/base.log; exit 1)\nwait $CP || (tail -40 $O/char.log; exit 1)\npython3 build_game.py -- --character vega --char $O/hi/vega_hi.blend --base $O/hi/vega_base_hi.blend --out $O/final --tex 2048 --ao 40 > $O/bake.log 2>&1 || (tail -40 $O/bake.log; exit 1)\nls -la $O/final; rm -f $O/hi/*.blend",
+  "out": "out/vegahd_final2"
+ },
+ {
+  "name": "vegahd_p2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/vegahd_p2; mkdir -p $O/q $O/qbase $O/qb $O/poses\npython3 sculpt_char.py --character vega --out $O/q/char_q.blend --shots $O/q/views > $O/q.log 2>&1 || (tail -40 $O/q.log; exit 1)\npython3 build_game.py -- --character vega --char $O/q/char_q.blend --base none --out $O/qb --tex 512 --ao 6 --stage char > $O/qb.log 2>&1 || (tail -40 $O/qb.log; exit 1)\npython3 render_asset.py -- --blend $O/qb/char_game.blend --out $O/poses --mode frames --action Idle --range 0,0 --step 1 --spp 8 --res 500 --tx 0.0 --ty 0.0 --tz 1.75 --dist 1.3 --az 160 --el 15 > $O/poses_Idle.log 2>&1 || tail -20 $O/poses_Idle.log\nrm -f $O/q/*.blend $O/qbase/*.blend; ls -R $O | head -60",
+  "out": "out/vegahd_p2"
+ }
+]
