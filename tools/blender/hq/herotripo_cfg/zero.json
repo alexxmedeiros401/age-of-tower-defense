@@ -293,5 +293,80 @@
  "fit_fixed": [
   "hand.L",
   "hand.R"
+ ],
+ "emissive": [
+  {
+   "name": "eye",
+   "parts": [
+    "eye"
+   ],
+   "hue": [
+    20,
+    60
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.5,
+   "match": 1,
+   "strength": 2.5
+  },
+  {
+   "name": "mouth_antenna",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.2,
+      0.2
+     ],
+     [
+      -0.4,
+      -0.1
+     ],
+     [
+      1.8,
+      1.89
+     ]
+    ],
+    {
+     "ball": {
+      "c": [
+       0.17,
+       0.0,
+       2.23
+      ],
+      "r": 0.05
+     }
+    }
+   ],
+   "hue": [
+    20,
+    60
+   ],
+   "sat_min": 0.4,
+   "val_min": 0.5,
+   "strength": 2.5
+  }
+ ],
+ "review_frames": {
+  "Attack": [
+   3,
+   5
+  ],
+  "Ability": [
+   30,
+   46
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   3
+  ],
+  [
+   "Ability",
+   46
+  ]
  ]
 }
