@@ -74,7 +74,36 @@
    ],
    "keep": "all",
    "bridge": true,
-   "place": "fit"
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      -0.851,
+      -0.124,
+      1.0
+     ],
+     [
+      -0.923,
+      -0.246,
+      1.826
+     ]
+    ],
+    "to": [
+     [
+      -0.647,
+      0.009,
+      0.775
+     ],
+     [
+      -0.636,
+      -1.172,
+      1.017
+     ]
+    ],
+    "scale": "keep",
+    "anchor": 1,
+    "hand_follow": true
+   }
   },
   {
    "name": "shield",
@@ -181,8 +210,57 @@
      }
     }
    ],
-   "place": "fit"
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      0.22,
+      0.08,
+      0.8
+     ],
+     [
+      0.3424,
+      -0.078,
+      0.8076
+     ]
+    ],
+    "to": [
+     [
+      0.6955,
+      0.009,
+      0.7635
+     ],
+     [
+      0.7999,
+      -0.0208,
+      0.5955
+     ]
+    ],
+    "scale": 0.87,
+    "anchor": 0
+   }
   }
  ],
- "fit_recentre": true
+ "fit_recentre": true,
+ "review_frames": {
+  "Attack": [
+   4,
+   7
+  ],
+  "Ability": [
+   11,
+   19,
+   26
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   7
+  ],
+  [
+   "Ability",
+   19
+  ]
+ ]
 }
