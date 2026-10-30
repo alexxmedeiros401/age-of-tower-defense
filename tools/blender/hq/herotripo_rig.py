@@ -223,6 +223,94 @@ def add_old_props(old_me, lm, V0, W0, gn, groups, alb):
         (names, len(polys), len(vmap), np.median(errs), np.max(errs)))
 
 
+def hsv(c):
+    """rgb (n, 3) in 0..1 -> hue (degrees), saturation, value."""
+    mx, mn = c.max(1), c.min(1)
+    d = np.maximum(mx - mn, 1e-9)
+    r, g, b = c[:, 0], c[:, 1], c[:, 2]
+    h = np.where(mx == r, (g - b) / d % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60.0
+    return np.where(mx - mn < 1e-6, 0.0, h), np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-9), 0.0), mx
+
+
+def emissive_select(lm, P, fpart, alb):
+    """cfg "emissive": [{"name", "strength", "parts": [prop names or "body"], "select": shapes (load frame, Tripo
+    pose), "hue": [h0, h1] (degrees, may wrap: [330, 20]), "sat_min", "val_min", "col": {"min", "max"}, "match": n}]:
+    the faces that glow. A face is in an entry when it is in its parts and shapes (each optional) and at least `match`
+    (default 2) of 4 albedo samples (its UV middle and its corners pulled 70% toward it) pass the colour tests. The
+    glow's emission is the albedo itself (x strength), so a face that straddles a trim only lights the trim's colour.
+    Writes the face layer "glow" (0 none, k the k-th distinct strength, in order of first appearance)."""
+    spec = CFG.get("emissive") or []
+    if not spec:
+        return []
+    names = [q["name"] for q in CFG["props"]]
+    npoly = len(lm.polygons)
+    li = np.zeros(len(lm.loops), np.int64)
+    lm.loops.foreach_get("vertex_index", li)
+    ls = np.zeros(npoly, np.int64)
+    lt_ = np.zeros(npoly, np.int64)
+    lm.polygons.foreach_get("loop_start", ls)
+    lm.polygons.foreach_get("loop_total", lt_)
+    uvl = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", uvl)
+    uvl = uvl.reshape(-1, 2)
+    S_ = alb.shape[0]
+    def colat(U):
+        return alb[np.clip(((1 - U[:, 1]) * S_).astype(int), 0, S_ - 1), np.clip((U[:, 0] * S_).astype(int), 0, S_ - 1)]
+    cen_uv = np.array([uvl[a:a + n].mean(0) for a, n in zip(ls, lt_)])
+    samples = [colat(cen_uv)] + [colat(cen_uv + 0.3 * (uvl[ls + k] - cen_uv)) for k in range(3)]
+    cen_p = np.array([P[li[a:a + n]].mean(0) for a, n in zip(ls, lt_)])
+    Pl = C.to_game(C.from_game(cen_p, XF), XF0)
+    glow = np.zeros(npoly, np.int32)
+    strengths = []
+    for e in spec:
+        m = np.ones(npoly, bool)
+        if "parts" in e:
+            ks = [0 if n == "body" else names.index(n) + 1 for n in e["parts"]]
+            m &= np.isin(fpart, ks)
+        if "select" in e:
+            m &= C.shapes(Pl, e["select"], None)
+        hits = np.zeros(npoly, int)
+        for c in samples:
+            ok = np.ones(npoly, bool)
+            if "hue" in e or "sat_min" in e or "val_min" in e:
+                h, sat, val = hsv(c)
+                if "hue" in e:
+                    h0, h1 = e["hue"]
+                    ok &= ((h >= h0) & (h <= h1)) if h0 <= h1 else ((h >= h0) | (h <= h1))
+                ok &= (sat >= e.get("sat_min", 0.0)) & (val >= e.get("val_min", 0.0))
+            if "col" in e:
+                ok &= (c >= np.array(e["col"].get("min", [0, 0, 0]))).all(1) & (c <= np.array(e["col"].get("max", [1, 1, 1]))).all(1)
+            hits += ok
+        m &= hits >= int(e.get("match", 2))
+        st = float(e.get("strength", 2.0))
+        if st not in strengths:
+            strengths.append(st)
+        glow[m] = strengths.index(st) + 1
+        log("emissive %s: %d faces, strength %.2f" % (e["name"], m.sum(), st))
+        REPORT.setdefault("emissive", {})[e["name"]] = dict(faces=int(m.sum()), strength=st)
+    at = lm.attributes.get("glow") or lm.attributes.new("glow", "INT", "FACE")
+    at.data.foreach_set("value", glow)
+    return strengths
+
+
+def glow_materials(mat, strengths):
+    """One copy of the hero material per glow strength: `<Mat>Glow` (then `<Mat>Glow2` ...): the same three images,
+    the albedo image also fed to the emission colour (glTF emissiveTexture = the albedo, emissiveFactor x strength,
+    KHR_materials_emissive_strength above 1): no new texture memory."""
+    out = []
+    for i, st in enumerate(strengths):
+        g = mat.copy()
+        g.name = mat.name + "Glow" + ("" if i == 0 else str(i + 1))
+        nt = g.node_tree
+        bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+        tex = next(n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image is not None and "albedo" in n.image.name.lower())
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+        bsdf.inputs["Emission Strength"].default_value = st
+        out.append(g)
+        log("material %s: emission = albedo x %.2f" % (g.name, st))
+    return out
+
+
 def main():
     import old as oldmod
     arm = oldmod.open_old(CFG["old"])
@@ -316,6 +404,7 @@ def main():
     np.add.at(vcol, lv, cc)
     np.add.at(cnt, lv, 1)
     vcol /= np.maximum(cnt, 1)[:, None]
+    glow_strengths = emissive_select(lm, P, fpart, alb)
 
     # ---- body weights: nearest point of the posed old surface with an agreeing normal
     body = np.nonzero(vpart == 0)[0]
@@ -602,8 +691,9 @@ def main():
                 REPORT.setdefault("old_places", {})[nm] = [np.round(c, 3).tolist() for c in c_o]
             else:
                 log("prop %s: %d pieces, the old object has %d: left where the fit put them" % (nm, len(c_n), len(c_o)))
-        if "part" in nme.attributes:
-            nme.attributes.remove(nme.attributes["part"])
+        for a_ in ("part", "glow"):
+            if a_ in nme.attributes:
+                nme.attributes.remove(nme.attributes[a_])
         oldd = tgt.data
         dn = oldd.name
         for m_ in oldd.materials:
@@ -667,6 +757,16 @@ def main():
             log("image", nd.image.name, "<- hero_%s.png" % role, tuple(nd.image.size))
     lm.materials.clear()
     lm.materials.append(mat)
+    if glow_strengths:
+        for g in glow_materials(mat, glow_strengths):
+            lm.materials.append(g)
+        gl_ = np.zeros(len(lm.polygons), np.int32)
+        lm.attributes["glow"].data.foreach_get("value", gl_)
+        lm.polygons.foreach_set("material_index", gl_)
+        lm.attributes.remove(lm.attributes["glow"])
+        lm.update()
+    elif "glow" in lm.attributes:
+        lm.attributes.remove(lm.attributes["glow"])
     for m in [m for m in bpy.data.materials if m.users == 0]:
         bpy.data.materials.remove(m)
     for im in [im for im in bpy.data.images if im.users == 0]:

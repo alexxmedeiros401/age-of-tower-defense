@@ -168,5 +168,58 @@
    "Ability",
    38
   ]
+ ],
+ "emissive": [
+  {
+   "name": "trim",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    262,
+    315
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.68,
+   "strength": 2.0
+  },
+  {
+   "name": "deck_screen",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      0.3,
+      0.52
+     ],
+     [
+      -0.25,
+      0.2
+     ],
+     [
+      0.9,
+      1.12
+     ]
+    ]
+   ],
+   "val_min": 0.6,
+   "sat_min": 0.0,
+   "strength": 2.0
+  },
+  {
+   "name": "pistol_slots",
+   "parts": [
+    "laser"
+   ],
+   "hue": [
+    255,
+    315
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.25,
+   "strength": 2.0
+  }
  ]
 }

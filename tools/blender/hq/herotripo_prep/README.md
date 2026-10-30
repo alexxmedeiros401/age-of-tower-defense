@@ -93,6 +93,9 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `armour` | [] | list, below |
 | `glows` | {} | old glow meshes to move: below |
 | `old_props` | [] | old prop bones whose OLD faces are kept when the Tripo model has no such prop (Ken's EMP grenade): rest pose and old weights, each face textured flat with the nearest colour of a uniform patch of the new atlas |
+| `emissive` | [] | glowing regions, below |
+| `hard_weights` | [] | bone groups with no blend inside (a machine's elbow): each vertex's share of the group goes to its heaviest bone |
+| `fit_fixed` | [] | bones the fit leaves at rest (a hand cut out as a prop: Zero's) |
 | `review_frames`, `cmp_frames`, `closeup_frames` | auto | extra review frames: `{"Attack": [10]}`, `[["Attack", 10], ["Ability", 27]]`, `{"<prop>": [["Ability", 30]]}` |
 
 **Shapes** (seeds, sinks, armour selections) are a list of boxes `[[x0,x1],[y0,y1],[z0,z1]]`, balls
@@ -136,6 +139,17 @@ base colour, 0..1; for armour, the baked albedo). Union of all; `"not": true` on
 "radius": 0.104}}` re-centres and resizes it (or `"fit_to": "<prop>"` takes a prop piece's centre and size; `"pad"`
 scales the radius; `"scale"`/`"offset"` just nudge; `"hide": true` collapses the mesh to a point, since hidden objects
 are still exported: Ken's gauntlet and tablet glows, whose parts the Tripo Ken does not have).
+
+**Emissive** (`emissive[]`): `{"name", "strength": 2.0, "parts": ["body" | prop names], "select": shapes (load frame,
+Tripo pose), "hue": [h0, h1] (degrees; may wrap, [330, 20]), "sat_min", "val_min", "col": {"min", "max"}, "match": 2}`.
+A face glows when it is in the parts and shapes and at least `match` of 4 baked-albedo samples (its UV middle and its
+corners pulled toward it) pass the colour tests. Glowing faces get a second material, `<HeroMat>Glow` (`<HeroMat>Glow2`
+... per further distinct strength): the same three images, with emissiveTexture = the albedo image and emissive
+strength (KHR_materials_emissive_strength), so no new texture memory and a face that straddles a trim only lights the
+trim's colour. Godot imports it as emission_enabled with the albedo texture as emission_texture, and game.gd's HQ
+outline goes on every surface. The Tripo models carry their glows only as painted colour: use this for any glowing
+part (Digital Age trims, screens, blades, eyes; Data Center cores and eyes; Vega-style amber parts). Old `Glow*`
+meshes that no longer sit on the Tripo shapes: hide them (`glows`: `"hide": true`).
 
 ## How each step works (and what went wrong on the way)
 

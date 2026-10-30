@@ -211,5 +211,35 @@
   "GlowEdgeL": {
    "hide": true
   }
- }
+ },
+ "emissive": [
+  {
+   "name": "blades",
+   "parts": [
+    "blade.R",
+    "blade.L"
+   ],
+   "hue": [
+    150,
+    210
+   ],
+   "sat_min": 0.2,
+   "val_min": 0.35,
+   "match": 1,
+   "strength": 3.0
+  },
+  {
+   "name": "face_core",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    155,
+    205
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.5,
+   "strength": 3.0
+  }
+ ]
 }
