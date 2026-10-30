@@ -6472,7 +6472,7 @@ func _sun_hit(tid: int, from: Vector3, to: Vector3, up: float, kind: int) -> voi
 # thrusts the sword at the sky (FLARE) and it blazes, a wave of sunlight rolls out over the ground, and each robot in
 # reach bursts into flame as the wave reaches it (one the flare destroyed blows up then).
 const KIRA_FLARE := 18                              # anim_kira.py FLARE
-const KIRA_SKY := Vector3(-0.175, 2.582, 0.055)     # the raised blade at FLARE (model units, Godot axes, Yaw node)
+const KIRA_SKY := Vector3(-0.163, 2.628, -0.119)     # the raised blade at FLARE (model units, Godot axes, Yaw node)
 const FLARE_SPEED := 11.0                           # world units per second the wave rolls out
 const FLARE_R0 := 0.4                               # the wave's radius as it starts (under her dais)
 
