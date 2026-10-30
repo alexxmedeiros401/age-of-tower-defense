@@ -5848,7 +5848,7 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
 const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197),
-	"maya": Vector3(-0.199, 1.290, 0.946), "sniper": Vector3(0.001, 0.826, 1.562)}   # (v0.9.61: Isla's right pistol)
+	"maya": Vector3(-0.199, 1.262, 1.022), "sniper": Vector3(0.001, 0.826, 1.562)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 	_mi(_box(0.05, 0.05, 0.6), _mat("tracer", Color(1, 0.9, 0.5), {"emit": Color(1, 0.8, 0.3), "emit_e": 3.0, "unshaded": true}), root)
