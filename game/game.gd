@@ -5878,7 +5878,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.78: the Digital Age's lasers: a violet bolt leaves the emitter lens in a violet flash (no smoke) and streaks to
 ## the robot; Nova's double tap adds a second, cosmetic bolt on her clip's frame 3.
-const LASER_TIPS := {"nova": Vector3(-0.138, 1.353, 1.181), "laser_turret": Vector3(0.000, 1.094, 0.945), "vega": Vector3(-0.211, 1.426, 1.373)}   # (v0.9.93: the Tripo Vega's plasma pistol, amber)
+const LASER_TIPS := {"nova": Vector3(-0.138, 1.416, 1.102), "laser_turret": Vector3(0.000, 1.094, 0.945), "vega": Vector3(-0.211, 1.426, 1.373)}   # (v0.9.93: the Tripo Vega's plasma pistol, amber)
 const LASER_SECOND := {"nova": 2}                   # (frames after the first: her second shot)
 func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 	var amber := str(u.type) == "vega"
