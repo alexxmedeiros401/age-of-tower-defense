@@ -96,6 +96,9 @@ def main():
     names = [p["name"] for p in cfg["props"]]
     for k, p in enumerate(cfg["props"], start=1):
         print("[cut] %s" % p["name"])
+        if p.get("source") == "old":             # the old hero's prop (oldprop.py): nothing to cut
+            print("   from the old mesh (oldprop.py)")
+            continue
         if p.get("mode") == "pieces":            # loose pieces (floating stones ...): every connected piece a seed touches
             src = C.shapes(Cg, p.get("seeds"), col) & (lab == 0)
             idx, l, n = comps(T, lab == 0)

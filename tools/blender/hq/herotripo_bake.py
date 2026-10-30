@@ -51,7 +51,7 @@ patches = pickle.load(open(os.path.join(IN, "patches.pkl"), "rb"))
 FIT = json.load(open(os.path.join(IN, "fit.json")))
 XF = FIT["xf"]
 MK = FIT["posed"]                                   # fitted-pose landmarks (game units, Tripo pose)
-PIECES = [k for k in range(len(NAMES)) if (lab == k).any()]
+PIECES = [k for k in range(len(NAMES)) if (lab == k).any() or patches.get(NAMES[k])]   # (an old prop: patches only)
 log("tripo", len(PB), "verts", len(F), "faces; pieces", {NAMES[k]: int((lab == k).sum()) for k in PIECES}, "xf", XF)
 NECK_Z = 0.5 * (MK["neck"]["head"][2] + MK["neck"]["tail"][2])
 HEAD_C = np.array(MK["head"]["head"]) * 0.6 + np.array(MK["head"]["tail"]) * 0.4

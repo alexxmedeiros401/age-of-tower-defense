@@ -395,6 +395,9 @@ def main():
         if p.get("drop"):
             continue
         vs = np.nonzero(vpart == k)[0]
+        if len(vs) == 0:
+            log("prop %s: no vertices in the low mesh, skipped" % p["name"])
+            continue
         bone = p.get("bone") or (p["name"] if p["name"] in SK else "root")
         S_b = SK[bone]
         Sinv = np.linalg.inv(S_b)
