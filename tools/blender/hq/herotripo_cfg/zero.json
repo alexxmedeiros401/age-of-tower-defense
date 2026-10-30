@@ -289,5 +289,9 @@
    ],
    "place": "fit"
   }
+ ],
+ "fit_fixed": [
+  "hand.L",
+  "hand.R"
  ]
 }
