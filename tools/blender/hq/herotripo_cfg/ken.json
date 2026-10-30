@@ -39,5 +39,37 @@
    },
    "seam_rings": 2
   }
- ]
+ ],
+ "review_frames": {
+  "Attack": [
+   9
+  ],
+  "Ability": [
+   14,
+   26,
+   43
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   9
+  ],
+  [
+   "Ability",
+   26
+  ]
+ ],
+ "closeup_frames": {
+  "grenade": [
+   [
+    "Ability",
+    20
+   ],
+   [
+    "Ability",
+    40
+   ]
+  ]
+ }
 }
