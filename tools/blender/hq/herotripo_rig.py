@@ -339,6 +339,23 @@ def main():
     if zero.any():
         WB[zero, gn.index("root")] = 1.0
         log("weights: %d verts with nothing left -> root" % zero.sum())
+    # limbs: the transferred weights decide how much a vertex belongs to an arm or a leg; how that share splits between
+    # its bones (upper, lower, hand/foot) is redone from the fitted bones' segments (inverse 4th power of the distance),
+    # so a limb whose old and Tripo shapes differ still bends at its joints (Mara's right forearm took half its weight
+    # from the hand and the upper arm, and her bracer crumpled)
+    if CFG.get("limb_regeom", True):
+        for side in ("R", "L"):
+            for chain in (("upperarm", "forearm", "hand"), ("thigh", "shin", "foot")):
+                cb = [c + "." + side for c in chain]
+                if not all(c in gn and c in posed for c in cb):
+                    continue
+                ci = [gn.index(c) for c in cb]
+                Sc = WB[:, ci].sum(1)
+                m_ = Sc > 0.02
+                Dm = np.stack([seg_dist(P[body][m_], c) for c in cb], 1)
+                iv = 1.0 / np.maximum(Dm, 0.01) ** 4
+                WB[np.ix_(np.nonzero(m_)[0], ci)] = Sc[m_, None] * iv / iv.sum(1, keepdims=True)
+        log("weights: limb shares redistributed along the fitted bones")
     hb = posed["head"]
     hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
     zr = CFG["head_rigid_above"]
@@ -416,17 +433,30 @@ def main():
             log("prop %s: %s -> %s, scale %.3f, turned %.1f deg%s" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
                 np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec())), ", stretched x%.2f over %s" % (k_st, st) if st else ""))
             if pl.get("hand_follow"):
-                # the fist turns with the prop (about the grip), so the prop still goes through it: body vertices move
-                # rigidly by their weight on the hand bone (smoothstep from hand_follow_lo to 1); the wrist blends
+                # the fist turns with the prop (about the grip) so the prop still goes through it. The turn is spread
+                # up the forearm like a twist: a vertex turns by the angle times k, k = its hand weight plus its
+                # forearm weight times its place along the forearm (0 at the elbow, 1 at the wrist), smoothstepped;
+                # the turn is interpolated as a rotation (a linear blend of positions tore the bracer at the wrist)
                 hb_ = pl.get("hand", bone)
+                fb_ = INFO["bones"][hb_]["parent"]
                 wh = W4[:, gn.index(hb_)]
-                lo_ = float(pl.get("hand_follow_lo", 0.35))
-                kk = np.clip((wh - lo_) / (1 - lo_), 0, 1)
-                kk = kk * kk * (3 - 2 * kk)
+                wf = W4[:, gn.index(fb_)] if fb_ in gn else np.zeros_like(wh)
+                e0, e1 = np.array(bones[fb_].head_local), np.array(bones[fb_].tail_local)
+                tt = np.clip(((Prest[body] - e0) @ (e1 - e0)) / ((e1 - e0) @ (e1 - e0)), 0, 1)
+                tt = tt * tt * (3 - 2 * tt)
+                kk = np.clip(wh + wf * tt, 0, 1)
+                rv = Rot.from_matrix(R).as_rotvec()
                 Xb = Prest[body]
-                Prest[body] = Xb + kk[:, None] * ((a + off + (Xb - Aa) @ R.T) - Xb)
-                REPORT.setdefault("hand_follow", {})[p["name"]] = dict(hand=hb_, verts=int((kk > 0).sum()), deg=round(float(np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec()))), 1))
-                log("prop %s: %d body verts on %s turned with it" % (p["name"], (kk > 0).sum(), hb_))
+                mv_ = kk > 1e-4
+                Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()
+                Xn = Xb.copy()
+                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a + off - Aa)
+                Prest[body] = Xn
+                ax_ = nrm(rv)
+                fdir = nrm(e1 - e0)
+                REPORT.setdefault("hand_follow", {})[p["name"]] = dict(hand=hb_, verts=int(mv_.sum()), deg=round(float(np.degrees(np.linalg.norm(rv))), 1),
+                                                                      twist_share=round(float(abs(ax_ @ fdir)), 2))
+                log("prop %s: %d body verts on %s/%s turned with it (axis . forearm = %.2f: 1 is a pure twist)" % (p["name"], mv_.sum(), hb_, fb_, ax_ @ fdir))
         else:
             raise ValueError(mode)
         xfs[p["name"]] = f

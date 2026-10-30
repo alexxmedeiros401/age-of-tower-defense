@@ -218,5 +218,23 @@
    },
    "seam_rings": 2
   }
+ ],
+ "review_frames": {
+  "Attack": [
+   10
+  ],
+  "Ability": [
+   30
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   10
+  ],
+  [
+   "Ability",
+   30
+  ]
  ]
 }

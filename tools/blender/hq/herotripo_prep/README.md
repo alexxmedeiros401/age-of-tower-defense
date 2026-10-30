@@ -3,7 +3,9 @@
 Rebuilds a hero from Alexx's Tripo model (an A-pose static mesh of ~2M triangles with its props fused to the body and
 three 4096 maps) onto the OLD hero's rig and clips, which stay exactly as they were. Commander Vega was done first with
 Vega-only scripts (`../vegatripo_*`); this is the same pipeline made generic, driven by one small config per hero,
-`../herotripo_cfg/<id>.json`. Ugo and Mara were done with it (configs there: read them as examples).
+`../herotripo_cfg/<id>.json`. Ugo and Mara were done with it (configs there: read them as examples; Ugo's is the
+simple case: one hand prop and a stone in it; Mara's has a staff through a fist, loose floating pieces, a glow and a
+hand-fixed region).
 
 ```
 herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py   (Blender, GitHub runner)
@@ -14,6 +16,8 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   patches.py  holes the cuts left, filled -> patches.pkl
   fit.py      old rig posed onto the Tripo body -> fit.json
   push_bake.sh / fetch.sh   runner jobs
+  check_glb.py  round trip of a GLB against the shipped one (Blender)
+  zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -28,7 +32,10 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 0. **Config.** Start `../herotripo_cfg/<id>.json` with just `{"old": ...}` (a local `<id>_hq.blend` if there is one AND it
    matches the shipped GLB, else leave `old` out: the default is the shipped `assets/heroes/<id>.glb`). Check a local
    blend against the shipped GLB first: same objects, same actions and frame ranges, same bone positions over the clips
-   (`/home/claude/work/herotripo/scratch/cmp_anim.py` did this for Ugo and Mara: max difference < 3e-6).
+   (`python3 check_glb.py -- A.glb B.glb` does this for two GLBs; for a blend, export it or compare as Ugo/Mara were:
+   max bone difference over the clips < 3e-6). After the rig, `python3 check_glb.py -- <out>/<id>.glb
+   ../../../../assets/heroes/<id>.glb` must print OK (same objects, meshes, materials, images, bones, actions, frame
+   ranges, bone positions over the clips).
 1. `python3 old.py -- --hero <id>`: prints the mesh, the prop bones (any bone not in the shared biped set and not
    cape/tail/hair/...: list extra soft bones in `"body_bones"`, or give `"prop_bones"` outright), how many old faces
    ride each prop bone, and old props weighted rigidly to a hand (e.g. Mara's staff on `hand.R`: left out of the fit).
@@ -43,7 +50,7 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
    `python3 look.py -- --hero <id> --labels --crop ...` (body grey-tinted, prop 1 blue, 2 green, 3 amber ..., dropped
    magenta). Iterate on the boxes until every prop is clean.
 5. `python3 patches.py -- --hero <id>` (seconds).
-6. `python3 fit.py -- --hero <id>` (~30 s), then `python3 look.py -- --hero <id> --fit` (the old body posed by the fit,
+6. `python3 fit.py -- --hero <id>` (~1-2 min), then `python3 look.py -- --hero <id> --fit` (the old body posed by the fit,
    in dark red: red where the old surface is outside the Tripo one; `--fitonly` shows the old body alone). The arms
    must reach the Tripo hands. rms ~3 cm is normal (the Tripo bodies are bulkier).
 7. Commit the config and scripts, then `bash push_bake.sh <tag> <run> <id> [<id> ...]` (one runner job per hero; it
@@ -78,6 +85,10 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `hand_prop_dist` | 0.12 | old faces 100% on a hand bone and this far from it are an old hand-held prop |
 | `body_bones` / `prop_bones` | auto | see step 1 |
 | `fit_reg` | 0.05 | the fit's pull toward the rest pose |
+| `fit_reverse` | 1.0 | weight of the fit's reverse term (Tripo points pull the old body); Ugo was built with 0 |
+| `limb_regeom` | true | split each arm's / leg's transferred share between its bones by distance to the fitted bones |
+| `limb_reach` | 1.3 | limb capsule radius = 95th percentile of the old limb's own vertices x this + 2 cm |
+| `weight_smooth` | 4 | Laplacian passes over the transferred weights |
 | `props` | [] | list, below |
 | `armour` | [] | list, below |
 | `glows` | {} | old glow meshes to move: below |
@@ -103,7 +114,16 @@ base colour, 0..1; for armour, the baked albedo). Union of all; `"not": true` on
     grip's middle in the fist and the orb's middle); a, b the rest-pose targets (`"bone:<name>.head"` /
     `".tail"` or coordinates in armature space). After the fit placement the prop is turned (the least turn) so A->B
     lies along a->b, scaled (`match`: |ab|/|AB|), and A put on a (`anchor` 1: B on b, A slides along the line);
-  - `{"like": "<prop>"}`: the same transform as an earlier prop (a stone in a pouch), its own bone.
+    `stretch: [t0, t1]`: instead of scaling the whole prop, lengthen the part between t0 and t1 of A->B (0 at A, 1
+    at B) so that B lands on b while A stays on a (Mara's shaft between fist and claws, x1.2);
+    `hand_follow: true`: the fist turns with the prop about the grip (spread up the forearm as a twist, interpolated as
+    a rotation), so a prop that had to be turned to the old prop's axis still runs through the Tripo fist (Mara: 42
+    deg, 94% of it a twist about the forearm);
+  - `{"like": "<prop>"}`: the same transform as an earlier prop (a stone in a pouch), its own bone;
+  - `bridge: true` (a patches.py key): when the cut leaves the prop in two pieces either side of a fist, the two cut
+    loops are joined by a tube instead of being capped, so the prop can slide in the fist without a gap showing;
+  - `old_places: true` (with `object`): each loose piece is moved onto an old piece's place (Mara's stones: the
+    Tripo stones on the old orbit, clear of her head and staff).
 
 **Armour** (`armour[]`): `{"name", "select": shapes (load frame, Tripo pose; colours of the baked albedo), "grow": rings,
 "within": shapes, "bones": {"upperarm.R": 1.0}, "fade": {"bone": "clavicle.R", "share": 0.35, "len": 0.2},
@@ -141,17 +161,39 @@ scales the radius; `"scale"`/`"offset"` just nudge; `"hide": true`).
   `old.py` now marks faces 100% on a hand bone and > 0.12 from it as an old hand prop (Tprop -2): left out of the fit and
   of the weight transfer. After that her arm reaches the Tripo fist.
 - **Glow pivots.** Mara's `orb` bone scales (up to 2x in the Attack) about its head; the old GlowOrb (an opaque
-  emissive sphere) sits on that head. The Tripo orb is nearer her fist than the old one, so the staff is placed with
-  `anchor: 1` (the orb's middle exactly on `orb.head`, the staff sliding along its axis in the fist) and scaled 1.25
-  (so the shaft still reaches near the ground), and GlowOrb re-centred there at the Tripo orb's size. A glow or prop
-  that scales must be centred on its bone's head.
+  emissive sphere that hides the Tripo orb inside it) sits on that head. The Tripo orb is nearer her fist than the old
+  one. First try: `anchor: 1` (the orb exactly on `orb.head`, the staff sliding in the fist): the gap the fist left in
+  the staff showed. Then `bridge` (a tube across the gap). Final: the grip stays in the fist (`anchor: 0`), the staff
+  is scaled 1.35 and its shaft between fist and claws stretched x1.2 so the orb lands on `orb.head`; GlowOrb is
+  re-centred there at the Tripo orb's size (`glows`). A glow or prop that scales must be centred on its bone's head.
 - **Loose pieces.** Mara's three rune stones are separate pieces of the Tripo mesh: `mode: "pieces"` takes them whole;
   `object: "SpinSlowStones"` puts them into the old orbiting-stones object (game.gd turns `SpinSlow*` nodes), in its
   own space; they keep the hero atlas (SpinSlowStones used MaraMat: left alone, its old UVs would have pointed at
   garbage in the new atlas: check every old object that uses the hero material!).
+- **The fit needs both directions.** Point-to-plane from the old body to the Tripo surface alone let Mara's old
+  left arm settle on her belt's hanging ends (any Tripo surface will do): the transfer then gave the belt ends to her
+  hand and they trailed after it in every clip. The reverse term (8000 Tripo body points to the nearest posed old
+  point) pulls each old limb into the Tripo limb. `look.py --fit` shows it: the old arms must lie in the Tripo arms.
+- **Limb weights, three guards** (all automatic): (1) a transfer sample whose main bone is an arm or leg bone only
+  counts within that limb's capsule (fitted pose); (2) a limb bone's weight must be connected (on the new mesh) to
+  the vertices near that bone and, for arms, within reach along the surface: islands are cleared and refilled from
+  their neighbours with that bone banned; (3) `limb_regeom`: the share of a vertex that belongs to an arm or leg is
+  split between its bones by distance to the fitted bone segments (Mara's right forearm had half its weight from the
+  hand and the upper arm because her old forearm was posed beside the Tripo one: the bracer crumpled when she bent
+  the elbow). Belt ends that hang right beside a hand may still need a region fixed by hand: Mara's `armour`
+  entry `belt_ends` (purple rope by colour, rigid to `root`).
+- **Hand-held props turned to the old axis** (Mara's staff: 42 deg between how the Tripo fist and the old fist hold
+  it) leave the fist pointing the old way only if the fist turns too: `hand_follow`. A linear blend of the turn at
+  the wrist tore her bracer; the turn is now a rotation per vertex, its angle growing from the elbow to the wrist.
 - **Weights** come from the old mesh posed with the fit (nearest surface point with an agreeing normal, barycentric,
   4 Laplacian passes), the skull rigid to the head, at most 4 influences, normalised; the body is then un-posed into the
   rest pose by inverting that skinning, and the soles put back on the old soles.
+
+## Checking renders
+`herotripo_review.py` makes the five deliverable sheets; `--only clips --az 200 --el 10 --frames Ability@8,Cheer@20
+--name back` renders any other view of chosen frames (the back, a crouch). For weights, run the rig with `--debug`
+(writes rig_debug.npz: the Tripo-pose mesh and its weights) and paint a bone's weight on the mesh. The cord ends of
+a sling or the end of a staff cut at the fist are where things poke out: look at the hand from behind as well.
 
 ## Quality bar (check every hero)
 Same face, sharp eyes; no floating armour (Vega's pauldron floated by his ear in the Ability: weight armour to the

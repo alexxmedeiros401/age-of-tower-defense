@@ -68,7 +68,12 @@
      "bone:sling.head",
      "bone:stone.head"
     ],
-    "scale": "keep"
+    "scale": "keep",
+    "offset": [
+     0,
+     0,
+     0.025
+    ]
    }
   },
   {
@@ -131,5 +136,23 @@
    }
   }
  ],
- "fit_reverse": 0.0
+ "fit_reverse": 0.0,
+ "review_frames": {
+  "Throw": [
+   3
+  ],
+  "Ability": [
+   24
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Throw",
+   3
+  ],
+  [
+   "Ability",
+   24
+  ]
+ ]
 }
