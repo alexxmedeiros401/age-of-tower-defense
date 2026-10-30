@@ -8102,7 +8102,7 @@ const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco":
 	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0],
-	"zero": [Vector3(-0.800, 1.440, 0.662), 0.125, 0.8],
+	"zero": [Vector3(-0.770, 1.433, 0.635), 0.125, 0.8],
 	"nova_artillery": [Vector3(0.380, 1.161, 1.059), 0.125, 0.65]}      # (v0.9.90: the coil howitzer's muzzle, Attack frame 3)      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
