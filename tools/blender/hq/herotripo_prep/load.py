@@ -82,7 +82,7 @@ def main():
     yaw = auto_yaw(Pw) if cfg["yaw"] == "auto" else float(cfg["yaw"])
     o = np.load(os.path.join(W, "old.npz"))
     V, T, Tp = o["V"], o["T"], o["Tprop"]
-    vb = np.unique(T[Tp < 0])
+    vb = np.unique(T[Tp == -1])
     Vb = V[vb]
     R = C.rotz(yaw)
     Q = Pw @ R.T

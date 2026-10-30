@@ -92,6 +92,29 @@ def main():
     if mk:
         m = np.load(mk)
         col[m] = (1.0, 0.1, 0.1)
+    if "--fit" in sys.argv:                     # the old body posed with the fit, as dark red dots
+        import fit as F_
+        f = json.load(open(os.path.join(W, "fit.json")))
+        o = np.load(os.path.join(W, "old.npz"))
+        rig = F_.Rig(o["bn"], o["bm"], o["bp"])
+        from scipy.spatial.transform import Rotation as Rot
+        S, _ = rig.skin({b: Rot.from_rotvec(v).as_matrix() for b, v in f["rotvec"].items()})
+        T_ = o["T"][o["Tprop"] == -1]
+        A_, B_, C2 = o["V"][T_[:, 0]], o["V"][T_[:, 1]], o["V"][T_[:, 2]]
+        rng = np.random.default_rng(0)
+        k = rng.random((len(T_), 40, 2))
+        k[k.sum(2) > 1] = 1 - k[k.sum(2) > 1]
+        X = (A_[:, None] + (B_ - A_)[:, None] * k[..., :1] + (C2 - A_)[:, None] * k[..., 1:]).reshape(-1, 3)
+        Wx = np.repeat(o["W"][T_[:, 0]], 40, 0)
+        X = F_.lbs(X, Wx, [str(x) for x in o["gn"]], S)
+        X = C.to_game(C.from_game(X, f["xf"]), xf)
+        sel = rng.random(len(X)) < 0.5
+        Cg = np.r_[Cg, X[sel]]
+        N = np.r_[N, np.tile([0, -1.0, 0], (sel.sum(), 1))]
+        col = np.r_[col, np.tile([0.55, 0.0, 0.0], (sel.sum(), 1))]
+        if "--fitonly" in sys.argv:
+            n0 = len(Cg) - sel.sum()
+            Cg, N, col = Cg[n0:], N[n0:], col[n0:]
     crop = C.arg("--crop")
     crop = np.array([float(v) for v in crop.split(",")]).reshape(3, 2).tolist() if crop else None
     px = int(C.arg("--px", "900"))

@@ -72,11 +72,11 @@ def main():
     rig = Rig(o["bn"], o["bm"], o["bp"])
     info = json.load(open(os.path.join(Wd, "old.json")))
     props = set(info["prop_bones"])
-    used = set(np.array(gn)[(Wt[np.unique(T[Tp < 0])] > 0.05).any(0)])
+    used = set(np.array(gn)[(Wt[np.unique(T[Tp == -1])] > 0.05).any(0)])
     BONES = [b for b in rig.order if b in used and b not in props and b not in FIXED]
     print("[fit] bones", BONES)
     rng = np.random.default_rng(0)
-    bodyv = np.unique(T[Tp < 0])
+    bodyv = np.unique(T[Tp == -1])
     sub = rng.choice(bodyv, min(6000, len(bodyv)), replace=False)
     Vs, Ws = V[sub], Wt[sub]
     t = np.load(os.path.join(Wd, "topo.npz"))
@@ -130,4 +130,5 @@ def main():
     print("[fit] xf", xf)
 
 
-main()
+if __name__ == "__main__":
+    main()

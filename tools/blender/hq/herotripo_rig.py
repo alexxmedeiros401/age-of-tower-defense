@@ -1,0 +1,485 @@
+"""Generic Tripo hero, step 7 (local, light): rig the baked low-poly onto the old hero's skeleton and export the game file.
+
+    python3 herotripo_rig.py -- --hero ugo --low BAKE_OUT/low.blend --out OUT [--work PREP]
+
+Reads the old scene (cfg "old": the <id>_hq.blend or the shipped GLB), the bake's low.blend (HeroLow: the Tripo body and
+props decimated and baked, in the Tripo model's own pose, game units; `part` face layer: 0 body, k the k-th prop) and
+the prep folder's old.npz / old.json / fit.json.
+
+The rig's rest pose and the clips are not touched. The body is skinned in the fitted pose (weights transferred from the
+old mesh posed with the fit: nearest surface point with an agreeing normal, interpolated over its triangle, smoothed
+over the new mesh; the skull rides the head bone alone above cfg head_rigid_above), then brought into the rest pose by
+inverting that skinning, and bound with the same weights. Armour pieces (cfg "armour") are re-weighted rigidly to the
+bones they ride. Props are moved onto their bones' rest frames (cfg "place", see README.md) and weighted 100% to their
+bone. The old mesh object keeps its name, parent and modifier (its data is replaced, mesh data name kept); the bake's
+maps replace the material's hero_albedo / hero_normal / hero_orm images (same image names). Everything else in the old
+scene is kept as it was. Writes OUT/<id>.glb (build_game.py's export settings) and OUT/<id>_hq.blend (maps packed).
+"""
+import sys, os, json, math
+HQ = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HQ)
+sys.path.insert(0, os.path.join(HQ, "herotripo_prep"))
+import numpy as np
+import bpy, bmesh
+from mathutils import Vector, Matrix
+from scipy.spatial import cKDTree
+from scipy.spatial.transform import Rotation as Rot
+import scipy.sparse as sp
+import common as C
+
+HID = C.arg("--hero")
+CFG = C.load_cfg(HID)
+WK = C.work_dir(HID)
+LOW = C.arg("--low")
+OUT = C.arg("--out", "out")
+os.makedirs(OUT, exist_ok=True)
+INFO = json.load(open(os.path.join(WK, "old.json")))
+FIT = json.load(open(os.path.join(WK, "fit.json")))
+XF0 = json.load(open(os.path.join(WK, "xf.json")))
+XF = FIT["xf"]
+REPORT = {}
+
+
+def log(*a):
+    print("[rig]", *a, flush=True)
+
+
+def load_to_final(p):
+    """A point read off look.py's grid (the load step's frame) -> the fitted game frame (Tripo pose)."""
+    return C.to_game(C.from_game(np.atleast_2d(np.array(p, float)), XF0), XF)
+
+
+def nrm(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+def rot_between(a, b):
+    a, b = nrm(a), nrm(b)
+    ax = np.cross(a, b)
+    s = np.linalg.norm(ax)
+    if s < 1e-9:
+        return np.eye(3) if a @ b > 0 else Rot.from_rotvec(nrm(np.cross(a, [1, 0, 0]) if abs(a[0]) < 0.9 else np.cross(a, [0, 1, 0])) * math.pi).as_matrix()
+    return Rot.from_rotvec(ax / s * math.atan2(s, a @ b)).as_matrix()
+
+
+def adjacency(lt, nv, sel):
+    """Edges of the triangles among the vertices `sel` (indices into 0..nv): returns (ea, eb) in sel's numbering."""
+    idx = np.full(nv, -1)
+    idx[sel] = np.arange(len(sel))
+    E = np.r_[lt[:, [0, 1]], lt[:, [1, 2]], lt[:, [2, 0]]]
+    E.sort(1)
+    E = np.unique(E, axis=0)
+    E = E[(idx[E[:, 0]] >= 0) & (idx[E[:, 1]] >= 0)]
+    return idx[E[:, 0]], idx[E[:, 1]]
+
+
+def target_point(t, bones):
+    if isinstance(t, str) and t.startswith("bone:"):
+        nm, end = t[5:].rsplit(".", 1)
+        b = bones[nm]
+        return np.array(b.head_local if end == "head" else b.tail_local)
+    return np.array(t, float)
+
+
+def top4(W):
+    keep = np.argsort(-W, axis=1)[:, :4]
+    W4 = np.zeros_like(W)
+    rows = np.arange(len(W))[:, None]
+    W4[rows, keep] = W[rows, keep]
+    W4[W4 < 0.01] = 0
+    W4 /= np.maximum(W4.sum(1, keepdims=True), 1e-12)
+    return W4
+
+
+def armour_weights(spec, P, body, W4, gn, posed, ea, eb, col):
+    """One armour piece rides `bones` rigidly: selected by shapes (load frame, Tripo pose; optional colour tests on the
+    baked albedo), grown by `grow` rings, weighted to spec["bones"] (fixed shares) with an optional fade from a second
+    bone along the first bone's axis ("fade": {"bone": b, "share": s, "len": L}: share s at the first bone's head, 0
+    at L down it); then `seam_rings` rings of the coat round it smoothed; optionally shrunk toward the first bone's
+    head (`scale`) and lowered (`drop`)."""
+    nb = len(body)
+    A = sp.coo_matrix((np.ones(len(ea)), (ea, eb)), shape=(nb, nb))
+    A = (A + A.T).tocsr()
+    Pl = C.to_game(C.from_game(P[body], XF), XF0)          # (the config's frame)
+    m = C.shapes(Pl, spec["select"], col)
+    for _ in range(int(spec.get("grow", 0))):
+        m = m | (A @ m.astype(float) > 0)
+    if "within" in spec:
+        m &= C.shapes(Pl, spec["within"], col)
+    bones = spec["bones"]
+    b0 = list(bones)[0]
+    W = W4.copy()
+    W[m] = 0
+    for b, s in bones.items():
+        W[m, gn.index(b)] = s
+    fd = spec.get("fade")
+    if fd:
+        h = posed[b0][:3, 3]
+        d = posed[b0][:3, 1]
+        t = np.clip(((P[body] - h) @ d) / fd["len"], 0, 1)
+        sh = fd["share"] * (1 - t * t * (3 - 2 * t))
+        W[m, gn.index(fd["bone"])] = sh[m]
+        W[m] *= (1.0 / np.maximum(W[m].sum(1, keepdims=True), 1e-9))
+    band = m.copy()
+    for _ in range(int(spec.get("seam_rings", 3))):
+        band = band | (A @ band.astype(float) > 0)
+    band &= ~m
+    deg = np.asarray(A.sum(1)).ravel()
+    for _ in range(6):
+        Wn = (A @ W) / np.maximum(deg, 1)[:, None]
+        W[band] = 0.5 * W[band] + 0.5 * Wn[band]
+    sc, dr = float(spec.get("scale", 1.0)), float(spec.get("drop", 0.0))
+    if sc != 1.0 or dr != 0.0:
+        f = m.astype(float)
+        ring = m.copy()
+        for k in range(1, 4):
+            nxt = ring | (A @ ring.astype(float) > 0)
+            f[nxt & ~ring] = 1.0 - k / 4.0
+            ring = nxt
+        h = posed[b0][:3, 3]
+        Pb = P[body]
+        P[body] = Pb + f[:, None] * ((h + (Pb - h) * sc) - Pb) - f[:, None] * np.array((0.0, 0.0, dr))
+    log("armour %s: %d verts rigid to %s, %d seam verts smoothed%s" % (spec["name"], m.sum(), bones, band.sum(),
+        ", scaled %.2f, dropped %.3f" % (sc, dr) if (sc != 1.0 or dr != 0.0) else ""))
+    REPORT.setdefault("armour", {})[spec["name"]] = int(m.sum())
+    return top4(W)
+
+
+def main():
+    import old as oldmod
+    arm = oldmod.open_old(CFG["old"])
+    old_dir = os.path.dirname(os.path.abspath(CFG["old"]))
+    for im in bpy.data.images:            # (a build's blend points at the runner's paths: look beside the blend)
+        if im.source == "FILE" and not im.packed_file:
+            if not os.path.exists(bpy.path.abspath(im.filepath)):
+                im.filepath = os.path.join(old_dir, os.path.basename(im.filepath))
+            if os.path.exists(bpy.path.abspath(im.filepath)):
+                im.reload()
+                im.pack()
+            log("image", im.name, tuple(im.size), "packed" if im.packed_file else "MISSING")
+    sc = bpy.context.scene
+    old = bpy.data.objects[INFO["mesh"]]
+    bones = {b.name: b for b in arm.data.bones}
+    rest = {n: np.array(b.matrix_local) for n, b in bones.items()}
+    to_arm = np.array(arm.matrix_world.inverted() @ old.matrix_world)
+    assert np.allclose(to_arm, np.eye(4), atol=1e-5), "the old mesh is not in armature space: %s" % to_arm
+
+    o = np.load(os.path.join(WK, "old.npz"))
+    V0, W0, gn, T0, Tp = o["V"], o["W"].astype(float), [str(x) for x in o["gn"]], o["T"], o["Tprop"]
+    tri0 = T0[Tp == -1]
+    props_bones = set(INFO["prop_bones"])
+    body_groups = [i for i, n in enumerate(gn) if n not in props_bones]
+
+    # ---- the fitted pose
+    parent = {n: (b.parent.name if b.parent else None) for n, b in bones.items()}
+    order = []
+    def add(n):
+        if n not in order:
+            if parent[n]:
+                add(parent[n])
+            order.append(n)
+    for n in bones:
+        add(n)
+    posed = {}
+    for n in order:
+        R = np.eye(4)
+        if n in FIT["rotvec"]:
+            R[:3, :3] = Rot.from_rotvec(FIT["rotvec"][n]).as_matrix()
+        p = parent[n]
+        posed[n] = rest[n] @ R if p is None else posed[p] @ np.linalg.inv(rest[p]) @ rest[n] @ R
+    SK = {n: posed[n] @ np.linalg.inv(rest[n]) for n in order}
+
+    def blend(W, names):
+        M = np.zeros((len(W), 4, 4))
+        for j, n in enumerate(names):
+            w = W[:, j]
+            if (w > 0).any() and n in SK:
+                M += w[:, None, None] * SK[n][None]
+        return M
+
+    Vp = np.einsum("nij,nj->ni", blend(W0, gn), np.c_[V0, np.ones(len(V0))])[:, :3]     # the old mesh, fitted pose
+
+    # ---- the new low-poly (Tripo pose, fitted game frame)
+    with bpy.data.libraries.load(LOW) as (src, dst):
+        dst.objects = ["HeroLow"]
+    low = dst.objects[0]
+    lm = low.data
+    nv = len(lm.vertices)
+    P = np.zeros(nv * 3)
+    lm.vertices.foreach_get("co", P)
+    P = P.reshape(-1, 3)
+    fpart = np.zeros(len(lm.polygons), np.int32)
+    lm.attributes["part"].data.foreach_get("value", fpart)
+    lm.calc_loop_triangles()
+    lt = np.array([t.vertices[:] for t in lm.loop_triangles])
+    ltp = fpart[np.array([t.polygon_index for t in lm.loop_triangles])]
+    vpart = np.zeros(nv, np.int32)
+    for k in range(3):
+        vpart[lt[:, k]] = ltp
+    log("low", nv, "verts", len(lm.polygons), "faces; parts", np.bincount(fpart).tolist())
+    fn = np.cross(P[lt[:, 1]] - P[lt[:, 0]], P[lt[:, 2]] - P[lt[:, 0]])
+    VN = np.zeros_like(P)
+    for k in range(3):
+        np.add.at(VN, lt[:, k], fn)
+    VN /= np.maximum(np.linalg.norm(VN, axis=1), 1e-12)[:, None]
+    # per-vertex baked albedo (armour colour tests)
+    from PIL import Image
+    ldir = os.path.dirname(os.path.abspath(LOW))
+    uv = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", uv)
+    uv = uv.reshape(-1, 2)
+    lv = np.zeros(len(lm.loops), np.int64)
+    lm.loops.foreach_get("vertex_index", lv)
+    alb = np.asarray(Image.open(os.path.join(ldir, "hero_albedo.png")).convert("RGB")).astype(float) / 255
+    S_ = alb.shape[0]
+    cc = alb[np.clip(((1 - uv[:, 1]) * S_).astype(int), 0, S_ - 1), np.clip((uv[:, 0] * S_).astype(int), 0, S_ - 1)]
+    vcol = np.zeros((nv, 3))
+    cnt = np.zeros(nv)
+    np.add.at(vcol, lv, cc)
+    np.add.at(cnt, lv, 1)
+    vcol /= np.maximum(cnt, 1)[:, None]
+
+    # ---- body weights: nearest point of the posed old surface with an agreeing normal
+    body = np.nonzero(vpart == 0)[0]
+    A_, B_, C_ = Vp[tri0[:, 0]], Vp[tri0[:, 1]], Vp[tri0[:, 2]]
+    tn = np.cross(B_ - A_, C_ - A_)
+    area = np.linalg.norm(tn, axis=1) / 2
+    tn /= np.maximum(2 * area, 1e-12)[:, None]
+    rng = np.random.default_rng(1)
+    ns = 600000
+    ti = rng.choice(len(tri0), ns, p=area / area.sum())
+    r1, r2 = rng.random(ns), rng.random(ns)
+    flip = r1 + r2 > 1
+    r1[flip], r2[flip] = 1 - r1[flip], 1 - r2[flip]
+    bary = np.c_[1 - r1 - r2, r1, r2]
+    Sm = A_[ti] * bary[:, :1] + B_[ti] * bary[:, 1:2] + C_[ti] * bary[:, 2:]
+    d, nb = cKDTree(Sm).query(P[body], k=24)
+    ok = (tn[ti[nb]] * VN[body][:, None, :]).sum(2) > 0.25
+    first = np.where(ok.any(1), ok.argmax(1), 0)
+    pick = nb[np.arange(len(body)), first]
+    log("weights: %.1f%% of body verts matched with agreeing normals, median dist %.4f" % (
+        100 * ok.any(1).mean(), np.median(d[np.arange(len(body)), first])))
+    WB = np.zeros((len(body), len(gn)))
+    for k in range(3):
+        WB += bary[pick][:, k:k + 1] * W0[tri0[ti[pick], k]]
+    WB[:, [i for i in range(len(gn)) if i not in body_groups]] = 0
+    ea, eb = adjacency(lt, nv, body)
+    deg = np.bincount(np.r_[ea, eb], minlength=len(body)).astype(float)
+    for _ in range(int(CFG.get("weight_smooth", 4))):
+        acc = np.zeros_like(WB)
+        np.add.at(acc, ea, WB[eb])
+        np.add.at(acc, eb, WB[ea])
+        WB = 0.5 * WB + 0.5 * acc / np.maximum(deg, 1)[:, None]
+    hb = posed["head"]
+    hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
+    zr = CFG["head_rigid_above"]
+    zr = (hb[:3, 3] + hb[:3, 1] * hlen * 0.3)[2] if zr is None else float(zr)
+    hi_ = gn.index("head")
+    up = P[body, 2] > zr
+    WB[up] = 0
+    WB[up, hi_] = 1
+    log("head rigid above z %.3f (Tripo pose): %d verts" % (zr, up.sum()))
+    W4 = top4(WB)
+    for spec in CFG["armour"]:
+        W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
+
+    # ---- into the rest pose: invert the skinning of the fitted pose
+    M = blend(W4, gn)
+    Prest = P.copy()
+    Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
+    sole_old = V0[np.unique(tri0), 2].min()
+    dz = sole_old - Prest[body, 2].min()
+    Prest[body, 2] += dz
+    log("soles moved by %.4f to the old soles (z %.4f)" % (dz, sole_old))
+    mv = np.linalg.norm(Prest[body] - P[body], axis=1)
+    log("body to rest: moved median %.4f max %.4f" % (np.median(mv), mv.max()))
+
+    # ---- the props
+    xfs = {}
+    prop_verts = {}
+    obj_props = {}
+    for k, p in enumerate(CFG["props"], start=1):
+        if p.get("drop"):
+            continue
+        vs = np.nonzero(vpart == k)[0]
+        bone = p.get("bone", p["name"])
+        S_b = SK[bone]
+        Sinv = np.linalg.inv(S_b)
+        def fit_xf(X, Sinv=Sinv):
+            return (np.c_[X, np.ones(len(X))] @ Sinv.T)[:, :3]
+        pl = p.get("place", "fit")
+        if isinstance(pl, str):
+            pl = {"mode": pl}
+        mode = pl.get("mode", "fit")
+        if "like" in pl:
+            f = xfs[pl["like"]]
+        elif mode == "fit":
+            f = fit_xf
+        elif mode == "points":
+            Aa, Bb = fit_xf(load_to_final(pl["from"][0]))[0], fit_xf(load_to_final(pl["from"][1]))[0]
+            a, b = target_point(pl["to"][0], bones), target_point(pl["to"][1], bones)
+            R = rot_between(Bb - Aa, b - a)
+            s = pl.get("scale", "match")
+            s = np.linalg.norm(b - a) / np.linalg.norm(Bb - Aa) if s == "match" else (1.0 if s == "keep" else float(s))
+            if pl.get("anchor", 0) == 1:          # the second landmark lands exactly; the first slides along the line
+                a = b - nrm(b - a) * s * np.linalg.norm(Bb - Aa)
+            if pl.get("spin"):
+                R = Rot.from_rotvec(nrm(b - a) * math.radians(pl["spin"])).as_matrix() @ R
+            off = np.array(pl.get("offset", [0, 0, 0]), float)
+            def f(X, Aa=Aa, a=a, R=R, s=s, off=off, fit_xf=fit_xf):
+                return a + off + s * (fit_xf(X) - Aa) @ R.T
+            log("prop %s: %s -> %s, scale %.3f, turned %.1f deg" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
+                np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec()))))
+        else:
+            raise ValueError(mode)
+        xfs[p["name"]] = f
+        Prest[vs] = f(P[vs])
+        if p.get("object"):
+            obj_props[p["name"]] = (vs, p["object"])
+        else:
+            prop_verts[p["name"]] = (vs, bone)
+        Xr = Prest[vs]
+        REPORT.setdefault("props", {})[p["name"]] = dict(bone=bone, verts=int(len(vs)), bbox=[Xr.min(0).round(3).tolist(), Xr.max(0).round(3).tolist()])
+        log("prop %s on %s (%s): %d verts, rest bbox %s .. %s" % (p["name"], bone, mode if "like" not in pl else "like " + pl["like"],
+            len(vs), Xr.min(0).round(3), Xr.max(0).round(3)))
+
+    lm.vertices.foreach_set("co", Prest.astype(np.float32).ravel())
+    lm.update()
+    # props that replace another object's mesh (e.g. stones that orbit her: SpinSlowStones, turned in game): split off,
+    # moved into that object's space (they keep the new atlas' UVs and the hero material)
+    for nm, (vs, oname) in obj_props.items():
+        tgt = bpy.data.objects[oname]
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        bm_.verts.ensure_lookup_table()
+        keep = set(vs.tolist())
+        bmesh.ops.delete(bm_, geom=[v for v in bm_.verts if v.index not in keep], context="VERTS")
+        M_ = tgt.matrix_world.inverted() @ arm.matrix_world
+        for v in bm_.verts:
+            v.co = M_ @ v.co
+        nme = bpy.data.meshes.new(tgt.data.name + "_new")
+        bm_.to_mesh(nme)
+        bm_.free()
+        if "part" in nme.attributes:
+            nme.attributes.remove(nme.attributes["part"])
+        oldd = tgt.data
+        dn = oldd.name
+        tgt.data = nme
+        bpy.data.meshes.remove(oldd)
+        nme.name = dn
+        log("prop %s -> object %s (%d verts, %d faces)" % (nm, oname, len(nme.vertices), len(nme.polygons)))
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        bm_.verts.ensure_lookup_table()
+        bmesh.ops.delete(bm_, geom=[bm_.verts[i] for i in vs.tolist()], context="VERTS")
+        bm_.to_mesh(lm)
+        bm_.free()
+    if obj_props:
+        nv2 = len(lm.vertices)
+        keepm = np.ones(nv, bool)
+        for vs, _ in obj_props.values():
+            keepm[vs] = False
+        newidx = np.cumsum(keepm) - 1
+        body = newidx[body[keepm[body]]]
+        prop_verts = {k: (newidx[v], b) for k, (v, b) in prop_verts.items()}
+        assert nv2 == keepm.sum()
+
+    # ---- replace the old mesh's data; keep the object, its mesh data name and modifier
+    old_me = old.data
+    keep_name = old_me.name
+    old_me.name = keep_name + "_old"
+    old.data = lm
+    lm.name = keep_name
+    old.vertex_groups.clear()
+    groups = {n: old.vertex_groups.new(name=n) for n in gn}
+    for j in body_groups:
+        w = W4[:, j]
+        nz = np.nonzero(w > 0)[0]
+        g = groups[gn[j]]
+        for val in np.unique(np.round(w[nz], 4)):
+            sel = nz[np.round(w[nz], 4) == val]
+            g.add(body[sel].tolist(), float(val), "REPLACE")
+    for nm, (vs, bone) in prop_verts.items():
+        if bone not in groups:
+            groups[bone] = old.vertex_groups.new(name=bone)
+        groups[bone].add(vs.tolist(), 1.0, "REPLACE")
+    bpy.data.meshes.remove(old_me)
+    mat = bpy.data.materials[INFO["material"]]
+    for nd in mat.node_tree.nodes:
+        if nd.type == "TEX_IMAGE" and nd.image is not None:
+            nm = nd.image.name.lower()
+            role = "albedo" if "albedo" in nm else ("normal" if "normal" in nm else ("orm" if "orm" in nm else None))
+            if role is None:
+                continue
+            nd.image.source = "FILE"
+            nd.image.filepath = os.path.join(ldir, "hero_%s.png" % role)
+            if nd.image.packed_file:
+                nd.image.unpack(method="REMOVE")
+            nd.image.reload()
+            nd.image.pack()
+            log("image", nd.image.name, "<- hero_%s.png" % role, tuple(nd.image.size))
+    lm.materials.clear()
+    lm.materials.append(mat)
+    for m in [m for m in bpy.data.materials if m.users == 0]:
+        bpy.data.materials.remove(m)
+    for im in [im for im in bpy.data.images if im.users == 0]:
+        bpy.data.images.remove(im)
+
+    # ---- glows on prop bones: kept as they were unless the config says otherwise
+    for gname, g in CFG["glows"].items():
+        ob = bpy.data.objects.get(gname)
+        if ob is None:
+            continue
+        if "fit_to" in g or "at" in g:          # centred on a prop's piece (rest) or a bone point; radius given or the piece's
+            if "fit_to" in g:
+                vs, _ = prop_verts[g["fit_to"]]
+                X = np.array([lm.vertices[i].co for i in vs.tolist()])
+                cen = (X.max(0) + X.min(0)) / 2
+            if "at" in g:
+                cen = target_point(g["at"], bones)
+            rad = float(g["radius"]) if "radius" in g else np.median(np.linalg.norm(X - cen, axis=1))
+            rad *= float(g.get("pad", 1.0))
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            c0 = (co.max(0) + co.min(0)) / 2
+            r0 = np.median(np.linalg.norm(co - c0, axis=1))
+            co = cen + (co - c0) * (rad / r0)
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: centred at %s, radius %.4f -> %.4f" % (gname, np.round(cen, 4), r0, rad))
+            REPORT.setdefault("glows", {})[gname] = dict(centre=np.round(cen, 4).tolist(), radius=round(float(rad), 4), old_centre=np.round(c0, 4).tolist(), old_radius=round(float(r0), 4))
+        if g.get("hide"):
+            ob.hide_render = True
+        if "offset" in g or "scale" in g:
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            c = co.mean(0)
+            co = c + (co - c) * float(g.get("scale", 1.0)) + np.array(g.get("offset", [0, 0, 0]))
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: scaled %.2f, moved %s" % (gname, g.get("scale", 1.0), g.get("offset", [0, 0, 0])))
+
+    # ---- save and export
+    for ob in sc.objects:
+        ob.select_set(False)
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "%s_hq.blend" % HID))
+    path = os.path.join(OUT, "%s.glb" % HID)
+    bpy.ops.export_scene.gltf(filepath=path, export_format="GLB", export_animations=True, export_animation_mode="ACTIONS",
+                              export_skins=True, export_tangents=True, export_apply=False, export_yup=True,
+                              export_force_sampling=True, export_image_format="JPEG", export_jpeg_quality=93, export_materials="EXPORT")
+    tris = {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in sc.objects if ob.type == "MESH"}
+    # weights check
+    nz = np.array([len([g for g in v.groups if g.weight > 0]) for v in lm.vertices])
+    ws = np.array([sum(g.weight for g in v.groups) for v in lm.vertices])
+    REPORT.update(dict(glb=path, glb_bytes=os.path.getsize(path), tris=tris, char_tris=tris[INFO["mesh"]],
+                       max_influences=int(nz.max()), weight_sum=[float(ws.min()), float(ws.max())], soles_dz=float(dz)))
+    json.dump(REPORT, open(os.path.join(OUT, "rig_report.json"), "w"), indent=1)
+    log("exported", path, os.path.getsize(path), "bytes; tris", tris, "; influences <= %d, weight sums %.4f..%.4f" % (nz.max(), ws.min(), ws.max()))
+
+
+main()

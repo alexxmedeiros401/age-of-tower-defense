@@ -16,7 +16,9 @@ body. Keys:
            then not a sink;
   drop:    true: the piece is removed (patched over), not kept as a prop (e.g. a cable you don't want);
   keep:    "largest" (default: only the prop's largest connected piece, the rest goes back) or "all";
-  concave_k: how much cheaper a concave crease is (default 8).
+  concave_k: how much cheaper a concave crease is (default 8);
+  mode:    "pieces": no cut; the prop is every loose piece of the mesh (not the body's main piece) that a seed touches
+           (floating stones, a separate necklace ...); only "seeds" is used.
 Small loose islands of the body (< 200 faces) are dropped.
 """
 import sys, os, json
@@ -94,6 +96,18 @@ def main():
     names = [p["name"] for p in cfg["props"]]
     for k, p in enumerate(cfg["props"], start=1):
         print("[cut] %s" % p["name"])
+        if p.get("mode") == "pieces":            # loose pieces (floating stones ...): every connected piece a seed touches
+            src = C.shapes(Cg, p.get("seeds"), col) & (lab == 0)
+            idx, l, n = comps(T, lab == 0)
+            hit = np.unique(l[np.isin(idx, np.nonzero(src)[0])])
+            cnt = np.bincount(l)
+            big = np.argmax(cnt)
+            hit = hit[hit != big]
+            cutm = np.zeros(nf, bool)
+            cutm[idx[np.isin(l, hit)]] = True
+            lab[cutm] = 255 if p.get("drop") else k
+            print("   %d loose pieces (%s faces)" % (len(hit), cnt[hit].tolist()))
+            continue
         region = C.box(Cg, p["region"])
         parent = 0
         if p.get("within"):

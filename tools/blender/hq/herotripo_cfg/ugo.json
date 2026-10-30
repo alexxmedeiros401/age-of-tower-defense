@@ -49,7 +49,27 @@
       0.8
      ]
     ]
-   ]
+   ],
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      -0.92,
+      0.03,
+      0.78
+     ],
+     [
+      -0.9,
+      0.03,
+      0.41
+     ]
+    ],
+    "to": [
+     "bone:sling.head",
+     "bone:stone.head"
+    ],
+    "scale": "match"
+   }
   },
   {
    "name": "stone",
@@ -105,7 +125,10 @@
       ]
      }
     }
-   ]
+   ],
+   "place": {
+    "like": "sling"
+   }
   }
  ]
 }
