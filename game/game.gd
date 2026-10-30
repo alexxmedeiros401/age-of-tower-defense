@@ -15407,13 +15407,23 @@ func _run_autowin() -> void:
 	_handle_events()
 	speed = 10
 	var frames := 0
+	var quick := 0                                # --waves=N: a quick check that stops after N waves (the hero's ability fired as soon as it's ready)
+	for a in OS.get_cmdline_user_args():
+		if str(a).begins_with("--waves="):
+			quick = int(str(a).get_slice("=", 1))
+	var casts := 0
 	while not overlay.visible and frames < 80000:
+		if quick > 0 and sim.wave >= quick and sim.enemies.is_empty():
+			break
 		if btn_start.disabled == false and sim.enemies.is_empty():
 			btn_start.emit_signal("pressed")
-		if sim.ability_ready() and sim.enemies.size() > 6:
+		if sim.ability_ready() and (sim.enemies.size() > 6 or (quick > 0 and not sim.enemies.is_empty())):
 			_on_hero_button()
+			casts += 1
 		await get_tree().process_frame
 		frames += 1
+	if quick > 0:
+		print("AUTOWIN quick waves=%d casts=%d" % [quick, casts])
 	print("AUTOWIN map=%s state=%s wave=%d lives=%d overlay=%s results=%s pages=%d hero_rank=%d" % [map_id, sim.state, sim.wave, sim.lives,
 		overlay.visible, results_summary, results_pages.size(), sim.hero.level if sim.hero != null else 0])
 	print("AUTOWIN save=", JSON.stringify(Progress.data))
