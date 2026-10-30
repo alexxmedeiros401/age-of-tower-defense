@@ -1,0 +1,44 @@
+# Tripo jobs: Claude pushes a branch named tripo-jobs/<name> with tripo_job.json at its root (see tools/tripo/tripo_job.py).
+# The runner calls the Tripo API with the repo secret TRIPO_API_KEY (never printed) and attaches the results as
+# <name>.zip to the draft release art-builds, like the art builds.
+name: Tripo job
+
+on:
+  push:
+    branches: ["tripo-jobs/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  tripo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tripo_job.json
+            tools/tripo
+          sparse-checkout-cone-mode: false
+      - name: Run the Tripo pipeline
+        env:
+          TRIPO_API_KEY: ${{ secrets.TRIPO_API_KEY }}
+        run: python3 tools/tripo/tripo_job.py tripo_job.json "$RUNNER_TEMP/out"
+      - name: Attach the results to the draft release art-builds
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NAME="${GITHUB_REF_NAME#tripo-jobs/}"
+          [ -d "$RUNNER_TEMP/out" ] || { echo "no output"; exit 0; }
+          (cd "$RUNNER_TEMP/out" && zip -qr "$RUNNER_TEMP/$NAME.zip" .)
+          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[-1].id // empty')
+          [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
+          for a in $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
+          done
+          curl -sS --fail -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/zip" \
+            --data-binary "@$RUNNER_TEMP/$NAME.zip" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rid/assets?name=$NAME.zip" > /dev/null
+          echo "attached $NAME.zip"
