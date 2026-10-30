@@ -303,7 +303,7 @@ def main():
         if p.get("drop"):
             continue
         vs = np.nonzero(vpart == k)[0]
-        bone = p.get("bone", p["name"])
+        bone = p.get("bone") or (p["name"] if p["name"] in SK else "root")
         S_b = SK[bone]
         Sinv = np.linalg.inv(S_b)
         def fit_xf(X, Sinv=Sinv):

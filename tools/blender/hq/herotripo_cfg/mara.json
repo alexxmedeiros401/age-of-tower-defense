@@ -112,7 +112,8 @@
     "scale": 1.25,
     "anchor": 1
    },
-   "keep": "all"
+   "keep": "all",
+   "bridge": true
   },
   {
    "name": "stones",
@@ -162,7 +163,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 900
   }
  ],
  "glows": {

@@ -2,6 +2,7 @@
 
     python3 herotripo_review.py -- --hero ugo --new OUT/ugo_hq.blend --out OUT [--res 512] [--samples 24]
                                    [--only turn,face,clips,cmp,close]
+                                   [--az 32 --el 16 --frames Ability@8,Cheer@20 --name clips_back]   (other clip views)
 
 turn.png: front, three-quarter, back, side in the rest pose; face.png: three head close-ups; clips.png: frames across
 all five clips (cfg "review_frames" adds key frames, e.g. the attack frame and the ability's key frame); old_vs_new.png:
@@ -179,14 +180,17 @@ if "clips" in ONLY:
     sc, arm = setup(NEW)
     pose(arm, None, 0)
     lo, hi = frame_box()
-    tg, o = body_target(lo, hi), (hi[2] - lo[2]) * 1.35
+    tg, o = body_target(lo, hi), (hi[2] - lo[2]) * 1.25
     ps, labels = [], []
-    for k, (act, fr) in enumerate(clip_frames()):
+    AZ, EL = float(C.arg("--az", "32")), float(C.arg("--el", "16"))
+    FR = C.arg("--frames")                      # e.g. Ability@8,Ability@20 (instead of the default frames)
+    frames = [(x.split("@")[0], int(x.split("@")[1])) for x in FR.split(",")] if FR else clip_frames()
+    for k, (act, fr) in enumerate(frames):
         pose(arm, act, fr)
-        camera(sc, tg, 32, 16, o)
+        camera(sc, tg, AZ, EL, o)
         ps.append(shot(sc, os.path.join(OUT, "_c%d.png" % k)))
         labels.append("%s %d" % (act, fr))
-    sheet(ps, os.path.join(OUT, "clips.png"), 5, labels)
+    sheet(ps, os.path.join(OUT, C.arg("--name", "clips") + ".png"), 5, labels)
 if "cmp" in ONLY:
     ps, labels = [], []
     cmpf = [tuple(x) for x in CFG.get("cmp_frames", [])] or [clip_frames()[1], (CLIPS[-2], int(np.mean({k.split("|")[-1]: v for k, v in INFO["actions"].items()}[CLIPS[-2]])))]
@@ -214,26 +218,28 @@ if "close" in ONLY:
         hand = b
         while hand and not hand.startswith("hand"):
             hand = INFO["bones"][hand]["parent"]
-        items.append((p["name"], hand or b, 0.5, H * 0.3))
+        items.append((p["name"], (hand or b, b), 0.5, H * 0.42))
     for a in CFG["armour"]:
-        items.append((a["name"], list(a["bones"])[0], 0.1, H * 0.35))
+        items.append((a["name"], (list(a["bones"])[0],), 0.1, H * 0.35))
     ps, labels = [], []
+    def look_at(bs, along):
+        return sum((bone_world(arm, b_, along) for b_ in bs), Vector()) / len(bs)
     for nm, bone, along, o in items:
         # the frames where the bone strays farthest from its rest place (in the Yaw's frame), one per clip
         pose(arm, None, 0)
-        r0 = bone_world(arm, bone, along)
+        r0 = look_at(bone, along)
         best = []
         for a in CLIPS:
             rng = {k.split("|")[-1]: v for k, v in INFO["actions"].items()}[a]
             dd = []
             for f in range(int(rng[0]), int(rng[1]) + 1, 2):
                 pose(arm, a, f)
-                dd.append(((bone_world(arm, bone, along) - r0).length, f))
+                dd.append(((look_at(bone, along) - r0).length, f))
             best.append((a, max(dd)[1]))
         frames = [(None, 0)] + best + [tuple(x) for x in CFG.get("closeup_frames", {}).get(nm, [])]
         for act, fr in frames:
             pose(arm, act, fr)
-            c = bone_world(arm, bone, along)
+            c = look_at(bone, along)
             camera(sc, c, 30, 12, o)
             ps.append(shot(sc, os.path.join(OUT, "_x%d.png" % len(ps))))
             labels.append("%s: %s" % (nm, "rest" if act is None else "%s %d" % (act, fr)))

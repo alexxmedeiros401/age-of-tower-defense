@@ -68,7 +68,7 @@
      "bone:sling.head",
      "bone:stone.head"
     ],
-    "scale": "match"
+    "scale": "keep"
    }
   },
   {
