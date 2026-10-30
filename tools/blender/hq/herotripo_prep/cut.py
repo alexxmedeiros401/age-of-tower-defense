@@ -7,7 +7,7 @@ Each prop in cfg["props"] (in order) is a minimum cut on the face graph inside i
 pose: read the coordinates off look.py's grids). Cutting is cheap across concave creases (where a prop was fused onto
 the body, e.g. a fist round a grip) and dear across smooth surface, so the cut runs round the prop where it meets the
 body. Keys:
-  region:  [[x0,x1],[y0,y1],[z0,z1]]: everything the cut may give to the prop (the prop lies inside, with a margin);
+  region:  [[x0,x1],[y0,y1],[z0,z1]] (or a ball {"c": [x,y,z], "r": r}): everything the cut may give to the prop (the prop lies inside, with a margin);
   seeds:   shapes (boxes, {"ball": {"c": .., "r": ..}}, each with an optional "col": {"min": rgb, "max": rgb} test on
            the Tripo base colour) that surely belong to the prop;
   sinks:   shapes that surely do not (default: none). The region's skin (faces within `margin`, default 0.012, of the
@@ -117,8 +117,11 @@ def main():
         sink = region & C.shapes(Cg, p.get("sinks"), col)
         if not p.get("within"):
             mg = p.get("margin", 0.012)
-            (x0, x1), (y0, y1), (z0, z1) = p["region"]
-            inner = C.box(Cg, [[x0 + mg, x1 - mg], [y0 + mg, y1 - mg], [z0 + mg, z1 - mg]])
+            if isinstance(p["region"], dict):            # a ball region ({"c", "r"}): its skin is the outer shell
+                inner = C.box(Cg, {"c": p["region"]["c"], "r": p["region"]["r"] - mg})
+            else:
+                (x0, x1), (y0, y1), (z0, z1) = p["region"]
+                inner = C.box(Cg, [[x0 + mg, x1 - mg], [y0 + mg, y1 - mg], [z0 + mg, z1 - mg]])
             sink |= region & ~inner
         sink &= ~src
         if src.sum() == 0:

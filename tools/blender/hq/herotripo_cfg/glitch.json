@@ -203,5 +203,13 @@
    "upperarm.R",
    "forearm.R"
   ]
- ]
+ ],
+ "glows": {
+  "GlowEdgeR": {
+   "hide": true
+  },
+  "GlowEdgeL": {
+   "hide": true
+  }
+ }
 }
