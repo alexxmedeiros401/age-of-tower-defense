@@ -293,10 +293,12 @@ def main():
         for p in me.polygons:
             p.use_smooth = True
         mats_ = list(gm.materials)
+        old_name = gm.name
         ob.data = me
         for m_ in mats_:
             me.materials.append(m_)
         bpy.data.meshes.remove(gm)
+        me.name = old_name                         # (the same mesh names in the GLB as before)
         ob.vertex_groups.clear()
         for n in gn + (["button"] if bone == "button" else []):
             if n not in [g.name for g in ob.vertex_groups]:
