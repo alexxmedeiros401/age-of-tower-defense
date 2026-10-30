@@ -1,0 +1,43 @@
+{
+ "old_props": [
+  "grenade",
+  "core"
+ ],
+ "glows": {
+  "GlowScreen": {
+   "hide": true
+  },
+  "GlowCells": {
+   "hide": true
+  },
+  "GlowEmitter": {
+   "hide": true
+  }
+ },
+ "armour": [
+  {
+   "name": "tablet",
+   "select": [
+    [
+     [
+      -0.81,
+      -0.59
+     ],
+     [
+      -0.13,
+      0.1
+     ],
+     [
+      0.93,
+      1.21
+     ]
+    ]
+   ],
+   "grow": 1,
+   "bones": {
+    "forearm.R": 1.0
+   },
+   "seam_rings": 2
+  }
+ ]
+}

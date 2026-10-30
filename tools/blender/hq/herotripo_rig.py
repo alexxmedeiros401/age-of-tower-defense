@@ -146,6 +146,83 @@ def armour_weights(spec, P, body, W4, gn, posed, ea, eb, col):
     return top4(W)
 
 
+def add_old_props(old_me, lm, V0, W0, gn, groups, alb):
+    """cfg "old_props": [bone, ...]: the OLD mesh's faces riding these prop bones (more than half of every vertex's
+    weight on them) are kept as they were (rest pose, old weights) when the Tripo model has no such prop (Ken's EMP
+    grenade: the Tripo Ken holds none). They have no room in the new atlas, so each old face is textured flat: its old
+    albedo colour (the old map at its corners and middle) is matched to the nearest colour of a near-uniform face of the
+    new atlas, and the face's UVs are shrunk to a dot in that face's middle (the new normal / ORM maps there come with
+    it)."""
+    names = CFG["old_props"]
+    cols = [gn.index(b) for b in names if b in gn]
+    vsel = W0[:, cols].sum(1) > 0.5
+    polys = [p for p in old_me.polygons if all(vsel[v] for v in p.vertices)]
+    if not polys:
+        log("old props %s: no faces" % names)
+        return
+    # the old albedo (still the old image at this point; a byte image's pixels are its sRGB values)
+    mat = old_me.materials[0]
+    im = next(nd.image for nd in mat.node_tree.nodes if nd.type == "TEX_IMAGE" and nd.image is not None and "albedo" in nd.image.name.lower())
+    w_, h_ = im.size
+    px = np.zeros(w_ * h_ * 4, np.float32)
+    im.pixels.foreach_get(px)
+    px = px.reshape(h_, w_, 4)[:, :, :3]                 # (rows bottom-up: v = 0 at row 0)
+    ouv = old_me.uv_layers.active.data
+    def old_col(u, v):
+        return px[np.clip(int(v * h_), 0, h_ - 1), np.clip(int(u * w_), 0, w_ - 1)]
+    # near-uniform faces of the new atlas (their corners agree with their middle): the candidates
+    S_ = alb.shape[0]
+    luv = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", luv)
+    luv = luv.reshape(-1, 2)
+    lm.calc_loop_triangles()
+    tl = np.array([t.loops[:] for t in lm.loop_triangles])
+    tuv = luv[tl]                                          # (n, 3, 2)
+    def new_col(U):
+        return alb[np.clip(((1 - U[..., 1]) * S_).astype(int), 0, S_ - 1), np.clip((U[..., 0] * S_).astype(int), 0, S_ - 1)]
+    cen = tuv.mean(1)
+    cc = new_col(cen)
+    corner = new_col(cen[:, None] + 0.5 * (tuv - cen[:, None]))
+    var = np.abs(corner - cc[:, None]).max((1, 2))
+    span = np.abs(tuv - cen[:, None]).max((1, 2)) * S_
+    good = np.nonzero((var < 0.04) & (span > 3))[0]
+    kd = cKDTree(cc[good])
+    ob = bpy.data.objects[INFO["mesh"]]
+    for n in gn:
+        if n not in groups:
+            groups[n] = ob.vertex_groups.new(name=n)
+    bm_ = bmesh.new()
+    bm_.from_mesh(lm)
+    ul = bm_.loops.layers.uv.active
+    dl = bm_.verts.layers.deform.verify()
+    vmap = {}
+    W4o = top4(W0)
+    for p in polys:
+        for v in p.vertices:
+            if v not in vmap:
+                nv_ = bm_.verts.new(V0[v].tolist())
+                for j in np.nonzero(W4o[v] > 0)[0]:
+                    nv_[dl][groups[gn[j]].index] = float(W4o[v, j])
+                vmap[v] = nv_
+    bm_.verts.index_update()
+    errs = []
+    for p in polys:
+        uvs = [ouv[li].uv[:] for li in p.loop_indices]
+        c = np.mean([old_col(*u) for u in uvs] + [old_col(*np.mean(uvs, 0))] * 2, 0)
+        d, k = kd.query(c)
+        errs.append(d)
+        t = good[k]
+        f = bm_.faces.new([vmap[v] for v in p.vertices])
+        for i, lp in enumerate(f.loops):
+            lp[ul].uv = (cen[t] + 0.12 * (tuv[t, i % 3] - cen[t])).tolist()
+    bm_.to_mesh(lm)
+    bm_.free()
+    lm.update()
+    REPORT["old_props"] = dict(bones=names, faces=len(polys), verts=len(vmap), colour_error_median=round(float(np.median(errs)), 3))
+    log("old props %s: %d faces, %d verts kept from the old mesh (colour match error median %.3f, max %.3f)" %
+        (names, len(polys), len(vmap), np.median(errs), np.max(errs)))
+
+
 def main():
     import old as oldmod
     arm = oldmod.open_old(CFG["old"])
@@ -560,6 +637,8 @@ def main():
         if bone not in groups:
             groups[bone] = old.vertex_groups.new(name=bone)
         groups[bone].add(vs.tolist(), 1.0, "REPLACE")
+    if CFG.get("old_props"):
+        add_old_props(old_me, lm, V0, W0, gn, groups, alb)
     bpy.data.meshes.remove(old_me)
     mat = bpy.data.materials[INFO["material"]]
     for nd in mat.node_tree.nodes:
@@ -607,8 +686,16 @@ def main():
             me.update()
             log("glow %s: centred at %s, radius %.4f -> %.4f" % (gname, np.round(cen, 4), r0, rad))
             REPORT.setdefault("glows", {})[gname] = dict(centre=np.round(cen, 4).tolist(), radius=round(float(rad), 4), old_centre=np.round(c0, 4).tolist(), old_radius=round(float(r0), 4))
-        if g.get("hide"):
+        if g.get("hide"):                       # (hidden objects are still exported: collapse the mesh to a point too)
             ob.hide_render = True
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            co[:] = co.mean(0)
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: hidden (collapsed to a point)" % gname)
         if "offset" in g or "scale" in g:
             me = ob.data
             co = np.zeros(len(me.vertices) * 3)
