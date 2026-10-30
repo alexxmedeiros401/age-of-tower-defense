@@ -268,7 +268,12 @@
     ],
     "scale": "keep",
     "spin": 19.0,
-    "hand_follow": true
+    "hand_follow": true,
+    "shorten": [
+     -0.2,
+     -0.07,
+     0.4
+    ]
    }
   },
   {
@@ -358,6 +363,68 @@
     "scale": "keep",
     "spin": -143.2
    }
+  },
+  {
+   "name": "sword_bits",
+   "bone": "hand.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -0.8,
+      -0.65
+     ],
+     [
+      -0.19,
+      0.0
+     ],
+     [
+      0.6,
+      0.82
+     ]
+    ],
+    [
+     [
+      -0.29,
+      -0.2
+     ],
+     [
+      -0.62,
+      -0.52
+     ],
+     [
+      0.24,
+      0.35
+     ]
+    ]
+   ],
+   "place": {
+    "like": "sword"
+   }
+  },
+  {
+   "name": "shield_emblem",
+   "bone": "hand.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.57,
+      0.85
+     ],
+     [
+      -0.1,
+      0.07
+     ],
+     [
+      0.78,
+      0.92
+     ]
+    ]
+   ],
+   "place": {
+    "like": "shield"
+   }
   }
  ],
  "review_frames": {
@@ -378,5 +445,57 @@
    "Ability",
    16
   ]
+ ],
+ "armour": [
+  {
+   "name": "fist_R",
+   "select": [
+    [
+     [
+      -0.97,
+      -0.72
+     ],
+     [
+      -0.12,
+      0.35
+     ],
+     [
+      0.7,
+      0.885
+     ]
+    ]
+   ],
+   "bones": {
+    "hand.R": 1.0
+   },
+   "seam_rings": 2
+  },
+  {
+   "name": "fist_L",
+   "select": [
+    [
+     [
+      0.4,
+      0.76
+     ],
+     [
+      -0.1,
+      0.25
+     ],
+     [
+      0.68,
+      0.93
+     ]
+    ]
+   ],
+   "bones": {
+    "hand.L": 1.0
+   },
+   "seam_rings": 2
+  }
+ ],
+ "twist_bones": [
+  "R",
+  "L"
  ]
 }
