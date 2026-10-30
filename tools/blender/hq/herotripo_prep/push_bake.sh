@@ -19,20 +19,28 @@ git worktree remove --force "$JW" 2>/dev/null || true
 git branch -D "$BR" 2>/dev/null || true
 git worktree add -q -b "$BR" "$JW" "$BASE"
 cd "$JW"
-JOBS="["
-SEP=""
 for ID in "$@"; do
   D=tools/blender/hq/herotripo_in/$ID
   mkdir -p $D
   cp "$SRC/$ID.glb" $D/tripo_src.glb
   for f in labels.npz patches.pkl fit.json; do cp "$WORK/$ID/prep/$f" $D/; done
-  N=${TAG}_${ID}_${RUN}
-  CMD="O=\$GITHUB_WORKSPACE/out/$N; mkdir -p \$O\npip install -q xatlas==0.0.11\n(cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/$ID/tripo_src.glb ../herotripo_in/$ID/tripo.glb)\npython3 herotripo_bake.py -- --hero $ID --in herotripo_in/$ID --out \$O > \$O/bake.log 2>&1 || (tail -80 \$O/bake.log; exit 1)\ngrep '^\\\\[ht\\\\]' \$O/bake.log | tail -40; rm -f \$O/tex_*; ls -la \$O"
-  JOBS="$JOBS$SEP{\"name\": \"$N\", \"cmd\": \"$CMD\", \"out\": \"out/$N\"}"
-  SEP=","
 done
-JOBS="$JOBS]"
-printf '%b' "$JOBS" | python3 -c "import json,sys; d=json.loads(sys.stdin.read().replace('\n','\\\\n')); json.dump(d, open('art_jobs.json','w'), indent=1); print(json.dumps(d, indent=1))"
+python3 - "$TAG" "$RUN" "$@" <<'PY'
+import json, sys
+tag, run, ids = sys.argv[1], sys.argv[2], sys.argv[3:]
+jobs = []
+for i in ids:
+    n = "%s_%s_%s" % (tag, i, run)
+    cmd = "\n".join([
+        "O=$GITHUB_WORKSPACE/out/%s; mkdir -p $O" % n,
+        "pip install -q xatlas==0.0.11",
+        "(cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/%s/tripo_src.glb ../herotripo_in/%s/tripo.glb)" % (i, i),
+        "python3 herotripo_bake.py -- --hero %s --in herotripo_in/%s --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)" % (i, i),
+        "grep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O"])
+    jobs.append(dict(name=n, cmd=cmd, out="out/" + n))
+json.dump(jobs, open("art_jobs.json", "w"), indent=1)
+print(json.dumps(jobs, indent=1))
+PY
 git add -f art_jobs.json tools/blender/hq/herotripo_in
 git commit -qm "Art jobs: $TAG $RUN ($*)"
 git push -q -f origin "$BR"
