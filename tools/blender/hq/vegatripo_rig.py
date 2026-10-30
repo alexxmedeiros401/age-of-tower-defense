@@ -63,6 +63,156 @@ SW_TOP = (0.1378, 0.1316, 0.538)           # ... and the top of its amber thumb 
 SW_DOME = (0.027, 0.015)                   # the button's dome (radius, height)
 
 
+# -------------------------------------------------------------------------------------------- the right pauldron
+PAD_UPPER, PAD_CLAV = "upperarm.R", "clavicle.R"
+PAD_SCALE, PAD_DROP = 0.86, 0.015
+PAD_CLAV_SHARE, PAD_SEAM_RINGS = 0.35, 3
+
+
+def pauldron_weights(lm, P, body, W4, gn, posed, tr, ea, eb, ldir):
+    """The salvaged white pauldron (dome, lames, its chevron and rivets) rides the right upper arm rigidly: found by its
+    baked colour (white plates, the amber chevron, flooded over the light-grey rivets and rims, then two rings more to
+    take its dark underside), weighted to the upper arm with a share of the clavicle at its inner edge (35% at the
+    shoulder joint, none 0.2 m down the arm), and only the seam into the coat smoothed. The transferred weights left it
+    on the chest and clavicle: it rose to his ear whenever the arm hung down (the old Vega's pauldron did the same)."""
+    from PIL import Image
+    import scipy.sparse as sp
+    nv = len(P)
+    uv = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", uv)
+    uv = uv.reshape(-1, 2)
+    lv = np.zeros(len(lm.loops), np.int64)
+    lm.loops.foreach_get("vertex_index", lv)
+    alb = np.asarray(Image.open(os.path.join(ldir, "hero_albedo.png")).convert("RGB")).astype(float) / 255
+    S = alb.shape[0]
+    c = alb[np.clip(((1 - uv[:, 1]) * S).astype(int), 0, S - 1), np.clip((uv[:, 0] * S).astype(int), 0, S - 1)]
+    col = np.zeros((nv, 3))
+    cnt = np.zeros(nv)
+    np.add.at(col, lv, c)
+    np.add.at(cnt, lv, 1)
+    col = (col / np.maximum(cnt, 1)[:, None])[body]
+    Pb = P[body]
+    lum = col.mean(1)
+    sat = col.max(1) - col.min(1)
+    nb = len(body)
+    A = sp.coo_matrix((np.ones(len(ea)), (ea, eb)), shape=(nb, nb))
+    A = (A + A.T).tocsr()
+    box = (Pb[:, 0] < -0.25) & (Pb[:, 2] > 1.1)
+    m = box & (lum > 0.5) & (sat < 0.15)
+    ok = box & ((lum > 0.33) | ((col[:, 0] > 0.55) & (col[:, 2] < 0.35)))
+    for _ in range(40):
+        m2 = m | ((A @ m.astype(float) > 0) & ok)
+        if (m2 == m).all():
+            break
+        m = m2
+    # rivets and rim bits the flood missed (light grey, within 2.5 cm of the plate)
+    from scipy.spatial import cKDTree
+    dd, _ = cKDTree(Pb[m]).query(Pb, k=1)
+    stray = box & ~m & (dd < 0.025) & (lum > 0.3)
+    m = m | stray
+    for _ in range(40):                        # (and whatever hangs off them only through the pad)
+        m2 = m | ((A @ m.astype(float) > 0) & ok)
+        if (m2 == m).all():
+            break
+        m = m2
+    # small islands of non-pad vertices in the shoulder box (rivets ringed by plate): the pad's too
+    from scipy.sparse.csgraph import connected_components
+    rest_ = np.nonzero(box & ~m)[0]
+    ri = np.full(nb, -1)
+    ri[rest_] = np.arange(len(rest_))
+    sel = (ri[ea] >= 0) & (ri[eb] >= 0)
+    nc, cl = connected_components(sp.coo_matrix((np.ones(sel.sum()), (ri[ea[sel]], ri[eb[sel]])), shape=(len(rest_), len(rest_))), directed=False)
+    sizes = np.bincount(cl, minlength=nc)
+    small = rest_[sizes[cl] < 40]
+    m[small] = True
+    for _ in range(2):                          # grey rivets on the rim (darker than the plate, lighter than the coat)
+        m = m | ((A @ m.astype(float) > 0) & box & (lum > 0.27))
+    log("pauldron: %d stray rivet/rim verts added, %d in small islands" % (stray.sum(), len(small)))
+    # what lies under the shell (the coat's shoulder: seen from the shoulder joint, behind a plate vertex in the same
+    # direction) moves and bends with it, so the two never cross; the seam to the coat is then outside the plate's rim
+    h = posed[PAD_UPPER][:3, 3] + tr
+    rv = Pb - h
+    rr = np.linalg.norm(rv, axis=1)
+    ud = rv / np.maximum(rr, 1e-9)[:, None]
+    tree = cKDTree(ud[m])
+    cand = box & ~m & (rr < 0.32)
+    ang, j = tree.query(ud[cand], k=6)
+    rp = rr[m][j]
+    cov = ((ang < 0.10) & (rp > rr[cand][:, None] - 0.004)).any(1)
+    under = np.zeros(nb, bool)
+    under[np.nonzero(cand)[0][cov]] = True
+    m = m | under
+    mg = m
+    log("pauldron: %d verts under the shell ride with it" % under.sum())
+    # along the (fitted) upper arm from the shoulder joint
+    h = posed[PAD_UPPER][:3, 3] + tr
+    d = posed[PAD_UPPER][:3, 1]
+    t = (Pb - h) @ d
+    k = np.clip(t / 0.2, 0, 1)
+    clav = PAD_CLAV_SHARE * (1 - k * k * (3 - 2 * k))
+    iu, ic = gn.index(PAD_UPPER), gn.index(PAD_CLAV)
+    W = W4.copy()
+    W[m] = 0
+    W[m, iu] = 1 - clav[m]
+    W[m, ic] = clav[m]
+    # smooth the seam: three rings outside the pad, the pad itself held
+    band = m.copy()
+    for _ in range(PAD_SEAM_RINGS):
+        band = band | (A @ band.astype(float) > 0)
+    band &= ~m
+    deg = np.asarray(A.sum(1)).ravel()
+    for _ in range(6):
+        Wn = (A @ W) / np.maximum(deg, 1)[:, None]
+        W[band] = 0.5 * W[band] + 0.5 * Wn[band]
+    keep = np.argsort(-W, axis=1)[:, :4]
+    W4n = np.zeros_like(W)
+    rows = np.arange(nb)[:, None]
+    W4n[rows, keep] = W[rows, keep]
+    W4n[W4n < 0.01] = 0
+    W4n /= W4n.sum(1, keepdims=True)
+    log("pauldron: %d verts rigid to %s (clavicle share up to %.2f), %d seam verts smoothed" % (m.sum(), PAD_UPPER, PAD_CLAV_SHARE, band.sum()))
+    # seat it lower: shrink it toward the shoulder joint and drop it a little (it stood 24 cm above the joint, its top at
+    # his ear, and the Ability's shrug and crouch put it beside his face); the seam band follows by its ring distance
+    f = mg.astype(float)
+    ring = mg.copy()
+    for k in range(1, 4):
+        nxt = ring | (A @ ring.astype(float) > 0)
+        f[nxt & ~ring] = 1.0 - k / 4.0
+        ring = nxt
+    Pn = Pb + (f[:, None] * ((h + (Pb - h) * PAD_SCALE) - Pb)) - f[:, None] * np.array((0.0, 0.0, PAD_DROP))
+    P[body] = Pn
+    log("pauldron: scaled %.2f about the shoulder joint, dropped %.3f m" % (PAD_SCALE, PAD_DROP))
+    return W4n
+
+
+# -------------------------------------------------------------------------------------------- the pistol's grip
+GRIP_TOP = 0.905         # (rest frame of the gun, rig space) where the grip meets the frame ...
+GRIP_END = 0.835         # ... and where it now ends: the fist's bottom (measured over Idle, Combat, Attack, Cheer: 0.825-0.83)
+GRIP_TILT = 14.0         # degrees: the foot swung back toward his wrist, a handgun's rake
+
+
+def shorten_grip(X):
+    """The Tripo grip hung 12 cm out of the bottom of the fist: squash it along its length below the frame so it ends
+    at the fist's bottom, and rake it back. Only the grip (below GRIP_TOP) moves; the frame, barrel and muzzle stay."""
+    X = X.copy()
+    g = X[:, 2] < GRIP_TOP
+    lo = X[g, 2].min()
+    k = (GRIP_TOP - GRIP_END) / (GRIP_TOP - lo)
+    depth = GRIP_TOP - X[g, 2]
+    X[g, 2] = GRIP_TOP - depth * k
+    hy = np.median(X[g & (X[:, 2] > GRIP_TOP - 0.02), 1]) if (g & (X[:, 2] > GRIP_TOP - 0.02)).any() else X[g, 1].mean()
+    # slimmer front to back (it was 10 cm deep, more than the fist), fading in below the frame
+    yc = X[g, 1].mean()
+    th = np.clip(depth * k / 0.025, 0, 1)
+    X[g, 1] = yc + (X[g, 1] - yc) * (1 - 0.25 * th)
+    a = math.radians(GRIP_TILT) * np.clip(depth * k / 0.03, 0, 1)
+    dy, dz = X[g, 1] - hy, X[g, 2] - GRIP_TOP
+    X[g, 1] = hy + dy * np.cos(a) - dz * np.sin(a)          # (the foot, dz < 0, moves to +y: back toward the wrist)
+    X[g, 2] = GRIP_TOP + dy * np.sin(a) + dz * np.cos(a)
+    log("grip: %d verts, %.3f m long -> %.3f m, raked back %.0f deg" % (g.sum(), GRIP_TOP - lo, GRIP_TOP - GRIP_END, GRIP_TILT))
+    return X
+
+
 def main():
     bpy.ops.wm.open_mainfile(filepath=OLD)
     for im in bpy.data.images:            # the base's maps: the build's blend points at the runner's paths
@@ -202,6 +352,7 @@ def main():
     W4[rows, keep] = WB[rows, keep]
     W4[W4 < 0.01] = 0
     W4 /= W4.sum(1, keepdims=True)
+    W4 = pauldron_weights(lm, P, body, W4, gn, posed, tr, ea, eb, os.path.dirname(os.path.abspath(LOW)))
 
     # ---- into the rest pose: invert the skinning of the fitted pose
     M = blend(W4, gn)
@@ -228,7 +379,7 @@ def main():
     def gun_xf(X):
         return G0 + sg * (Rg @ (X - g_game).T).T
     gun = np.nonzero(vpart == 1)[0]
-    Prest[gun] = gun_xf(P[gun])
+    Prest[gun] = shorten_grip(gun_xf(P[gun]))
     muz = gun_xf(tg(GUN_MUZZLE)[None])[0]
     log("pistol: grip at", G0.round(4), "muzzle (rest) at", muz.round(4), "old muzzle", M0.round(4), "offset", (muz - M0).round(4))
 
