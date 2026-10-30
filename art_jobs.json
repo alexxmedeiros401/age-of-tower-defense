@@ -1,7 +1,7 @@
 [
  {
-  "name": "vegatripo_b1",
-  "cmd": "O=$GITHUB_WORKSPACE/out/vegatripo_b1; mkdir -p $O\npython3 vegatripo_bake.py -- --in vegatripo_in --out $O --tex 2048 > $O/bake.log 2>&1 || (tail -60 $O/bake.log; exit 1)\ngrep '^\\[vt\\]' $O/bake.log | tail -30; rm -f $O/tex_*; ls -la $O",
-  "out": "out/vegatripo_b1"
+  "name": "vegatripo_b2",
+  "cmd": "O=$GITHUB_WORKSPACE/out/vegatripo_b2; mkdir -p $O\npip install -q xatlas==0.0.11\npython3 vegatripo_bake.py -- --in vegatripo_in --out $O --tex 2048 > $O/bake.log 2>&1 || (tail -60 $O/bake.log; exit 1)\ngrep '^\\[vt\\]' $O/bake.log | tail -30; rm -f $O/tex_*; ls -la $O",
+  "out": "out/vegatripo_b2"
  }
 ]

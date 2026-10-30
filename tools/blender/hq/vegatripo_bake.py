@@ -264,7 +264,7 @@ def region_counts(ob):
 
 
 LOW = {}
-lo_w, hi_w, wh = 0.0, 1.0, 0.75
+lo_w, hi_w, wh = 0.0, 1.0, float(arg("--head-w", "0.969"))     # (0.969 gave a 0.26 share on the first build)
 for it in range(5):                                   # search the head weight for the head's share of the triangles
     ob = decimate(HI[0], TARGETS[0], "Body_low", lambda V: head_bias(V, wh))
     rc = region_counts(ob)
@@ -297,18 +297,88 @@ joined.data.uv_layers.new(name="UVMap")
 
 
 def uv_boost(c, part):
-    if part == 0 and c.z > 1.52:
-        return 2.0 if c.y < 0.02 else 1.45          # the face, then the rest of the head
-    if part == 0 and abs(c.x) > 0.64 and c.z < 1.0:
+    """Texel density per region (relative): the face most, then the rest of the head; the boots least."""
+    if part == 0 and c[2] > 1.52:
+        return 2.2 if c[1] < 0.0 else 1.5
+    if part == 0 and abs(c[0]) > 0.64 and c[2] < 1.0:
         return 1.15                                 # the fists
     if part in (1, 2):
         return 1.2
-    if part == 0 and c.z < 0.3:
+    if part == 0 and c[2] < 0.3:
         return 0.65                                 # the boots
     return 1.0
 
 
-lp.unwrap(joined, boost=uv_boost, margin=0.0035)
+def xatlas_unwrap(ob, boost, padding=4):
+    """Charts and their parametrisation by xatlas on the real shape (no collapsed islands, unlike smoothing first: the
+    first build's coat back came out squashed to a sliver); every chart scaled by its region's boost, then packed again
+    by xatlas (brute force) into the square."""
+    import xatlas
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    me = ob.data
+    V = np.zeros(len(me.vertices) * 3, np.float32)
+    me.vertices.foreach_get("co", V)
+    V = V.reshape(-1, 3)
+    assert all(len(p.vertices) == 3 for p in me.polygons)
+    Fi = np.zeros(len(me.polygons) * 3, np.int32)
+    me.polygons.foreach_get("vertices", Fi)
+    Fi = Fi.reshape(-1, 3)
+    part = np.zeros(len(me.polygons), np.int32)
+    me.attributes["part"].data.foreach_get("value", part)
+    at = xatlas.Atlas()
+    at.add_mesh(V, Fi)
+    co = xatlas.ChartOptions()
+    co.max_iterations = 2
+    co.normal_deviation_weight = 0.5
+    po = xatlas.PackOptions()
+    po.padding = 2
+    po.resolution = TEX
+    at.generate(co, po)
+    vmap, ind, uvs = at[0]
+    n = len(uvs)
+    e = np.r_[ind[:, [0, 1]], ind[:, [1, 2]]]
+    _, isl = connected_components(coo_matrix((np.ones(len(e)), (e[:, 0], e[:, 1])), shape=(n, n)), directed=False)
+    fisl = isl[ind[:, 0]]
+    cen = V[Fi].mean(1)
+    uvs = uvs.copy()
+    for i in np.unique(fisl):
+        fm = fisl == i
+        sc_ = float(np.mean([boost(c, p) for c, p in zip(cen[fm], part[fm])]))
+        vs = np.unique(ind[fm])
+        c = uvs[vs].mean(0)
+        uvs[vs] = c + (uvs[vs] - c) * sc_
+    at2 = xatlas.Atlas()
+    at2.add_uv_mesh(uvs.astype(np.float32), ind.astype(np.uint32))
+    po = xatlas.PackOptions()
+    po.padding = padding
+    po.resolution = TEX
+    po.bruteForce = True
+    po.bilinear = True
+    po.rotate_charts = True
+    at2.generate(xatlas.ChartOptions(), po)
+    vm2, ind2, uv2 = at2[0]
+    uv = uv2[ind2].copy()
+    # (a few sliver faces come back spread across the atlas: give them no area)
+    e3 = np.linalg.norm(V[Fi].max(1) - V[Fi].min(1), axis=1)
+    ext = (uv.max(1) - uv.min(1)).max(1)
+    ratio = ext / np.maximum(e3, 1e-9)
+    bad = ratio > np.median(ratio) * 8
+    uv[bad] = uv[bad][:, :1]
+    uvl = me.uv_layers.active
+    uvl.data.foreach_set("uv", uv.astype(np.float32).ravel())
+    me.update()
+    a3 = np.linalg.norm(np.cross(V[Fi[:, 1]] - V[Fi[:, 0]], V[Fi[:, 2]] - V[Fi[:, 0]]), axis=1) / 2
+    a2 = np.abs((uv[:, 1, 0] - uv[:, 0, 0]) * (uv[:, 2, 1] - uv[:, 0, 1]) - (uv[:, 2, 0] - uv[:, 0, 0]) * (uv[:, 1, 1] - uv[:, 0, 1])) / 2
+    def dens(m):
+        return math.sqrt(a2[m].sum() / max(a3[m].sum(), 1e-9)) * TEX
+    face = (part == 0) & (cen[:, 2] > 1.52) & (cen[:, 1] < -0.02)
+    log("uv: %d charts, coverage %.3f, %d slivers zeroed; px/m face %.0f head %.0f body %.0f boots %.0f pistol %.0f switch %.0f"
+        % (at.chart_count, a2.sum(), bad.sum(), dens(face), dens((part == 0) & (cen[:, 2] > 1.52)),
+           dens((part == 0) & (cen[:, 2] > 0.35) & (cen[:, 2] < 1.5)), dens((part == 0) & (cen[:, 2] < 0.3)), dens(part == 1), dens(part == 2)))
+
+
+xatlas_unwrap(joined, uv_boost)
 log("uv done; tris", len(joined.data.polygons))
 
 # ------------------------------------------------------------------------------------------------ bakes
