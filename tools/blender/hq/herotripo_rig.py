@@ -607,6 +607,18 @@ def main():
             me.update()
             log("glow %s: centred at %s, radius %.4f -> %.4f" % (gname, np.round(cen, 4), r0, rad))
             REPORT.setdefault("glows", {})[gname] = dict(centre=np.round(cen, 4).tolist(), radius=round(float(rad), 4), old_centre=np.round(c0, 4).tolist(), old_radius=round(float(r0), 4))
+        if "box" in g:                          # stretched (per axis) so its bounding box is this rest-pose box
+            bx = np.array(g["box"], float)          # [[x0, x1], [y0, y1], [z0, z1]] (armature space, rest)
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            lo, hi = co.min(0), co.max(0)
+            co = bx[:, 0] + (co - lo) / np.maximum(hi - lo, 1e-9) * (bx[:, 1] - bx[:, 0])
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: box %s .. %s -> %s" % (gname, np.round(lo, 3), np.round(hi, 3), bx.round(3).tolist()))
+            REPORT.setdefault("glows", {})[gname] = dict(box=bx.round(4).tolist(), old_box=[lo.round(4).tolist(), hi.round(4).tolist()])
         if g.get("hide"):
             ob.hide_render = True
         if "offset" in g or "scale" in g:
