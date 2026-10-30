@@ -212,7 +212,7 @@ if "close" in ONLY:
     H = hi[2] - lo[2]
     items = []                                   # (label, bone to look at, along, ortho)
     for p in CFG["props"]:
-        if p.get("drop") or p.get("within"):
+        if p.get("drop") or p.get("within") or p.get("object"):
             continue
         b = p.get("bone", p["name"])
         hand = b

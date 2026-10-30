@@ -86,6 +86,12 @@ def main():
     Pt = C.to_game(t["C"][idx], xf0)
     Nt = t["N"][idx] @ C.rotz(xf0["yaw"]).T
     tree = cKDTree(Pt)
+    # the reverse term: Tripo body points pull the nearest posed old point (without it an old limb can settle on any
+    # Tripo surface: Mara's old left hand lay on her belt's hanging ends, 20 cm from the Tripo hand)
+    REV = float(C.arg("--rev", cfg.get("fit_reverse", 1.0)))
+    Prv = Pt[rng.choice(len(Pt), 8000, replace=False)]
+    sub2 = rng.choice(bodyv, min(14000, len(bodyv)), replace=False)
+    V2, W2 = V[sub2], Wt[sub2]
     nb = len(BONES)
     free3 = np.array([b in FREE3 for b in BONES])
     REG = float(C.arg("--reg", cfg["fit_reg"]))
@@ -106,10 +112,16 @@ def main():
         Y = (P - tr) / k                        # the posed old body in the load step's game frame
         d, i = tree.query(Y)
         r = ((Y - Pt[i]) * Nt[i]).sum(1)
-        return np.concatenate([r, (xx * REG).ravel(), [x[-1] * 0.02]])
+        out = [r, (xx * REG).ravel(), [x[-1] * 0.02]]
+        if REV > 0:
+            Y2 = (lbs(V2, W2, gn, S) - tr) / k
+            d2, _ = cKDTree(Y2).query(Prv)
+            out.insert(1, d2 * REV * np.sqrt(len(Vs) / len(Prv)))
+        return np.concatenate(out)
 
     x0 = np.zeros(3 * nb + 4)
     r0 = resid(x0)[:len(Vs)]
+    print("[fit] reverse term weight %.2f" % REV)
     print("[fit] initial rms %.4f median %.4f" % (np.sqrt((r0 ** 2).mean()), np.median(np.abs(r0))))
     res = least_squares(resid, x0, loss="soft_l1", f_scale=0.01, max_nfev=int(C.arg("--nfev", "80")), diff_step=1e-4)
     x = res.x

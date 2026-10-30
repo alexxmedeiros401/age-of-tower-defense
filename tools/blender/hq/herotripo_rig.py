@@ -256,6 +256,30 @@ def main():
     Sm = A_[ti] * bary[:, :1] + B_[ti] * bary[:, 1:2] + C_[ti] * bary[:, 2:]
     d, nb = cKDTree(Sm).query(P[body], k=24)
     ok = (tn[ti[nb]] * VN[body][:, None, :]).sum(2) > 0.25
+    # limb capsules (fitted pose): a sample whose main bone is an arm or leg bone only counts when the vertex lies
+    # within that limb's reach (Mara's belt ends hang beside her left hand: they took the hand and trailed after it)
+    LIMBS = [b_ for b_ in ("upperarm.R", "forearm.R", "hand.R", "upperarm.L", "forearm.L", "hand.L", "thigh.R", "shin.R",
+                           "foot.R", "thigh.L", "shin.L", "foot.L") if b_ in gn and b_ in posed]
+    def seg_dist(X, b_):
+        h = posed[b_][:3, 3]
+        L_ = np.linalg.norm(np.array(INFO["bones"][b_]["tail"]) - np.array(INFO["bones"][b_]["head"]))
+        t_ = np.clip((X - h) @ posed[b_][:3, 1], 0, L_)
+        return np.linalg.norm(X - (h + t_[:, None] * posed[b_][:3, 1]), axis=1)
+    dom0 = np.argmax(W0, axis=1)
+    inbody = np.zeros(len(W0), bool)
+    inbody[np.unique(tri0)] = True
+    cap = {}
+    for b_ in LIMBS:
+        j_ = gn.index(b_)
+        m_ = (dom0 == j_) & inbody
+        if m_.sum() > 10:
+            cap[b_] = np.percentile(seg_dist(Vp[m_], b_), 95) * float(CFG.get("limb_reach", 1.3)) + 0.02
+    sdom = dom0[tri0[ti, 0]]                       # main bone of each sample
+    for b_, r_ in cap.items():
+        j_ = gn.index(b_)
+        far = seg_dist(P[body], b_) > r_
+        ok &= ~((sdom[nb] == j_) & far[:, None])
+    log("limb reach (m): %s" % {b_: round(float(r_), 3) for b_, r_ in cap.items()})
     first = np.where(ok.any(1), ok.argmax(1), 0)
     pick = nb[np.arange(len(body)), first]
     log("weights: %.1f%% of body verts matched with agreeing normals, median dist %.4f" % (
@@ -271,6 +295,50 @@ def main():
         np.add.at(acc, ea, WB[eb])
         np.add.at(acc, eb, WB[ea])
         WB = 0.5 * WB + 0.5 * acc / np.maximum(deg, 1)[:, None]
+    # limb weights must be connected to their limb: islands of an arm/leg bone's weight not touching its core are cleared
+    # and refilled from their neighbours
+    lost = np.zeros(len(body), bool)
+    banned = np.zeros(WB.shape, bool)
+    for b_, r_ in cap.items():
+        j_ = gn.index(b_)
+        m_ = WB[:, j_] > 0.05
+        if not m_.any():
+            continue
+        idx_ = np.nonzero(m_)[0]
+        ii = np.full(len(body), -1)
+        ii[idx_] = np.arange(len(idx_))
+        sel = m_[ea] & m_[eb]
+        from scipy.sparse.csgraph import connected_components
+        nc, cl = connected_components(sp.coo_matrix((np.ones(sel.sum()), (ii[ea[sel]], ii[eb[sel]])), shape=(len(idx_), len(idx_))), directed=False)
+        core = seg_dist(P[body][idx_], b_) < r_ * 0.6
+        good = np.isin(cl, np.unique(cl[core]))
+        # ... and within reach along the surface (a hand fused to a skirt must not reach the belt's ends through it)
+        from scipy.sparse.csgraph import dijkstra
+        el = np.linalg.norm(P[body][ea[sel]] - P[body][eb[sel]], axis=1)
+        G_ = sp.coo_matrix((el, (ii[ea[sel]], ii[eb[sel]])), shape=(len(idx_), len(idx_))).tocsr()
+        if core.any() and not b_.startswith(("thigh", "shin", "foot")):
+            gd = dijkstra(G_, directed=False, indices=np.nonzero(core)[0], min_only=True)
+            good &= gd < r_ * float(CFG.get("limb_reach_surface", 1.0))
+        bad_ = idx_[~good]
+        if len(bad_):
+            WB[bad_, j_] = 0
+            lost[bad_] = True
+            banned[bad_, j_] = True
+            log("weights: %d verts of %s cut off from the limb, cleared" % (len(bad_), b_))
+    lost &= WB.sum(1) < 0.999
+    for _ in range(300):
+        if not lost.any():
+            break
+        acc = np.zeros_like(WB)
+        np.add.at(acc, ea, WB[eb])
+        np.add.at(acc, eb, WB[ea])
+        avg = acc / np.maximum(deg, 1)[:, None]
+        avg[banned] = 0                          # (the cleared bone stays cleared)
+        WB[lost] = avg[lost]
+    zero = WB.sum(1) < 1e-6
+    if zero.any():
+        WB[zero, gn.index("root")] = 1.0
+        log("weights: %d verts with nothing left -> root" % zero.sum())
     hb = posed["head"]
     hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
     zr = CFG["head_rigid_above"]
@@ -284,6 +352,8 @@ def main():
     for spec in CFG["armour"]:
         W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
 
+    if "--debug" in sys.argv:
+        np.savez(os.path.join(OUT, "rig_debug.npz"), P=P, body=body, W4=W4, gn=np.array(gn), lt=lt, vcol=vcol)
     # ---- into the rest pose: invert the skinning of the fitted pose
     M = blend(W4, gn)
     Prest = P.copy()
@@ -327,10 +397,36 @@ def main():
             if pl.get("spin"):
                 R = Rot.from_rotvec(nrm(b - a) * math.radians(pl["spin"])).as_matrix() @ R
             off = np.array(pl.get("offset", [0, 0, 0]), float)
-            def f(X, Aa=Aa, a=a, R=R, s=s, off=off, fit_xf=fit_xf):
-                return a + off + s * (fit_xf(X) - Aa) @ R.T
-            log("prop %s: %s -> %s, scale %.3f, turned %.1f deg" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
-                np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec()))))
+            d_ = nrm(b - a)
+            Lp = s * np.linalg.norm(Bb - Aa)                 # A->B after scaling ...
+            Lt = np.linalg.norm(b - a)                       # ... and where B must land
+            st = pl.get("stretch")                           # [t0, t1]: that stretch of A->B (0 at A, 1 at B) is
+            k_st = 1.0                                       # lengthened so B lands on b while A stays on a
+            if st:
+                t0, t1 = st
+                k_st = (Lt - Lp * (1 - (t1 - t0))) / (Lp * (t1 - t0))
+            def f(X, Aa=Aa, a=a, R=R, s=s, off=off, fit_xf=fit_xf, st=st, k_st=k_st, d_=d_, Lp=Lp):
+                Y = s * (fit_xf(X) - Aa) @ R.T
+                if st:
+                    u = Y @ d_
+                    t0, t1 = st[0] * Lp, st[1] * Lp
+                    du = np.where(u < t0, 0.0, np.where(u > t1, (k_st - 1) * (t1 - t0), (k_st - 1) * (u - t0)))
+                    Y = Y + du[:, None] * d_
+                return a + off + Y
+            log("prop %s: %s -> %s, scale %.3f, turned %.1f deg%s" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
+                np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec())), ", stretched x%.2f over %s" % (k_st, st) if st else ""))
+            if pl.get("hand_follow"):
+                # the fist turns with the prop (about the grip), so the prop still goes through it: body vertices move
+                # rigidly by their weight on the hand bone (smoothstep from hand_follow_lo to 1); the wrist blends
+                hb_ = pl.get("hand", bone)
+                wh = W4[:, gn.index(hb_)]
+                lo_ = float(pl.get("hand_follow_lo", 0.35))
+                kk = np.clip((wh - lo_) / (1 - lo_), 0, 1)
+                kk = kk * kk * (3 - 2 * kk)
+                Xb = Prest[body]
+                Prest[body] = Xb + kk[:, None] * ((a + off + (Xb - Aa) @ R.T) - Xb)
+                REPORT.setdefault("hand_follow", {})[p["name"]] = dict(hand=hb_, verts=int((kk > 0).sum()), deg=round(float(np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec()))), 1))
+                log("prop %s: %d body verts on %s turned with it" % (p["name"], (kk > 0).sum(), hb_))
         else:
             raise ValueError(mode)
         xfs[p["name"]] = f
@@ -361,10 +457,40 @@ def main():
         nme = bpy.data.meshes.new(tgt.data.name + "_new")
         bm_.to_mesh(nme)
         bm_.free()
+        if CFG["props"][[q["name"] for q in CFG["props"]].index(nm)].get("old_places"):
+            # each loose piece goes where an old piece was (matched by angle round the object's Z axis): the Tripo
+            # shapes on the old layout (Mara's stones orbit at the old radius and height, clear of her head and staff)
+            def pieces(me):
+                co = np.array([v.co for v in me.vertices])
+                ed = np.array([e.vertices[:] for e in me.edges])
+                A = sp.coo_matrix((np.ones(len(ed)), (ed[:, 0], ed[:, 1])), shape=(len(co), len(co)))
+                from scipy.sparse.csgraph import connected_components
+                n_, l_ = connected_components(A, directed=False)
+                return co, l_, [co[l_ == i].mean(0) for i in range(n_)]
+            co_n, l_n, c_n = pieces(nme)
+            _, _, c_o = pieces(tgt.data)
+            if len(c_n) == len(c_o):
+                ang = lambda c: math.atan2(c[1], c[0])
+                on = sorted(range(len(c_n)), key=lambda i: ang(c_n[i]))
+                oo = sorted(range(len(c_o)), key=lambda i: ang(c_o[i]))
+                # the rotation of the order that moves the pieces least
+                best = min(range(len(on)), key=lambda r: sum(np.linalg.norm(c_n[on[i]] - c_o[oo[(i + r) % len(oo)]]) for i in range(len(on))))
+                for i in range(len(on)):
+                    a_, b_ = on[i], oo[(i + best) % len(oo)]
+                    co_n[l_n == a_] += c_o[b_] - c_n[a_]
+                nme.vertices.foreach_set("co", co_n.astype(np.float32).ravel())
+                nme.update()
+                log("prop %s: %d pieces moved onto the old pieces' places" % (nm, len(c_n)))
+                REPORT.setdefault("old_places", {})[nm] = [np.round(c, 3).tolist() for c in c_o]
+            else:
+                log("prop %s: %d pieces, the old object has %d: left where the fit put them" % (nm, len(c_n), len(c_o)))
         if "part" in nme.attributes:
             nme.attributes.remove(nme.attributes["part"])
         oldd = tgt.data
         dn = oldd.name
+        for m_ in oldd.materials:
+            nme.materials.append(m_)
+        nme.polygons.foreach_set("material_index", np.zeros(len(nme.polygons), np.int32))
         tgt.data = nme
         bpy.data.meshes.remove(oldd)
         nme.name = dn
