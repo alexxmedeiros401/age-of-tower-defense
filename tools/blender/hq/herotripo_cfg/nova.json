@@ -143,11 +143,30 @@
  ],
  "glows": {
   "GlowEmitter": {
-   "offset": [
-    0,
-    0.072,
-    0.021
-   ]
+   "hide": true
+  },
+  "GlowStrips": {
+   "hide": true
   }
- }
+ },
+ "review_frames": {
+  "Attack": [
+   1,
+   3
+  ],
+  "Ability": [
+   10,
+   38
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   1
+  ],
+  [
+   "Ability",
+   38
+  ]
+ ]
 }

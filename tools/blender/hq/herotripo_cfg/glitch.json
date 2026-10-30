@@ -174,5 +174,34 @@
    },
    "seam_rings": 3
   }
+ ],
+ "review_frames": {
+  "Attack": [
+   5
+  ],
+  "Ability": [
+   12,
+   23
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   5
+  ],
+  [
+   "Ability",
+   23
+  ]
+ ],
+ "hard_weights": [
+  [
+   "upperarm.L",
+   "forearm.L"
+  ],
+  [
+   "upperarm.R",
+   "forearm.R"
+  ]
  ]
 }

@@ -445,6 +445,17 @@ def main():
     W4 = top4(WB)
     for spec in CFG["armour"]:
         W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
+    # cfg "hard_weights": [[bone, bone, ...], ...]: within each group a vertex's whole share goes to its heaviest bone of
+    # the group (a machine's joint: no blend, so a twisted forearm turns as one piece instead of pinching like a candy
+    # wrapper at the elbow, as Glitch's in his Ability)
+    for grp in CFG.get("hard_weights", []):
+        idx = [gn.index(b) for b in grp if b in gn]
+        sub = W4[:, idx]
+        tot = sub.sum(1)
+        hw = np.zeros_like(sub)
+        hw[np.arange(len(sub)), sub.argmax(1)] = tot
+        W4[:, idx] = hw
+        log("hard weights %s: %d verts were blended" % (grp, int(((sub > 0).sum(1) > 1).sum())))
 
     if "--debug" in sys.argv:
         np.savez(os.path.join(OUT, "rig_debug.npz"), P=P, body=body, W4=W4, gn=np.array(gn), lt=lt, vcol=vcol)
