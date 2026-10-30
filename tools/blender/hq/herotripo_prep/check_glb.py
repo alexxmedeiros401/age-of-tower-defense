@@ -43,6 +43,12 @@ def grab(path):
 n, pn = grab(a[0])
 o, po = grab(a[1])
 bad = 0
+import re
+glow = [m for m in n["materials"] if m not in o["materials"] and re.search(r"Glow\d*$", m[0])
+        and any(m[0].startswith(om[0]) and set(m[1]) <= set(om[1]) for om in o["materials"])]
+if glow:                                  # (the emissive key's <HeroMat>Glow: the hero's own images, expected)
+    print("glow materials (expected, cfg emissive):", [m[0] for m in glow])
+    n["materials"] = [m for m in n["materials"] if m not in glow]
 for k in ("objects", "meshes", "materials", "bones", "actions"):
     if n[k] != o[k]:
         bad += 1
