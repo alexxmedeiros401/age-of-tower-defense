@@ -501,6 +501,13 @@ def main():
                 else:
                     Wm = np.zeros_like(Dd)
                     Wm[np.arange(len(Dd)), Dd.argmin(1)] = 1.0
+                for ov in p.get("bone_override", []):        # rest-frame shapes that ride one bone outright (Wren's
+                    m_ = C.shapes(Xr_, ov["shapes"])            # grip between the two limbs' heads: hand.L)
+                    if ov["bone"] not in bl_:
+                        bl_.append(ov["bone"])
+                        Wm = np.c_[Wm, np.zeros(len(Wm))]
+                    Wm[m_] = 0
+                    Wm[m_, bl_.index(ov["bone"])] = 1.0
                 Wm /= Wm.sum(1, keepdims=True)
                 prop_multi[p["name"]] = (bl_, Wm)
                 log("prop %s: split over %s: %s verts" % (p["name"], bl_, (Wm > 0.5).sum(0).tolist()))
