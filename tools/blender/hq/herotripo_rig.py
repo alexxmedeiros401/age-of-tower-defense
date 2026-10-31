@@ -88,6 +88,10 @@ def top4(W):
     rows = np.arange(len(W))[:, None]
     W4[rows, keep] = W[rows, keep]
     W4[W4 < 0.01] = 0
+    z_ = W4.sum(1) == 0                     # (every weight under 0.01, e.g. a refilled island: its largest bone takes it all)
+    if z_.any():
+        W4[np.nonzero(z_)[0], keep[z_, 0]] = 1.0
+        log("weights: %d verts had only weights under 0.01 -> their largest bone" % z_.sum())
     W4 /= np.maximum(W4.sum(1, keepdims=True), 1e-12)
     return W4
 
@@ -428,13 +432,19 @@ def main():
     # ---- the props
     xfs = {}
     prop_verts = {}
+    prop_multi = {}
     obj_props = {}
     for k, p in enumerate(CFG["props"], start=1):
         if p.get("drop"):
             continue
         vs = np.nonzero(vpart == k)[0]
+        if len(vs) == 0:
+            log("prop %s: no vertices in the low mesh, skipped" % p["name"])
+            continue
         bone = p.get("bone") or (p["name"] if p["name"] in SK else "root")
-        S_b = SK[bone]
+        pl0 = p.get("place", "fit")
+        S_b = SK[pl0.get("frame", bone) if isinstance(pl0, dict) else bone]   # (place.frame: the bone whose fitted
+        # pose the prop is read in, e.g. a pistol on its own root-level bone but held in hand.R: "frame": "hand.R")
         Sinv = np.linalg.inv(S_b)
         def fit_xf(X, Sinv=Sinv):
             return (np.c_[X, np.ones(len(X))] @ Sinv.T)[:, :3]
@@ -466,12 +476,23 @@ def main():
             if st:
                 t0, t1 = st
                 k_st = (Lt - Lp * (1 - (t1 - t0))) / (Lp * (t1 - t0))
-            def f(X, Aa=Aa, a=a, R=R, s=s, off=off, fit_xf=fit_xf, st=st, k_st=k_st, d_=d_, Lp=Lp):
+            sh = pl.get("shorten")                           # [t0, t1, k]: that stretch of the line (0 at A, 1 at B; may
+                                                             # be < 0, behind A) scaled by k toward A, what lies beyond
+                                                             # it (away from A) follows (Aldric's hilt behind his fist)
+            def f(X, Aa=Aa, a=a, R=R, s=s, off=off, fit_xf=fit_xf, st=st, k_st=k_st, d_=d_, Lp=Lp, sh=sh):
                 Y = s * (fit_xf(X) - Aa) @ R.T
                 if st:
                     u = Y @ d_
                     t0, t1 = st[0] * Lp, st[1] * Lp
                     du = np.where(u < t0, 0.0, np.where(u > t1, (k_st - 1) * (t1 - t0), (k_st - 1) * (u - t0)))
+                    Y = Y + du[:, None] * d_
+                if sh:
+                    u = Y @ d_
+                    t0, t1, k = sh[0] * Lp, sh[1] * Lp, float(sh[2])
+                    if t1 <= 0:                              # behind A: the near end is t1
+                        du = np.where(u > t1, 0.0, np.where(u < t0, (1 - k) * (t1 - t0), (1 - k) * (t1 - u)))
+                    else:                                    # in front of A: the near end is t0
+                        du = np.where(u < t0, 0.0, np.where(u > t1, -(1 - k) * (t1 - t0), -(1 - k) * (u - t0)))
                     Y = Y + du[:, None] * d_
                 return a + off + Y
             log("prop %s: %s -> %s, scale %.3f, turned %.1f deg%s" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
@@ -509,6 +530,46 @@ def main():
             obj_props[p["name"]] = (vs, p["object"])
         else:
             prop_verts[p["name"]] = (vs, bone)
+            if p.get("bones"):
+                # several bones (Wren's bow: grip, inner and outer limbs, string halves): each vertex to the nearest
+                # bone's rest segment, blended over `bone_blend` (m) between the two nearest
+                bl_ = list(p["bones"])
+                Xr_ = Prest[vs]
+                Dd = np.stack([np.linalg.norm(Xr_ - (np.array(bones[b_].head_local) + np.clip(
+                    ((Xr_ - np.array(bones[b_].head_local)) @ (np.array(bones[b_].tail_local) - np.array(bones[b_].head_local)))
+                    / max(np.sum((np.array(bones[b_].tail_local) - np.array(bones[b_].head_local)) ** 2), 1e-12), 0, 1)[:, None]
+                    * (np.array(bones[b_].tail_local) - np.array(bones[b_].head_local))), axis=1) for b_ in bl_], 1)
+                bb = float(p.get("bone_blend", 0.0))
+                if bb > 0:
+                    Wm = np.clip(1 - (Dd - Dd.min(1, keepdims=True)) / bb, 0, 1)
+                    o2 = np.argsort(-Wm, axis=1)[:, 2:]
+                    np.put_along_axis(Wm, o2, 0.0, axis=1)
+                else:
+                    Wm = np.zeros_like(Dd)
+                    Wm[np.arange(len(Dd)), Dd.argmin(1)] = 1.0
+                for ov in p.get("bone_override", []):        # rest-frame shapes that ride one bone outright (Wren's
+                    m_ = C.shapes(Xr_, ov["shapes"])            # grip between the two limbs' heads: hand.L)
+                    if ov["bone"] not in bl_:
+                        bl_.append(ov["bone"])
+                        Wm = np.c_[Wm, np.zeros(len(Wm))]
+                    Wm[m_] = 0
+                    Wm[m_, bl_.index(ov["bone"])] = 1.0
+                Wm /= Wm.sum(1, keepdims=True)
+                ns_ = int(p.get("bone_smooth", 0))           # Laplacian passes over the prop's own edges (no hard
+                if ns_:                                      # step where an override meets the limbs)
+                    pa_, pb_ = adjacency(lt, nv, vs)
+                    dg_ = np.bincount(np.r_[pa_, pb_], minlength=len(vs)).astype(float)
+                    for _ in range(ns_):
+                        ac_ = np.zeros_like(Wm)
+                        np.add.at(ac_, pa_, Wm[pb_])
+                        np.add.at(ac_, pb_, Wm[pa_])
+                        Wm = 0.5 * Wm + 0.5 * ac_ / np.maximum(dg_, 1)[:, None]
+                    o2 = np.argsort(-Wm, axis=1)[:, 3:]
+                    np.put_along_axis(Wm, o2, 0.0, axis=1)
+                    Wm[Wm < 0.01] = 0
+                    Wm /= Wm.sum(1, keepdims=True)
+                prop_multi[p["name"]] = (bl_, Wm)
+                log("prop %s: split over %s: %s verts" % (p["name"], bl_, (Wm > 0.5).sum(0).tolist()))
         Xr = Prest[vs]
         REPORT.setdefault("props", {})[p["name"]] = dict(bone=bone, verts=int(len(vs)), bbox=[Xr.min(0).round(3).tolist(), Xr.max(0).round(3).tolist()])
         log("prop %s on %s (%s): %d verts, rest bbox %s .. %s" % (p["name"], bone, mode if "like" not in pl else "like " + pl["like"],
@@ -585,6 +646,93 @@ def main():
         prop_verts = {k: (newidx[v], b) for k, (v, b) in prop_verts.items()}
         assert nv2 == keepm.sum()
 
+    # ---- forearm twist bones (cfg "twist_bones", opt-in): the old clips turn the hands far round the forearm (Aldric's
+    # right hand 100-180 deg in every clip); a realistic wrist (a gauntlet on a vambrace) tears where the two meet. A
+    # bone forearm_twist.<side> (child of the forearm, from `twist_at` of its length to the wrist, same axis) is added
+    # and every action gets its rotation: `twist_share` of the hand's twist about the forearm axis (swing-twist per
+    # frame, unwrapped across frames); the forearm's weight is split toward it along the forearm (0 at `twist_from`,
+    # all of it at `twist_to`, fractions of the forearm from the elbow).
+    tw_cfg = CFG.get("twist_bones")
+    if tw_cfg:
+        sides = tw_cfg if isinstance(tw_cfg, list) else ["R", "L"]
+        t_at, t_sh = float(CFG.get("twist_at", 0.6)), float(CFG.get("twist_share", 0.5))
+        t_from, t_to = float(CFG.get("twist_from", 0.3)), float(CFG.get("twist_to", 0.85))
+        co_ = np.zeros(len(lm.vertices) * 3)
+        lm.vertices.foreach_get("co", co_)
+        Pb_ = co_.reshape(-1, 3)[body]
+        for side in sides:
+            fa_n, h_n, t_n = "forearm." + side, "hand." + side, "forearm_twist." + side
+            if fa_n not in gn or h_n not in bones:
+                continue
+            # the bone
+            bpy.context.view_layer.objects.active = arm
+            for o_ in sc.objects:
+                o_.select_set(o_ == arm)
+            bpy.ops.object.mode_set(mode="EDIT")
+            eb = arm.data.edit_bones
+            fe = eb[fa_n]
+            nb_ = eb.new(t_n)
+            nb_.head = fe.head + (fe.tail - fe.head) * t_at
+            nb_.tail = fe.tail.copy()
+            nb_.roll = fe.roll
+            nb_.parent = fe
+            nb_.use_connect = False
+            nb_.use_deform = True
+            bpy.ops.object.mode_set(mode="OBJECT")
+            bones = {b.name: b for b in arm.data.bones}
+            # its rotation in every action
+            Fr = np.array(arm.data.bones[fa_n].matrix_local)[:3, :3]
+            Hr = np.array(arm.data.bones[h_n].matrix_local)[:3, :3]
+            ax = Hr.T @ Fr[:, 1]                                  # the forearm's axis in the hand's rest frame
+            pb_h, pb_t = arm.pose.bones[h_n], arm.pose.bones[t_n]
+            pb_t.rotation_mode = "QUATERNION"
+            arm.animation_data_create()
+            worst = []
+            for act in bpy.data.actions:
+                arm.animation_data.action = act
+                try:
+                    arm.animation_data.action_slot = act.slots[0]
+                except Exception:
+                    pass
+                f0, f1 = int(round(act.frame_range[0])), int(round(act.frame_range[1]))
+                ths, sws = [], []
+                for fr in range(f0, f1 + 1):
+                    sc.frame_set(fr)
+                    q = pb_h.matrix_basis.to_quaternion()
+                    w, v = q.w, np.array([q.x, q.y, q.z])
+                    th = 2 * math.atan2(v @ ax, w)               # the hand's twist about the forearm axis (mod 2 pi)
+                    ths.append(math.atan2(math.sin(th), math.cos(th)))
+                    sws.append(math.degrees(math.acos(max(-1.0, min(1.0, float((Hr @ np.array(q.to_matrix()) @ Hr.T @ Fr[:, 1]) @ Fr[:, 1]))))))
+                # each frame's twist taken within half a turn of the clip's circular mean (no flips, no winding:
+                # a clip that ends where it starts gets a twist bone that does too)
+                ths = np.array(ths)
+                m_ = math.atan2(np.sin(ths).mean(), np.cos(ths).mean())
+                ths = m_ + np.arctan2(np.sin(ths - m_), np.cos(ths - m_))
+                for k_, fr in enumerate(range(f0, f1 + 1)):
+                    h_ = ths[k_] * t_sh / 2
+                    pb_t.rotation_quaternion = (math.cos(h_), 0.0, math.sin(h_), 0.0)
+                    pb_t.keyframe_insert("rotation_quaternion", frame=fr)
+                    worst.append((round(abs(math.degrees(ths[k_]))), round(sws[k_]), act.name, fr))
+            worst.sort(reverse=True)
+            REPORT.setdefault("twist_bones", {})[t_n] = dict(max_twist=worst[0][0], worst=[list(x) for x in worst[:3]])
+            log("twist bone %s: hand twist about the forearm up to %d deg (%s %d), %.0f%% of it on the twist bone" % (
+                t_n, worst[0][0], worst[0][2], worst[0][3], t_sh * 100))
+            # the weights: the forearm's share moves to the twist bone toward the wrist
+            gn.append(t_n)
+            body_groups.append(len(gn) - 1)
+            W4 = np.c_[W4, np.zeros(len(W4))]
+            jf, jt = gn.index(fa_n), len(gn) - 1
+            e0, e1 = np.array(bones[fa_n].head_local), np.array(bones[fa_n].tail_local)
+            tt = np.clip(((Pb_ - e0) @ (e1 - e0)) / ((e1 - e0) @ (e1 - e0)), 0, 1)
+            s_ = np.clip((tt - t_from) / max(t_to - t_from, 1e-6), 0, 1)
+            s_ = s_ * s_ * (3 - 2 * s_)
+            mv_ = W4[:, jf] * s_
+            W4[:, jt] = mv_
+            W4[:, jf] -= mv_
+            log("twist bone %s: %d verts share the forearm's weight with it" % (t_n, (mv_ > 0.01).sum()))
+        W4 = top4(W4)
+        arm.animation_data.action = None
+
     # ---- replace the old mesh's data; keep the object, its mesh data name and modifier
     old_me = old.data
     keep_name = old_me.name
@@ -601,6 +749,17 @@ def main():
             sel = nz[np.round(w[nz], 4) == val]
             g.add(body[sel].tolist(), float(val), "REPLACE")
     for nm, (vs, bone) in prop_verts.items():
+        if nm in prop_multi:
+            bl_, Wm = prop_multi[nm]
+            for j_, b_ in enumerate(bl_):
+                if b_ not in groups:
+                    groups[b_] = old.vertex_groups.new(name=b_)
+                for val in np.unique(np.round(Wm[:, j_], 4)):
+                    if val <= 0:
+                        continue
+                    sel = vs[np.round(Wm[:, j_], 4) == val]
+                    groups[b_].add(sel.tolist(), float(val), "REPLACE")
+            continue
         if bone not in groups:
             groups[bone] = old.vertex_groups.new(name=bone)
         groups[bone].add(vs.tolist(), 1.0, "REPLACE")
