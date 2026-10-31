@@ -6728,7 +6728,7 @@ func _flare_burn(tid: int) -> void:
 # the iron fist rams out: a burst of steam off the ram and a white flash at the knuckles, and every robot it hits throws
 # sparks with a clang and is knocked back (the sim's hits wait for the blow).
 const BRAWLER_FIST := Vector3(0.020, 1.220, 1.460)
-const BLOW_PTS := {"steam_brawler": BRAWLER_FIST, "jim": Vector3(-0.072, 0.266, 1.270)}   # (v0.9.65: Big Jim's maul face)
+const BLOW_PTS := {"steam_brawler": BRAWLER_FIST, "jim": Vector3(-0.073, 0.324, 1.302)}   # (v0.9.65: Big Jim's maul face)
 func _brawler_punch(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var tn: Node3D = tower_nodes[uid]
