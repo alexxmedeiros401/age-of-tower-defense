@@ -651,20 +651,24 @@ def main():
                 except Exception:
                     pass
                 f0, f1 = int(round(act.frame_range[0])), int(round(act.frame_range[1]))
-                prev = None
+                ths, sws = [], []
                 for fr in range(f0, f1 + 1):
                     sc.frame_set(fr)
                     q = pb_h.matrix_basis.to_quaternion()
                     w, v = q.w, np.array([q.x, q.y, q.z])
-                    th = 2 * math.atan2(v @ ax, w)               # the hand's twist about the forearm axis
-                    if prev is not None:
-                        th += 2 * math.pi * round((prev - th) / (2 * math.pi))
-                    prev = th
-                    h_ = th * t_sh / 2
+                    th = 2 * math.atan2(v @ ax, w)               # the hand's twist about the forearm axis (mod 2 pi)
+                    ths.append(math.atan2(math.sin(th), math.cos(th)))
+                    sws.append(math.degrees(math.acos(max(-1.0, min(1.0, float((Hr @ np.array(q.to_matrix()) @ Hr.T @ Fr[:, 1]) @ Fr[:, 1]))))))
+                # each frame's twist taken within half a turn of the clip's circular mean (no flips, no winding:
+                # a clip that ends where it starts gets a twist bone that does too)
+                ths = np.array(ths)
+                m_ = math.atan2(np.sin(ths).mean(), np.cos(ths).mean())
+                ths = m_ + np.arctan2(np.sin(ths - m_), np.cos(ths - m_))
+                for k_, fr in enumerate(range(f0, f1 + 1)):
+                    h_ = ths[k_] * t_sh / 2
                     pb_t.rotation_quaternion = (math.cos(h_), 0.0, math.sin(h_), 0.0)
                     pb_t.keyframe_insert("rotation_quaternion", frame=fr)
-                    sw_ = math.degrees(math.acos(max(-1.0, min(1.0, float((Hr @ np.array(q.to_matrix()) @ Hr.T @ Fr[:, 1]) @ Fr[:, 1])))))
-                    worst.append((round(abs(math.degrees(th))), round(sw_), act.name, fr))
+                    worst.append((round(abs(math.degrees(ths[k_]))), round(sws[k_]), act.name, fr))
             worst.sort(reverse=True)
             REPORT.setdefault("twist_bones", {})[t_n] = dict(max_twist=worst[0][0], worst=[list(x) for x in worst[:3]])
             log("twist bone %s: hand twist about the forearm up to %d deg (%s %d), %.0f%% of it on the twist bone" % (
