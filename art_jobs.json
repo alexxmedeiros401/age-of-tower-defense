@@ -1,0 +1,7 @@
+[
+ {
+  "name": "htA_theron_b6",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htA_theron_b6; mkdir -p $O\npip install -q xatlas==0.0.11\n(cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/theron/tripo_src.glb ../herotripo_in/theron/tripo.glb)\npython3 herotripo_bake.py -- --hero theron --in herotripo_in/theron --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htA_theron_b6"
+ }
+]
