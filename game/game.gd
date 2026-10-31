@@ -6132,7 +6132,7 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 # At full reach (THRUST in tools/blender/hq/anim_spear.py) a narrow golden lance of light flies on from the spear's point
 # to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
 const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
-const BRENNA_TIP := Vector3(-0.22, 1.24, 1.7)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
+const BRENNA_TIP := Vector3(-0.219, 1.222, 1.667)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 const LEGION_TIP := Vector3(-0.254, 1.125, 1.119)  # the Legionary's gladius point at full reach (anim_legionary.STAB)
 const CASSIA_TIP := Vector3(-0.213, 1.109, 1.229)  # Cassia's gladius point at full reach (anim_cassia.THRUST; measured)
 const LANCE_TIPS := {"spear_guard": GUARD_TIP, "brenna": BRENNA_TIP, "legionary": LEGION_TIP, "cassia": CASSIA_TIP}
@@ -7883,7 +7883,7 @@ func _tick_fury(fx: Dictionary, n: Node3D) -> void:
 # and every tower it reaches glows blue (and attacks faster: the sim's fury) until the cry fades.
 const BRENNA_CLASH := [11, 19]                       # anim_brenna.CLASH
 const BRENNA_ROAR := 26                              # anim_brenna.ROAR
-const BRENNA_SHIELD := Vector3(0.21, 1.42, 0.43)     # where the shaft strikes the shield's rim (Yaw-local, at the clash; measured)
+const BRENNA_SHIELD := Vector3(0.252, 1.428, 0.472)     # where the shaft strikes the shield's rim (Yaw-local, at the clash; measured)
 
 
 func _brenna_cry() -> void:
