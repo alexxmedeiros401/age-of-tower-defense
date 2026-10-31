@@ -5847,7 +5847,7 @@ func _arrow_flight(pn: Node3D, p: Dictionary, alpha: float) -> Vector3:
 # (_gun_blast); it flies flat, a short bright streak settling onto the sim's projectile like the archers' arrows, and
 # strikes sparks off the robot's plating. A volley (Line Infantry) makes one report for all its balls.
 const MUSKET_TIP := Vector3(-0.259, 1.448, 1.470)
-const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.184, 1.347, 1.048), "rifleman": Vector3(-0.274, 1.491, 1.197),
+const MUSKET_TIPS := {"musketeer": MUSKET_TIP, "isla": Vector3(-0.117, 1.496, 1.082), "rifleman": Vector3(-0.274, 1.491, 1.197),
 	"maya": Vector3(-0.199, 1.262, 1.022), "sniper": Vector3(0.001, 0.826, 1.562)}   # (v0.9.61: Isla's right pistol)
 var _musket_t := {}                                  # unit id -> when his musket last went off
 func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
@@ -8098,7 +8098,7 @@ func _drone_heal(did: int, radius: float) -> void:
 # v0.9.61: the Gunpowder Age's lobbed shells. The Cannon (anim_cannon.py) fires on Attack frame 2: its ball leaves the
 # muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
-const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.264, 1.880, 0.360), 0.42, 0.85],
+const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.230, 1.858, 0.346), 0.42, 0.85],
 	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0],
