@@ -343,6 +343,33 @@ def main():
     # its bones (upper, lower, hand/foot) is redone from the fitted bones' segments (inverse 4th power of the distance),
     # so a limb whose old and Tripo shapes differ still bends at its joints (Mara's right forearm took half its weight
     # from the hand and the upper arm, and her bracer crumpled)
+    # limb_own (config, off by default): the arm or leg surface claims its own vertices. A vertex within "r" of the
+    # limb's fitted bone segments (and inside "select", outside "not": shapes in the load frame, colour tests on the
+    # baked albedo) loses its trunk / other weights to the limb, fading in over the first "fade" (share of the first
+    # bone's length) from the limb's root. Kael's sleeve bands and bracer had taken the old cape's chest weight (the
+    # old cape hung where the Tripo arm is) and stretched into sheets when he raised his arm.
+    for lo in CFG.get("limb_own", []):
+        cb = lo["bones"]
+        ci = [gn.index(c) for c in cb]
+        Pb_ = P[body]
+        Dm = np.stack([seg_dist(Pb_, c) for c in cb], 1)
+        m_ = Dm.min(1) < float(lo.get("r", 0.12))
+        if lo.get("select") or lo.get("not"):
+            Pl_ = C.to_game(C.from_game(Pb_, XF), XF0)
+            if lo.get("select"):
+                m_ &= C.shapes(Pl_, lo["select"], vcol[body])
+            if lo.get("not"):
+                m_ &= ~C.shapes(Pl_, lo["not"], vcol[body])
+        h0, h1 = posed[cb[0]][:3, 3], None
+        L0 = np.linalg.norm(np.array(INFO["bones"][cb[0]]["tail"]) - np.array(INFO["bones"][cb[0]]["head"]))
+        ax0 = posed[cb[0]][:3, 1]
+        tt = np.clip(((Pb_ - h0) @ ax0) / (L0 * float(lo.get("fade", 0.3))), 0, 1)
+        iv = 1.0 / np.maximum(Dm, 0.01) ** 4
+        Wl = np.zeros_like(WB)
+        Wl[:, ci] = iv / iv.sum(1, keepdims=True)
+        f = (tt * tt * (3 - 2 * tt))[:, None]
+        WB[m_] = f[m_] * Wl[m_] + (1 - f[m_]) * WB[m_]
+        log("weights: limb_own %s: %d verts claimed" % ("/".join(cb), m_.sum()))
     if CFG.get("limb_regeom", True):
         for side in ("R", "L"):
             for chain in (("upperarm", "forearm", "hand"), ("thigh", "shin", "foot")):
@@ -373,6 +400,16 @@ def main():
         np.savez(os.path.join(OUT, "rig_debug.npz"), P=P, body=body, W4=W4, gn=np.array(gn), lt=lt, vcol=vcol)
     # ---- into the rest pose: invert the skinning of the fitted pose
     M = blend(W4, gn)
+    bad = ~np.isfinite(M).all((1, 2)) | (np.abs(np.linalg.det(M[:, :3, :3])) < 1e-6)
+    if bad.any():
+        # (a vertex whose weights blend to a degenerate matrix, e.g. all its weight was on a prop bone: it takes the
+        # weights of the nearest good vertex; Kael's fist round his javelin)
+        good = np.nonzero(~bad)[0]
+        _, nn = cKDTree(P[body][good]).query(P[body][bad])
+        log("weights: %d verts blend to a singular matrix (weight sums %s); they take their nearest good neighbour's" % (
+            bad.sum(), np.unique(W4[bad].sum(1).round(3))[:8]))
+        W4[bad] = W4[good[nn]]
+        M = blend(W4, gn)
     Prest = P.copy()
     Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
     sole_old = V0[np.unique(tri0), 2].min()
@@ -409,8 +446,9 @@ def main():
             R = rot_between(Bb - Aa, b - a)
             s = pl.get("scale", "match")
             s = np.linalg.norm(b - a) / np.linalg.norm(Bb - Aa) if s == "match" else (1.0 if s == "keep" else float(s))
+            a_hand = a.copy()                     # where the fist goes (hand_follow): the first target, even when
             if pl.get("anchor", 0) == 1:          # the second landmark lands exactly; the first slides along the line
-                a = b - nrm(b - a) * s * np.linalg.norm(Bb - Aa)
+                a = b - nrm(b - a) * s * np.linalg.norm(Bb - Aa)   # the prop slides through the fist (anchor 1)
             if pl.get("spin"):
                 R = Rot.from_rotvec(nrm(b - a) * math.radians(pl["spin"])).as_matrix() @ R
             off = np.array(pl.get("offset", [0, 0, 0]), float)
@@ -450,7 +488,7 @@ def main():
                 mv_ = kk > 1e-4
                 Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()
                 Xn = Xb.copy()
-                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a + off - Aa)
+                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a_hand + off - Aa)
                 Prest[body] = Xn
                 ax_ = nrm(rv)
                 fdir = nrm(e1 - e0)
