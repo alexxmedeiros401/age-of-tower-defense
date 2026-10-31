@@ -94,6 +94,8 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `armour` | [] | list, below |
 | `glows` | {} | old glow meshes to move: below |
 | `review_frames`, `cmp_frames`, `closeup_frames` | auto | extra review frames: `{"Attack": [10]}`, `[["Attack", 10], ["Ability", 27]]`, `{"<prop>": [["Ability", 30]]}` |
+| `orphan_nearest` | false | body verts left with no weight after the limb guards go to their nearest fitted bone (not banned for them) instead of `root` (Big Jim: 39 hand/forearm verts on root stayed behind as long spikes) |
+| `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
 
