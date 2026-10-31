@@ -120,6 +120,15 @@ def main():
         return np.concatenate(out)
 
     x0 = np.zeros(3 * nb + 4)
+    if cfg.get("fit_recentre"):
+        # start the translation from the body's hips (props cut away): the load step centres on the whole model's
+        # hips, which a big prop at hip height (Brenna's shield) pulls aside, and the fit then settles too small
+        def hips(X):
+            z0, h = X[:, 2].min(), X[:, 2].max() - X[:, 2].min()
+            sl = X[(X[:, 2] > z0 + 0.42 * h) & (X[:, 2] < z0 + 0.5 * h)]
+            return np.r_[np.median(sl[:, :2], 0), z0]
+        x0[3 * nb:3 * nb + 3] = hips(V[bodyv]) - hips(Pt)
+        print("[fit] translation started at", x0[3 * nb:3 * nb + 3].round(4))
     r0 = resid(x0)[:len(Vs)]
     print("[fit] reverse term weight %.2f" % REV)
     print("[fit] initial rms %.4f median %.4f" % (np.sqrt((r0 ** 2).mean()), np.median(np.abs(r0))))

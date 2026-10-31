@@ -337,12 +337,45 @@ def main():
         WB[lost] = avg[lost]
     zero = WB.sum(1) < 1e-6
     if zero.any():
-        WB[zero, gn.index("root")] = 1.0
-        log("weights: %d verts with nothing left -> root" % zero.sum())
+        if CFG.get("orphans", "root") == "nearest":     # (config: they take their nearest weighted vertex's weights)
+            okv = np.nonzero(~zero)[0]
+            _, nn_ = cKDTree(P[body][okv]).query(P[body][zero])
+            WB[zero] = WB[okv[nn_]]
+            log("weights: %d verts with nothing left -> their nearest weighted vertex's" % zero.sum())
+        else:
+            WB[zero, gn.index("root")] = 1.0
+            log("weights: %d verts with nothing left -> root" % zero.sum())
     # limbs: the transferred weights decide how much a vertex belongs to an arm or a leg; how that share splits between
     # its bones (upper, lower, hand/foot) is redone from the fitted bones' segments (inverse 4th power of the distance),
     # so a limb whose old and Tripo shapes differ still bends at its joints (Mara's right forearm took half its weight
     # from the hand and the upper arm, and her bracer crumpled)
+    # limb_own (config, off by default): the arm or leg surface claims its own vertices. A vertex within "r" of the
+    # limb's fitted bone segments (and inside "select", outside "not": shapes in the load frame, colour tests on the
+    # baked albedo) loses its trunk / other weights to the limb, fading in over the first "fade" (share of the first
+    # bone's length) from the limb's root. Kael's sleeve bands and bracer had taken the old cape's chest weight (the
+    # old cape hung where the Tripo arm is) and stretched into sheets when he raised his arm.
+    for lo in CFG.get("limb_own", []):
+        cb = lo["bones"]
+        ci = [gn.index(c) for c in cb]
+        Pb_ = P[body]
+        Dm = np.stack([seg_dist(Pb_, c) for c in cb], 1)
+        m_ = Dm.min(1) < float(lo.get("r", 0.12))
+        if lo.get("select") or lo.get("not"):
+            Pl_ = C.to_game(C.from_game(Pb_, XF), XF0)
+            if lo.get("select"):
+                m_ &= C.shapes(Pl_, lo["select"], vcol[body])
+            if lo.get("not"):
+                m_ &= ~C.shapes(Pl_, lo["not"], vcol[body])
+        h0, h1 = posed[cb[0]][:3, 3], None
+        L0 = np.linalg.norm(np.array(INFO["bones"][cb[0]]["tail"]) - np.array(INFO["bones"][cb[0]]["head"]))
+        ax0 = posed[cb[0]][:3, 1]
+        tt = np.clip(((Pb_ - h0) @ ax0) / (L0 * float(lo.get("fade", 0.3))), 0, 1)
+        iv = 1.0 / np.maximum(Dm, 0.01) ** 4
+        Wl = np.zeros_like(WB)
+        Wl[:, ci] = iv / iv.sum(1, keepdims=True)
+        f = (tt * tt * (3 - 2 * tt))[:, None]
+        WB[m_] = f[m_] * Wl[m_] + (1 - f[m_]) * WB[m_]
+        log("weights: limb_own %s: %d verts claimed" % ("/".join(cb), m_.sum()))
     if CFG.get("limb_regeom", True):
         for side in ("R", "L"):
             for chain in (("upperarm", "forearm", "hand"), ("thigh", "shin", "foot")):
@@ -373,6 +406,16 @@ def main():
         np.savez(os.path.join(OUT, "rig_debug.npz"), P=P, body=body, W4=W4, gn=np.array(gn), lt=lt, vcol=vcol)
     # ---- into the rest pose: invert the skinning of the fitted pose
     M = blend(W4, gn)
+    bad = ~np.isfinite(M).all((1, 2)) | (np.abs(np.linalg.det(M[:, :3, :3])) < 1e-6)
+    if bad.any():
+        # (a vertex whose weights blend to a degenerate matrix, e.g. all its weight was on a prop bone: it takes the
+        # weights of the nearest good vertex; Kael's fist round his javelin)
+        good = np.nonzero(~bad)[0]
+        _, nn = cKDTree(P[body][good]).query(P[body][bad])
+        log("weights: %d verts blend to a singular matrix (weight sums %s); they take their nearest good neighbour's" % (
+            bad.sum(), np.unique(W4[bad].sum(1).round(3))[:8]))
+        W4[bad] = W4[good[nn]]
+        M = blend(W4, gn)
     Prest = P.copy()
     Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
     sole_old = V0[np.unique(tri0), 2].min()
@@ -409,8 +452,9 @@ def main():
             R = rot_between(Bb - Aa, b - a)
             s = pl.get("scale", "match")
             s = np.linalg.norm(b - a) / np.linalg.norm(Bb - Aa) if s == "match" else (1.0 if s == "keep" else float(s))
+            a_hand = a.copy()                     # where the fist goes (hand_follow): the first target, even when
             if pl.get("anchor", 0) == 1:          # the second landmark lands exactly; the first slides along the line
-                a = b - nrm(b - a) * s * np.linalg.norm(Bb - Aa)
+                a = b - nrm(b - a) * s * np.linalg.norm(Bb - Aa)   # the prop slides through the fist (anchor 1)
             if pl.get("spin"):
                 R = Rot.from_rotvec(nrm(b - a) * math.radians(pl["spin"])).as_matrix() @ R
             off = np.array(pl.get("offset", [0, 0, 0]), float)
@@ -450,7 +494,7 @@ def main():
                 mv_ = kk > 1e-4
                 Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()
                 Xn = Xb.copy()
-                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a + off - Aa)
+                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a_hand + off - Aa)
                 Prest[body] = Xn
                 ax_ = nrm(rv)
                 fdir = nrm(e1 - e0)
@@ -561,6 +605,50 @@ def main():
             groups[bone] = old.vertex_groups.new(name=bone)
         groups[bone].add(vs.tolist(), 1.0, "REPLACE")
     bpy.data.meshes.remove(old_me)
+    # detach (config, off by default): where the Tripo surface fuses a limb to something beside it (Kael's forearm lay
+    # on his cape), the faces between them stretch into sheets when the limb moves. Inside "within" (rest armature
+    # space), every vertex is the limb's (its share on "bones" >= 0.5) or the body's; the edges between the two are
+    # split, the limb side keeps only its limb weights and the body side loses them.
+    for dt in CFG.get("detach", []):
+        gi_ = [old.vertex_groups[b].index for b in dt["bones"]]
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        dl_ = bm_.verts.layers.deform.active
+        bm_.verts.ensure_lookup_table()
+        Xr = np.array([v.co for v in bm_.verts])
+        inr = C.shapes(Xr, dt["within"])
+        share = np.array([sum(v[dl_].get(g_, 0.0) for g_ in gi_) for v in bm_.verts])
+        limb = share >= float(dt.get("split", 0.5))
+        if dt.get("parts_only_body", True):
+            isb = np.zeros(len(Xr), bool)
+            isb[body] = True
+            inr &= isb
+        cut = [e for e in bm_.edges if inr[e.verts[0].index] and inr[e.verts[1].index]
+               and limb[e.verts[0].index] != limb[e.verts[1].index]]
+        for v in bm_.verts:
+            i = v.index
+            if not inr[i] or share[i] <= 0 or share[i] >= 1:
+                continue
+            d = v[dl_]
+            if limb[i]:
+                for k_ in list(d.keys()):
+                    if k_ not in gi_:
+                        del d[k_]
+                    else:
+                        d[k_] = d[k_] / share[i]
+            else:
+                rest_ = 1.0 - share[i]
+                for k_ in list(d.keys()):
+                    if k_ in gi_:
+                        del d[k_]
+                    else:
+                        d[k_] = d[k_] / rest_
+        nv0 = len(bm_.verts)
+        bmesh.ops.split_edges(bm_, edges=cut)
+        bm_.to_mesh(lm)
+        bm_.free()
+        log("detach %s: %d edges split, %d verts added, %d verts in the region (%d the limb's)" % (
+            "/".join(dt["bones"]), len(cut), len(lm.vertices) - nv0, inr.sum(), (inr & limb).sum()))
     mat = bpy.data.materials[INFO["material"]]
     for nd in mat.node_tree.nodes:
         if nd.type == "TEX_IMAGE" and nd.image is not None:
@@ -607,6 +695,18 @@ def main():
             me.update()
             log("glow %s: centred at %s, radius %.4f -> %.4f" % (gname, np.round(cen, 4), r0, rad))
             REPORT.setdefault("glows", {})[gname] = dict(centre=np.round(cen, 4).tolist(), radius=round(float(rad), 4), old_centre=np.round(c0, 4).tolist(), old_radius=round(float(r0), 4))
+        if "box" in g:                          # stretched (per axis) so its bounding box is this rest-pose box
+            bx = np.array(g["box"], float)          # [[x0, x1], [y0, y1], [z0, z1]] (armature space, rest)
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            lo, hi = co.min(0), co.max(0)
+            co = bx[:, 0] + (co - lo) / np.maximum(hi - lo, 1e-9) * (bx[:, 1] - bx[:, 0])
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: box %s .. %s -> %s" % (gname, np.round(lo, 3), np.round(hi, 3), bx.round(3).tolist()))
+            REPORT.setdefault("glows", {})[gname] = dict(box=bx.round(4).tolist(), old_box=[lo.round(4).tolist(), hi.round(4).tolist()])
         if g.get("hide"):
             ob.hide_render = True
         if "offset" in g or "scale" in g:
