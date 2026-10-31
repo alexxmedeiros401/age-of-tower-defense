@@ -348,5 +348,6 @@
    },
    "seam_rings": 2
   }
- ]
+ ],
+ "orphan_nearest": true
 }

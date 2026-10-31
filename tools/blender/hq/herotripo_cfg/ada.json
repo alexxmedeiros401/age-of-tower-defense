@@ -243,5 +243,6 @@
    "fit_to": "gem",
    "radius": 0.03
   }
- }
+ },
+ "orphan_nearest": true
 }

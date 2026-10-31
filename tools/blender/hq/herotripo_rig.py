@@ -340,7 +340,15 @@ def main():
         avg[banned] = 0                          # (the cleared bone stays cleared)
         WB[lost] = avg[lost]
     zero = WB.sum(1) < 1e-6
-    if zero.any():
+    if zero.any() and CFG.get("orphan_nearest", False):
+        # (cfg orphan_nearest) the nearest fitted bone segment that was not banned for it, instead of root: a few
+        # cleared hand/forearm verts left on root stayed behind as long spikes when the arm moved (Big Jim)
+        cand = [b_ for b_ in gn if b_ in posed and gn.index(b_) in body_groups]
+        Dz = np.stack([seg_dist(P[body][zero], b_) for b_ in cand], 1)
+        Dz[banned[zero][:, [gn.index(b_) for b_ in cand]]] = 1e9
+        WB[np.nonzero(zero)[0], [gn.index(cand[k]) for k in Dz.argmin(1)]] = 1.0
+        log("weights: %d verts with nothing left -> their nearest bone" % zero.sum())
+    elif zero.any():
         WB[zero, gn.index("root")] = 1.0
         log("weights: %d verts with nothing left -> root" % zero.sum())
     # limbs: the transferred weights decide how much a vertex belongs to an arm or a leg; how that share splits between
