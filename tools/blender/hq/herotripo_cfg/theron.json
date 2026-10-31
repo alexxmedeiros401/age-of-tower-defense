@@ -330,7 +330,11 @@
      "bone:gem.head"
     ],
     "scale": "keep",
-    "anchor": 1
+    "anchor": 0,
+    "stretch": [
+     0.15,
+     0.7
+    ]
    }
   }
  ],
