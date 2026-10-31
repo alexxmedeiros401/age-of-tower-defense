@@ -661,7 +661,8 @@
       ]
      ]
     }
-   ]
+   ],
+   "bone_smooth": 12
   },
   {
    "name": "string_top",

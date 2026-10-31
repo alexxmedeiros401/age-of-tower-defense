@@ -399,7 +399,9 @@ def main():
             log("prop %s: no vertices in the low mesh, skipped" % p["name"])
             continue
         bone = p.get("bone") or (p["name"] if p["name"] in SK else "root")
-        S_b = SK[bone]
+        pl0 = p.get("place", "fit")
+        S_b = SK[pl0.get("frame", bone) if isinstance(pl0, dict) else bone]   # (place.frame: the bone whose fitted
+        # pose the prop is read in, e.g. a pistol on its own root-level bone but held in hand.R: "frame": "hand.R")
         Sinv = np.linalg.inv(S_b)
         def fit_xf(X, Sinv=Sinv):
             return (np.c_[X, np.ones(len(X))] @ Sinv.T)[:, :3]
@@ -509,6 +511,19 @@ def main():
                     Wm[m_] = 0
                     Wm[m_, bl_.index(ov["bone"])] = 1.0
                 Wm /= Wm.sum(1, keepdims=True)
+                ns_ = int(p.get("bone_smooth", 0))           # Laplacian passes over the prop's own edges (no hard
+                if ns_:                                      # step where an override meets the limbs)
+                    pa_, pb_ = adjacency(lt, nv, vs)
+                    dg_ = np.bincount(np.r_[pa_, pb_], minlength=len(vs)).astype(float)
+                    for _ in range(ns_):
+                        ac_ = np.zeros_like(Wm)
+                        np.add.at(ac_, pa_, Wm[pb_])
+                        np.add.at(ac_, pb_, Wm[pa_])
+                        Wm = 0.5 * Wm + 0.5 * ac_ / np.maximum(dg_, 1)[:, None]
+                    o2 = np.argsort(-Wm, axis=1)[:, 3:]
+                    np.put_along_axis(Wm, o2, 0.0, axis=1)
+                    Wm[Wm < 0.01] = 0
+                    Wm /= Wm.sum(1, keepdims=True)
                 prop_multi[p["name"]] = (bl_, Wm)
                 log("prop %s: split over %s: %s verts" % (p["name"], bl_, (Wm > 0.5).sum(0).tolist()))
         Xr = Prest[vs]

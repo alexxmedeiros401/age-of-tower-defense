@@ -91,6 +91,12 @@ def main():
                 if gg.group == g:
                     wv[v.index] = gg.weight
         tris = [t for t in me.loop_triangles if all(wv[i] > 0.5 for i in t.vertices)]
+        if p.get("select"):                     # only part of the old prop (rest-pose armature space shapes), e.g.
+            sel_ = {}                            # Isla's old pistol butt under the Tripo barrel
+            for t in tris:
+                Xt = np.array([(to_arm @ np.r_[me.vertices[i].co, 1.0])[:3] for i in t.vertices]).mean(0)[None]
+                sel_[t.index] = bool(C.shapes(Xt, p["select"])[0])
+            tris = [t for t in tris if sel_[t.index]]
         vs = sorted({i for t in tris for i in t.vertices})
         idx = {v: k for k, v in enumerate(vs)}
         X = np.array([(to_arm @ np.r_[me.vertices[v].co, 1.0])[:3] for v in vs])
