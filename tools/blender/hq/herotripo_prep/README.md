@@ -18,6 +18,7 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   push_bake.sh / fetch.sh   runner jobs
   check_glb.py  round trip of a GLB against the shipped one (Blender)
   zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
+  oldprop.py    props taken from the old hero's mesh (source: old), after patches.py and fit.py (Blender)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -93,6 +94,8 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `armour` | [] | list, below |
 | `glows` | {} | old glow meshes to move: below |
 | `review_frames`, `cmp_frames`, `closeup_frames` | auto | extra review frames: `{"Attack": [10]}`, `[["Attack", 10], ["Ability", 27]]`, `{"<prop>": [["Ability", 30]]}` |
+| `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
+| `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
 
 **Shapes** (seeds, sinks, armour selections) are a list of boxes `[[x0,x1],[y0,y1],[z0,z1]]`, balls
 `{"ball": {"c": [x,y,z], "r": r}}`, or `{"box": ..., "col": {"min": [r,g,b], "max": [r,g,b]}}` (a test on the Tripo
@@ -134,6 +137,30 @@ base colour, 0..1; for armour, the baked albedo). Union of all; `"not": true` on
 **Glows** (`glows{}`): old glow meshes ride their bones unchanged unless listed: `{"GlowOrb": {"at": "bone:orb.head",
 "radius": 0.104}}` re-centres and resizes it (or `"fit_to": "<prop>"` takes a prop piece's centre and size; `"pad"`
 scales the radius; `"scale"`/`"offset"` just nudge; `"hide": true`).
+
+**More prop keys** (added for Aldric and Wren, all optional):
+- `place.shorten: [t0, t1, k]` (points mode): that stretch of A->B (fractions, may be < 0: behind A) is scaled by k toward
+  A, and whatever lies beyond it moves with it (Aldric's hilt behind his fist: `[-0.205, -0.04, 0.15]`, so the pommel
+  sits at the fist's edge and does not poke through the vambrace when the clip bends the wrist).
+- `bones: [...]`, `bone_blend` (m): the prop is split over several bones, each vertex to the nearest bone's rest
+  segment, blended between the two nearest over `bone_blend` (Wren's bow stave over hand.L and the four limb bones, so
+  the clips bend it). `bone` stays the main bone (for the closeups).
+- `source: "old"`: the prop is the OLD hero's mesh on that bone (no cut): run `oldprop.py -- --hero <id>` after
+  patches.py and fit.py; it appends the old faces (vertex colours from the old albedo / ORM, posed with the fit, in the
+  Tripo frame) to patches.pkl as a patch of that prop, and the bake decimates and bakes it like any prop. With
+  `"place": "fit"` it lands exactly where the old prop was. (Wren's arrow and bowstring: the Tripo model has no arrow
+  in her hand, and its string ran through her bracer and fist.)
+- a prop with `mode: "pieces"` and `place: {"like": ...}` picks up loose shells of a prop that the min-cut cannot reach
+  (Aldric's blade tip and the shield's raised emblem were separate pieces: left in the body, they floated beside him).
+
+**Wrists (`twist_bones`).** Several heroes' old clips turn the hand 100-180 deg about the forearm in every clip (Aldric's
+right hand: Idle 158, Combat 115; the old blob hands hid it). A Tripo gauntlet or glove tears where it meets the
+sleeve. `twist_bones` adds `forearm_twist.<side>` (a child of the forearm from `twist_at` of its length to the wrist,
+the same axis) and keys it in every action at `twist_share` of the hand's twist about the forearm axis (swing-twist per
+frame, unwrapped across frames so it never flips); the forearm's weight moves to it along the forearm. The rig, the
+clips and every other bone are unchanged; check_glb then reports the two extra bones (expected: the game only looks up
+prop bones and glow nodes by name). The remaining bend at the wrist is the clip's own; make the fist rigid with an
+`armour` entry on the hand bone (Aldric's `fist_R`/`fist_L`) so the hand keeps its shape.
 
 ## How each step works (and what went wrong on the way)
 
