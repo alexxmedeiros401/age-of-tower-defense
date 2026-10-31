@@ -387,45 +387,6 @@
  "fit_recentre": true,
  "armour": [
   {
-   "name": "cape_edge_R",
-   "select": [
-    {
-     "box": [
-      [
-       -0.68,
-       -0.38
-      ],
-      [
-       -0.22,
-       0.22
-      ],
-      [
-       0.24,
-       1.34
-      ]
-     ],
-     "col": {
-      "min": [
-       0,
-       0.2,
-       0.18
-      ],
-      "max": [
-       0.35,
-       0.6,
-       0.6
-      ]
-     }
-    }
-   ],
-   "grow": 1,
-   "bones": {
-    "chest": 0.6,
-    "cape.1": 0.4
-   },
-   "seam_rings": 3
-  },
-  {
    "name": "quiver",
    "select": [
     [
@@ -539,6 +500,55 @@
       ]
      }
     }
+   ]
+  }
+ ],
+ "orphans": "nearest",
+ "detach": [
+  {
+   "bones": [
+    "upperarm.R",
+    "forearm.R",
+    "hand.R"
+   ],
+   "within": [
+    [
+     [
+      -1.0,
+      -0.48
+     ],
+     [
+      -0.4,
+      0.45
+     ],
+     [
+      0.55,
+      1.25
+     ]
+    ]
+   ]
+  },
+  {
+   "bones": [
+    "upperarm.L",
+    "forearm.L",
+    "hand.L"
+   ],
+   "within": [
+    [
+     [
+      0.48,
+      1.0
+     ],
+     [
+      -0.4,
+      0.45
+     ],
+     [
+      0.55,
+      1.25
+     ]
+    ]
    ]
   }
  ]

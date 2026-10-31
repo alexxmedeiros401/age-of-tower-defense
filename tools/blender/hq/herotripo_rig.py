@@ -337,8 +337,14 @@ def main():
         WB[lost] = avg[lost]
     zero = WB.sum(1) < 1e-6
     if zero.any():
-        WB[zero, gn.index("root")] = 1.0
-        log("weights: %d verts with nothing left -> root" % zero.sum())
+        if CFG.get("orphans", "root") == "nearest":     # (config: they take their nearest weighted vertex's weights)
+            okv = np.nonzero(~zero)[0]
+            _, nn_ = cKDTree(P[body][okv]).query(P[body][zero])
+            WB[zero] = WB[okv[nn_]]
+            log("weights: %d verts with nothing left -> their nearest weighted vertex's" % zero.sum())
+        else:
+            WB[zero, gn.index("root")] = 1.0
+            log("weights: %d verts with nothing left -> root" % zero.sum())
     # limbs: the transferred weights decide how much a vertex belongs to an arm or a leg; how that share splits between
     # its bones (upper, lower, hand/foot) is redone from the fitted bones' segments (inverse 4th power of the distance),
     # so a limb whose old and Tripo shapes differ still bends at its joints (Mara's right forearm took half its weight
@@ -599,6 +605,50 @@ def main():
             groups[bone] = old.vertex_groups.new(name=bone)
         groups[bone].add(vs.tolist(), 1.0, "REPLACE")
     bpy.data.meshes.remove(old_me)
+    # detach (config, off by default): where the Tripo surface fuses a limb to something beside it (Kael's forearm lay
+    # on his cape), the faces between them stretch into sheets when the limb moves. Inside "within" (rest armature
+    # space), every vertex is the limb's (its share on "bones" >= 0.5) or the body's; the edges between the two are
+    # split, the limb side keeps only its limb weights and the body side loses them.
+    for dt in CFG.get("detach", []):
+        gi_ = [old.vertex_groups[b].index for b in dt["bones"]]
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        dl_ = bm_.verts.layers.deform.active
+        bm_.verts.ensure_lookup_table()
+        Xr = np.array([v.co for v in bm_.verts])
+        inr = C.shapes(Xr, dt["within"])
+        share = np.array([sum(v[dl_].get(g_, 0.0) for g_ in gi_) for v in bm_.verts])
+        limb = share >= float(dt.get("split", 0.5))
+        if dt.get("parts_only_body", True):
+            isb = np.zeros(len(Xr), bool)
+            isb[body] = True
+            inr &= isb
+        cut = [e for e in bm_.edges if inr[e.verts[0].index] and inr[e.verts[1].index]
+               and limb[e.verts[0].index] != limb[e.verts[1].index]]
+        for v in bm_.verts:
+            i = v.index
+            if not inr[i] or share[i] <= 0 or share[i] >= 1:
+                continue
+            d = v[dl_]
+            if limb[i]:
+                for k_ in list(d.keys()):
+                    if k_ not in gi_:
+                        del d[k_]
+                    else:
+                        d[k_] = d[k_] / share[i]
+            else:
+                rest_ = 1.0 - share[i]
+                for k_ in list(d.keys()):
+                    if k_ in gi_:
+                        del d[k_]
+                    else:
+                        d[k_] = d[k_] / rest_
+        nv0 = len(bm_.verts)
+        bmesh.ops.split_edges(bm_, edges=cut)
+        bm_.to_mesh(lm)
+        bm_.free()
+        log("detach %s: %d edges split, %d verts added, %d verts in the region (%d the limb's)" % (
+            "/".join(dt["bones"]), len(cut), len(lm.vertices) - nv0, inr.sum(), (inr & limb).sum()))
     mat = bpy.data.materials[INFO["material"]]
     for nd in mat.node_tree.nodes:
         if nd.type == "TEX_IMAGE" and nd.image is not None:
