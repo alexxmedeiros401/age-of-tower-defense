@@ -75,7 +75,7 @@
      [
       -0.7,
       -0.05,
-      0.77
+      0.7
      ],
      [
       -0.67,
@@ -87,7 +87,11 @@
      "bone:sling.head",
      "bone:stone.head"
     ],
-    "scale": "keep"
+    "scale": "keep",
+    "stretch": [
+     0.05,
+     0.85
+    ]
    }
   },
   {
@@ -173,6 +177,36 @@
    }
   }
  ],
- "review_frames": {},
- "tris": 20000
+ "review_frames": {
+  "Whirl": [
+   16
+  ],
+  "Throw": [
+   2,
+   3
+  ]
+ },
+ "tris": 20000,
+ "cmp_frames": [
+  [
+   "Whirl",
+   16
+  ],
+  [
+   "Throw",
+   2
+  ]
+ ],
+ "closeup_frames": {
+  "sling": [
+   [
+    "Throw",
+    2
+   ],
+   [
+    "Throw",
+    3
+   ]
+  ]
+ }
 }

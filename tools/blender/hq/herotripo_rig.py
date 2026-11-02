@@ -995,6 +995,33 @@ def main():
         bm_.free()
         log("detach %s: %d edges split, %d verts added, %d verts in the region (%d the limb's)" % (
             "/".join(dt["bones"]), len(cut), len(lm.vertices) - nv0, inr.sum(), (inr & limb).sum()))
+    # hard_split (config, off by default; with hard_weights): a machine's parts come apart at their joints instead of
+    # stretching. Every body edge whose two ends ride different bones of one hard_weights group (each vertex's
+    # heaviest bone) is split, so each part turns rigidly on its bone (the Walker's knees, elbows and hips: the faces
+    # that joined thigh and knee ball stretched into spikes when the knee bent).
+    if CFG.get("hard_split") and CFG.get("hard_weights"):
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        dl_ = bm_.verts.layers.deform.active
+        bm_.verts.ensure_lookup_table()
+        gid = {old.vertex_groups[b].index: k for k, grp in enumerate(CFG["hard_weights"]) for b in grp if b in old.vertex_groups}
+        isb = np.zeros(len(bm_.verts), bool)
+        isb[body] = True
+        main = np.full(len(bm_.verts), -1)
+        for v in bm_.verts:
+            d = v[dl_]
+            if d:
+                main[v.index] = max(d.keys(), key=lambda g_: d[g_])
+        cut = [e for e in bm_.edges if isb[e.verts[0].index] and isb[e.verts[1].index]
+               and main[e.verts[0].index] != main[e.verts[1].index]
+               and main[e.verts[0].index] in gid and main[e.verts[1].index] in gid
+               and gid[main[e.verts[0].index]] == gid[main[e.verts[1].index]]]
+        nv0 = len(bm_.verts)
+        bmesh.ops.split_edges(bm_, edges=cut)
+        bm_.to_mesh(lm)
+        bm_.free()
+        REPORT["hard_split"] = dict(edges=len(cut), verts_added=len(lm.vertices) - nv0)
+        log("hard split: %d edges between parts split, %d verts added" % (len(cut), len(lm.vertices) - nv0))
     mat = bpy.data.materials[INFO["material"]]
     for nd in mat.node_tree.nodes:
         if nd.type == "TEX_IMAGE" and nd.image is not None:
@@ -1008,6 +1035,8 @@ def main():
                 nd.image.unpack(method="REMOVE")
             nd.image.reload()
             nd.image.pack()
+            # (the glTF exporter names an image after its file: keep the old image's name, e.g. a tower's caveman_albedo)
+            nd.image.filepath = "//%s.png" % nd.image.name
             log("image", nd.image.name, "<- hero_%s.png" % role, tuple(nd.image.size))
     lm.materials.clear()
     lm.materials.append(mat)

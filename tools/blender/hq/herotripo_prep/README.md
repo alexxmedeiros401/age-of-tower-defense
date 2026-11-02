@@ -99,6 +99,10 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `fit_fixed` | [] | bones the fit leaves at rest (a hand cut out as a prop: Zero's) |
 | `review_frames`, `cmp_frames`, `closeup_frames` | auto | extra review frames: `{"Attack": [10]}`, `[["Attack", 10], ["Ability", 27]]`, `{"<prop>": [["Ability", 30]]}` |
 | `orphan_nearest` | false | body verts left with no weight after the limb guards go to their nearest fitted bone (not banned for them) instead of `root` (Big Jim: 39 hand/forearm verts on root stayed behind as long spikes) |
+| `armature` | `"CavemanRig"` | the old scene's armature object (a robot's: `WalkerRig`); check_glb takes any armature when there is no CavemanRig |
+| `clips` | auto | the clips the review renders, in order (default: whichever of Idle, Combat, Whirl, Attack, Throw, Ability, Cheer the old scene has; the Rock Slinger tower: `["Idle", "Whirl", "Throw"]`, the Walker: `["Walk"]`) |
+| `fit_scale0` | off | start the fit's relative scale here instead of 1 (the Walker: its antenna made the load step's height scale 16% small and the fit folded an arm into the chest; 1.16 fixed it) |
+| `hard_split` | false | with `hard_weights`: split every body edge whose ends ride different bones of one hard group, so a machine's parts turn rigidly at their joints instead of stretching the faces between them (the Walker's knees, hips and elbows) |
 | `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
@@ -233,6 +237,13 @@ prop bones and glow nodes by name). The remaining bend at the wrist is the clip'
 - **Weights** come from the old mesh posed with the fit (nearest surface point with an agreeing normal, barycentric,
   4 Laplacian passes), the skull rigid to the head, at most 4 influences, normalised; the body is then un-posed into the
   rest pose by inverting that skinning, and the soles put back on the old soles.
+
+**Towers and robots.** The pipeline also rebuilds a tower's character (the Rock Slinger: `old` = the shipped
+`assets/towers/rock_slinger.glb`, `clips` Idle/Whirl/Throw; the base, torch, flowers and grass are kept as they were) and a
+robot (the Walker: `armature` WalkerRig, no neck bone: the bake's head line is the head bone's head; `hard_weights` over
+every bone but the head and `hard_split` for rigid armour; the Tripo visor, core and antenna tip lit with `emissive`
+and the old glow meshes hidden). The rig keeps each image's old name in the export (a tower's `caveman_albedo`, not the
+bake's `hero_albedo`). push_bake.sh's job worktree is sparse (tools/ only): the full tree is over 1 GB.
 
 ## Checking renders
 `herotripo_review.py` makes the five deliverable sheets; `--only clips --az 200 --el 10 --frames Ability@8,Cheer@20

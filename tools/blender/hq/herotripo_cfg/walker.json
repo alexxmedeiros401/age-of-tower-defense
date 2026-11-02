@@ -163,10 +163,26 @@
  },
  "review_frames": {
   "Walk": [
+   3,
    6,
-   18
+   9,
+   12,
+   15,
+   18,
+   21
   ]
  },
  "fit_scale0": 1.16,
- "fit_recentre": true
+ "fit_recentre": true,
+ "cmp_frames": [
+  [
+   "Walk",
+   6
+  ],
+  [
+   "Walk",
+   18
+  ]
+ ],
+ "hard_split": true
 }
