@@ -25,7 +25,7 @@ BIPED = {"root", "spine", "chest", "neck", "head", "clavicle.R", "upperarm.R", "
 SOFT_PREFIX = ("cape", "tail", "hair", "skirt", "coat", "braid", "ear", "jaw", "scarf", "tabard", "cloak", "belt")
 
 
-def open_old(path):
+def open_old(path, arm_name="CavemanRig"):
     if path.endswith(".blend"):
         bpy.ops.wm.open_mainfile(filepath=path)
     else:
@@ -35,14 +35,14 @@ def open_old(path):
         ico = bpy.data.objects.get("Icosphere")
         if ico is not None and ico.parent is None and not ico.data.materials:
             bpy.data.objects.remove(ico)
-    return bpy.data.objects["CavemanRig"]
+    return bpy.data.objects[arm_name]
 
 
 def main():
     hid = C.arg("--hero")
     cfg = C.load_cfg(hid)
     W_DIR = C.work_dir(hid)
-    arm = open_old(cfg["old"])
+    arm = open_old(cfg["old"], cfg["armature"])
     rigged = [o for o in bpy.data.objects if o.type == "MESH" and o.parent == arm]
     if cfg["mesh"]:
         ob = bpy.data.objects[cfg["mesh"]]

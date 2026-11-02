@@ -32,7 +32,7 @@ INFO = json.load(open(os.path.join(WK, "old.json")))
 
 def setup(path):
     import old as oldmod
-    oldmod.open_old(path)
+    oldmod.open_old(path, CFG["armature"])
     for im in bpy.data.images:
         if im.source == "FILE" and not im.packed_file and not os.path.exists(bpy.path.abspath(im.filepath)):
             alt = os.path.join(os.path.dirname(os.path.abspath(path)), os.path.basename(im.filepath))
@@ -57,7 +57,7 @@ def setup(path):
     sun.data.angle = math.radians(8)
     sun.rotation_euler = (math.radians(42), 0, math.radians(-35))
     sc.collection.objects.link(sun)
-    return sc, bpy.data.objects["CavemanRig"]
+    return sc, bpy.data.objects[CFG["armature"]]
 
 
 def acts():
@@ -138,7 +138,7 @@ def bone_world(arm, name, at=0.0):
     return arm.matrix_world @ (pb.head + (pb.tail - pb.head) * at)
 
 
-CLIPS = [a for a in ("Idle", "Combat", "Whirl", "Attack", "Throw", "Ability", "Cheer") if a in INFO["actions"] or any(k.split("|")[-1] == a for k in INFO["actions"])]
+CLIPS = [a for a in (CFG["clips"] or ("Idle", "Combat", "Whirl", "Attack", "Throw", "Ability", "Cheer")) if a in INFO["actions"] or any(k.split("|")[-1] == a for k in INFO["actions"])]
 
 
 def clip_frames():

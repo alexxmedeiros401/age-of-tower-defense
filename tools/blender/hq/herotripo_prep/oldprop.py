@@ -63,7 +63,7 @@ def main():
         print("[oldprop] no props with source old")
         return
     info = json.load(open(os.path.join(W, "old.json")))
-    arm = oldmod.open_old(cfg["old"])
+    arm = oldmod.open_old(cfg["old"], cfg["armature"])
     ob = bpy.data.objects[info["mesh"]]
     me = ob.data
     to_arm = np.array(arm.matrix_world.inverted() @ ob.matrix_world)

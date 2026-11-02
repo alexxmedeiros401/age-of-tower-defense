@@ -317,7 +317,7 @@ def glow_materials(mat, strengths):
 
 def main():
     import old as oldmod
-    arm = oldmod.open_old(CFG["old"])
+    arm = oldmod.open_old(CFG["old"], CFG["armature"])
     old_dir = os.path.dirname(os.path.abspath(CFG["old"]))
     for im in bpy.data.images:            # (a build's blend points at the runner's paths: look beside the blend)
         if im.source == "FILE" and not im.packed_file:

@@ -21,7 +21,7 @@ def grab(path):
     d["meshes"] = sorted(o.data.name for o in bpy.data.objects if o.type == "MESH")
     d["materials"] = sorted((m.name, tuple(sorted(n.image.name for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and n.image)))
                             for m in bpy.data.materials if m.node_tree)
-    arm = bpy.data.objects["CavemanRig"]
+    arm = bpy.data.objects.get("CavemanRig") or next(o for o in bpy.data.objects if o.type == "ARMATURE")   # (a robot: <Name>Rig)
     d["bones"] = sorted(b.name for b in arm.data.bones)
     d["actions"] = sorted((x.name, tuple(round(v, 3) for v in x.frame_range)) for x in bpy.data.actions)
     pos = {}

@@ -1,0 +1,6 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/walker.glb",
+ "armature": "WalkerRig",
+ "clips": ["Walk"],
+ "tex": 1024
+}

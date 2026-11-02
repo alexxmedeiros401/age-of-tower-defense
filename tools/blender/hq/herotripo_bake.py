@@ -53,7 +53,7 @@ XF = FIT["xf"]
 MK = FIT["posed"]                                   # fitted-pose landmarks (game units, Tripo pose)
 PIECES = [k for k in range(len(NAMES)) if (lab == k).any() or patches.get(NAMES[k])]   # (an old prop: patches only)
 log("tripo", len(PB), "verts", len(F), "faces; pieces", {NAMES[k]: int((lab == k).sum()) for k in PIECES}, "xf", XF)
-NECK_Z = 0.5 * (MK["neck"]["head"][2] + MK["neck"]["tail"][2])
+NECK_Z = 0.5 * (MK["neck"]["head"][2] + MK["neck"]["tail"][2]) if "neck" in MK else MK["head"]["head"][2]   # (a robot: no neck)
 HEAD_C = np.array(MK["head"]["head"]) * 0.6 + np.array(MK["head"]["tail"]) * 0.4
 HANDS = [np.array(MK[h]["head"]) * 0.4 + np.array(MK[h]["tail"]) * 0.6 for h in ("hand.R", "hand.L") if h in MK]
 FEET_Z = min(MK[f]["head"][2] for f in ("foot.R", "foot.L") if f in MK)

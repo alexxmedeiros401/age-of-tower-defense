@@ -18,8 +18,10 @@ cd "$REPO"
 BASE=$(git rev-parse HEAD)
 git worktree remove --force "$JW" 2>/dev/null || true
 git branch -D "$BR" 2>/dev/null || true
-git worktree add -q -b "$BR" "$JW" "$BASE"
-cd "$JW"
+git worktree add -q --no-checkout -b "$BR" "$JW" "$BASE"     # (sparse: only tools/ is written: the full tree is
+cd "$JW"                                                     #  over 1 GB and the disk is small)
+git sparse-checkout set --cone tools
+git checkout -q "$BR"
 for ID in "$@"; do
   D=tools/blender/hq/herotripo_in/$ID
   mkdir -p $D

@@ -28,6 +28,9 @@ DEFAULTS = {
     "body_patch": "rim",            # colour of the body's hole patches: rim (interpolated) | dark (the rim's dark half)
     "head_rigid_above": None,       # z (game, rest) above which the head bone takes all weight (default: chin level)
     "fit_reg": 0.05,
+    "armature": "CavemanRig",       # the old scene's armature object (a robot's is <Name>Rig, e.g. WalkerRig)
+    "clips": None,                  # the clips to review, in order (default: every one of Idle, Combat, Whirl, Attack,
+                                    # Throw, Ability, Cheer the old scene has: a tower has Idle/Whirl/Throw, a robot Walk)
 }
 
 
