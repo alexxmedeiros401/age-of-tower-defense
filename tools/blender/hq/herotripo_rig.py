@@ -150,6 +150,171 @@ def armour_weights(spec, P, body, W4, gn, posed, ea, eb, col):
     return top4(W)
 
 
+def add_old_props(old_me, lm, V0, W0, gn, groups, alb):
+    """cfg "old_props": [bone, ...]: the OLD mesh's faces riding these prop bones (more than half of every vertex's
+    weight on them) are kept as they were (rest pose, old weights) when the Tripo model has no such prop (Ken's EMP
+    grenade: the Tripo Ken holds none). They have no room in the new atlas, so each old face is textured flat: its old
+    albedo colour (the old map at its corners and middle) is matched to the nearest colour of a near-uniform face of the
+    new atlas, and the face's UVs are shrunk to a dot in that face's middle (the new normal / ORM maps there come with
+    it)."""
+    names = CFG["old_props"]
+    cols = [gn.index(b) for b in names if b in gn]
+    vsel = W0[:, cols].sum(1) > 0.5
+    polys = [p for p in old_me.polygons if all(vsel[v] for v in p.vertices)]
+    if not polys:
+        log("old props %s: no faces" % names)
+        return
+    # the old albedo (still the old image at this point; a byte image's pixels are its sRGB values)
+    mat = old_me.materials[0]
+    im = next(nd.image for nd in mat.node_tree.nodes if nd.type == "TEX_IMAGE" and nd.image is not None and "albedo" in nd.image.name.lower())
+    w_, h_ = im.size
+    px = np.zeros(w_ * h_ * 4, np.float32)
+    im.pixels.foreach_get(px)
+    px = px.reshape(h_, w_, 4)[:, :, :3]                 # (rows bottom-up: v = 0 at row 0)
+    ouv = old_me.uv_layers.active.data
+    def old_col(u, v):
+        return px[np.clip(int(v * h_), 0, h_ - 1), np.clip(int(u * w_), 0, w_ - 1)]
+    # near-uniform faces of the new atlas (their corners agree with their middle): the candidates
+    S_ = alb.shape[0]
+    luv = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", luv)
+    luv = luv.reshape(-1, 2)
+    lm.calc_loop_triangles()
+    tl = np.array([t.loops[:] for t in lm.loop_triangles])
+    tuv = luv[tl]                                          # (n, 3, 2)
+    def new_col(U):
+        return alb[np.clip(((1 - U[..., 1]) * S_).astype(int), 0, S_ - 1), np.clip((U[..., 0] * S_).astype(int), 0, S_ - 1)]
+    cen = tuv.mean(1)
+    cc = new_col(cen)
+    corner = new_col(cen[:, None] + 0.5 * (tuv - cen[:, None]))
+    var = np.abs(corner - cc[:, None]).max((1, 2))
+    span = np.abs(tuv - cen[:, None]).max((1, 2)) * S_
+    good = np.nonzero((var < 0.04) & (span > 3))[0]
+    kd = cKDTree(cc[good])
+    ob = bpy.data.objects[INFO["mesh"]]
+    for n in gn:
+        if n not in groups:
+            groups[n] = ob.vertex_groups.new(name=n)
+    bm_ = bmesh.new()
+    bm_.from_mesh(lm)
+    ul = bm_.loops.layers.uv.active
+    dl = bm_.verts.layers.deform.verify()
+    vmap = {}
+    W4o = top4(W0)
+    for p in polys:
+        for v in p.vertices:
+            if v not in vmap:
+                nv_ = bm_.verts.new(V0[v].tolist())
+                for j in np.nonzero(W4o[v] > 0)[0]:
+                    nv_[dl][groups[gn[j]].index] = float(W4o[v, j])
+                vmap[v] = nv_
+    bm_.verts.index_update()
+    errs = []
+    for p in polys:
+        uvs = [ouv[li].uv[:] for li in p.loop_indices]
+        c = np.mean([old_col(*u) for u in uvs] + [old_col(*np.mean(uvs, 0))] * 2, 0)
+        d, k = kd.query(c)
+        errs.append(d)
+        t = good[k]
+        f = bm_.faces.new([vmap[v] for v in p.vertices])
+        for i, lp in enumerate(f.loops):
+            lp[ul].uv = (cen[t] + 0.12 * (tuv[t, i % 3] - cen[t])).tolist()
+    bm_.to_mesh(lm)
+    bm_.free()
+    lm.update()
+    REPORT["old_props"] = dict(bones=names, faces=len(polys), verts=len(vmap), colour_error_median=round(float(np.median(errs)), 3))
+    log("old props %s: %d faces, %d verts kept from the old mesh (colour match error median %.3f, max %.3f)" %
+        (names, len(polys), len(vmap), np.median(errs), np.max(errs)))
+
+
+def hsv(c):
+    """rgb (n, 3) in 0..1 -> hue (degrees), saturation, value."""
+    mx, mn = c.max(1), c.min(1)
+    d = np.maximum(mx - mn, 1e-9)
+    r, g, b = c[:, 0], c[:, 1], c[:, 2]
+    h = np.where(mx == r, (g - b) / d % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60.0
+    return np.where(mx - mn < 1e-6, 0.0, h), np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-9), 0.0), mx
+
+
+def emissive_select(lm, P, fpart, alb):
+    """cfg "emissive": [{"name", "strength", "parts": [prop names or "body"], "select": shapes (load frame, Tripo
+    pose), "hue": [h0, h1] (degrees, may wrap: [330, 20]), "sat_min", "val_min", "col": {"min", "max"}, "match": n}]:
+    the faces that glow. A face is in an entry when it is in its parts and shapes (each optional) and at least `match`
+    (default 2) of 4 albedo samples (its UV middle and its corners pulled 70% toward it) pass the colour tests. The
+    glow's emission is the albedo itself (x strength), so a face that straddles a trim only lights the trim's colour.
+    Writes the face layer "glow" (0 none, k the k-th distinct strength, in order of first appearance)."""
+    spec = CFG.get("emissive") or []
+    if not spec:
+        return []
+    names = [q["name"] for q in CFG["props"]]
+    npoly = len(lm.polygons)
+    li = np.zeros(len(lm.loops), np.int64)
+    lm.loops.foreach_get("vertex_index", li)
+    ls = np.zeros(npoly, np.int64)
+    lt_ = np.zeros(npoly, np.int64)
+    lm.polygons.foreach_get("loop_start", ls)
+    lm.polygons.foreach_get("loop_total", lt_)
+    uvl = np.zeros(len(lm.loops) * 2)
+    lm.uv_layers.active.data.foreach_get("uv", uvl)
+    uvl = uvl.reshape(-1, 2)
+    S_ = alb.shape[0]
+    def colat(U):
+        return alb[np.clip(((1 - U[:, 1]) * S_).astype(int), 0, S_ - 1), np.clip((U[:, 0] * S_).astype(int), 0, S_ - 1)]
+    cen_uv = np.array([uvl[a:a + n].mean(0) for a, n in zip(ls, lt_)])
+    samples = [colat(cen_uv)] + [colat(cen_uv + 0.3 * (uvl[ls + k] - cen_uv)) for k in range(3)]
+    cen_p = np.array([P[li[a:a + n]].mean(0) for a, n in zip(ls, lt_)])
+    Pl = C.to_game(C.from_game(cen_p, XF), XF0)
+    glow = np.zeros(npoly, np.int32)
+    strengths = []
+    for e in spec:
+        m = np.ones(npoly, bool)
+        if "parts" in e:
+            ks = [0 if n == "body" else names.index(n) + 1 for n in e["parts"]]
+            m &= np.isin(fpart, ks)
+        if "select" in e:
+            m &= C.shapes(Pl, e["select"], None)
+        hits = np.zeros(npoly, int)
+        for c in samples:
+            ok = np.ones(npoly, bool)
+            if "hue" in e or "sat_min" in e or "val_min" in e:
+                h, sat, val = hsv(c)
+                if "hue" in e:
+                    h0, h1 = e["hue"]
+                    ok &= ((h >= h0) & (h <= h1)) if h0 <= h1 else ((h >= h0) | (h <= h1))
+                ok &= (sat >= e.get("sat_min", 0.0)) & (val >= e.get("val_min", 0.0))
+            if "col" in e:
+                ok &= (c >= np.array(e["col"].get("min", [0, 0, 0]))).all(1) & (c <= np.array(e["col"].get("max", [1, 1, 1]))).all(1)
+            hits += ok
+        m &= hits >= int(e.get("match", 2))
+        st = float(e.get("strength", 2.0))
+        if st not in strengths:
+            strengths.append(st)
+        glow[m] = strengths.index(st) + 1
+        log("emissive %s: %d faces, strength %.2f" % (e["name"], m.sum(), st))
+        REPORT.setdefault("emissive", {})[e["name"]] = dict(faces=int(m.sum()), strength=st)
+    at = lm.attributes.get("glow") or lm.attributes.new("glow", "INT", "FACE")
+    at.data.foreach_set("value", glow)
+    return strengths
+
+
+def glow_materials(mat, strengths):
+    """One copy of the hero material per glow strength: `<Mat>Glow` (then `<Mat>Glow2` ...): the same three images,
+    the albedo image also fed to the emission colour (glTF emissiveTexture = the albedo, emissiveFactor x strength,
+    KHR_materials_emissive_strength above 1): no new texture memory."""
+    out = []
+    for i, st in enumerate(strengths):
+        g = mat.copy()
+        g.name = mat.name + "Glow" + ("" if i == 0 else str(i + 1))
+        nt = g.node_tree
+        bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+        tex = next(n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image is not None and "albedo" in n.image.name.lower())
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
+        bsdf.inputs["Emission Strength"].default_value = st
+        out.append(g)
+        log("material %s: emission = albedo x %.2f" % (g.name, st))
+    return out
+
+
 def main():
     import old as oldmod
     arm = oldmod.open_old(CFG["old"])
@@ -243,6 +408,7 @@ def main():
     np.add.at(vcol, lv, cc)
     np.add.at(cnt, lv, 1)
     vcol /= np.maximum(cnt, 1)[:, None]
+    glow_strengths = emissive_select(lm, P, fpart, alb)
 
     # ---- body weights: nearest point of the posed old surface with an agreeing normal
     body = np.nonzero(vpart == 0)[0]
@@ -412,6 +578,17 @@ def main():
     W4 = top4(WB)
     for spec in CFG["armour"]:
         W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
+    # cfg "hard_weights": [[bone, bone, ...], ...]: within each group a vertex's whole share goes to its heaviest bone of
+    # the group (a machine's joint: no blend, so a twisted forearm turns as one piece instead of pinching like a candy
+    # wrapper at the elbow, as Glitch's in his Ability)
+    for grp in CFG.get("hard_weights", []):
+        idx = [gn.index(b) for b in grp if b in gn]
+        sub = W4[:, idx]
+        tot = sub.sum(1)
+        hw = np.zeros_like(sub)
+        hw[np.arange(len(sub)), sub.argmax(1)] = tot
+        W4[:, idx] = hw
+        log("hard weights %s: %d verts were blended" % (grp, int(((sub > 0).sum(1) > 1).sum())))
 
     if "--debug" in sys.argv:
         np.savez(os.path.join(OUT, "rig_debug.npz"), P=P, body=body, W4=W4, gn=np.array(gn), lt=lt, vcol=vcol)
@@ -626,8 +803,9 @@ def main():
                 REPORT.setdefault("old_places", {})[nm] = [np.round(c, 3).tolist() for c in c_o]
             else:
                 log("prop %s: %d pieces, the old object has %d: left where the fit put them" % (nm, len(c_n), len(c_o)))
-        if "part" in nme.attributes:
-            nme.attributes.remove(nme.attributes["part"])
+        for a_ in ("part", "glow"):
+            if a_ in nme.attributes:
+                nme.attributes.remove(nme.attributes[a_])
         oldd = tgt.data
         dn = oldd.name
         for m_ in oldd.materials:
@@ -770,6 +948,8 @@ def main():
         if bone not in groups:
             groups[bone] = old.vertex_groups.new(name=bone)
         groups[bone].add(vs.tolist(), 1.0, "REPLACE")
+    if CFG.get("old_props"):
+        add_old_props(old_me, lm, V0, W0, gn, groups, alb)
     bpy.data.meshes.remove(old_me)
     # detach (config, off by default): where the Tripo surface fuses a limb to something beside it (Kael's forearm lay
     # on his cape), the faces between them stretch into sheets when the limb moves. Inside "within" (rest armature
@@ -831,6 +1011,16 @@ def main():
             log("image", nd.image.name, "<- hero_%s.png" % role, tuple(nd.image.size))
     lm.materials.clear()
     lm.materials.append(mat)
+    if glow_strengths:
+        for g in glow_materials(mat, glow_strengths):
+            lm.materials.append(g)
+        gl_ = np.zeros(len(lm.polygons), np.int32)
+        lm.attributes["glow"].data.foreach_get("value", gl_)
+        lm.polygons.foreach_set("material_index", gl_)
+        lm.attributes.remove(lm.attributes["glow"])
+        lm.update()
+    elif "glow" in lm.attributes:
+        lm.attributes.remove(lm.attributes["glow"])
     for m in [m for m in bpy.data.materials if m.users == 0]:
         bpy.data.materials.remove(m)
     for im in [im for im in bpy.data.images if im.users == 0]:
@@ -873,8 +1063,16 @@ def main():
             me.update()
             log("glow %s: box %s .. %s -> %s" % (gname, np.round(lo, 3), np.round(hi, 3), bx.round(3).tolist()))
             REPORT.setdefault("glows", {})[gname] = dict(box=bx.round(4).tolist(), old_box=[lo.round(4).tolist(), hi.round(4).tolist()])
-        if g.get("hide"):
+        if g.get("hide"):                       # (hidden objects are still exported: collapse the mesh to a point too)
             ob.hide_render = True
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            co = co.reshape(-1, 3)
+            co[:] = co.mean(0)
+            me.vertices.foreach_set("co", co.astype(np.float32).ravel())
+            me.update()
+            log("glow %s: hidden (collapsed to a point)" % gname)
         if "offset" in g or "scale" in g:
             me = ob.data
             co = np.zeros(len(me.vertices) * 3)

@@ -1,0 +1,245 @@
+{
+ "props": [
+  {
+   "name": "blade.R",
+   "bone": "blade.R",
+   "region": [
+    [
+     -1.02,
+     -0.68
+    ],
+    [
+     -0.18,
+     0.08
+    ],
+    [
+     0.52,
+     1.0
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.99,
+      -0.8
+     ],
+     [
+      -0.16,
+      0.06
+     ],
+     [
+      0.54,
+      0.78
+     ]
+    ]
+   ],
+   "sinks": [
+    {
+     "ball": {
+      "c": [
+       -0.7,
+       0.06,
+       0.82
+      ],
+      "r": 0.06
+     }
+    },
+    [
+     [
+      -0.76,
+      -0.6
+     ],
+     [
+      -0.18,
+      0.08
+     ],
+     [
+      0.96,
+      1.0
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "blade.L",
+   "bone": "blade.L",
+   "region": [
+    [
+     0.68,
+     1.02
+    ],
+    [
+     -0.18,
+     0.08
+    ],
+    [
+     0.52,
+     1.0
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.8,
+      0.99
+     ],
+     [
+      -0.16,
+      0.06
+     ],
+     [
+      0.54,
+      0.78
+     ]
+    ]
+   ],
+   "sinks": [
+    {
+     "ball": {
+      "c": [
+       0.7,
+       0.06,
+       0.82
+      ],
+      "r": 0.06
+     }
+    },
+    [
+     [
+      0.6,
+      0.76
+     ],
+     [
+      -0.18,
+      0.08
+     ],
+     [
+      0.96,
+      1.0
+     ]
+    ]
+   ],
+   "place": "fit"
+  }
+ ],
+ "armour": [
+  {
+   "name": "pauldron.R",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       -0.41,
+       0.0,
+       1.48
+      ],
+      "r": 0.135
+     }
+    }
+   ],
+   "grow": 1,
+   "bones": {
+    "upperarm.R": 1.0
+   },
+   "fade": {
+    "bone": "clavicle.R",
+    "share": 0.3,
+    "len": 0.15
+   },
+   "seam_rings": 3
+  },
+  {
+   "name": "pauldron.L",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.41,
+       0.0,
+       1.48
+      ],
+      "r": 0.135
+     }
+    }
+   ],
+   "grow": 1,
+   "bones": {
+    "upperarm.L": 1.0
+   },
+   "fade": {
+    "bone": "clavicle.L",
+    "share": 0.3,
+    "len": 0.15
+   },
+   "seam_rings": 3
+  }
+ ],
+ "review_frames": {
+  "Attack": [
+   5
+  ],
+  "Ability": [
+   12,
+   23
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Attack",
+   5
+  ],
+  [
+   "Ability",
+   23
+  ]
+ ],
+ "hard_weights": [
+  [
+   "upperarm.L",
+   "forearm.L"
+  ],
+  [
+   "upperarm.R",
+   "forearm.R"
+  ]
+ ],
+ "glows": {
+  "GlowEdgeR": {
+   "hide": true
+  },
+  "GlowEdgeL": {
+   "hide": true
+  }
+ },
+ "emissive": [
+  {
+   "name": "blades",
+   "parts": [
+    "blade.R",
+    "blade.L"
+   ],
+   "hue": [
+    150,
+    210
+   ],
+   "sat_min": 0.2,
+   "val_min": 0.35,
+   "match": 1,
+   "strength": 3.0
+  },
+  {
+   "name": "face_core",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    155,
+    205
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.5,
+   "strength": 3.0
+  }
+ ]
+}

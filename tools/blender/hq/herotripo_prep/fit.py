@@ -73,7 +73,8 @@ def main():
     info = json.load(open(os.path.join(Wd, "old.json")))
     props = set(info["prop_bones"])
     used = set(np.array(gn)[(Wt[np.unique(T[Tp == -1])] > 0.05).any(0)])
-    BONES = [b for b in rig.order if b in used and b not in props and b not in FIXED]
+    fixed = set(FIXED) | set(cfg.get("fit_fixed", []))   # cfg "fit_fixed": bones kept at rest (a hand whose Tripo
+    BONES = [b for b in rig.order if b in used and b not in props and b not in fixed]   # hand is cut out as a prop)
     print("[fit] bones", BONES)
     rng = np.random.default_rng(0)
     bodyv = np.unique(T[Tp == -1])
