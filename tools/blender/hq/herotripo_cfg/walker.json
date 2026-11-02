@@ -1,6 +1,172 @@
 {
  "old": "/home/claude/age-of-tower-defense/assets/robots/walker.glb",
  "armature": "WalkerRig",
- "clips": ["Walk"],
- "tex": 1024
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "tris": 8000,
+ "head_share": 0.2,
+ "face_boost": 1.6,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "props": [
+  {
+   "name": "antenna",
+   "bone": "antenna",
+   "region": [
+    [
+     -0.03,
+     0.11
+    ],
+    [
+     0.08,
+     0.21
+    ],
+    [
+     1.15,
+     1.4
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.03,
+      0.11
+     ],
+     [
+      0.08,
+      0.21
+     ],
+     [
+      1.167,
+      1.4
+     ]
+    ]
+   ],
+   "sinks": [
+    [
+     [
+      -0.03,
+      0.11
+     ],
+     [
+      0.08,
+      0.21
+     ],
+     [
+      1.15,
+      1.162
+     ]
+    ]
+   ],
+   "place": "fit"
+  }
+ ],
+ "emissive": [
+  {
+   "name": "visor",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.2,
+      0.07
+     ],
+     [
+      -0.25,
+      -0.08
+     ],
+     [
+      0.98,
+      1.08
+     ]
+    ]
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "core",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       -0.064,
+       -0.19,
+       0.755
+      ],
+      "r": 0.085
+     }
+    }
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "antenna_tip",
+   "parts": [
+    "antenna"
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  }
+ ],
+ "glows": {
+  "GlowAntennaTip": {
+   "hide": true
+  },
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   6,
+   18
+  ]
+ },
+ "fit_scale0": 1.16,
+ "fit_recentre": true
 }

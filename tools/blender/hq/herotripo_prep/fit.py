@@ -130,6 +130,11 @@ def main():
             return np.r_[np.median(sl[:, :2], 0), z0]
         x0[3 * nb:3 * nb + 3] = hips(V[bodyv]) - hips(Pt)
         print("[fit] translation started at", x0[3 * nb:3 * nb + 3].round(4))
+    if cfg.get("fit_scale0") and not fix_scale:
+        # cfg "fit_scale0" (off by default): start the fit's relative scale here instead of 1 (the Walker's antenna made
+        # the load step's height scale 16% small, and the fit settled with an arm folded into the chest)
+        x0[-1] = np.log(float(cfg["fit_scale0"]))
+        print("[fit] scale started at x%.3f" % float(cfg["fit_scale0"]))
     r0 = resid(x0)[:len(Vs)]
     print("[fit] reverse term weight %.2f" % REV)
     print("[fit] initial rms %.4f median %.4f" % (np.sqrt((r0 ** 2).mean()), np.median(np.abs(r0))))
