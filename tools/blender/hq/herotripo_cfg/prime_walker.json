@@ -5,5 +5,177 @@
   "Walk",
   "Summon"
  ],
- "tex": 1024
+ "tex": 2048,
+ "yaw": 270,
+ "tris": 15000,
+ "head_share": 0.15,
+ "face_boost": 1.4,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "head_rigid_above": 9.0,
+ "fit_fixed": [
+  "head"
+ ],
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "hard_split": true,
+ "emissive": [
+  {
+   "name": "visor",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.16,
+      0.16
+     ],
+     [
+      -0.7,
+      -0.25
+     ],
+     [
+      2.45,
+      2.8
+     ]
+    ]
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.4,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "core",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.5,
+       2.05
+      ],
+      "r": 0.28
+     }
+    }
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.4,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "shoulder_lights",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -1.05,
+      -0.45
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      2.34,
+      2.46
+     ]
+    ],
+    [
+     [
+      0.45,
+      1.05
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      2.34,
+      2.46
+     ]
+    ]
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.4,
+   "val_min": 0.3,
+   "strength": 2.5
+  }
+ ],
+ "glows": {
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowCrest": {
+   "hide": true
+  },
+  "GlowExhaust": {
+   "hide": true
+  },
+  "GlowShoulderLights": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   6,
+   12,
+   18,
+   24,
+   30,
+   36,
+   42
+  ],
+  "Summon": [
+   12,
+   24,
+   36
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   24
+  ]
+ ]
 }
