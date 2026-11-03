@@ -1,0 +1,9 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/prime_walker.glb",
+ "armature": "PrimeWalkerRig",
+ "clips": [
+  "Walk",
+  "Summon"
+ ],
+ "tex": 1024
+}

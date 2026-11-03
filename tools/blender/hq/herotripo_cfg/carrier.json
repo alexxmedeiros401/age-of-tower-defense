@@ -1,0 +1,8 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/carrier.glb",
+ "armature": "CarrierRig",
+ "clips": [
+  "Fly"
+ ],
+ "tex": 1024
+}

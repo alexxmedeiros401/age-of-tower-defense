@@ -1,0 +1,8 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/brute.glb",
+ "armature": "BruteRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024
+}

@@ -566,15 +566,16 @@ def main():
                 iv = 1.0 / np.maximum(Dm, 0.01) ** 4
                 WB[np.ix_(np.nonzero(m_)[0], ci)] = Sc[m_, None] * iv / iv.sum(1, keepdims=True)
         log("weights: limb shares redistributed along the fitted bones")
-    hb = posed["head"]
-    hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
-    zr = CFG["head_rigid_above"]
-    zr = (hb[:3, 3] + hb[:3, 1] * hlen * 0.3)[2] if zr is None else float(zr)
-    hi_ = gn.index("head")
-    up = P[body, 2] > zr
-    WB[up] = 0
-    WB[up, hi_] = 1
-    log("head rigid above z %.3f (Tripo pose): %d verts" % (zr, up.sum()))
+    if "head" in posed and "head" in gn:             # (a drone has no head bone)
+        hb = posed["head"]
+        hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
+        zr = CFG["head_rigid_above"]
+        zr = (hb[:3, 3] + hb[:3, 1] * hlen * 0.3)[2] if zr is None else float(zr)
+        hi_ = gn.index("head")
+        up = P[body, 2] > zr
+        WB[up] = 0
+        WB[up, hi_] = 1
+        log("head rigid above z %.3f (Tripo pose): %d verts" % (zr, up.sum()))
     W4 = top4(WB)
     for spec in CFG["armour"]:
         W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
