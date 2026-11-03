@@ -1087,6 +1087,44 @@ def main():
                 fb = nfb
                 if ch_ == 0:
                     break
+            # cfg "hard_min_island" (faces, default 0: off): a patch of faces on one bone smaller than this, cut off
+            # from the rest of that bone's part, goes to the bone it borders most (by edge length): a few faces of an
+            # elbow or an exhaust stack given to the upper arm flew about as shards when the arm moved
+            mi_ = int(CFG.get("hard_min_island", 0))
+            if mi_ > 0:
+                for _ in range(3):
+                    seen_ = set()
+                    nre_ = 0
+                    for fi in list(fb):
+                        if fi in seen_:
+                            continue
+                        comp, st_ = [], [fi]
+                        seen_.add(fi)
+                        while st_:
+                            g_ = st_.pop()
+                            comp.append(g_)
+                            for e in bm_.faces[g_].edges:
+                                for h_ in e.link_faces:
+                                    if h_.index in fb and h_.index not in seen_ and fb[h_.index] == fb[fi]:
+                                        seen_.add(h_.index)
+                                        st_.append(h_.index)
+                        if len(comp) >= mi_:
+                            continue
+                        cs_ = set(comp)
+                        nb_ = {}
+                        for g_ in comp:
+                            for e in bm_.faces[g_].edges:
+                                for h_ in e.link_faces:
+                                    if h_.index in fb and h_.index not in cs_:
+                                        nb_[fb[h_.index]] = nb_.get(fb[h_.index], 0.0) + e.calc_length()
+                        if nb_:
+                            b2 = max(nb_, key=nb_.get)
+                            for g_ in comp:
+                                fb[g_] = b2
+                            nre_ += 1
+                    log("hard split: %d islands under %d faces merged into their neighbours" % (nre_, mi_))
+                    if nre_ == 0:
+                        break
             cut = [e for e in bm_.edges if len(e.link_faces) == 2
                    and fb.get(e.link_faces[0].index, -1) != fb.get(e.link_faces[1].index, -1)
                    and (e.link_faces[0].index in fb or e.link_faces[1].index in fb)]

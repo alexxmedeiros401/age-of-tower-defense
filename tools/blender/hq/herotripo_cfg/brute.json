@@ -117,5 +117,7 @@
   ]
  ],
  "hard_smooth": 6,
- "fit_pose": false
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_min_island": 40
 }

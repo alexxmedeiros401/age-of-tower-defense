@@ -102,7 +102,11 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `armature` | `"CavemanRig"` | the old scene's armature object (a robot's: `WalkerRig`); check_glb takes any armature when there is no CavemanRig |
 | `clips` | auto | the clips the review renders, in order (default: whichever of Idle, Combat, Whirl, Attack, Throw, Ability, Cheer the old scene has; the Rock Slinger tower: `["Idle", "Whirl", "Throw"]`, the Walker: `["Walk"]`) |
 | `fit_scale0` | off | start the fit's relative scale here instead of 1 (the Walker: its antenna made the load step's height scale 16% small and the fit folded an arm into the chest; 1.16 fixed it) |
-| `hard_split` | false | with `hard_weights`: split every body edge whose ends ride different bones of one hard group, so a machine's parts turn rigidly at their joints instead of stretching the faces between them (the Walker's knees, hips and elbows) |
+| `hard_split` | false | with `hard_weights` (`true`): split every body edge whose ends ride different bones of one hard group, so a machine's parts turn rigidly at their joints instead of stretching the faces between them (the Walker's knees, hips and elbows) | Or `"faces"`: every face goes to one bone (no face spans two parts), re-weighted verts are un-posed again with their new bone (the Brute, the Prime Walker) |
+| `hard_smooth` | 0 | ("faces" split) passes in which each face takes the bone most of its edge-neighbours ride (concave creases count 0.1), so part lines follow the creases |
+| `hard_min_island` | 0 | ("faces" split) patches of one bone smaller than this many faces go to the bone they border most (no flying shards) |
+| `fit_pose` | true | false: bind the Tripo mesh as it stands on the rest pose (the fit's scale and offset kept, its bone turns dropped): nothing is un-posed, so fused machine parts don't crack open at rest |
+| `sole_snap` | true | false: don't move the body onto the old soles (a drone has none) |
 | `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
@@ -243,7 +247,9 @@ prop bones and glow nodes by name). The remaining bend at the wrist is the clip'
 robot (the Walker: `armature` WalkerRig, no neck bone: the bake's head line is the head bone's head; `hard_weights` over
 every bone but the head and `hard_split` for rigid armour; the Tripo visor, core and antenna tip lit with `emissive`
 and the old glow meshes hidden). The rig keeps each image's old name in the export (a tower's `caveman_albedo`, not the
-bake's `hero_albedo`). push_bake.sh's job worktree is sparse (tools/ only): the full tree is over 1 GB.
+bake's `hero_albedo`). Drones (the Scout, the Carrier) have no head or feet bones: the bake then has no head region, the fit
+moves and scales only, and `sole_snap` is off. The Carrier's three docked Scouts are props on its `pod0..2` bones (the sim
+spawns its Scouts on death; game.gd doesn't take them from the model). push_bake.sh's job worktree is sparse (tools/ only): the full tree is over 1 GB.
 
 ## Checking renders
 `herotripo_review.py` makes the five deliverable sheets; `--only clips --az 200 --el 10 --frames Ability@8,Cheer@20
