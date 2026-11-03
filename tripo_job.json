@@ -1,0 +1,27 @@
+{
+ "api": "v2",
+ "model_versions": [
+  "v3.1-20260211",
+  "v3.0-20250812"
+ ],
+ "params": {
+  "texture": true,
+  "pbr": true,
+  "texture_quality": "detailed",
+  "geometry_quality": "detailed"
+ },
+ "models": [
+  {
+   "name": "onager",
+   "file": "tools/tripo/in/towers3/onager.png"
+  },
+  {
+   "name": "novaartillery",
+   "file": "tools/tripo/in/towers3/novaartillery.png"
+  },
+  {
+   "name": "firewall",
+   "file": "tools/tripo/in/towers3/firewall.png"
+  }
+ ]
+}
