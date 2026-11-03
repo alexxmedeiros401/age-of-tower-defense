@@ -66,6 +66,24 @@ def run(job, out, key):
         tok = up.get("image_token") or up.get("file_token")
         ext = os.path.splitext(m["file"])[1].lstrip(".").lower().replace("jpeg", "jpg")
         tid = None
+        if m.get("retexture_of"):                # re-texture an earlier task's model, guided by the image
+            base = {"type": "texture_model", "original_model_task_id": m["retexture_of"], "texture": True, "pbr": True,
+                    "texture_quality": params.get("texture_quality", "detailed"), "texture_alignment": "original_image"}
+            for extra in ({"texture_prompt": {"image": {"type": ext, "file_token": tok}}}, {}):
+                try:
+                    tid = req(key, "POST", "/task", dict(base, **extra))["data"]["task_id"]
+                    print("[%s] started retexture %s%s" % (m["name"], tid, "" if extra else " (no image prompt)"), flush=True)
+                    tasks.append((m, tid, "texture_model", []))
+                    break
+                except ApiError as e:
+                    print("[%s] retexture refused: %s" % (m["name"], e.txt[:300]), flush=True)
+                    if e.code in (401, 402, 403):
+                        save()
+                        sys.exit("stopping: %s" % e)
+            if not tid:
+                log["models"].append({"name": m["name"], "error": "retexture refused"})
+                save()
+            continue
         for v in versions:                       # newest first; fall back if this account doesn't offer it
             p = dict(params, **m.get("params", {}))
             for drop in ([], ["geometry_quality"]):
