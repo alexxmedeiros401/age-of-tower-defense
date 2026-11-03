@@ -37,6 +37,11 @@ INFO = json.load(open(os.path.join(WK, "old.json")))
 FIT = json.load(open(os.path.join(WK, "fit.json")))
 XF0 = json.load(open(os.path.join(WK, "xf.json")))
 XF = FIT["xf"]
+if not CFG.get("fit_pose", True):
+    # cfg "fit_pose": false: bind the Tripo mesh as it stands, on the rig's rest pose (the fit's scale and offset are
+    # kept, its bone turns dropped): nothing is un-posed, so a machine's fused parts don't crack apart at rest (the
+    # Brute's forearms were turned 17 deg by the fit; un-posing them opened the elbows)
+    FIT["rotvec"] = {}
 REPORT = {}
 
 
@@ -609,6 +614,8 @@ def main():
     Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
     sole_old = V0[np.unique(tri0), 2].min()
     dz = sole_old - Prest[body, 2].min()
+    if not CFG.get("sole_snap", True):          # (a drone has no soles: the fitted height stays, and its props with it)
+        dz = 0.0
     Prest[body, 2] += dz
     log("soles moved by %.4f to the old soles (z %.4f)" % (dz, sole_old))
     mv = np.linalg.norm(Prest[body] - P[body], axis=1)
@@ -1013,12 +1020,106 @@ def main():
             d = v[dl_]
             if d:
                 main[v.index] = max(d.keys(), key=lambda g_: d[g_])
-        cut = [e for e in bm_.edges if isb[e.verts[0].index] and isb[e.verts[1].index]
-               and main[e.verts[0].index] != main[e.verts[1].index]
-               and main[e.verts[0].index] in gid and main[e.verts[1].index] in gid
-               and gid[main[e.verts[0].index]] == gid[main[e.verts[1].index]]]
-        nv0 = len(bm_.verts)
-        bmesh.ops.split_edges(bm_, edges=cut)
+        if CFG["hard_split"] != "faces":
+            cut = [e for e in bm_.edges if isb[e.verts[0].index] and isb[e.verts[1].index]
+                   and main[e.verts[0].index] != main[e.verts[1].index]
+                   and main[e.verts[0].index] in gid and main[e.verts[1].index] in gid
+                   and gid[main[e.verts[0].index]] == gid[main[e.verts[1].index]]]
+            nv0 = len(bm_.verts)
+            bmesh.ops.split_edges(bm_, edges=cut)
+        else:
+            # "faces": every face goes to one bone (its vertices' summed weights, among the bones of a hard group that
+            # holds all of their weight), the edges between faces of different bones are split, and each vertex then
+            # rides its faces' bone alone: no face spans two parts, so none stretches into a spike at a joint (the
+            # Brute's pauldron edge and ankles: a face with corners on two bones stretched when the edge split left it)
+            grp_of = {}
+            for k_, grp in enumerate(CFG["hard_weights"]):
+                for b in grp:
+                    if b in old.vertex_groups:
+                        grp_of[old.vertex_groups[b].index] = k_
+            fb = {}
+            for f in bm_.faces:
+                if not all(isb[v.index] for v in f.verts):
+                    continue
+                acc = {}
+                ok_ = True
+                gk = None
+                for v in f.verts:
+                    d = v[dl_]
+                    tot = sum(w for g_, w in d.items() if g_ in grp_of)
+                    ks = {grp_of[g_] for g_ in d.keys() if g_ in grp_of}
+                    if tot < 0.999 or len(ks) != 1:
+                        ok_ = False
+                        break
+                    k1 = ks.pop()
+                    if gk is None:
+                        gk = k1
+                    elif gk != k1:
+                        ok_ = False
+                        break
+                    for g_, w in d.items():
+                        acc[g_] = acc.get(g_, 0.0) + w
+                if ok_ and acc:
+                    fb[f.index] = max(acc, key=acc.get)
+            # cfg "hard_smooth" (passes, default 0): each face takes the bone that most of its edge-neighbours ride
+            # (votes by shared edge length; across a concave crease, where one part meets another, a vote counts 0.1),
+            # so the line between two parts follows the crease instead of zigzagging over a fused surface
+            bm_.faces.ensure_lookup_table()
+            for _ in range(int(CFG.get("hard_smooth", 0))):
+                nfb = {}
+                for fi, b in fb.items():
+                    f = bm_.faces[fi]
+                    votes = {b: 0.5 * sum(e.calc_length() for e in f.edges)}
+                    for e in f.edges:
+                        if len(e.link_faces) != 2:
+                            continue
+                        o_ = e.link_faces[0] if e.link_faces[1].index == fi else e.link_faces[1]
+                        if o_.index not in fb:
+                            continue
+                        try:
+                            cv = e.calc_face_angle_signed()
+                        except ValueError:
+                            cv = 0.0
+                        w = e.calc_length() * (0.1 if cv < -0.5 else 1.0)
+                        votes[fb[o_.index]] = votes.get(fb[o_.index], 0.0) + w
+                    nfb[fi] = max(votes, key=votes.get)
+                ch_ = sum(1 for k in fb if fb[k] != nfb[k])
+                fb = nfb
+                if ch_ == 0:
+                    break
+            cut = [e for e in bm_.edges if len(e.link_faces) == 2
+                   and fb.get(e.link_faces[0].index, -1) != fb.get(e.link_faces[1].index, -1)
+                   and (e.link_faces[0].index in fb or e.link_faces[1].index in fb)]
+            fb_by_face = {f: b for f, b in fb.items()}
+            for f in bm_.faces:
+                f.tag = False
+            nv0 = len(bm_.verts)
+            # (remember each face's bone through the split: faces keep their identity, indices may change)
+            fl = bm_.faces.layers.int.new("hb_")
+            for f in bm_.faces:
+                f[fl] = fb_by_face.get(f.index, -1)
+            bmesh.ops.split_edges(bm_, edges=cut)
+            nre = 0
+            for v in bm_.verts:
+                bs_ = {f[fl] for f in v.link_faces}
+                if len(bs_) == 1:
+                    b = bs_.pop()
+                    if b >= 0:
+                        d = v[dl_]
+                        if len(d) != 1 or b not in d:
+                            nre += 1
+                            # (it was un-posed with its old weights: un-pose it again with its new bone, from where
+                            # it sat in the Tripo pose)
+                            Mo = np.zeros((4, 4))
+                            for g_, w in d.items():
+                                Mo += w * SK[old.vertex_groups[g_].name]
+                            x_ = np.r_[np.array(v.co) - np.array((0, 0, dz)), 1.0]
+                            v.co = (np.linalg.inv(SK[old.vertex_groups[b].name]) @ (Mo @ x_))[:3] + np.array((0, 0, dz))
+                        for g_ in list(d.keys()):
+                            del d[g_]
+                        d[b] = 1.0
+            bm_.faces.layers.int.remove(fl)
+            log("hard split (faces): %d faces given one bone each, %d verts re-weighted" % (len(fb), nre))
         bm_.to_mesh(lm)
         bm_.free()
         REPORT["hard_split"] = dict(edges=len(cut), verts_added=len(lm.vertices) - nv0)

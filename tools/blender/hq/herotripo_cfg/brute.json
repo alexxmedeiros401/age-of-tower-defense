@@ -31,7 +31,7 @@
    "foot.R"
   ]
  ],
- "hard_split": true,
+ "hard_split": "faces",
  "emissive": [
   {
    "name": "visor",
@@ -115,5 +115,7 @@
    "Walk",
    24
   ]
- ]
+ ],
+ "hard_smooth": 6,
+ "fit_pose": false
 }
