@@ -4,5 +4,116 @@
  "clips": [
   "Walk"
  ],
- "tex": 1024
+ "tex": 1024,
+ "yaw": 270,
+ "tris": 8000,
+ "head_share": 0.12,
+ "face_boost": 1.4,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "head_rigid_above": 9.0,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "hard_split": true,
+ "emissive": [
+  {
+   "name": "visor",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.27,
+       1.17
+      ],
+      "r": 0.08
+     }
+    }
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "core",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.3,
+       0.97
+      ],
+      "r": 0.13
+     }
+    }
+   ],
+   "hue": [
+    338,
+    14
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  }
+ ],
+ "glows": {
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  },
+  "GlowExhaust": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   4,
+   8,
+   12,
+   16,
+   20,
+   24,
+   28
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   8
+  ],
+  [
+   "Walk",
+   24
+  ]
+ ]
 }
