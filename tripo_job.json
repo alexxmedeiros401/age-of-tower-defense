@@ -1,0 +1,146 @@
+[
+ {
+  "kind": "upload",
+  "name": "axewarrior_ref",
+  "file": "tools/tripo/in/towers8/axewarrior.png"
+ },
+ {
+  "kind": "upload",
+  "name": "plasmamortar_ref",
+  "file": "tools/tripo/in/towers8/plasmamortar.png"
+ },
+ {
+  "kind": "upload",
+  "name": "mechbrawler_ref",
+  "file": "tools/tripo/in/towers8/mechbrawler.png"
+ },
+ {
+  "kind": "upload",
+  "name": "laserturret_ref",
+  "file": "tools/tripo/in/towers8/laserturret.png"
+ },
+ {
+  "kind": "upload",
+  "name": "emptower_ref",
+  "file": "tools/tripo/in/towers8/emptower.png"
+ },
+ {
+  "kind": "upload",
+  "name": "missilelauncher_ref",
+  "file": "tools/tripo/in/towers8/missilelauncher.png"
+ },
+ {
+  "kind": "upload",
+  "name": "flamethrower_ref",
+  "file": "tools/tripo/in/towers8/flamethrower.png"
+ },
+ {
+  "kind": "upload",
+  "name": "sniper_ref",
+  "file": "tools/tripo/in/towers8/sniper.png"
+ },
+ {
+  "kind": "image_to_model",
+  "name": "axewarrior",
+  "input": "@axewarrior_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": false
+ },
+ {
+  "kind": "image_to_model",
+  "name": "plasmamortar",
+  "input": "@plasmamortar_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "mechbrawler",
+  "input": "@mechbrawler_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "laserturret",
+  "input": "@laserturret_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "emptower",
+  "input": "@emptower_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "missilelauncher",
+  "input": "@missilelauncher_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "flamethrower",
+  "input": "@flamethrower_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ },
+ {
+  "kind": "image_to_model",
+  "name": "sniper",
+  "input": "@sniper_ref",
+  "params": {
+   "model": "v3.1-20260211",
+   "texture": true,
+   "pbr": true,
+   "texture_quality": "detailed",
+   "geometry_quality": "detailed"
+  },
+  "parallel": true
+ }
+]
