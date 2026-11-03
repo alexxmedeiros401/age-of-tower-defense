@@ -21,6 +21,11 @@ if not KEY:
 JOB = json.load(open(sys.argv[1]))
 OUT = sys.argv[2]
 os.makedirs(OUT, exist_ok=True)
+if isinstance(JOB, dict) and JOB.get("api") == "v2":          # international platform keys (api.tripo3d.ai)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import tripo_v2
+    tripo_v2.run(JOB, OUT, KEY)
+    sys.exit(0)
 LOG = {"steps": []}
 VAL = {}
 
