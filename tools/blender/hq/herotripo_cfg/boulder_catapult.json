@@ -1,0 +1,10 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/towers/boulder_catapult.glb",
+ "clips": [
+  "Idle",
+  "Combat",
+  "Attack"
+ ],
+ "tris": 20000,
+ "yaw": 0
+}

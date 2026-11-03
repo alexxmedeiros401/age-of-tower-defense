@@ -135,6 +135,27 @@ def main():
         # the load step's height scale 16% small, and the fit settled with an arm folded into the chest)
         x0[-1] = np.log(float(cfg["fit_scale0"]))
         print("[fit] scale started at x%.3f" % float(cfg["fit_scale0"]))
+    if cfg.get("fit_aim"):
+        # cfg "fit_aim" (off by default): {bone: [x, y, z]}: start those bones swung (no twist) so their tails point at
+        # these load-frame points, in rig order (the Club Warrior's right arm: a 90-degree elbow the fit otherwise
+        # folded back into his chest)
+        k0 = np.exp(x0[-1])
+        rot0 = {}
+        for b in rig.order:
+            if b not in cfg["fit_aim"] or b not in BONES:
+                continue
+            P0 = rig.posed(rot0)
+            p = rig.parent[b]
+            M0 = rig.rest[b] if p is None else P0[p] @ np.linalg.inv(rig.rest[p]) @ rig.rest[b]
+            tgt = np.array(cfg["fit_aim"][b], float) * k0 + x0[3 * nb:3 * nb + 3]
+            d = M0[:3, :3].T @ (tgt - M0[:3, 3])
+            d /= np.linalg.norm(d)
+            ax = np.array([d[2], 0.0, -d[0]])
+            if np.linalg.norm(ax) > 1e-9:
+                rv = ax / np.linalg.norm(ax) * np.arccos(np.clip(d[1], -1, 1))
+                rot0[b] = Rot.from_rotvec(rv).as_matrix()
+                x0[3 * BONES.index(b):3 * BONES.index(b) + 3] = rv
+                print("[fit] %s aimed at %s: %.1f deg" % (b, cfg["fit_aim"][b], np.degrees(np.linalg.norm(rv))))
     r0 = resid(x0)[:len(Vs)]
     print("[fit] reverse term weight %.2f" % REV)
     print("[fit] initial rms %.4f median %.4f" % (np.sqrt((r0 ** 2).mean()), np.median(np.abs(r0))))
