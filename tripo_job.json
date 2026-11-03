@@ -1,0 +1,87 @@
+{
+ "api": "v2",
+ "model_versions": [
+  "v3.1-20260211",
+  "v3.0-20250812"
+ ],
+ "params": {
+  "texture": true,
+  "pbr": true,
+  "texture_quality": "detailed",
+  "geometry_quality": "detailed"
+ },
+ "models": [
+  {
+   "name": "spearguard",
+   "file": "tools/tripo/in/towers18/spearguard.png"
+  },
+  {
+   "name": "torsioncatapult",
+   "file": "tools/tripo/in/towers18/torsioncatapult.png"
+  },
+  {
+   "name": "sunpriest",
+   "file": "tools/tripo/in/towers18/sunpriest.png"
+  },
+  {
+   "name": "javelinthrower",
+   "file": "tools/tripo/in/towers18/javelinthrower.png"
+  },
+  {
+   "name": "ballista",
+   "file": "tools/tripo/in/towers18/ballista.png"
+  },
+  {
+   "name": "druid",
+   "file": "tools/tripo/in/towers18/druid.png"
+  },
+  {
+   "name": "legionary",
+   "file": "tools/tripo/in/towers18/legionary.png"
+  },
+  {
+   "name": "oracle",
+   "file": "tools/tripo/in/towers18/oracle.png"
+  },
+  {
+   "name": "knight",
+   "file": "tools/tripo/in/towers18/knight.png"
+  },
+  {
+   "name": "trebuchet",
+   "file": "tools/tripo/in/towers18/trebuchet.png"
+  },
+  {
+   "name": "alchemist",
+   "file": "tools/tripo/in/towers18/alchemist.png"
+  },
+  {
+   "name": "musketeer",
+   "file": "tools/tripo/in/towers18/musketeer.png"
+  },
+  {
+   "name": "halberdier",
+   "file": "tools/tripo/in/towers18/halberdier.png"
+  },
+  {
+   "name": "wardrummer",
+   "file": "tools/tripo/in/towers18/wardrummer.png"
+  },
+  {
+   "name": "rifleman",
+   "file": "tools/tripo/in/towers18/rifleman.png"
+  },
+  {
+   "name": "steambrawler",
+   "file": "tools/tripo/in/towers18/steambrawler.png"
+  },
+  {
+   "name": "fieldgun",
+   "file": "tools/tripo/in/towers18/fieldgun.png"
+  },
+  {
+   "name": "teslacoil",
+   "file": "tools/tripo/in/towers18/teslacoil.png"
+  }
+ ]
+}
