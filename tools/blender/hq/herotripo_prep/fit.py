@@ -94,7 +94,7 @@ def main():
     sub2 = rng.choice(bodyv, min(14000, len(bodyv)), replace=False)
     V2, W2 = V[sub2], Wt[sub2]
     nb = len(BONES)
-    free3 = np.array([b in FREE3 for b in BONES])
+    free3 = np.array([b in FREE3 for b in BONES], bool)      # (bool even when empty: a drone fits only its offset and scale)
     REG = float(C.arg("--reg", cfg["fit_reg"]))
     fix_scale = cfg["scale"] != "auto"
 
