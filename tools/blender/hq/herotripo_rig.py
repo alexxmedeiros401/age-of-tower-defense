@@ -379,6 +379,30 @@ def main():
         dst.objects = ["HeroLow"]
     low = dst.objects[0]
     lm = low.data
+    # cfg "hard_cuts" (off by default): [{"co": [x, y, z], "no": [nx, ny, nz], "within": shapes}, ...] (load frame):
+    # the low mesh is cut along each plane (faces whose middle lies within the shapes) before anything else, so a
+    # machine's parts can be split along a straight line at a joint instead of a zigzag of decimated faces whose
+    # slivers stick out when the part turns (the Ironclad's knees, hips and elbows). UVs are interpolated.
+    if CFG.get("hard_cuts"):
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        ncut = 0
+        for hc in CFG["hard_cuts"]:
+            co = load_to_final(hc["co"])[0]
+            no = np.array(hc["no"], float)                         # (a direction: the frames differ by scale/offset only)
+            fc = np.array([list(f.calc_center_median()) for f in bm_.faces])
+            inw = C.shapes(C.to_game(C.from_game(fc, XF), XF0), hc["within"])
+            fs = [f for f, k in zip(bm_.faces, inw) if k]
+            if not fs:
+                continue
+            geom = list({v for f in fs for v in f.verts}) + list({e for f in fs for e in f.edges}) + fs
+            r = bmesh.ops.bisect_plane(bm_, geom=geom, plane_co=co.tolist(), plane_no=no.tolist(), dist=1e-5)
+            ncut += len([g for g in r["geom_cut"] if isinstance(g, bmesh.types.BMEdge)])
+        bmesh.ops.triangulate(bm_, faces=[f for f in bm_.faces if len(f.verts) > 3])
+        bm_.to_mesh(lm)
+        bm_.free()
+        lm.update()
+        log("hard cuts: %d planes, %d new edges; low mesh now %d faces" % (len(CFG["hard_cuts"]), ncut, len(lm.polygons)))
     nv = len(lm.vertices)
     P = np.zeros(nv * 3)
     lm.vertices.foreach_get("co", P)
@@ -1065,6 +1089,27 @@ def main():
             # (votes by shared edge length; across a concave crease, where one part meets another, a vote counts 0.1),
             # so the line between two parts follows the crease instead of zigzagging over a fused surface
             bm_.faces.ensure_lookup_table()
+            # cfg "hard_by_centre" (off by default): each armour entry also claims, for its first bone, every face whose
+            # middle lies in its shapes (colour tests on the baked albedo at the face's UV middle), so a part line laid
+            # on a hard_cuts plane stays straight (by the corners' majority, faces along the cut alternate: a sawtooth)
+            if CFG.get("hard_by_centre") and CFG["armour"]:
+                ul_ = bm_.loops.layers.uv.active
+                fis = [fi for fi in fb]
+                fc = np.array([list(bm_.faces[fi].calc_center_median()) for fi in fis])
+                fu = np.array([np.mean([lp[ul_].uv[:] for lp in bm_.faces[fi].loops], 0) for fi in fis])
+                S_ = alb.shape[0]
+                fcol = alb[np.clip(((1 - fu[:, 1]) * S_).astype(int), 0, S_ - 1), np.clip((fu[:, 0] * S_).astype(int), 0, S_ - 1)]
+                Pl_ = C.to_game(C.from_game(fc - np.array((0, 0, dz)), XF), XF0)
+                nby = 0
+                for spec in CFG["armour"]:
+                    m_ = C.shapes(Pl_, spec["select"], fcol)
+                    if "within" in spec:
+                        m_ &= C.shapes(Pl_, spec["within"], fcol)
+                    gi = old.vertex_groups[list(spec["bones"])[0]].index
+                    for k_ in np.nonzero(m_)[0]:
+                        fb[fis[k_]] = gi
+                    nby += int(m_.sum())
+                log("hard split: %d faces placed by their middle (armour shapes)" % nby)
             for _ in range(int(CFG.get("hard_smooth", 0))):
                 nfb = {}
                 for fi, b in fb.items():
@@ -1137,6 +1182,25 @@ def main():
             for f in bm_.faces:
                 f[fl] = fb_by_face.get(f.index, -1)
             bmesh.ops.split_edges(bm_, edges=cut)
+            # parts that touch only at a corner still share that vertex (the edge split can't part them): each face
+            # whose bone is not the vertex's majority bone gets its own copy, so no face stretches into a spike
+            nsep = 0
+            for v in list(bm_.verts):
+                if not v.is_valid:
+                    continue
+                cnt_ = {}
+                for f in v.link_faces:
+                    cnt_[f[fl]] = cnt_.get(f[fl], 0) + 1
+                if len(cnt_) < 2:
+                    continue
+                b0 = max(cnt_, key=cnt_.get)
+                for f in [f for f in v.link_faces if f[fl] != b0]:
+                    if len(v.link_faces) < 2:
+                        break
+                    bmesh.utils.face_vert_separate(f, v)
+                    nsep += 1
+            if nsep:
+                log("hard split: %d corner vertices parted" % nsep)
             nre = 0
             for v in bm_.verts:
                 bs_ = {f[fl] for f in v.link_faces}

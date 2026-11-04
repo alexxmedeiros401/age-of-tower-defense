@@ -108,6 +108,8 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `fit_pose` | true | false: bind the Tripo mesh as it stands on the rest pose (the fit's scale and offset kept, its bone turns dropped): nothing is un-posed, so fused machine parts don't crack open at rest |
 | `sole_snap` | true | false: don't move the body onto the old soles (a drone has none) |
 | `no_patch` | none | shapes (load frame): holes whose loop centre lies inside are left open (the Shield Bot's frame round its cut-away glass, filled by the old GlowShieldPanel that the game shows and hides; the panel is put there with `glows.box`) |
+| `hard_cuts` | off | `[{"co", "no", "within"}]` (load frame): the low mesh is cut along each plane (faces whose middle lies within `within`) before rigging, so a machine's part line at a joint is a straight edge, not a zigzag of decimated slivers that poke out when the part turns (the Ironclad's knees, ankles, elbows, wrists) |
+| `hard_by_centre` | false | ("faces" split) each `armour` entry also claims, for its first bone, every face whose middle lies in its shapes (colour tests on the baked albedo), so the part lines follow the `hard_cuts` planes exactly (corner majority leaves a sawtooth along a cut) |
 | `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |

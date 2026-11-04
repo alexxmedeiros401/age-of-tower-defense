@@ -14,7 +14,7 @@
  "fit_pose": false,
  "orphan_nearest": true,
  "hard_split": "faces",
- "hard_smooth": 6,
+ "hard_smooth": 10,
  "hard_min_island": 40,
  "tris": 15000,
  "head_share": 0.12,
@@ -83,6 +83,208 @@
    ],
    "bones": {
     "hand.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "lower_leg_L",
+   "select": [
+    [
+     [
+      0.15,
+      0.8
+     ],
+     [
+      -0.5,
+      0.4
+     ],
+     [
+      0.3,
+      1.06
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "lower_leg_R",
+   "select": [
+    [
+     [
+      -0.8,
+      -0.15
+     ],
+     [
+      -0.5,
+      0.4
+     ],
+     [
+      0.3,
+      1.06
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_L",
+   "select": [
+    [
+     [
+      0.15,
+      0.8
+     ],
+     [
+      -0.6,
+      0.5
+     ],
+     [
+      -0.1,
+      0.235
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_L",
+   "select": [
+    [
+     [
+      0.15,
+      0.8
+     ],
+     [
+      -0.5,
+      0.4
+     ],
+     [
+      1.06,
+      1.27
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_R",
+   "select": [
+    [
+     [
+      -0.8,
+      -0.15
+     ],
+     [
+      -0.6,
+      0.5
+     ],
+     [
+      -0.1,
+      0.235
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_R",
+   "select": [
+    [
+     [
+      -0.8,
+      -0.15
+     ],
+     [
+      -0.5,
+      0.4
+     ],
+     [
+      1.06,
+      1.27
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_low_L",
+   "select": [
+    {
+     "box": [
+      [
+       0.15,
+       0.8
+      ],
+      [
+       -0.5,
+       0.4
+      ],
+      [
+       0.86,
+       1.07
+      ]
+     ],
+     "col": {
+      "max": [
+       0.42,
+       0.42,
+       0.45
+      ]
+     }
+    }
+   ],
+   "bones": {
+    "thigh.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_low_R",
+   "select": [
+    {
+     "box": [
+      [
+       -0.8,
+       -0.15
+      ],
+      [
+       -0.5,
+       0.4
+      ],
+      [
+       0.86,
+       1.07
+      ]
+     ],
+     "col": {
+      "max": [
+       0.42,
+       0.42,
+       0.45
+      ]
+     }
+    }
+   ],
+   "bones": {
+    "thigh.R": 1.0
    },
    "seam_rings": 0
   }
