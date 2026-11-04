@@ -267,5 +267,9 @@
    ]
   ]
  },
- "armour": []
+ "armour": [],
+ "fit_hold": [
+  "upperarm.R",
+  "forearm.R"
+ ]
 }
