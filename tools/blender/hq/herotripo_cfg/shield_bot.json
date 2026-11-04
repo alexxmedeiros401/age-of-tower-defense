@@ -114,29 +114,6 @@
     "hand.L": 1.0
    },
    "seam_rings": 0
-  },
-  {
-   "name": "antenna",
-   "select": [
-    [
-     [
-      -0.3,
-      -0.15
-     ],
-     [
-      -0.1,
-      0.1
-     ],
-     [
-      1.2,
-      1.4
-     ]
-    ]
-   ],
-   "bones": {
-    "antenna": 1.0
-   },
-   "seam_rings": 0
   }
  ],
  "emissive": [

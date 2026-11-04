@@ -5,5 +5,459 @@
   "Fly"
  ],
  "tex": 1024,
- "yaw": 270
+ "yaw": 270,
+ "props": [
+  {
+   "name": "rotor.FL",
+   "bone": "rotor.FL",
+   "region": {
+    "c": [
+     0.292,
+     -0.201,
+     0.895
+    ],
+    "r": 0.165
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.292,
+       -0.201,
+       0.895
+      ],
+      "r": 0.138
+     }
+    },
+    {
+     "box": [
+      [
+       0.09199999999999997,
+       0.492
+      ],
+      [
+       -0.401,
+       -0.0010000000000000009
+      ],
+      [
+       0.6,
+       0.87
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      0.292,
+      -0.201,
+      0.895
+     ],
+     [
+      0.292,
+      -0.201,
+      0.995
+     ]
+    ],
+    "to": [
+     "bone:rotor.FL.head",
+     "bone:rotor.FL.tail"
+    ],
+    "scale": "keep"
+   },
+   "sinks": [
+    [
+     [
+      0.09199999999999997,
+      0.492
+     ],
+     [
+      -0.401,
+      -0.0010000000000000009
+     ],
+     [
+      0.6,
+      0.855
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "rotor.FR",
+   "bone": "rotor.FR",
+   "region": {
+    "c": [
+     -0.289,
+     -0.189,
+     0.911
+    ],
+    "r": 0.165
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.289,
+       -0.189,
+       0.911
+      ],
+      "r": 0.138
+     }
+    },
+    {
+     "box": [
+      [
+       -0.489,
+       -0.08899999999999997
+      ],
+      [
+       -0.389,
+       0.01100000000000001
+      ],
+      [
+       0.6,
+       0.886
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      -0.289,
+      -0.189,
+      0.911
+     ],
+     [
+      -0.289,
+      -0.189,
+      1.0110000000000001
+     ]
+    ],
+    "to": [
+     "bone:rotor.FR.head",
+     "bone:rotor.FR.tail"
+    ],
+    "scale": "keep"
+   },
+   "sinks": [
+    [
+     [
+      -0.489,
+      -0.08899999999999997
+     ],
+     [
+      -0.389,
+      0.01100000000000001
+     ],
+     [
+      0.6,
+      0.871
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "rotor.BL",
+   "bone": "rotor.BL",
+   "region": {
+    "c": [
+     0.303,
+     0.235,
+     0.906
+    ],
+    "r": 0.165
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.303,
+       0.235,
+       0.906
+      ],
+      "r": 0.138
+     }
+    },
+    {
+     "box": [
+      [
+       0.10299999999999998,
+       0.503
+      ],
+      [
+       0.034999999999999976,
+       0.435
+      ],
+      [
+       0.6,
+       0.881
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      0.303,
+      0.235,
+      0.906
+     ],
+     [
+      0.303,
+      0.235,
+      1.006
+     ]
+    ],
+    "to": [
+     "bone:rotor.BL.head",
+     "bone:rotor.BL.tail"
+    ],
+    "scale": "keep"
+   },
+   "sinks": [
+    [
+     [
+      0.10299999999999998,
+      0.503
+     ],
+     [
+      0.034999999999999976,
+      0.435
+     ],
+     [
+      0.6,
+      0.866
+     ]
+    ]
+   ]
+  },
+  {
+   "name": "rotor.BR",
+   "bone": "rotor.BR",
+   "region": {
+    "c": [
+     -0.254,
+     0.246,
+     0.929
+    ],
+    "r": 0.165
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.254,
+       0.246,
+       0.929
+      ],
+      "r": 0.138
+     }
+    },
+    {
+     "box": [
+      [
+       -0.454,
+       -0.05399999999999999
+      ],
+      [
+       0.045999999999999985,
+       0.446
+      ],
+      [
+       0.6,
+       0.904
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      -0.254,
+      0.246,
+      0.929
+     ],
+     [
+      -0.254,
+      0.246,
+      1.0290000000000001
+     ]
+    ],
+    "to": [
+     "bone:rotor.BR.head",
+     "bone:rotor.BR.tail"
+    ],
+    "scale": "keep"
+   },
+   "sinks": [
+    [
+     [
+      -0.454,
+      -0.05399999999999999
+     ],
+     [
+      0.045999999999999985,
+      0.446
+     ],
+     [
+      0.6,
+      0.889
+     ]
+    ]
+   ]
+  }
+ ],
+ "body_bones": [
+  "arm.L",
+  "tool.L",
+  "arm.R",
+  "tool.R",
+  "eye",
+  "lens"
+ ],
+ "tris": 7500,
+ "head_share": 0.0,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "sole_snap": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_weights": [
+  [
+   "root",
+   "arm.L",
+   "tool.L",
+   "arm.R",
+   "tool.R",
+   "eye",
+   "lens"
+  ]
+ ],
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 30,
+ "emissive": [
+  {
+   "name": "eye",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.3,
+       0.82
+      ],
+      "r": 0.08
+     }
+    }
+   ],
+   "hue": [
+    85,
+    160
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.4,
+   "strength": 2.3
+  },
+  {
+   "name": "lens",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.08,
+       0.6
+      ],
+      "r": 0.08
+     }
+    }
+   ],
+   "hue": [
+    85,
+    160
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.4,
+   "strength": 2.3
+  },
+  {
+   "name": "torch",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.22,
+       -0.4,
+       0.46
+      ],
+      "r": 0.06
+     }
+    }
+   ],
+   "hue": [
+    85,
+    160
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.4,
+   "strength": 2.3
+  }
+ ],
+ "glows": {
+  "GlowEye": {
+   "hide": true
+  },
+  "GlowFlame": {
+   "hide": true
+  },
+  "GlowLens": {
+   "hide": true
+  },
+  "GlowLights": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Fly": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Fly",
+   12
+  ],
+  [
+   "Fly",
+   36
+  ]
+ ],
+ "fit_fixed_xf": "manual: rotor centres scaled onto the rotor bones (fit.json xf written by hand)"
 }
