@@ -899,6 +899,46 @@
    "loose_to": 3000
   },
   {
+   "name": "brace",
+   "bone": "frame",
+   "within": "frame",
+   "region": [
+    [
+     0.0,
+     0.3
+    ],
+    [
+     0.36,
+     0.7
+    ],
+    [
+     0.27,
+     0.8
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.05,
+      0.25
+     ],
+     [
+      0.38,
+      0.66
+     ],
+     [
+      0.3,
+      0.77
+     ]
+    ]
+   ],
+   "keep": "all",
+   "tris": 300,
+   "place": {
+    "like": "winch"
+   }
+  },
+  {
    "name": "basket",
    "bone": "frame",
    "within": "frame",
@@ -1196,5 +1236,53 @@
     10
    ]
   ]
- }
+ },
+ "armour": [
+  {
+   "name": "bracer_L",
+   "select": [
+    [
+     [
+      0.6,
+      0.8
+     ],
+     [
+      0.86,
+      1.1
+     ],
+     [
+      0.84,
+      1.0
+     ]
+    ]
+   ],
+   "bones": {
+    "forearm.L": 1.0
+   },
+   "seam_rings": 2
+  },
+  {
+   "name": "bracer_R",
+   "select": [
+    [
+     [
+      0.08,
+      0.28
+     ],
+     [
+      0.56,
+      0.76
+     ],
+     [
+      0.95,
+      1.1
+     ]
+    ]
+   ],
+   "bones": {
+    "forearm.R": 1.0
+   },
+   "seam_rings": 2
+  }
+ ]
 }
