@@ -1,0 +1,41 @@
+# Drive fetch jobs: Claude pushes a branch named drive-jobs/<name> with drive_job.json at its root (see tools/drive/drive_fetch.py).
+# The files are attached as <name>.zip to the draft release art-builds.
+name: Drive fetch
+
+on:
+  push:
+    branches: ["drive-jobs/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  drive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            drive_job.json
+            tools/drive
+          sparse-checkout-cone-mode: false
+      - name: Fetch the Drive files
+        run: python3 tools/drive/drive_fetch.py drive_job.json "$RUNNER_TEMP/out"
+      - name: Attach the results to the draft release art-builds
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NAME="${GITHUB_REF_NAME#drive-jobs/}"
+          [ -d "$RUNNER_TEMP/out" ] || { echo "no output"; exit 0; }
+          (cd "$RUNNER_TEMP/out" && zip -qr "$RUNNER_TEMP/$NAME.zip" .)
+          rid=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name=="art-builds")] | sort_by(.created_at) | .[-1].id // empty')
+          [ -n "$rid" ] || { echo "no draft release art-builds"; exit 1; }
+          for a in $(gh api --paginate "repos/$GITHUB_REPOSITORY/releases/$rid/assets?per_page=100" --jq ".[] | select(.name==\"$NAME.zip\") | .id"); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$a"
+          done
+          curl -sS --fail -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/zip" \
+            --data-binary "@$RUNNER_TEMP/$NAME.zip" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$rid/assets?name=$NAME.zip" > /dev/null
+          echo "attached $NAME.zip"
