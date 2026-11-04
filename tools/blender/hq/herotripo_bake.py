@@ -222,6 +222,31 @@ def decimate(src, target, name, bias=None):
     bpy.data.meshes.remove(old)
     ob = bpy.data.objects.new(name, me)
     bpy.context.scene.collection.objects.link(ob)
+    if CFG.get("decimate_retry") and bias is None:
+        # cfg "decimate_retry" (off by default): when the collapse stalls far above the target (the Onager's frame and
+        # windlass: 1.13M faces in, 1.12M out), weld more loosely and collapse again, up to three passes
+        for dist in (1e-4, 5e-4, 2e-3):
+            if len(me.polygons) <= 1.5 * target:
+                break
+            bm = bmesh.new()
+            bm.from_mesh(me)
+            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+            bmesh.ops.dissolve_degenerate(bm, dist=dist * 0.1, edges=bm.edges)
+            bmesh.ops.triangulate(bm, faces=bm.faces)
+            bm.to_mesh(me)
+            bm.free()
+            m2 = ob.modifiers.new("Dec2", "DECIMATE")
+            m2.decimate_type = "COLLAPSE"
+            m2.ratio = min(1.0, target / max(len(me.polygons), 1))
+            m2.use_collapse_triangulate = True
+            dg = bpy.context.evaluated_depsgraph_get()
+            me2 = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+            ob.modifiers.remove(m2)
+            old2 = ob.data
+            ob.data = me2
+            bpy.data.meshes.remove(old2)
+            me = me2
+            log("decimate %s: retry (weld %.0e) -> %d tris" % (name, dist, len(me.polygons)))
     for p in me.polygons:
         p.use_smooth = True
     for a in [a.name for a in me.attributes if a.name in ("pcol", "prm")]:
