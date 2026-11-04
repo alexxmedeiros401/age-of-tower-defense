@@ -1,0 +1,211 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/shield_bot.glb",
+ "armature": "ShieldBotRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "props": [
+  {
+   "name": "glass",
+   "bone": "hand.L",
+   "region": [
+    [
+     -0.062,
+     0.252
+    ],
+    [
+     -0.4,
+     -0.33
+    ],
+    [
+     0.452,
+     0.94
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.045,
+      0.238
+     ],
+     [
+      -0.4,
+      -0.33
+     ],
+     [
+      0.468,
+      0.925
+     ]
+    ]
+   ],
+   "drop": true,
+   "keep": "all"
+  }
+ ],
+ "no_patch": [
+  [
+   [
+    0.0,
+    0.2
+   ],
+   [
+    -0.42,
+    -0.3
+   ],
+   [
+    0.5,
+    0.9
+   ]
+  ]
+ ],
+ "tris": 8000,
+ "head_share": 0.18,
+ "face_boost": 1.4,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "head_rigid_above": 9.0,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "head",
+   "antenna",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "armour": [
+  {
+   "name": "shield_frame",
+   "select": [
+    [
+     [
+      -0.11,
+      0.3
+     ],
+     [
+      -0.43,
+      -0.29
+     ],
+     [
+      0.39,
+      1.0
+     ]
+    ]
+   ],
+   "bones": {
+    "hand.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "antenna",
+   "select": [
+    [
+     [
+      -0.3,
+      -0.15
+     ],
+     [
+      -0.1,
+      0.1
+     ],
+     [
+      1.2,
+      1.4
+     ]
+    ]
+   ],
+   "bones": {
+    "antenna": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "emissive": [
+  {
+   "name": "cyan_lights",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    165,
+    205
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.45,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowAntennaTip": {
+   "hide": true
+  },
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowEmitter": {
+   "hide": true
+  },
+  "GlowNodes": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  },
+  "GlowShieldPanel": {
+   "box": [
+    [
+     0.121,
+     0.452
+    ],
+    [
+     -0.418,
+     -0.408
+    ],
+    [
+     0.55,
+     1.081
+    ]
+   ]
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   3,
+   6,
+   9,
+   12,
+   15,
+   18,
+   21
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   6
+  ],
+  [
+   "Walk",
+   18
+  ]
+ ]
+}

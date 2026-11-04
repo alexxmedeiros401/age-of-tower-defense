@@ -1,0 +1,9 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/repair_drone.glb",
+ "armature": "RepairDroneRig",
+ "clips": [
+  "Fly"
+ ],
+ "tex": 1024,
+ "yaw": 270
+}

@@ -245,6 +245,11 @@ def main():
             print("[patch] %s: bridged loops %d and %d (gap %.3f): %d inner points, %d tris" % (nm, len(lps[i]), len(lps[j]), pairs[0][0] * xf_s, len(r[1]), len(r[2])))
             lps = [l for k_, l in enumerate(lps) if k_ not in (i, j)]
         for lp in lps:
+            # cfg "no_patch" (shapes, load frame; default none): a hole whose loop centre lies inside is left open (the
+            # Shield Bot's frame round its cut-away glass: the old GlowShieldPanel, which the game shows and hides, fills it)
+            if cfg.get("no_patch") and C.shapes(C.to_game(Pw[np.array(lp)].mean(0, keepdims=True), C.load_xf(W, fitted=False)), cfg["no_patch"])[0]:
+                print("[patch] %s: loop %d left open (no_patch)" % (nm, len(lp)))
+                continue
             r = patch(lp, mask, Lb, vuv)
             res.append(r)
             print("[patch] %s: loop %d, %d inner points, %d tris, colour %s" % (nm, len(lp), len(r[1]), len(r[2]), (r[3].mean(0) * 255).round()))

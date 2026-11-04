@@ -1,0 +1,10 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/siege_crawler.glb",
+ "armature": "SiegeCrawlerRig",
+ "clips": [
+  "Walk",
+  "Summon"
+ ],
+ "tex": 2048,
+ "yaw": 270
+}
