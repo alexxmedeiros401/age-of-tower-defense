@@ -6,5 +6,196 @@
   "Summon"
  ],
  "tex": 2048,
- "yaw": 270
+ "yaw": 270,
+ "body_bones": [
+  "thigh.L1",
+  "thigh.L2",
+  "thigh.L3",
+  "thigh.R1",
+  "thigh.R2",
+  "thigh.R3",
+  "shin.L1",
+  "shin.L2",
+  "shin.L3",
+  "shin.R1",
+  "shin.R2",
+  "shin.R3",
+  "cannon",
+  "dome",
+  "hatch"
+ ],
+ "scale": 3.261140089399324,
+ "tris": 15000,
+ "head_share": 0.0,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_weights": [
+  [
+   "root",
+   "cannon",
+   "dome",
+   "hatch",
+   "thigh.L1",
+   "thigh.L2",
+   "thigh.L3",
+   "thigh.R1",
+   "thigh.R2",
+   "thigh.R3",
+   "shin.L1",
+   "shin.L2",
+   "shin.L3",
+   "shin.R1",
+   "shin.R2",
+   "shin.R3"
+  ]
+ ],
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "emissive": [
+  {
+   "name": "dome",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      -0.5,
+      0.6
+     ],
+     [
+      1.6,
+      2.1
+     ]
+    ]
+   ],
+   "strength": 1.8,
+   "hue": [
+    165,
+    205
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.45
+  },
+  {
+   "name": "side_lights",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.9,
+      -0.6
+     ],
+     [
+      -1.0,
+      1.0
+     ],
+     [
+      1.0,
+      1.7
+     ]
+    ],
+    [
+     [
+      0.6,
+      0.9
+     ],
+     [
+      -1.0,
+      1.0
+     ],
+     [
+      1.0,
+      1.7
+     ]
+    ]
+   ],
+   "strength": 2.2,
+   "hue": [
+    165,
+    205
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.45
+  },
+  {
+   "name": "eyes",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.45,
+      0.45
+     ],
+     [
+      -1.2,
+      -0.8
+     ],
+     [
+      1.3,
+      1.75
+     ]
+    ]
+   ],
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.5,
+   "val_min": 0.35,
+   "strength": 2.5
+  }
+ ],
+ "glows": {
+  "GlowDome": {
+   "hide": true
+  },
+  "GlowExhaust": {
+   "hide": true
+  },
+  "GlowEyes": {
+   "hide": true
+  },
+  "GlowLights": {
+   "hide": true
+  },
+  "GlowMuzzle": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Summon": [
+   12,
+   24,
+   36
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   24
+  ]
+ ]
 }
