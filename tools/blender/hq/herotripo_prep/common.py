@@ -159,9 +159,12 @@ def box(C, b):
     return (C[:, 0] > x0) & (C[:, 0] < x1) & (C[:, 1] > y0) & (C[:, 1] < y1) & (C[:, 2] > z0) & (C[:, 2] < z1)
 
 
-def shapes(C, spec, col=None):
+def shapes(C, spec, col=None, nrm=None):
     """A face mask from a list of shapes (boxes / balls), each optionally with a colour test:
-    {"box": [[..],[..],[..]], "col": {"min": [r,g,b], "max": [r,g,b]}} or a bare box/ball. Union of all."""
+    {"box": [[..],[..],[..]], "col": {"min": [r,g,b], "max": [r,g,b]}} or a bare box/ball. Union of all.
+    Optional facing test (needs nrm, the face normals; cut.py passes them): "nrm": {"dir": [x,y,z], "min": c} keeps the
+    faces whose normal . dir >= c (the Spear Guard's forearm skin that faces the back of his shield); "half": {"p", "n"}
+    keeps the faces behind that plane ((C - p) . n <= 0)."""
     m = np.zeros(len(C), bool)
     for s in spec or []:
         if isinstance(s, dict) and ("box" in s or "ball" in s):
@@ -170,6 +173,12 @@ def shapes(C, spec, col=None):
                 lo = np.array(s["col"].get("min", [0, 0, 0]), float)
                 hi = np.array(s["col"].get("max", [1, 1, 1]), float)
                 mm &= (col >= lo).all(1) & (col <= hi).all(1)
+            if "nrm" in s and nrm is not None:
+                dv = np.array(s["nrm"]["dir"], float)
+                mm &= (nrm @ (dv / np.linalg.norm(dv))) >= float(s["nrm"].get("min", 0.0))
+            if "half" in s:                          # "half": {"p": [x,y,z], "n": [x,y,z]}: only behind that plane
+                hp_, hn_ = np.array(s["half"]["p"], float), np.array(s["half"]["n"], float)
+                mm &= (C - hp_) @ hn_ <= 0
             if s.get("not"):
                 m &= ~mm
                 continue

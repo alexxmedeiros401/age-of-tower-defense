@@ -434,7 +434,8 @@
      "bone:string_top.head"
     ],
     "scale": "match",
-    "spin": -24
+    "spin": -24,
+    "hand_follow": true
    }
   },
   {
