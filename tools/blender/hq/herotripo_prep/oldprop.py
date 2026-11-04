@@ -112,6 +112,9 @@ def main():
                     rsum[idx[vi]] += sample(po, uv)[0]
                 cnt[idx[vi]] += 1
         col /= np.maximum(cnt, 1)[:, None]
+        if p.get("old_col"):                     # cfg prop "old_col": [r, g, b] (0..1), off by default: a flat colour
+            col[:] = np.array(p["old_col"], float)   # when the old albedo is no use there (the catapult's haul rope
+                                                 # sampled black)
         if po is not None:
             rmv = rsum / np.maximum(cnt, 1)[:, None]
             rmv[:, 0] = 1.0

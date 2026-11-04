@@ -138,6 +138,28 @@ def main():
         lab[cutm] = 255 if p.get("drop") else k
         P = Cg[cutm]
         print("   %s: %d faces, bbox %s .. %s" % (p["name"], cutm.sum(), P.min(0).round(3), P.max(0).round(3)))
+    # prop "loose_to": N (off by default): after every cut, each loose piece of this prop's faces other than its largest
+    # and under N faces goes to the prop whose faces it touches most (not the body), or is dropped when it touches no
+    # other prop (the catapult frame: rings of drum, spokes and basket wall left on it by the windlass and basket cuts)
+    fa_, fb_ = T["fa"], T["fb"]
+    for k, p in enumerate(cfg["props"], start=1):
+        if not p.get("loose_to"):
+            continue
+        idx, l, n = comps(T, lab == k)
+        cnt = np.bincount(l)
+        big = np.argmax(cnt)
+        moved = {}
+        pid = np.full(nf, -1)
+        pid[idx] = l
+        for pc in np.nonzero((cnt < int(p["loose_to"])) & (np.arange(n) != big))[0]:
+            fm = pid == pc
+            e = fm[fa_] ^ fm[fb_]
+            nb = np.r_[lab[fb_[e & fm[fa_]]], lab[fa_[e & fm[fb_]]]]
+            nb = nb[(nb != 0) & (nb != k) & (nb != 255)]
+            to = int(np.bincount(nb).argmax()) if len(nb) else 255
+            lab[fm] = to
+            moved[to] = moved.get(to, 0) + int(fm.sum())
+        print("[cut] %s: loose pieces moved %s" % (p["name"], {(names[t - 1] if t != 255 else "dropped"): c for t, c in moved.items()}))
     idx, l, n = comps(T, lab == 0)
     cnt = np.bincount(l)
     small = cnt[l] < 200
