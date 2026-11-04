@@ -397,7 +397,8 @@
     ],
     "scale": "match",
     "spin": -10,
-    "hand_follow": true
+    "hand_follow": true,
+    "hand": "hand.R"
    }
   }
  ],
@@ -453,5 +454,8 @@
     14
    ]
   ]
- }
+ },
+ "twist_bones": [
+  "R"
+ ]
 }

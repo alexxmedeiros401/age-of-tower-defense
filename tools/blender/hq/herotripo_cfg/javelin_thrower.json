@@ -225,7 +225,8 @@
      -0.1,
      0.85
     ],
-    "hand_follow": true
+    "hand_follow": true,
+    "hand": "hand.R"
    }
   }
  ],
@@ -287,5 +288,8 @@
    -0.12,
    1.0
   ]
- }
+ },
+ "twist_bones": [
+  "R"
+ ]
 }
