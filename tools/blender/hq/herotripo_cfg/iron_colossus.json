@@ -1,0 +1,247 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/iron_colossus.glb",
+ "armature": "IronColossusRig",
+ "clips": [
+  "Walk",
+  "Summon",
+  "Emp"
+ ],
+ "tex": 2048,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "head_rigid_above": 9.0,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "tris": 15000,
+ "head_share": 0.12,
+ "face_boost": 1.4,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R",
+   "furnace"
+  ]
+ ],
+ "armour": [
+  {
+   "name": "fist_L",
+   "select": [
+    [
+     [
+      0.78,
+      1.45
+     ],
+     [
+      -0.7,
+      0.6
+     ],
+     [
+      0.85,
+      1.42
+     ]
+    ]
+   ],
+   "bones": {
+    "hand.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "fist_R",
+   "select": [
+    [
+     [
+      -1.38,
+      -0.72
+     ],
+     [
+      -0.7,
+      0.6
+     ],
+     [
+      0.85,
+      1.42
+     ]
+    ]
+   ],
+   "bones": {
+    "hand.R": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "emissive": [
+  {
+   "name": "coil_tip",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.15,
+      0.2
+     ],
+     [
+      -0.1,
+      0.3
+     ],
+     [
+      2.9,
+      3.15
+     ]
+    ]
+   ],
+   "hue": [
+    160,
+    215
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.4,
+   "strength": 2.5
+  },
+  {
+   "name": "eye",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.12,
+      0.2
+     ],
+     [
+      -0.7,
+      -0.2
+     ],
+     [
+      2.42,
+      2.6
+     ]
+    ]
+   ],
+   "hue": [
+    340,
+    25
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  },
+  {
+   "name": "furnace",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.03,
+       -0.55,
+       2.0
+      ],
+      "r": 0.32
+     }
+    }
+   ],
+   "hue": [
+    5,
+    60
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.4,
+   "strength": 2.2
+  },
+  {
+   "name": "stacks",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.7,
+      0.75
+     ],
+     [
+      0.2,
+      0.8
+     ],
+     [
+      3.08,
+      3.3
+     ]
+    ]
+   ],
+   "hue": [
+    5,
+    50
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.35,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowCoilTip": {
+   "hide": true
+  },
+  "GlowEye": {
+   "hide": true
+  },
+  "GlowFurnace": {
+   "hide": true
+  },
+  "GlowStackGlow": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Summon": [
+   12,
+   24,
+   36
+  ],
+  "Emp": [
+   6,
+   9,
+   18
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Emp",
+   9
+  ]
+ ]
+}

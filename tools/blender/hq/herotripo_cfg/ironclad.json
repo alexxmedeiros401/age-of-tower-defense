@@ -1,0 +1,99 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/ironclad.glb",
+ "armature": "IroncladRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "head_rigid_above": 9.0,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "tris": 8000,
+ "head_share": 0.12,
+ "face_boost": 1.4,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "visor",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.07,
+      0.17
+     ],
+     [
+      -0.4,
+      -0.05
+     ],
+     [
+      1.05,
+      1.115
+     ]
+    ]
+   ],
+   "hue": [
+    340,
+    40
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.3,
+   "strength": 2.5
+  }
+ ],
+ "glows": {
+  "GlowVents": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   4,
+   8,
+   12,
+   16,
+   20,
+   24,
+   28
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   8
+  ],
+  [
+   "Walk",
+   24
+  ]
+ ]
+}
