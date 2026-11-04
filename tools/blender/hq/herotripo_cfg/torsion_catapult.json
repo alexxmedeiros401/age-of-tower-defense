@@ -1,0 +1,5 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/towers/torsion_catapult.glb",
+ "clips": ["Idle", "Combat", "Attack"],
+ "tris": 20000
+}
