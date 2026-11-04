@@ -116,8 +116,8 @@ def main():
         if p.get("within"):
             parent = names.index(p["within"]) + 1
         region &= lab == parent
-        src = region & C.shapes(Cg, p.get("seeds"), col)
-        sink = region & C.shapes(Cg, p.get("sinks"), col)
+        src = region & C.shapes(Cg, p.get("seeds"), col, T["N"])
+        sink = region & C.shapes(Cg, p.get("sinks"), col, T["N"])
         if not p.get("within"):
             mg = p.get("margin", 0.012)
             if isinstance(p["region"], dict):            # a ball region ({"c", "r"}): its skin is the outer shell
