@@ -711,6 +711,32 @@ def main():
                         du = np.where(u < t0, 0.0, np.where(u > t1, -(1 - k) * (t1 - t0), -(1 - k) * (u - t0)))
                     Y = Y + du[:, None] * d_
                 return a + off + Y
+            if pl.get("bend"):
+                # place "bend" (off by default): {"tips": [[load pt, target], ...], "blend": m}: after the placement,
+                # each limb (the side of the anchor a its tip lies on) is turned about a and scaled along so its tip
+                # lands on its target, fading in over `blend` from a (the Cretan Archer's recurve bow: its limbs meet
+                # at 151 deg, the old bow's string tips at 173 deg from the fist)
+                f_rigid = f
+                bend_ = []
+                for tp_, tg_ in pl["bend"]["tips"]:
+                    T0 = f_rigid(load_to_final(tp_))[0] - (a + off)
+                    T1 = target_point(tg_, bones) - (a + off)
+                    Rb = Rot.from_matrix(rot_between(T0, T1)).as_rotvec()
+                    bend_.append((nrm(T0), Rb, np.linalg.norm(T1) / np.linalg.norm(T0)))
+                bl_ = float(pl["bend"].get("blend", 0.1))
+                def f(X, f_rigid=f_rigid, bend_=bend_, bl_=bl_, a=a, off=off):
+                    Y = f_rigid(X) - (a + off)
+                    out = Y.copy()
+                    for u_, rv_, k_ in bend_:
+                        t_ = Y @ u_
+                        w_ = np.clip(t_ / bl_, 0, 1)
+                        w_ = w_ * w_ * (3 - 2 * w_)
+                        m_ = w_ > 0
+                        if m_.any():
+                            Rk_ = Rot.from_rotvec(w_[m_, None] * rv_[None]).as_matrix()
+                            out[m_] = (1 + w_[m_, None] * (k_ - 1)) * np.einsum("nij,nj->ni", Rk_, Y[m_])
+                    return a + off + out
+                log("prop %s: bent, limbs %s" % (p["name"], [(round(float(np.degrees(np.linalg.norm(r))), 1), round(float(k), 3)) for _, r, k in bend_]))
             log("prop %s: %s -> %s, scale %.3f, turned %.1f deg%s" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
                 np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec())), ", stretched x%.2f over %s" % (k_st, st) if st else ""))
             if pl.get("hand_follow"):

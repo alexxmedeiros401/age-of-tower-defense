@@ -384,47 +384,53 @@
      ]
     ]
    ],
-   "drop": true
-  },
-  {
-   "name": "bow_old",
-   "bone": "hand.L",
-   "source": "old",
-   "place": "fit",
-   "tris": 900,
-   "select": [
-    [
+   "bridge": true,
+   "place": {
+    "mode": "points",
+    "from": [
      [
-      0.6,
-      0.82
+      0.53,
+      -0.06,
+      0.92
      ],
      [
-      -0.6,
-      0.65
-     ],
-     [
-      0.66,
-      1.02
+      0.42,
+      -0.16,
+      1.42
      ]
     ],
-    {
-     "box": [
+    "to": [
+     [
+      0.702,
+      0.016,
+      0.814
+     ],
+     "bone:string_top.head"
+    ],
+    "scale": "keep",
+    "hand_follow": true,
+    "bend": {
+     "tips": [
       [
-       0.66,
-       0.81
+       [
+        0.42,
+        -0.16,
+        1.42
+       ],
+       "bone:string_top.head"
       ],
       [
-       -0.115,
-       0.15
-      ],
-      [
-       0.69,
-       0.88
+       [
+        0.405,
+        0.04,
+        0.52
+       ],
+       "bone:string_bot.head"
       ]
      ],
-     "not": true
+     "blend": 0.12
     }
-   ]
+   }
   },
   {
    "name": "string_top",
@@ -465,7 +471,7 @@
   ]
  ],
  "closeup_frames": {
-  "bow_old": [
+  "bow": [
    [
     "Idle",
     30
