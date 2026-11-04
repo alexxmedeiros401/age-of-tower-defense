@@ -1,5 +1,273 @@
 {
  "old": "/home/claude/age-of-tower-defense/assets/towers/oracle.glb",
- "clips": ["Idle", "Combat", "Attack"],
- "tris": 20000
+ "clips": [
+  "Idle",
+  "Combat",
+  "Attack"
+ ],
+ "tris": 20000,
+ "yaw": 270,
+ "props": [
+  {
+   "name": "laurel",
+   "bone": "hand.R",
+   "keep": "all",
+   "bridge": true,
+   "region": [
+    [
+     -1.12,
+     -0.72
+    ],
+    [
+     -0.3,
+     0.3
+    ],
+    [
+     0.85,
+     1.62
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -1.1,
+      -0.74
+     ],
+     [
+      -0.28,
+      0.28
+     ],
+     [
+      1.2,
+      1.6
+     ]
+    ],
+    [
+     [
+      -1.0,
+      -0.8
+     ],
+     [
+      -0.2,
+      0.2
+     ],
+     [
+      0.87,
+      0.98
+     ]
+    ]
+   ],
+   "sinks": [
+    {
+     "box": [
+      [
+       -1.0,
+       -0.72
+      ],
+      [
+       -0.3,
+       0.3
+      ],
+      [
+       0.98,
+       1.18
+      ]
+     ],
+     "col": {
+      "min": [
+       0.65,
+       0.4,
+       0.25
+      ]
+     }
+    }
+   ],
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      -0.966,
+      -0.099,
+      1.102
+     ],
+     [
+      -0.9,
+      -0.112,
+      1.494
+     ]
+    ],
+    "to": [
+     [
+      -0.651,
+      -0.008,
+      0.769
+     ],
+     [
+      -0.621,
+      -0.473,
+      0.903
+     ]
+    ],
+    "scale": "keep",
+    "hand_follow": true
+   }
+  },
+  {
+   "name": "tripod",
+   "bone": "props",
+   "keep": "all",
+   "region": [
+    [
+     -0.12,
+     0.46
+    ],
+    [
+     -0.26,
+     0.46
+    ],
+    [
+     -0.03,
+     1.08
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.08,
+      0.44
+     ],
+     [
+      -0.24,
+      0.44
+     ],
+     [
+      0.0,
+      1.06
+     ]
+    ]
+   ],
+   "place": {
+    "mode": "points",
+    "from": [
+     [
+      0.16,
+      0.1,
+      0.0
+     ],
+     [
+      0.16,
+      0.1,
+      0.95
+     ]
+    ],
+    "to": [
+     "bone:props.head",
+     "bone:embers.head"
+    ],
+    "scale": "keep"
+   }
+  },
+  {
+   "name": "tripod_bits",
+   "bone": "props",
+   "mode": "pieces",
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.144,
+       -0.119,
+       0.041
+      ],
+      "r": 0.04
+     }
+    },
+    {
+     "ball": {
+      "c": [
+       -0.116,
+       0.035,
+       0.929
+      ],
+      "r": 0.03
+     }
+    }
+   ],
+   "place": {
+    "like": "tripod"
+   }
+  }
+ ],
+ "fit_recentre": true,
+ "fit_aim": {
+  "upperarm.R": [
+   -0.78,
+   0.05,
+   1.18
+  ],
+  "forearm.R": [
+   -0.88,
+   -0.05,
+   1.08
+  ],
+  "upperarm.L": [
+   -0.05,
+   0.05,
+   1.22
+  ],
+  "forearm.L": [
+   0.1,
+   -0.02,
+   1.22
+  ],
+  "hand.L": [
+   0.25,
+   -0.04,
+   1.25
+  ]
+ },
+ "fit_fixed": [
+  "thigh.L",
+  "shin.L",
+  "thigh.R",
+  "shin.R",
+  "neck",
+  "head"
+ ],
+ "twist_bones": [
+  "R"
+ ],
+ "review_frames": {
+  "Attack": [
+   8,
+   14,
+   20
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Combat",
+   10
+  ],
+  [
+   "Attack",
+   14
+  ]
+ ],
+ "closeup_frames": {
+  "laurel": [
+   [
+    "Idle",
+    30
+   ],
+   [
+    "Combat",
+    10
+   ],
+   [
+    "Attack",
+    14
+   ]
+  ]
+ }
 }
