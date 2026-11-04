@@ -231,7 +231,6 @@
    "name": "bow",
    "bone": "hand.L",
    "keep": "all",
-   "bridge": true,
    "region": [
     [
      0.3,
@@ -385,28 +384,47 @@
      ]
     ]
    ],
-   "place": {
-    "mode": "points",
-    "from": [
+   "drop": true
+  },
+  {
+   "name": "bow_old",
+   "bone": "hand.L",
+   "source": "old",
+   "place": "fit",
+   "tris": 900,
+   "select": [
+    [
      [
-      0.405,
-      0.04,
-      0.52
+      0.6,
+      0.82
      ],
      [
-      0.42,
-      -0.16,
-      1.42
+      -0.6,
+      0.65
+     ],
+     [
+      0.66,
+      1.02
      ]
     ],
-    "to": [
-     "bone:string_bot.head",
-     "bone:string_top.head"
-    ],
-    "scale": "match",
-    "spin": 0,
-    "hand_follow": true
-   }
+    {
+     "box": [
+      [
+       0.66,
+       0.81
+      ],
+      [
+       -0.115,
+       0.15
+      ],
+      [
+       0.69,
+       0.88
+      ]
+     ],
+     "not": true
+    }
+   ]
   },
   {
    "name": "string_top",
@@ -447,7 +465,7 @@
   ]
  ],
  "closeup_frames": {
-  "bow": [
+  "bow_old": [
    [
     "Idle",
     30

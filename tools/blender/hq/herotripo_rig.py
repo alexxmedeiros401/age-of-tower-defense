@@ -731,7 +731,14 @@ def main():
                 mv_ = kk > 1e-4
                 Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()
                 Xn = Xb.copy()
-                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a_hand + off - Aa)
+                sh_ = a_hand + off - Aa
+                if pl.get("grip") is not None:
+                    # place "grip" (load frame, off by default): the fist follows the prop at this point, scale and
+                    # stretch included (the Cretan Archer's bow is scaled 1.17 about its lower tip: without it the
+                    # fist kept the unscaled grip and the bow slid 7 cm out of it)
+                    Gp = fit_xf(load_to_final(pl["grip"]))[0]
+                    sh_ = f(Gp[None])[0] - (Aa + (Gp - Aa) @ R.T)
+                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * sh_
                 Prest[body] = Xn
                 ax_ = nrm(rv)
                 fdir = nrm(e1 - e0)
