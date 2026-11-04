@@ -1,0 +1,251 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/hydra_swarm.glb",
+ "armature": "HydraSwarmRig",
+ "clips": [
+  "Walk",
+  "Summon"
+ ],
+ "tex": 2048,
+ "yaw": 0,
+ "body_bones": [
+  "root",
+  "b1",
+  "b2",
+  "b3",
+  "b4",
+  "b5",
+  "hive",
+  "hatch0",
+  "hatch1",
+  "hatch2",
+  "hatch3",
+  "hatch4",
+  "hatch5",
+  "f1",
+  "f2",
+  "n1C",
+  "n2C",
+  "n3C",
+  "headC",
+  "jawC",
+  "n1L",
+  "n2L",
+  "n3L",
+  "headL",
+  "jawL",
+  "n1R",
+  "n2R",
+  "n3R",
+  "headR",
+  "jawR"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "hive",
+  "hatch0",
+  "hatch1",
+  "hatch2",
+  "hatch3",
+  "hatch4",
+  "hatch5",
+  "b1",
+  "b2",
+  "b3",
+  "b4",
+  "b5",
+  "f1",
+  "f2",
+  "jawC",
+  "jawL",
+  "jawR"
+ ],
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "tris": 15000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "b1",
+   "b2",
+   "b3",
+   "b4",
+   "b5",
+   "hive",
+   "hatch0",
+   "hatch1",
+   "hatch2",
+   "hatch3",
+   "hatch4",
+   "hatch5",
+   "f1",
+   "f2",
+   "n1C",
+   "n2C",
+   "n3C",
+   "headC",
+   "jawC",
+   "n1L",
+   "n2L",
+   "n3L",
+   "headL",
+   "jawL",
+   "n1R",
+   "n2R",
+   "n3R",
+   "headR",
+   "jawR"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "eyes",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.9,
+      0.9
+     ],
+     [
+      -1.1,
+      -0.1
+     ],
+     [
+      1.25,
+      1.8
+     ]
+    ]
+   ],
+   "strength": 2.4,
+   "hue": [
+    340,
+    12
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.45
+  },
+  {
+   "name": "hive_ring",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.2,
+      1.4
+     ],
+     [
+      0.38,
+      0.52
+     ]
+    ]
+   ],
+   "strength": 2.2,
+   "hue": [
+    12,
+    30
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.6
+  },
+  {
+   "name": "beacon",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.05,
+       0.84,
+       0.98
+      ],
+      "r": 0.12
+     }
+    }
+   ],
+   "hue": [
+    35,
+    60
+   ],
+   "sat_min": 0.5,
+   "val_min": 0.85,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowBeacon": {
+   "hide": true
+  },
+  "GlowDroneEye0": {
+   "hide": true
+  },
+  "GlowDroneEye1": {
+   "hide": true
+  },
+  "GlowDroneEye2": {
+   "hide": true
+  },
+  "GlowEyesC": {
+   "hide": true
+  },
+  "GlowEyesL": {
+   "hide": true
+  },
+  "GlowEyesR": {
+   "hide": true
+  },
+  "GlowHiveGlow": {
+   "hide": true
+  },
+  "GlowThroatC": {
+   "hide": true
+  },
+  "GlowThroatL": {
+   "hide": true
+  },
+  "GlowThroatR": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Summon": [
+   12,
+   18,
+   24,
+   36
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   24
+  ]
+ ]
+}

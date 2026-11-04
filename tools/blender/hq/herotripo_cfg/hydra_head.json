@@ -1,0 +1,160 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/hydra_head.glb",
+ "armature": "HydraHeadRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "body_bones": [
+  "root",
+  "b1",
+  "b2",
+  "b3",
+  "b4",
+  "b5",
+  "pod2",
+  "pod1",
+  "pod0",
+  "f1",
+  "f2",
+  "n1",
+  "n2",
+  "n3",
+  "head",
+  "jaw"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "jaw"
+ ],
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "tris": 8000,
+ "head_share": 0.2,
+ "face_boost": 1.4,
+ "hard_weights": [
+  [
+   "root",
+   "b1",
+   "b2",
+   "b3",
+   "b4",
+   "b5",
+   "pod2",
+   "pod1",
+   "pod0",
+   "f1",
+   "f2",
+   "n1",
+   "n2",
+   "n3",
+   "head",
+   "jaw"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "eyes",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.2,
+      0.2
+     ],
+     [
+      -0.8,
+      -0.55
+     ],
+     [
+      0.86,
+      0.98
+     ]
+    ]
+   ],
+   "strength": 2.4,
+   "hue": [
+    340,
+    12
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.45
+  },
+  {
+   "name": "throat",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.08,
+      0.08
+     ],
+     [
+      -0.66,
+      -0.5
+     ],
+     [
+      0.86,
+      0.97
+     ]
+    ]
+   ],
+   "strength": 2.4,
+   "hue": [
+    12,
+    30
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.6
+  }
+ ],
+ "glows": {
+  "GlowEyes": {
+   "hide": true
+  },
+  "GlowPodEye0": {
+   "hide": true
+  },
+  "GlowPodEye1": {
+   "hide": true
+  },
+  "GlowPodEye2": {
+   "hide": true
+  },
+  "GlowThroat": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   6,
+   12,
+   18,
+   24,
+   30,
+   36,
+   42
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Walk",
+   36
+  ]
+ ]
+}
