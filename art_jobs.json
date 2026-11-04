@@ -1,0 +1,17 @@
+[
+ {
+  "name": "htD_hover_drone_cl1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htD_hover_drone_cl1; mkdir -p $O\npip install -q xatlas==0.0.11\n[ -f herotripo_in/hover_drone/tripo.glb ] || (cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/hover_drone/tripo_src.glb ../herotripo_in/hover_drone/tripo.glb)\npython3 herotripo_bake.py -- --hero hover_drone --in herotripo_in/hover_drone --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htD_hover_drone_cl1"
+ },
+ {
+  "name": "htD_hydra_head_cl1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htD_hydra_head_cl1; mkdir -p $O\npip install -q xatlas==0.0.11\n[ -f herotripo_in/hydra_head/tripo.glb ] || (cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/hydra_head/tripo_src.glb ../herotripo_in/hydra_head/tripo.glb)\npython3 herotripo_bake.py -- --hero hydra_head --in herotripo_in/hydra_head --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htD_hydra_head_cl1"
+ },
+ {
+  "name": "htD_hydra_swarm_cl1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htD_hydra_swarm_cl1; mkdir -p $O\npip install -q xatlas==0.0.11\n[ -f herotripo_in/hydra_swarm/tripo.glb ] || (cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/hydra_swarm/tripo_src.glb ../herotripo_in/hydra_swarm/tripo.glb)\npython3 herotripo_bake.py -- --hero hydra_swarm --in herotripo_in/hydra_swarm --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htD_hydra_swarm_cl1"
+ }
+]
