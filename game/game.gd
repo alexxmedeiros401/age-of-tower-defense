@@ -16194,6 +16194,12 @@ func _run_demo() -> void:
 		_hide_bars = true
 		sim.wave = 2
 		var akinds := ["walker", "walker", "brute", "walker", "walker", "carrier", "walker", "walker", "brute", "walker", "walker", "walker"]
+		for a5 in args:
+			if a5.begins_with("--kinds="):
+				# another age's robots in the column (--kinds=shield_bot,walker,...), repeated to the same length
+				var kl := a5.trim_prefix("--kinds=").split(",")
+				for i in akinds.size():
+					akinds[i] = kl[i % kl.size()]
 		sim.wave_remaining[2] = akinds.size()
 		for i in akinds.size():
 			sim._spawn_enemy(akinds[i], 2, 2.0 + i * 0.9, i % sim.paths.size())
