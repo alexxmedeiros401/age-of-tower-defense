@@ -434,7 +434,7 @@
      "bone:string_top.head"
     ],
     "scale": "match",
-    "spin": -24,
+    "spin": 0,
     "hand_follow": true
    }
   },
@@ -509,5 +509,8 @@
     12
    ]
   ]
- }
+ },
+ "twist_bones": [
+  "L"
+ ]
 }
