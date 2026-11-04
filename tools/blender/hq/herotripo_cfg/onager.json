@@ -1,0 +1,5 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/towers/onager.glb",
+ "clips": ["Idle", "Combat", "Attack"],
+ "tris": 20000
+}
