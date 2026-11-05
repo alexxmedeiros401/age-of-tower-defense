@@ -1147,6 +1147,7 @@ def main():
             # cfg "hard_by_centre" (off by default): each armour entry also claims, for its first bone, every face whose
             # middle lies in its shapes (colour tests on the baked albedo at the face's UV middle), so a part line laid
             # on a hard_cuts plane stays straight (by the corners' majority, faces along the cut alternate: a sawtooth)
+            claimed_ = {}                     # (cfg "hard_keep_claimed": armour-claimed faces stay put through smoothing)
             if CFG.get("hard_by_centre") and CFG["armour"]:
                 ul_ = bm_.loops.layers.uv.active
                 fis = [fi for fi in fb]
@@ -1163,6 +1164,8 @@ def main():
                     gi = old.vertex_groups[list(spec["bones"])[0]].index
                     for k_ in np.nonzero(m_)[0]:
                         fb[fis[k_]] = gi
+                        if CFG.get("hard_keep_claimed"):
+                            claimed_[fis[k_]] = gi
                     nby += int(m_.sum())
                 log("hard split: %d faces placed by their middle (armour shapes)" % nby)
             for _ in range(int(CFG.get("hard_smooth", 0))):
@@ -1225,6 +1228,7 @@ def main():
                     log("hard split: %d islands under %d faces merged into their neighbours" % (nre_, mi_))
                     if nre_ == 0:
                         break
+            fb.update(claimed_)
             cut = [e for e in bm_.edges if len(e.link_faces) == 2
                    and fb.get(e.link_faces[0].index, -1) != fb.get(e.link_faces[1].index, -1)
                    and (e.link_faces[0].index in fb or e.link_faces[1].index in fb)]

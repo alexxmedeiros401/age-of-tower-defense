@@ -110,12 +110,14 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `no_patch` | none | shapes (load frame): holes whose loop centre lies inside are left open (the Shield Bot's frame round its cut-away glass, filled by the old GlowShieldPanel that the game shows and hides; the panel is put there with `glows.box`) |
 | `hard_cuts` | off | `[{"co", "no", "within"}]` (load frame): the low mesh is cut along each plane (faces whose middle lies within `within`) before rigging, so a machine's part line at a joint is a straight edge, not a zigzag of decimated slivers that poke out when the part turns (the Ironclad's knees, ankles, elbows, wrists) |
 | `hard_by_centre` | false | ("faces" split) each `armour` entry also claims, for its first bone, every face whose middle lies in its shapes (colour tests on the baked albedo), so the part lines follow the `hard_cuts` planes exactly (corner majority leaves a sawtooth along a cut) |
+| `hard_keep_claimed` | false | ("faces" split, with `hard_by_centre`) faces an `armour` entry claims keep that bone through `hard_smooth` and `hard_min_island` (the Black Knight's shield and sword: smoothing flipped faces along their edges) |
 | `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
 
 **Shapes** (seeds, sinks, armour selections) are a list of boxes `[[x0,x1],[y0,y1],[z0,z1]]`, balls
-`{"ball": {"c": [x,y,z], "r": r}}`, or `{"box": ..., "col": {"min": [r,g,b], "max": [r,g,b]}}` (a test on the Tripo
+`{"ball": {"c": [x,y,z], "r": r}}`, capsules `{"seg": {"a": [x,y,z], "b": [x,y,z], "r": r}}` (a limb: the Cloaker's cape is
+a box minus capsules round its arms and legs), or `{"box": ..., "col": {"min": [r,g,b], "max": [r,g,b]}}` (a test on the Tripo
 base colour, 0..1; for armour, the baked albedo). Union of all; `"not": true` on an entry removes it.
 
 **A prop** (`props[]`, in order; label k = its 1-based index):
