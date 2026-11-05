@@ -1,0 +1,707 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/dreadnought.glb",
+ "armature": "DreadnoughtRig",
+ "clips": [
+  "Walk",
+  "Summon",
+  "Emp"
+ ],
+ "tex": 2048,
+ "yaw": 0,
+ "body_bones": [
+  "root",
+  "hull",
+  "bay",
+  "core",
+  "flash.L0",
+  "flash.L1",
+  "flash.L2",
+  "flash.L3",
+  "flash.R0",
+  "flash.R1",
+  "flash.R2",
+  "flash.R3",
+  "guns.L",
+  "guns.R",
+  "hatch.L",
+  "hatch.R",
+  "tower",
+  "spark",
+  "thigh.L",
+  "shin.L",
+  "foot.L",
+  "thigh.R",
+  "shin.R",
+  "foot.R"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "root",
+  "hull",
+  "bay",
+  "core",
+  "flash.L0",
+  "flash.L1",
+  "flash.L2",
+  "flash.L3",
+  "flash.R0",
+  "flash.R1",
+  "flash.R2",
+  "flash.R3",
+  "guns.L",
+  "guns.R",
+  "hatch.L",
+  "hatch.R",
+  "tower",
+  "spark",
+  "foot.L",
+  "foot.R"
+ ],
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "armour": [
+  {
+   "name": "thigh_L",
+   "select": [
+    [
+     [
+      0.12,
+      0.62
+     ],
+     [
+      -0.5,
+      0.5
+     ],
+     [
+      0.87,
+      1.3
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_L",
+   "select": [
+    [
+     [
+      0.12,
+      0.62
+     ],
+     [
+      -0.5,
+      0.5
+     ],
+     [
+      0.31,
+      0.87
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_L",
+   "select": [
+    [
+     [
+      0.12,
+      0.62
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      -0.1,
+      0.31
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_R",
+   "select": [
+    [
+     [
+      -0.62,
+      -0.12
+     ],
+     [
+      -0.5,
+      0.5
+     ],
+     [
+      0.87,
+      1.3
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_R",
+   "select": [
+    [
+     [
+      -0.62,
+      -0.12
+     ],
+     [
+      -0.5,
+      0.5
+     ],
+     [
+      0.31,
+      0.87
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_R",
+   "select": [
+    [
+     [
+      -0.62,
+      -0.12
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      -0.1,
+      0.31
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "hull",
+   "select": [
+    [
+     [
+      -1.2,
+      1.2
+     ],
+     [
+      -2.0,
+      1.5
+     ],
+     [
+      1.3,
+      3.5
+     ]
+    ]
+   ],
+   "bones": {
+    "hull": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "guns_L",
+   "select": [
+    [
+     [
+      0.78,
+      1.2
+     ],
+     [
+      -0.3,
+      0.75
+     ],
+     [
+      1.55,
+      1.95
+     ]
+    ]
+   ],
+   "bones": {
+    "guns.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "guns_R",
+   "select": [
+    [
+     [
+      -1.2,
+      -0.78
+     ],
+     [
+      -0.3,
+      0.75
+     ],
+     [
+      1.55,
+      1.95
+     ]
+    ]
+   ],
+   "bones": {
+    "guns.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "tower",
+   "select": [
+    [
+     [
+      -0.37,
+      0.37
+     ],
+     [
+      -0.78,
+      -0.08
+     ],
+     [
+      2.24,
+      3.2
+     ]
+    ]
+   ],
+   "bones": {
+    "tower": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "hatch_L",
+   "select": [
+    [
+     [
+      0.005,
+      0.33
+     ],
+     [
+      0.56,
+      1.22
+     ],
+     [
+      2.24,
+      2.52
+     ]
+    ]
+   ],
+   "bones": {
+    "hatch.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "hatch_R",
+   "select": [
+    [
+     [
+      -0.33,
+      -0.005
+     ],
+     [
+      0.56,
+      1.22
+     ],
+     [
+      2.24,
+      2.52
+     ]
+    ]
+   ],
+   "bones": {
+    "hatch.R": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "hard_cuts": [
+  {
+   "co": [
+    0,
+    0,
+    0.87
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.12,
+      0.62
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      0.82,
+      0.92
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.87
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -0.62,
+      -0.12
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      0.82,
+      0.92
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.31
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.12,
+      0.62
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      0.26,
+      0.36
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.31
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -0.62,
+      -0.12
+     ],
+     [
+      -0.8,
+      0.6
+     ],
+     [
+      0.26,
+      0.36
+     ]
+    ]
+   ]
+  }
+ ],
+ "tris": 15000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "hull",
+   "bay",
+   "core",
+   "flash.L0",
+   "flash.L1",
+   "flash.L2",
+   "flash.L3",
+   "flash.R0",
+   "flash.R1",
+   "flash.R2",
+   "flash.R3",
+   "guns.L",
+   "guns.R",
+   "hatch.L",
+   "hatch.R",
+   "tower",
+   "spark",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "red",
+   "parts": [
+    "body"
+   ],
+   "strength": 2.4,
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.45
+  },
+  {
+   "name": "orb",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0,
+       -0.44,
+       2.9
+      ],
+      "r": 0.14
+     }
+    }
+   ],
+   "hue": [
+    165,
+    215
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.45,
+   "strength": 2.6
+  }
+ ],
+ "glows": {
+  "GlowFlashL0": {
+   "box": [
+    [
+     0.73,
+     1.05
+    ],
+    [
+     -0.67,
+     -0.41000000000000003
+    ],
+    [
+     1.56,
+     1.8399999999999999
+    ]
+   ]
+  },
+  "GlowFlashR0": {
+   "box": [
+    [
+     -1.05,
+     -0.73
+    ],
+    [
+     -0.67,
+     -0.41000000000000003
+    ],
+    [
+     1.56,
+     1.8399999999999999
+    ]
+   ]
+  },
+  "GlowFlashL1": {
+   "box": [
+    [
+     0.85,
+     1.17
+    ],
+    [
+     -0.28500000000000003,
+     -0.024999999999999994
+    ],
+    [
+     1.5699999999999998,
+     1.85
+    ]
+   ]
+  },
+  "GlowFlashR1": {
+   "box": [
+    [
+     -1.17,
+     -0.85
+    ],
+    [
+     -0.28500000000000003,
+     -0.024999999999999994
+    ],
+    [
+     1.5699999999999998,
+     1.85
+    ]
+   ]
+  },
+  "GlowFlashL2": {
+   "box": [
+    [
+     0.85,
+     1.17
+    ],
+    [
+     0.09,
+     0.35
+    ],
+    [
+     1.6,
+     1.88
+    ]
+   ]
+  },
+  "GlowFlashR2": {
+   "box": [
+    [
+     -1.17,
+     -0.85
+    ],
+    [
+     0.09,
+     0.35
+    ],
+    [
+     1.6,
+     1.88
+    ]
+   ]
+  },
+  "GlowFlashL3": {
+   "box": [
+    [
+     0.85,
+     1.17
+    ],
+    [
+     0.484,
+     0.744
+    ],
+    [
+     1.65,
+     1.9300000000000002
+    ]
+   ]
+  },
+  "GlowFlashR3": {
+   "box": [
+    [
+     -1.17,
+     -0.85
+    ],
+    [
+     0.484,
+     0.744
+    ],
+    [
+     1.65,
+     1.9300000000000002
+    ]
+   ]
+  },
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowLights": {
+   "hide": true
+  },
+  "GlowOrb": {
+   "hide": true
+  },
+  "GlowVents": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Summon": [
+   8,
+   12,
+   24,
+   36
+  ],
+  "Emp": [
+   6,
+   12,
+   18
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   24
+  ]
+ ]
+}
