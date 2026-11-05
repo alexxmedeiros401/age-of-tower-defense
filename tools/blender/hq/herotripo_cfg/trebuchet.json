@@ -831,6 +831,56 @@
    }
   },
   {
+   "name": "weight_bits",
+   "bone": "weight",
+   "mode": "pieces",
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.01,
+       -0.48,
+       1.53
+      ],
+      "r": 0.04
+     }
+    },
+    {
+     "ball": {
+      "c": [
+       0.34,
+       -0.48,
+       1.25
+      ],
+      "r": 0.04
+     }
+    }
+   ],
+   "place": {
+    "like": "weight"
+   }
+  },
+  {
+   "name": "winch_bits",
+   "bone": "winch",
+   "mode": "pieces",
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       1.02,
+       1.0,
+       0.42
+      ],
+      "r": 0.05
+     }
+    }
+   ],
+   "place": {
+    "like": "winch"
+   }
+  },
+  {
    "name": "mallet",
    "bone": "hand.R",
    "keep": "all",
