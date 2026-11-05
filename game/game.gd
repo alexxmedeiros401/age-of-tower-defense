@@ -7961,7 +7961,7 @@ func _dread_broadside(eid: int) -> void:
 # (its Summon clip's frame 16); a jet's body flies 1.8 over its node (the flying lift plus its own height in its model).
 const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
 	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.314, -0.381), 16.0 / CLIP_FPS, 1.8],
-	"nano_swarm": ["orbital_uplink", [Vector3(0.872, 1.521, 0.0), Vector3(-0.927, 1.552, 0.0)], 18.0 / CLIP_FPS, 0.4],
+	"nano_swarm": ["orbital_uplink", [Vector3(1.102, 1.396, -0.182), Vector3(-1.166, 1.388, -0.199)], 18.0 / CLIP_FPS, 0.4],
 	"sentinel": ["the_core", Vector3(-0.003, 0.280, 1.618), 22.0 / CLIP_FPS, 0.0]}   # (v0.9.84: down the bay's ramp)
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
 	var bl: Array = BAY_LAUNCH[str(e.type)]
@@ -8020,7 +8020,7 @@ func _flash_mat_red() -> StandardMaterial3D:
 		m.albedo_texture = _mote_tex()
 		_atk_cache["red_flash"] = m
 	return _atk_cache["red_flash"]
-const UPLINK_DISH := Vector3(0.0, 2.74, 0.2)
+const UPLINK_DISH := Vector3(0.0, 2.68, 0.26)
 func _uplink_flash(eid: int, pt := UPLINK_DISH) -> void:
 	if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
 		return
