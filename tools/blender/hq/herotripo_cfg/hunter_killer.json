@@ -1,0 +1,788 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/hunter_killer.glb",
+ "armature": "HunterKillerRig",
+ "clips": [
+  "Fly",
+  "Summon"
+ ],
+ "tex": 2048,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "sole_snap": false,
+ "body_bones": [
+  "root",
+  "bay",
+  "exhaust.L",
+  "exhaust.R",
+  "eye",
+  "fan.L",
+  "rotor.L",
+  "fan.R",
+  "rotor.R",
+  "gun.L",
+  "gun.R",
+  "hatch.L",
+  "hatch.R",
+  "lamp.0",
+  "lamp.1",
+  "lamp.2",
+  "lamp.3"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "root",
+  "bay",
+  "exhaust.L",
+  "exhaust.R",
+  "eye",
+  "fan.L",
+  "rotor.L",
+  "fan.R",
+  "rotor.R",
+  "gun.L",
+  "gun.R",
+  "hatch.L",
+  "hatch.R",
+  "lamp.0",
+  "lamp.1",
+  "lamp.2",
+  "lamp.3"
+ ],
+ "body_patch": "dark",
+ "props": [
+  {
+   "name": "blades.L",
+   "bone": "spin_rotor.L",
+   "region": {
+    "c": [
+     1.045,
+     -0.055,
+     2.1
+    ],
+    "r": 0.29
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       1.045,
+       -0.055,
+       2.1
+      ],
+      "r": 0.2
+     }
+    },
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       1.94
+      ]
+     ],
+     "not": true
+    },
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       2.23,
+       9
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       1.85,
+       2.3
+      ]
+     ]
+    },
+    {
+     "ball": {
+      "c": [
+       1.045,
+       -0.055,
+       2.1
+      ],
+      "r": 0.265
+     },
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.12,
+    0.13,
+    0.15
+   ]
+  },
+  {
+   "name": "gatling.L",
+   "bone": "spin_gun.L",
+   "region": [
+    [
+     0.04,
+     0.37
+    ],
+    [
+     -1.63,
+     -0.84
+    ],
+    [
+     1.57,
+     1.86
+    ]
+   ],
+   "seeds": [
+    {
+     "seg": {
+      "a": [
+       0.205,
+       -1.6,
+       1.722
+      ],
+      "b": [
+       0.205,
+       -0.9,
+       1.722
+      ],
+      "r": 0.095
+     }
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -9,
+      9
+     ],
+     [
+      -9,
+      9
+     ],
+     [
+      1.843,
+      9
+     ]
+    ]
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.12,
+    0.12,
+    0.13
+   ]
+  },
+  {
+   "name": "door.L",
+   "bone": "hatch.L",
+   "region": [
+    [
+     -0.005,
+     0.275
+    ],
+    [
+     -0.17,
+     0.77
+    ],
+    [
+     2.2,
+     2.34
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.02,
+      0.24
+     ],
+     [
+      -0.12,
+      0.72
+     ],
+     [
+      2.268,
+      2.34
+     ]
+    ]
+   ],
+   "sinks": [
+    [
+     [
+      -0.005,
+      0.275
+     ],
+     [
+      -0.17,
+      0.77
+     ],
+     [
+      2.2,
+      2.255
+     ]
+    ]
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.15,
+    0.15,
+    0.16
+   ],
+   "hull": true,
+   "hi_flip": true,
+   "upside_down": true
+  },
+  {
+   "name": "blades.R",
+   "bone": "spin_rotor.R",
+   "region": {
+    "c": [
+     -1.045,
+     -0.055,
+     2.1
+    ],
+    "r": 0.29
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -1.045,
+       -0.055,
+       2.1
+      ],
+      "r": 0.2
+     }
+    },
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       1.94
+      ]
+     ],
+     "not": true
+    },
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       2.23,
+       9
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    {
+     "box": [
+      [
+       -9,
+       9
+      ],
+      [
+       -9,
+       9
+      ],
+      [
+       1.85,
+       2.3
+      ]
+     ]
+    },
+    {
+     "ball": {
+      "c": [
+       -1.045,
+       -0.055,
+       2.1
+      ],
+      "r": 0.265
+     },
+     "not": true
+    }
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.12,
+    0.13,
+    0.15
+   ]
+  },
+  {
+   "name": "gatling.R",
+   "bone": "spin_gun.R",
+   "region": [
+    [
+     -0.37,
+     -0.04
+    ],
+    [
+     -1.63,
+     -0.84
+    ],
+    [
+     1.57,
+     1.86
+    ]
+   ],
+   "seeds": [
+    {
+     "seg": {
+      "a": [
+       -0.205,
+       -1.6,
+       1.722
+      ],
+      "b": [
+       -0.205,
+       -0.9,
+       1.722
+      ],
+      "r": 0.095
+     }
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -9,
+      9
+     ],
+     [
+      -9,
+      9
+     ],
+     [
+      1.843,
+      9
+     ]
+    ]
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.12,
+    0.12,
+    0.13
+   ]
+  },
+  {
+   "name": "door.R",
+   "bone": "hatch.R",
+   "region": [
+    [
+     -0.275,
+     0.005
+    ],
+    [
+     -0.17,
+     0.77
+    ],
+    [
+     2.2,
+     2.34
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.24,
+      -0.02
+     ],
+     [
+      -0.12,
+      0.72
+     ],
+     [
+      2.268,
+      2.34
+     ]
+    ]
+   ],
+   "sinks": [
+    [
+     [
+      -0.275,
+      0.005
+     ],
+     [
+      -0.17,
+      0.77
+     ],
+     [
+      2.2,
+      2.255
+     ]
+    ]
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.15,
+    0.15,
+    0.16
+   ],
+   "hull": true,
+   "hi_flip": true,
+   "upside_down": true
+  }
+ ],
+ "extra_bones": [
+  {
+   "name": "spin_rotor.L",
+   "parent": "fan.L",
+   "copy": "rotor.L",
+   "head": "load:[1.045, -0.055, 2.1]"
+  },
+  {
+   "name": "spin_gun.L",
+   "parent": "root",
+   "copy": "gun.L",
+   "head": "load:[0.205, -0.87, 1.722]"
+  },
+  {
+   "name": "spin_rotor.R",
+   "parent": "fan.R",
+   "copy": "rotor.R",
+   "head": "load:[-1.045, -0.055, 2.1]"
+  },
+  {
+   "name": "spin_gun.R",
+   "parent": "root",
+   "copy": "gun.R",
+   "head": "load:[-0.205, -0.87, 1.722]"
+  }
+ ],
+ "armour": [
+  {
+   "name": "fan_L",
+   "select": [
+    [
+     [
+      0.67,
+      1.6
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      1.8,
+      2.45
+     ]
+    ]
+   ],
+   "bones": {
+    "fan.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "fan_R",
+   "select": [
+    [
+     [
+      -1.6,
+      -0.67
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      1.8,
+      2.45
+     ]
+    ]
+   ],
+   "bones": {
+    "fan.R": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "hard_cuts": [
+  {
+   "co": [
+    0.67,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      0.6,
+      0.74
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      1.8,
+      2.45
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    -0.67,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      -0.74,
+      -0.6
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      1.8,
+      2.45
+     ]
+    ]
+   ]
+  }
+ ],
+ "tris": 15000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "bay",
+   "exhaust.L",
+   "exhaust.R",
+   "eye",
+   "fan.L",
+   "rotor.L",
+   "fan.R",
+   "rotor.R",
+   "gun.L",
+   "gun.R",
+   "hatch.L",
+   "hatch.R",
+   "lamp.0",
+   "lamp.1",
+   "lamp.2",
+   "lamp.3",
+   "spin_rotor.L",
+   "spin_gun.L",
+   "spin_rotor.R",
+   "spin_gun.R"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "red",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.5,
+   "strength": 2.4
+  },
+  {
+   "name": "cyan",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    170,
+    210
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.55,
+   "strength": 2.2
+  },
+  {
+   "name": "lamps",
+   "parts": [
+    "body"
+   ],
+   "select": [
+    [
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      -0.6,
+      1.2
+     ],
+     [
+      2.28,
+      2.5
+     ]
+    ]
+   ],
+   "hue": [
+    35,
+    60
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.7,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowExhaustL": {
+   "hide": true
+  },
+  "GlowExhaustR": {
+   "hide": true
+  },
+  "GlowEye": {
+   "hide": true
+  },
+  "GlowLamp0": {
+   "hide": true
+  },
+  "GlowLamp1": {
+   "hide": true
+  },
+  "GlowLamp2": {
+   "hide": true
+  },
+  "GlowLamp3": {
+   "hide": true
+  },
+  "GlowSmallEyes": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Fly": [
+   12,
+   24,
+   36,
+   48,
+   60
+  ],
+  "Summon": [
+   8,
+   16,
+   24,
+   32
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Fly",
+   24
+  ],
+  [
+   "Summon",
+   16
+  ]
+ ],
+ "no_patch": [
+  [
+   [
+    -0.3,
+    0.3
+   ],
+   [
+    -0.2,
+    0.8
+   ],
+   [
+    2.2,
+    2.4
+   ]
+  ]
+ ]
+}
