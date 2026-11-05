@@ -737,10 +737,17 @@ def main():
     prop_verts = {}
     prop_multi = {}
     obj_props = {}
+    drop_low = []
     for k, p in enumerate(CFG["props"], start=1):
         if p.get("drop"):
             continue
         vs = np.nonzero(vpart == k)[0]
+        if p.get("drop_low"):
+            # prop "drop_low" (off by default): the prop's faces in the baked low mesh are deleted here, for a prop
+            # already in a bake that should not ship (the Plasma Mortar's old power cell floated beside the new mortar)
+            drop_low.extend(vs.tolist())
+            log("prop %s: %d verts dropped from the low mesh" % (p["name"], len(vs)))
+            continue
         if len(vs) == 0:
             log("prop %s: no vertices in the low mesh, skipped" % p["name"])
             continue
@@ -1180,6 +1187,16 @@ def main():
         bm_.to_mesh(lm)
         bm_.free()
         log("drop_stretched: %d body faces deleted" % len(bad_))
+    if drop_low:
+        dl_ = np.zeros(len(lm.vertices), bool)
+        dl_[drop_low] = True
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        bad_ = [f_ for f_ in bm_.faces if dl_[[v.index for v in f_.verts]].all()]
+        bmesh.ops.delete(bm_, geom=bad_, context="FACES_ONLY")
+        bm_.to_mesh(lm)
+        bm_.free()
+        log("drop_low: %d faces deleted" % len(bad_))
     nv_det0 = len(lm.vertices)
     for dt in CFG.get("detach", []):
         gi_ = [old.vertex_groups[b].index for b in dt["bones"]]
@@ -1580,7 +1597,7 @@ def main():
             log("glow %s: scaled %.2f, moved %s" % (gname, g.get("scale", 1.0), g.get("offset", [0, 0, 0])))
 
     # ---- save and export
-    if CFG.get("drop_stretched") or any(d.get("drop_bridges") for d in CFG.get("detach", [])):
+    if CFG.get("drop_stretched") or any(d.get("drop_bridges") for d in CFG.get("detach", [])) or any(p.get("drop_low") for p in CFG["props"]):
         # (faces deleted above leave loose vertices; some flew far off when un-posed and would only stretch the bounds)
         hm_ = bpy.data.objects[INFO["mesh"]].data if INFO["mesh"] in bpy.data.objects else None
         if hm_ is not None:
