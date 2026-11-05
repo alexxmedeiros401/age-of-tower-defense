@@ -7962,7 +7962,7 @@ func _dread_broadside(eid: int) -> void:
 const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
 	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.314, -0.381), 16.0 / CLIP_FPS, 1.8],
 	"nano_swarm": ["orbital_uplink", [Vector3(1.102, 1.396, -0.182), Vector3(-1.166, 1.388, -0.199)], 18.0 / CLIP_FPS, 0.4],
-	"sentinel": ["the_core", Vector3(-0.003, 0.280, 1.618), 22.0 / CLIP_FPS, 0.0]}   # (v0.9.84: down the bay's ramp)
+	"sentinel": ["the_core", Vector3(-0.017, 0.267, 1.726), 22.0 / CLIP_FPS, 0.0]}   # (v0.9.84: down the bay's ramp)
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
 	var bl: Array = BAY_LAUNCH[str(e.type)]
 	for b in sim.enemies:
@@ -8007,7 +8007,7 @@ const UPLINK_EMP := 22.0 / CLIP_FPS
 # crimson from frame 13 (then its WalkRage loop keeps it red).
 const THE_CORE_EMP := 24.0 / CLIP_FPS
 const THE_CORE_RAGE := 13.0 / CLIP_FPS
-const THE_CORE_HEART := Vector3(-0.026, 2.470, -0.162)
+const THE_CORE_HEART := Vector3(0.02, 2.48, -0.11)
 func _flash_mat_red() -> StandardMaterial3D:
 	if not _atk_cache.has("red_flash"):
 		var m := StandardMaterial3D.new()
