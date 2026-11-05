@@ -67,6 +67,17 @@ def main():
     cfg = C.load_cfg(hid)
     Wd = C.work_dir(hid)
     xf0 = json.load(open(os.path.join(Wd, "xf.json")))
+    if cfg.get("fit_turn"):
+        # cfg "fit_turn" (off by default): {"deg": d, "about": [x, y]}: the Tripo body is fitted turned d degrees about
+        # that vertical axis (load frame), and the bake and rig use the turned transform; the config's shapes and prop
+        # landmarks stay in the load frame (the Missile Launcher's crew stands turned 64 degrees from his launcher: with
+        # one yaw for both, the fit twisted his chest and legs 40-50 degrees to face the old rig's front)
+        ft_ = cfg["fit_turn"]
+        ab_ = np.r_[np.array(ft_["about"], float), 0.0]
+        Rt_ = C.rotz(float(ft_["deg"]))
+        xf0 = dict(yaw=float(xf0["yaw"]) + float(ft_["deg"]), s=xf0["s"],
+                   t=(ab_ + (np.array(xf0["t"], float) - ab_) @ Rt_.T).tolist())
+        print("[fit] Tripo turned %.1f deg about %s for the fit" % (float(ft_["deg"]), ft_["about"]))
     o = np.load(os.path.join(Wd, "old.npz"))
     V, Wt, gn, T, Tp = o["V"], o["W"], [str(x) for x in o["gn"]], o["T"], o["Tprop"]
     rig = Rig(o["bn"], o["bm"], o["bp"])
