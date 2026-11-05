@@ -109,6 +109,12 @@ def main():
                 allP[n:, k] = spsolve(Lii, -Lib @ P[:, k])
         cb = samp(tb, vuv[Lp])
         rb = samp(trm, vuv[Lp])
+        pcol = (cfg["props"][Lb - 1].get("patch_col") if Lb > 0 else None)
+        if pcol is not None:              # cfg prop "patch_col" (off by default): [r, g, b] (0..1) or "dark": the colour of
+            if pcol == "dark":            # a prop's patches (a spinning duct shows its patched strut side: no rim smear)
+                lum = cb.mean(1)
+                pcol = np.median(cb[lum <= np.median(lum)], 0)
+            cb = np.tile(np.array(pcol, float), (n, 1))
         if Lb == 0 and cfg["body_patch"] == "dark":
             lum = cb.mean(1)
             dk = lum <= np.median(lum)
