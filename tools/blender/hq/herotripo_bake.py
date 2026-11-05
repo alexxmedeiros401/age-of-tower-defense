@@ -417,6 +417,10 @@ sc = bpy.context.scene
 sc.world = bpy.data.worlds.new("BakeWorld")
 sc.world.light_settings.distance = 0.16
 MARGIN = 10
+def RAY_(k):
+    # cfg prop "ray" (default 0.045): that prop's bake ray reach (Tripo units' game metres): a "hull" prop whose
+    # surface lies well inside its hull (The Core's door: its chevron panel sits 10 cm behind the frame)
+    return float(CFG["props"][k - 1].get("ray", 0.045)) if k > 0 else 0.045
 maps = {k: np.zeros((TEX, TEX, 4), np.float32) for k in ("base", "rm", "NORMAL", "AO")}
 covered = np.zeros((TEX, TEX), bool)
 joined.hide_render = True
@@ -433,7 +437,7 @@ for k in PIECES:
         if kind == "EMIT":
             emit_source(key)
         img = bk.new_image("g_%s_%d" % (key, k), TEX, non_color=True)
-        bk.bake(tmp, [HI[k]], img, kind, samples=(32 if kind == "AO" else 4), margin=MARGIN, extrusion=0.015, maxdist=0.045)
+        bk.bake(tmp, [HI[k]], img, kind, samples=(32 if kind == "AO" else 4), margin=MARGIN, extrusion=0.015, maxdist=RAY_(k))
         px = bk.pixels(img)
         maps[key][md] = px[md]
         maps[key][m] = px[m]

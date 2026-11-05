@@ -341,7 +341,8 @@
     0.15,
     0.16
    ],
-   "hull": true
+   "hull": true,
+   "ray": 0.16
   },
   {
    "name": "deploy",

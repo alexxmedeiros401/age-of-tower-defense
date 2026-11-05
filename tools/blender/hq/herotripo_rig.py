@@ -448,10 +448,11 @@ def main():
         bm_.faces.ensure_lookup_table()
         fl_ = [bm_.faces[i] for i in np.nonzero(fp_ == k_up)[0]]
         vs_ = list({v for f in fl_ for v in f.verts})
-        zs_ = np.array([v.co.z for v in vs_])
+        ax_ = "xyz".index(CFG["props"][k_up - 1].get("turn_axis", "z"))   # (prop "turn_axis": "y" turns a door
+        zs_ = np.array([v.co[ax_] for v in vs_])                          # front to back instead: The Core's)
         zc_ = 0.5 * (zs_.min() + zs_.max())
         for v in vs_:
-            v.co.z = 2 * zc_ - v.co.z
+            v.co[ax_] = 2 * zc_ - v.co[ax_]
         bmesh.ops.reverse_faces(bm_, faces=fl_, flip_multires=False)
         bm_.to_mesh(lm)
         bm_.free()
