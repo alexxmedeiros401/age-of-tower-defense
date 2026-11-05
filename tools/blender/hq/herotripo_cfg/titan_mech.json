@@ -5,7 +5,7 @@
   "Combat",
   "Attack"
  ],
- "tris": 20000,
+ "tris": 22000,
  "yaw": 270,
  "fit_recentre": true,
  "props": [
@@ -43,7 +43,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 1300
   },
   {
    "name": "fist_R",
@@ -79,7 +80,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 1300
   },
   {
    "name": "gauntlet_L",
@@ -115,7 +117,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 900
   },
   {
    "name": "gauntlet_R",
@@ -151,7 +154,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 900
   },
   {
    "name": "shoulder_L",
@@ -187,7 +191,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 1300
   },
   {
    "name": "shoulder_R",
@@ -237,7 +242,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 1300
   },
   {
    "name": "foot_L",
@@ -273,7 +279,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 700
   },
   {
    "name": "foot_R",
@@ -309,7 +316,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 700
   },
   {
    "name": "shin_L",
@@ -345,7 +353,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 700
   },
   {
    "name": "shin_R",
@@ -381,7 +390,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 700
   },
   {
    "name": "thigh_L",
@@ -417,7 +427,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 600
   },
   {
    "name": "thigh_R",
@@ -453,7 +464,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 600
   },
   {
    "name": "mhead",
@@ -489,7 +501,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 300
   },
   {
    "name": "footbits_L",
@@ -511,7 +524,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "footbits_R",
@@ -533,7 +547,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "shinbits_L",
@@ -555,7 +570,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "shinbits_R",
@@ -577,7 +593,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "thighbits_L",
@@ -599,7 +616,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "thighbits_R",
@@ -621,7 +639,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "fistbits_L",
@@ -643,7 +662,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "fistbits_R",
@@ -665,7 +685,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "gauntbits_L",
@@ -687,7 +708,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "gauntbits_R",
@@ -709,7 +731,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "shoulderbits_L",
@@ -731,7 +754,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   },
   {
    "name": "shoulderbits_R",
@@ -753,7 +777,8 @@
      ]
     ]
    ],
-   "place": "fit"
+   "place": "fit",
+   "tris": 250
   }
  ],
  "armour": [
