@@ -307,5 +307,26 @@
   "upperarm.L",
   "forearm.L"
  ],
- "fit_recentre": true
+ "fit_recentre": true,
+ "drop_stretched": {
+  "ratio": 3.0,
+  "min": 0.08
+ },
+ "glows": {
+  "GlowCoil": {
+   "hide": true
+  },
+  "GlowCrest": {
+   "hide": true
+  },
+  "GlowLens": {
+   "hide": true
+  },
+  "GlowStrips": {
+   "hide": true
+  },
+  "GlowTrim": {
+   "hide": true
+  }
+ }
 }

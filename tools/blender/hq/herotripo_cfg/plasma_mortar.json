@@ -481,7 +481,8 @@
    "name": "cell",
    "bone": "cell",
    "source": "old",
-   "place": "fit"
+   "place": "fit",
+   "drop_low": true
   }
  ],
  "fit_fixed": [
@@ -525,5 +526,19 @@
     30
    ]
   ]
+ },
+ "glows": {
+  "GlowCoils": {
+   "hide": true
+  },
+  "GlowStrips": {
+   "hide": true
+  },
+  "GlowMountGlow": {
+   "hide": true
+  },
+  "GlowCellCore": {
+   "hide": true
+  }
  }
 }
