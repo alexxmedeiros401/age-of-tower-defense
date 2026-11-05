@@ -10165,8 +10165,8 @@ func _animate_fire(id: int) -> void:
 ## the game); a stunned robot shakes; a one-shot (the boss's Summon) plays through, then the loop resumes.
 # v0.9.62: the Industrial Age robots (robot_steam_tank.py, robot_juggernaut.py): their funnels puff smoke as they go, and
 # the Juggernaut's Enrage clip blows its whistle (WHISTLE_FRAME 10) in a jet of steam.
-const FUNNELS := {"steam_tank": Vector3(0, 1.25, -0.20), "juggernaut": Vector3(0, 3.46, 1.30)}
-const JUGG_WHISTLE := Vector3(0.249, 2.816, 0.452)
+const FUNNELS := {"steam_tank": Vector3(-0.006, 1.261, -0.08), "juggernaut": Vector3(-0.005, 3.327, 1.281)}   # (v0.9.110: the Tripo funnel rims)
+const JUGG_WHISTLE := Vector3(-0.022, 3.21, 0.26)
 func _funnel_puff(n: Node3D, e: Dictionary) -> void:
 	if Progress.gfx_level() >= 2 or not _fx_room(8):
 		return
