@@ -428,7 +428,8 @@
        "bone:string_bot.head"
       ]
      ],
-     "blend": 0.12
+     "blend": 0.3,
+     "start": 0.07
     }
    }
   },
@@ -510,5 +511,31 @@
  "fit_fixed": [
   "neck",
   "head"
+ ],
+ "armour": [
+  {
+   "name": "bow_fist",
+   "select": [
+    {
+     "box": [
+      [
+       0.36,
+       0.68
+      ],
+      [
+       -0.22,
+       0.17
+      ],
+      [
+       0.45,
+       1.0
+      ]
+     ]
+    }
+   ],
+   "bones": {
+    "hand.L": 1.0
+   }
+  }
  ]
 }

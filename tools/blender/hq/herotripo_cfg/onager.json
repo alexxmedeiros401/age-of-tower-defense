@@ -888,5 +888,6 @@
   "upperarm.R",
   "forearm.R",
   "hand.R"
- ]
+ ],
+ "limb_regeom_power": 3
 }
