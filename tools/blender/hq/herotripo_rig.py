@@ -1427,6 +1427,17 @@ def main():
             log("glow %s: scaled %.2f, moved %s" % (gname, g.get("scale", 1.0), g.get("offset", [0, 0, 0])))
 
     # ---- save and export
+    if CFG.get("drop_stretched") or any(d.get("drop_bridges") for d in CFG.get("detach", [])):
+        # (faces deleted above leave loose vertices; some flew far off when un-posed and would only stretch the bounds)
+        hm_ = bpy.data.objects[INFO["mesh"]].data if INFO["mesh"] in bpy.data.objects else None
+        if hm_ is not None:
+            bm_ = bmesh.new()
+            bm_.from_mesh(hm_)
+            loose_ = [v for v in bm_.verts if not v.link_faces]
+            bmesh.ops.delete(bm_, geom=loose_, context="VERTS")
+            bm_.to_mesh(hm_)
+            bm_.free()
+            log("%d loose verts removed" % len(loose_))
     for ob in sc.objects:
         ob.select_set(False)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "%s_hq.blend" % HID))
