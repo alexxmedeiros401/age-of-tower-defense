@@ -1,0 +1,711 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/juggernaut.glb",
+ "armature": "JuggernautRig",
+ "clips": [
+  "Walk",
+  "Enrage"
+ ],
+ "tex": 2048,
+ "yaw": 270,
+ "body_bones": [
+  "root",
+  "cyl.FL",
+  "cyl.FR",
+  "cyl.RL",
+  "cyl.RR",
+  "ember",
+  "emitter",
+  "orb",
+  "eye",
+  "furnace",
+  "thigh.FL",
+  "prod.FL",
+  "rod.L",
+  "shin.FL",
+  "foot.FL",
+  "thigh.FR",
+  "prod.FR",
+  "rod.R",
+  "shin.FR",
+  "foot.FR",
+  "thigh.RL",
+  "prod.RL",
+  "shin.RL",
+  "foot.RL",
+  "thigh.RR",
+  "prod.RR",
+  "shin.RR",
+  "foot.RR",
+  "whistle"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "root",
+  "cyl.FL",
+  "cyl.FR",
+  "cyl.RL",
+  "cyl.RR",
+  "ember",
+  "emitter",
+  "orb",
+  "eye",
+  "furnace",
+  "prod.FL",
+  "rod.L",
+  "foot.FL",
+  "prod.FR",
+  "rod.R",
+  "foot.FR",
+  "prod.RL",
+  "foot.RL",
+  "prod.RR",
+  "foot.RR",
+  "whistle"
+ ],
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "props": [],
+ "armour": [
+  {
+   "name": "body",
+   "select": [
+    [
+     [
+      -3,
+      3
+     ],
+     [
+      -3,
+      3
+     ],
+     [
+      -1,
+      5
+     ]
+    ]
+   ],
+   "bones": {
+    "root": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_FL",
+   "select": [
+    [
+     [
+      0.55,
+      1.15
+     ],
+     [
+      -1.45,
+      -0.55
+     ],
+     [
+      1.2,
+      1.52
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.FL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_FL",
+   "select": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      -1.45,
+      -0.55
+     ],
+     [
+      0.4,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.FL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_FL",
+   "select": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      -0.2,
+      0.4
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.FL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_FR",
+   "select": [
+    [
+     [
+      -1.15,
+      -0.55
+     ],
+     [
+      -1.45,
+      -0.55
+     ],
+     [
+      1.2,
+      1.52
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.FR": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_FR",
+   "select": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      -1.45,
+      -0.55
+     ],
+     [
+      0.4,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.FR": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_FR",
+   "select": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      -0.2,
+      0.4
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.FR": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_RL",
+   "select": [
+    [
+     [
+      0.55,
+      1.15
+     ],
+     [
+      0.2,
+      1.25
+     ],
+     [
+      1.2,
+      1.52
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.RL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_RL",
+   "select": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      0.2,
+      1.25
+     ],
+     [
+      0.4,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.RL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_RL",
+   "select": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      -0.2,
+      0.4
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.RL": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "thigh_RR",
+   "select": [
+    [
+     [
+      -1.15,
+      -0.55
+     ],
+     [
+      0.2,
+      1.25
+     ],
+     [
+      1.2,
+      1.52
+     ]
+    ]
+   ],
+   "bones": {
+    "thigh.RR": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "shin_RR",
+   "select": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      0.2,
+      1.25
+     ],
+     [
+      0.4,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "shin.RR": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "foot_RR",
+   "select": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      -0.2,
+      0.4
+     ]
+    ]
+   ],
+   "bones": {
+    "foot.RR": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "hard_cuts": [
+  {
+   "co": [
+    0,
+    0,
+    1.2
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      1.14,
+      1.26
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.4
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      0.34,
+      0.46
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    1.2
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      1.14,
+      1.26
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.4
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      -1.5999999999999999,
+      -0.4
+     ],
+     [
+      0.34,
+      0.46
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    1.2
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      1.14,
+      1.26
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.4
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.4,
+      1.2
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      0.34,
+      0.46
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    1.2
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      1.14,
+      1.26
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    0.4
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      -0.4
+     ],
+     [
+      0.05000000000000002,
+      1.4
+     ],
+     [
+      0.34,
+      0.46
+     ]
+    ]
+   ]
+  }
+ ],
+ "tris": 15000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "cyl.FL",
+   "cyl.FR",
+   "cyl.RL",
+   "cyl.RR",
+   "ember",
+   "emitter",
+   "orb",
+   "eye",
+   "furnace",
+   "thigh.FL",
+   "prod.FL",
+   "rod.L",
+   "shin.FL",
+   "foot.FL",
+   "thigh.FR",
+   "prod.FR",
+   "rod.R",
+   "shin.FR",
+   "foot.FR",
+   "thigh.RL",
+   "prod.RL",
+   "shin.RL",
+   "foot.RL",
+   "thigh.RR",
+   "prod.RR",
+   "shin.RR",
+   "foot.RR",
+   "whistle"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "warm",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    0,
+    45
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.75,
+   "strength": 2.2
+  },
+  {
+   "name": "orb",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    165,
+    215
+   ],
+   "sat_min": 0.35,
+   "val_min": 0.5,
+   "strength": 2.6
+  }
+ ],
+ "glows": {
+  "GlowCoils": {
+   "hide": true
+  },
+  "GlowEmber": {
+   "hide": true
+  },
+  "GlowEye": {
+   "hide": true
+  },
+  "GlowFurnace": {
+   "hide": true
+  },
+  "GlowOrb": {
+   "hide": true
+  },
+  "GlowWindows": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Enrage": [
+   10,
+   16,
+   24,
+   32
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Enrage",
+   16
+  ]
+ ]
+}

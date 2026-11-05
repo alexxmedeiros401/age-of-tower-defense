@@ -1020,6 +1020,48 @@ def main():
         W4 = top4(W4)
         arm.animation_data.action = None
 
+    # ---- extra bones (cfg "extra_bones", off by default): [{"name", "parent", "copy", "head"}]: a new bone with the
+    # orientation and length of bone `copy`, its head at `head` (armature space, rest; or "load:[x,y,z]" in the load
+    # frame), parented to `parent`, keyed in every action with `copy`'s own (local) rotation. A part that must spin on
+    # its own centre where the old rig's bone sits elsewhere (the Steam Tank's Tripo road wheels and sprockets: spun on
+    # the old wheel bones they would orbit) rides one. check_glb reports the added bones (expected).
+    for xb in CFG.get("extra_bones", []):
+        src = xb["copy"]
+        hd = xb["head"]
+        if isinstance(hd, str) and hd.startswith("load:"):
+            hd = load_to_final(json.loads(hd[5:]))[0].tolist()
+        bpy.context.view_layer.objects.active = arm
+        for o_ in sc.objects:
+            o_.select_set(o_ == arm)
+        bpy.ops.object.mode_set(mode="EDIT")
+        ebs = arm.data.edit_bones
+        se = ebs[src]
+        nb_ = ebs.new(xb["name"])
+        nb_.head = Vector(hd)
+        nb_.tail = Vector(hd) + (se.tail - se.head)
+        nb_.roll = se.roll
+        nb_.parent = ebs[xb["parent"]]
+        nb_.use_connect = False
+        nb_.use_deform = True
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bones = {b.name: b for b in arm.data.bones}
+        pb_s, pb_n = arm.pose.bones[src], arm.pose.bones[xb["name"]]
+        pb_n.rotation_mode = "QUATERNION"
+        arm.animation_data_create()
+        for act in bpy.data.actions:
+            arm.animation_data.action = act
+            try:
+                arm.animation_data.action_slot = act.slots[0]
+            except Exception:
+                pass
+            for fr in range(int(round(act.frame_range[0])), int(round(act.frame_range[1])) + 1):
+                sc.frame_set(fr)
+                pb_n.rotation_quaternion = pb_s.matrix_basis.to_quaternion()
+                pb_n.keyframe_insert("rotation_quaternion", frame=fr)
+        arm.animation_data.action = None
+        REPORT.setdefault("extra_bones", []).append(xb["name"])
+        log("extra bone %s on %s at %s, spinning with %s" % (xb["name"], xb["parent"], np.round(hd, 3), src))
+
     # ---- replace the old mesh's data; keep the object, its mesh data name and modifier
     old_me = old.data
     keep_name = old_me.name

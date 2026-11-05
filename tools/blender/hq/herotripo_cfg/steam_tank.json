@@ -1,0 +1,770 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/steam_tank.glb",
+ "armature": "SteamTankRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "body_bones": [
+  "piston.L",
+  "piston.R",
+  "root",
+  "ember",
+  "turret",
+  "track.L",
+  "idler.L",
+  "sprocket.L",
+  "rod.L",
+  "wheel.L0",
+  "wheel.L1",
+  "wheel.L2",
+  "track.R",
+  "idler.R",
+  "sprocket.R",
+  "rod.R",
+  "wheel.R0",
+  "wheel.R1",
+  "wheel.R2"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "piston.L",
+  "piston.R",
+  "root",
+  "ember",
+  "turret",
+  "track.L",
+  "idler.L",
+  "sprocket.L",
+  "rod.L",
+  "wheel.L0",
+  "wheel.L1",
+  "wheel.L2",
+  "track.R",
+  "idler.R",
+  "sprocket.R",
+  "rod.R",
+  "wheel.R0",
+  "wheel.R1",
+  "wheel.R2"
+ ],
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "props": [
+  {
+   "name": "spin_wheel.L0",
+   "bone": "spin_wheel.L0",
+   "region": {
+    "c": [
+     0.42,
+     -0.457,
+     0.2
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.43,
+       -0.457,
+       0.2
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       0,
+       0.375
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      0,
+      0.36
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_wheel.L1",
+   "bone": "spin_wheel.L1",
+   "region": {
+    "c": [
+     0.42,
+     -0.138,
+     0.202
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.43,
+       -0.138,
+       0.202
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       0,
+       0.375
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      0,
+      0.36
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_wheel.L2",
+   "bone": "spin_wheel.L2",
+   "region": {
+    "c": [
+     0.42,
+     0.172,
+     0.202
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.43,
+       0.172,
+       0.202
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       0,
+       0.375
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      0,
+      0.36
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_sprocket.L",
+   "bone": "spin_sprocket.L",
+   "region": {
+    "c": [
+     0.45,
+     0.481,
+     0.256
+    ],
+    "r": 0.178
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.43,
+       0.481,
+       0.256
+      ],
+      "r": 0.13
+     }
+    },
+    {
+     "box": [
+      [
+       0,
+       0.375
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      0,
+      0.36
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_wheel.R0",
+   "bone": "spin_wheel.R0",
+   "region": {
+    "c": [
+     -0.42,
+     -0.458,
+     0.201
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.43,
+       -0.458,
+       0.201
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       -0.375,
+       0
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -0.36,
+      0
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_wheel.R1",
+   "bone": "spin_wheel.R1",
+   "region": {
+    "c": [
+     -0.42,
+     -0.134,
+     0.201
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.43,
+       -0.134,
+       0.201
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       -0.375,
+       0
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -0.36,
+      0
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_wheel.R2",
+   "bone": "spin_wheel.R2",
+   "region": {
+    "c": [
+     -0.42,
+     0.172,
+     0.204
+    ],
+    "r": 0.168
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.43,
+       0.172,
+       0.204
+      ],
+      "r": 0.125
+     }
+    },
+    {
+     "box": [
+      [
+       -0.375,
+       0
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -0.36,
+      0
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  },
+  {
+   "name": "spin_sprocket.R",
+   "bone": "spin_sprocket.R",
+   "region": {
+    "c": [
+     -0.45,
+     0.479,
+     0.256
+    ],
+    "r": 0.178
+   },
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.43,
+       0.479,
+       0.256
+      ],
+      "r": 0.13
+     }
+    },
+    {
+     "box": [
+      [
+       -0.375,
+       0
+      ],
+      [
+       -1,
+       1
+      ],
+      [
+       -1,
+       2
+      ]
+     ],
+     "not": true
+    }
+   ],
+   "sinks": [
+    [
+     [
+      -0.36,
+      0
+     ],
+     [
+      -1,
+      1
+     ],
+     [
+      -1,
+      2
+     ]
+    ]
+   ],
+   "keep": "largest",
+   "place": {
+    "mode": "fit",
+    "frame": "root"
+   },
+   "patch_col": [
+    0.16,
+    0.16,
+    0.17
+   ]
+  }
+ ],
+ "extra_bones": [
+  {
+   "name": "spin_wheel.L0",
+   "parent": "track.L",
+   "copy": "wheel.L0",
+   "head": "load:[0.447, -0.457, 0.2]"
+  },
+  {
+   "name": "spin_wheel.L1",
+   "parent": "track.L",
+   "copy": "wheel.L0",
+   "head": "load:[0.446, -0.138, 0.202]"
+  },
+  {
+   "name": "spin_wheel.L2",
+   "parent": "track.L",
+   "copy": "wheel.L0",
+   "head": "load:[0.449, 0.172, 0.202]"
+  },
+  {
+   "name": "spin_sprocket.L",
+   "parent": "track.L",
+   "copy": "sprocket.L",
+   "head": "load:[0.494, 0.481, 0.256]"
+  },
+  {
+   "name": "spin_wheel.R0",
+   "parent": "track.R",
+   "copy": "wheel.R0",
+   "head": "load:[-0.451, -0.458, 0.201]"
+  },
+  {
+   "name": "spin_wheel.R1",
+   "parent": "track.R",
+   "copy": "wheel.R0",
+   "head": "load:[-0.452, -0.134, 0.201]"
+  },
+  {
+   "name": "spin_wheel.R2",
+   "parent": "track.R",
+   "copy": "wheel.R0",
+   "head": "load:[-0.453, 0.172, 0.204]"
+  },
+  {
+   "name": "spin_sprocket.R",
+   "parent": "track.R",
+   "copy": "sprocket.R",
+   "head": "load:[-0.5, 0.479, 0.256]"
+  }
+ ],
+ "tris": 8000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "piston.L",
+   "piston.R",
+   "root",
+   "ember",
+   "turret",
+   "track.L",
+   "idler.L",
+   "sprocket.L",
+   "rod.L",
+   "wheel.L0",
+   "wheel.L1",
+   "wheel.L2",
+   "track.R",
+   "idler.R",
+   "sprocket.R",
+   "rod.R",
+   "wheel.R0",
+   "wheel.R1",
+   "wheel.R2"
+  ]
+ ],
+ "armour": [
+  {
+   "name": "hull",
+   "select": [
+    [
+     [
+      -2,
+      2
+     ],
+     [
+      -2,
+      2
+     ],
+     [
+      -1,
+      3
+     ]
+    ]
+   ],
+   "bones": {
+    "root": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "turret",
+   "select": [
+    [
+     [
+      -0.28,
+      0.28
+     ],
+     [
+      -0.85,
+      -0.05
+     ],
+     [
+      0.62,
+      0.88
+     ]
+    ]
+   ],
+   "bones": {
+    "turret": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "emissive": [
+  {
+   "name": "glow",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    0,
+    45
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.75,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowEmber": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   3,
+   6,
+   9,
+   12,
+   15,
+   18,
+   21
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   6
+  ],
+  [
+   "Walk",
+   18
+  ]
+ ]
+}
