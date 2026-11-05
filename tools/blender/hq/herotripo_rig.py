@@ -430,6 +430,27 @@ def main():
         lm.update()
         log("mirror parts: %d faces dropped, %d copied mirrored (x = %.3f)" % (len(dr), len(nf), x0))
         REPORT.setdefault("mirror_parts", []).append(dict(dropped=len(dr), mirrored=len(nf)))
+    # cfg prop "upside_down" (off by default): the prop's low mesh is mirrored top to bottom about its middle height
+    # (winding reversed, UVs kept), so the side its bake put underneath faces up: the Hunter-Killer's bay doors (a
+    # "hull" prop) baked their hazard stripes on the slab's underside and the dark under them on top.
+    ups_ = [k for k, p in enumerate(CFG["props"], start=1) if p.get("upside_down") and not p.get("drop")]
+    for k_up in ups_:
+        fp_ = np.zeros(len(lm.polygons), np.int32)
+        lm.attributes["part"].data.foreach_get("value", fp_)
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        bm_.faces.ensure_lookup_table()
+        fl_ = [bm_.faces[i] for i in np.nonzero(fp_ == k_up)[0]]
+        vs_ = list({v for f in fl_ for v in f.verts})
+        zs_ = np.array([v.co.z for v in vs_])
+        zc_ = 0.5 * (zs_.min() + zs_.max())
+        for v in vs_:
+            v.co.z = 2 * zc_ - v.co.z
+        bmesh.ops.reverse_faces(bm_, faces=fl_, flip_multires=False)
+        bm_.to_mesh(lm)
+        bm_.free()
+        lm.update()
+        log("upside down: %s, %d faces mirrored about z %.4f" % (CFG["props"][k_up - 1]["name"], len(fl_), zc_))
     nv = len(lm.vertices)
     P = np.zeros(nv * 3)
     lm.vertices.foreach_get("co", P)

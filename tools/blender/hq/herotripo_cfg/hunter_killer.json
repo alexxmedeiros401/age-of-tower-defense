@@ -277,7 +277,8 @@
     0.16
    ],
    "hull": true,
-   "hi_flip": true
+   "hi_flip": true,
+   "upside_down": true
   },
   {
    "name": "blades.R",
@@ -497,7 +498,8 @@
     0.16
    ],
    "hull": true,
-   "hi_flip": true
+   "hi_flip": true,
+   "upside_down": true
   }
  ],
  "extra_bones": [
@@ -765,6 +767,22 @@
   [
    "Summon",
    16
+  ]
+ ],
+ "no_patch": [
+  [
+   [
+    -0.3,
+    0.3
+   ],
+   [
+    -0.2,
+    0.8
+   ],
+   [
+    2.2,
+    2.4
+   ]
   ]
  ]
 }

@@ -8,7 +8,8 @@ turn.png: front, three-quarter, back, side in the rest pose; face.png: three hea
 all five clips (cfg "review_frames" adds key frames, e.g. the attack frame and the ability's key frame); old_vs_new.png:
 the old (cfg "old") and the new hero, same cameras, rest pose and two clip frames (cfg "cmp_frames"); closeups.png:
 each prop's hand and each armour piece's bone close up in the clips' most extreme frames (the frames where the bone
-is farthest from its rest-pose place, plus cfg "closeup_frames"). Cameras are framed on the scene's bounding box.
+is farthest from its rest-pose place, plus cfg "closeup_frames"). Cameras are framed on the scene's bounding box
+(its height, or 0.8 of its widest side when that is more: a flat flyer such as the Stealth Jet fills the frame).
 """
 import sys, os, math, json
 HQ = os.path.dirname(os.path.abspath(__file__))
