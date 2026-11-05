@@ -118,6 +118,8 @@ def armour_weights(spec, P, body, W4, gn, posed, ea, eb, col):
         m &= C.shapes(Pl, spec["within"], col)
     bones = spec["bones"]
     b0 = list(bones)[0]
+    if b0 not in gn:                     # an "extra_bones" bone: no weights here; the "faces" hard split
+        return W4                        # (hard_by_centre) puts the faces on it
     W = W4.copy()
     W[m] = 0
     for b, s in bones.items():
@@ -864,6 +866,8 @@ def main():
             raise ValueError(mode)
         xfs[p["name"]] = f
         Prest[vs] = f(P[vs])
+        if pl.get("with_soles"):          # (place "with_soles", off by default: a prop cut from the Tripo body that
+            Prest[vs, 2] += dz            # stays where it was moves down with the body's sole snap: the Uplink doors)
         if p.get("object"):
             obj_props[p["name"]] = (vs, p["object"])
         else:
@@ -1081,7 +1085,7 @@ def main():
         src = xb["copy"]
         hd = xb["head"]
         if isinstance(hd, str) and hd.startswith("load:"):
-            hd = load_to_final(json.loads(hd[5:]))[0].tolist()
+            hd = (load_to_final(json.loads(hd[5:]))[0] + np.array((0, 0, dz))).tolist()   # (moved with the soles)
         bpy.context.view_layer.objects.active = arm
         for o_ in sc.objects:
             o_.select_set(o_ == arm)
@@ -1404,7 +1408,21 @@ def main():
                 Q_ = Pc_[sel_] - cen_
                 Qn_ = Q_ / np.linalg.norm(Q_, axis=1, keepdims=True)
                 np.random.seed(int(hc_.get("seed", 1)))
-                _, lab_ = kmeans2(Qn_, int(hc_["k"]), minit="++", seed=int(hc_.get("seed", 1)))
+                if "seed_col" in hc_:
+                    # ("seed_col": {"min", "max"}: the k-means runs on the faces of that baked colour only, e.g. the
+                    # Nano Swarm's white mite shells, and every selected face joins the nearest centre (3D): the cluster
+                    # lines then fall between the mites, in their legs, not across their shells)
+                    ul_ = bm_.loops.layers.uv.active
+                    fu_ = np.array([np.mean([lp[ul_].uv[:] for lp in bm_.faces[fi].loops], 0) for fi in np.array(fis_)[sel_]])
+                    S_ = alb.shape[0]
+                    fcl_ = alb[np.clip(((1 - fu_[:, 1]) * S_).astype(int), 0, S_ - 1), np.clip((fu_[:, 0] * S_).astype(int), 0, S_ - 1)]
+                    cm_ = (fcl_ >= np.array(hc_["seed_col"].get("min", [0, 0, 0]))).all(1) & (fcl_ <= np.array(hc_["seed_col"].get("max", [1, 1, 1]))).all(1)
+                    ctr_, _ = kmeans2(Q_[cm_], int(hc_["k"]), minit="++", seed=int(hc_.get("seed", 1)))
+                    from scipy.spatial import cKDTree as KDT_
+                    lab_ = KDT_(ctr_).query(Q_)[1]
+                    log("hard clusters: %d seed faces of the colour" % cm_.sum())
+                else:
+                    _, lab_ = kmeans2(Qn_, int(hc_["k"]), minit="++", seed=int(hc_.get("seed", 1)))
                 sid_ = np.array(fis_)[sel_]
                 for c_ in np.unique(lab_):
                     mm_ = lab_ == c_
