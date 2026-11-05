@@ -7936,11 +7936,13 @@ const COLOSSUS_SLAM := 9.0 / CLIP_FPS                 # robot_iron_colossus.py E
 # its tesla orb on frame 12; its Summon opens the hangar hatch on its back deck and the Bombers lift off on frame 16.
 const DREAD_EMP := 12.0 / CLIP_FPS
 const DREAD_LAUNCH := 16.0 / CLIP_FPS
-const DREAD_BAY := Vector3(0.058, 2.284, -0.846)
+const DREAD_BAY := Vector3(0.0, 2.30, -0.86)
 const BOMBER_LIFT := 0.9                                # (the Bomber's model flies this high over its node)
 
 
 ## The broadside: a flash and a cloud of powder smoke at each of the eight gun ports, out to either side.
+const DREAD_PORTS := [Vector3(0.80, 1.865, 0.594), Vector3(0.90, 1.925, 0.165), Vector3(0.924, 1.958, -0.246),
+	Vector3(0.93, 2.013, -0.678)]   # (x mirrored per side; model units, Godot axes; measured)
 func _dread_broadside(eid: int) -> void:
 	if not enemy_nodes.has(eid) or not is_instance_valid(enemy_nodes[eid]):
 		return
@@ -7948,8 +7950,8 @@ func _dread_broadside(eid: int) -> void:
 	var xf := dn.global_transform
 	for sx in [-1.0, 1.0]:
 		var out := (xf.basis * Vector3(sx, 0.0, 0.0)).normalized()
-		for z in [0.136, -0.134, -0.404, -0.674]:
-			_gun_blast(xf * Vector3(0.98 * sx, 1.995, z), out, 1.3)
+		for gp in DREAD_PORTS:                       # (v0.9.109: the Tripo hull's four ports, front to back)
+			_gun_blast(xf * Vector3(gp.x * sx, gp.y, gp.z), out, 1.3)
 	_sfx("cannon", -4.0, 0.1, 0.3)
 	shake = maxf(shake, 0.5)
 
