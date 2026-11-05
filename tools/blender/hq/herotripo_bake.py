@@ -265,6 +265,17 @@ LOW[0] = ob
 for k in PIECES:
     if k > 0:
         LOW[k] = decimate(HI[k], TARGETS[k], "Low_" + NAMES[k])
+        if CFG["props"][k - 1].get("flip"):
+            # cfg prop "flip" (off by default): the decimated prop's winding is reversed before its bake, so the cage
+            # pushes out of the right side: a Tripo shell that came inside out (the Hunter-Killer's thin bay doors:
+            # facing down, their bake rays started under the slab and took the dark underside first, in shards)
+            bm_ = bmesh.new()
+            bm_.from_mesh(LOW[k].data)
+            bmesh.ops.reverse_faces(bm_, faces=list(bm_.faces), flip_multires=False)
+            bm_.to_mesh(LOW[k].data)
+            bm_.free()
+            LOW[k].data.update()
+            log("flip: %s turned inside out" % NAMES[k])
 for k, o in LOW.items():
     a = o.data.attributes.new("part", "INT", "FACE")
     a.data.foreach_set("value", np.full(len(o.data.polygons), k, np.int32))
