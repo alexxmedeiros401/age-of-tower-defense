@@ -346,5 +346,17 @@
     10
    ]
   ]
+ },
+ "glows": {
+  "GlowScreen": {
+   "hide": true
+  },
+  "GlowLights": {
+   "hide": true
+  }
+ },
+ "drop_stretched": {
+  "ratio": 3.0,
+  "min": 0.06
  }
 }
