@@ -1,0 +1,212 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/stealth_jet.glb",
+ "armature": "StealthJetRig",
+ "clips": [
+  "Fly"
+ ],
+ "tex": 1024,
+ "yaw": 90,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "sole_snap": false,
+ "body_bones": [
+  "root",
+  "exhaust.L",
+  "exhaust.R",
+  "fin.L",
+  "fin.R"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "root",
+  "exhaust.L",
+  "exhaust.R",
+  "fin.L",
+  "fin.R"
+ ],
+ "armour": [
+  {
+   "name": "fin_L",
+   "select": [
+    [
+     [
+      0.1,
+      0.4
+     ],
+     [
+      0.2,
+      0.6
+     ],
+     [
+      1.09,
+      1.6
+     ]
+    ]
+   ],
+   "bones": {
+    "fin.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "fin_R",
+   "select": [
+    [
+     [
+      -0.4,
+      -0.1
+     ],
+     [
+      0.2,
+      0.6
+     ],
+     [
+      1.09,
+      1.6
+     ]
+    ]
+   ],
+   "bones": {
+    "fin.R": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "hard_cuts": [
+  {
+   "co": [
+    0,
+    0,
+    1.09
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      0.1,
+      0.4
+     ],
+     [
+      0.2,
+      0.6
+     ],
+     [
+      1.04,
+      1.14
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    0,
+    0,
+    1.09
+   ],
+   "no": [
+    0,
+    0,
+    1
+   ],
+   "within": [
+    [
+     [
+      -0.4,
+      -0.1
+     ],
+     [
+      0.2,
+      0.6
+     ],
+     [
+      1.04,
+      1.14
+     ]
+    ]
+   ]
+  }
+ ],
+ "tris": 7500,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "exhaust.L",
+   "exhaust.R",
+   "fin.L",
+   "fin.R"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "visor",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.55,
+   "val_min": 0.45,
+   "strength": 2.4
+  },
+  {
+   "name": "exhaust",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    165,
+    210
+   ],
+   "sat_min": 0.4,
+   "val_min": 0.5,
+   "strength": 2.4
+  }
+ ],
+ "glows": {
+  "GlowExhaustL": {
+   "hide": true
+  },
+  "GlowExhaustR": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Fly": [
+   6,
+   12,
+   18,
+   24,
+   30,
+   36,
+   42
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Fly",
+   12
+  ],
+  [
+   "Fly",
+   36
+  ]
+ ]
+}
