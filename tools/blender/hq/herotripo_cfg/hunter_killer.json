@@ -276,8 +276,7 @@
     0.15,
     0.16
    ],
-   "tris": 900,
-   "flip": true
+   "hull": true
   },
   {
    "name": "blades.R",
@@ -496,8 +495,7 @@
     0.15,
     0.16
    ],
-   "tris": 900,
-   "flip": true
+   "hull": true
   }
  ],
  "extra_bones": [

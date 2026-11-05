@@ -265,17 +265,32 @@ LOW[0] = ob
 for k in PIECES:
     if k > 0:
         LOW[k] = decimate(HI[k], TARGETS[k], "Low_" + NAMES[k])
-        if CFG["props"][k - 1].get("flip"):
-            # cfg prop "flip" (off by default): the decimated prop's winding is reversed before its bake, so the cage
-            # pushes out of the right side: a Tripo shell that came inside out (the Hunter-Killer's thin bay doors:
-            # facing down, their bake rays started under the slab and took the dark underside first, in shards)
+        if CFG["props"][k - 1].get("hull"):
+            # cfg prop "hull" (off by default): the prop's low mesh is the convex hull of its high-poly piece (flat
+            # shaded) instead of its decimation: a thin slab whose decimated top and underside cross through each other
+            # (the Hunter-Killer's bay doors, 4 cm thick: their bake took the underside's dark through the stripes, in
+            # shards). The bake rays come from outside the hull, so each side takes the surface on that side; small
+            # rim details stay in the normal map.
+            bpy.data.objects.remove(LOW[k])
+            co_ = np.zeros(len(HI[k].data.vertices) * 3)
+            HI[k].data.vertices.foreach_get("co", co_)
+            mw_ = np.array(HI[k].matrix_world)
+            co_ = co_.reshape(-1, 3) @ mw_[:3, :3].T + mw_[:3, 3]
             bm_ = bmesh.new()
-            bm_.from_mesh(LOW[k].data)
-            bmesh.ops.reverse_faces(bm_, faces=list(bm_.faces), flip_multires=False)
-            bm_.to_mesh(LOW[k].data)
+            for c_ in co_:
+                bm_.verts.new(c_.tolist())
+            r_ = bmesh.ops.convex_hull(bm_, input=bm_.verts[:])
+            bmesh.ops.delete(bm_, geom=[g for g in r_["geom_interior"] + r_["geom_unused"] if isinstance(g, bmesh.types.BMVert)], context="VERTS")
+            bmesh.ops.dissolve_limit(bm_, angle_limit=math.radians(1.0), verts=bm_.verts[:], edges=bm_.edges[:])
+            bmesh.ops.triangulate(bm_, faces=bm_.faces[:])
+            me_ = bpy.data.meshes.new("Low_" + NAMES[k])
+            bm_.to_mesh(me_)
             bm_.free()
-            LOW[k].data.update()
-            log("flip: %s turned inside out" % NAMES[k])
+            for p_ in me_.polygons:
+                p_.use_smooth = False
+            LOW[k] = bpy.data.objects.new("Low_" + NAMES[k], me_)
+            bpy.context.scene.collection.objects.link(LOW[k])
+            log("hull: %s is its high-poly piece's convex hull, %d tris" % (NAMES[k], len(me_.polygons)))
 for k, o in LOW.items():
     a = o.data.attributes.new("part", "INT", "FACE")
     a.data.foreach_set("value", np.full(len(o.data.polygons), k, np.int32))
