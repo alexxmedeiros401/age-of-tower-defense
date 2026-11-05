@@ -141,12 +141,13 @@ def hi_piece(L, name):
             log("hi %s: patch of %d rim verts skipped (NaN points)" % (name, n))
             continue
         idx = np.r_[remap[Lr], nv + np.arange(len(Pin))]
-        for rc_ in (CFG.get("patch_recess", []) if L == 0 else []):
+        for rc_ in [r_ for r_ in CFG.get("patch_recess", []) if r_.get("part", "body") == NAMES[L]]:
             # cfg "patch_recess" (off by default): [{"select": shapes (fitted game frame), "dir": [x, y, z] (game
             # axes), "depth": d (game units)}]: a body patch whose rim centre lies inside is pushed in along dir,
             # deepest in its middle (by the square root of the inner point's distance from the rim over the largest
             # one): a bay behind a door cut away as a prop (The Core's front door: the flat patch sat in front of the
-            # closed door and hid it)
+            # closed door and hid it). "part": a prop's own patch instead (the door's back: its hole patch lay in its
+            # front skin and baked the front dark)
             if C.shapes(C.to_game(Pw[Lr].mean(0, keepdims=True), XF), rc_["select"])[0]:
                 dr_ = np.array([np.sqrt(((Pw[Lr] - q_) ** 2).sum(1)).min() for q_ in Pin])
                 dv_ = np.array(rc_["dir"], float) @ C.rotz(XF["yaw"])        # (game direction -> Tripo frame)
