@@ -403,6 +403,33 @@ def main():
         bm_.free()
         lm.update()
         log("hard cuts: %d planes, %d new edges; low mesh now %d faces" % (len(CFG["hard_cuts"]), ncut, len(lm.polygons)))
+    # cfg "mirror_parts" (off by default; after hard_cuts, so a drop can follow a cut): [{"from": shapes, "drop": shapes}] (load frame): faces of the baked low mesh in
+    # "drop" are deleted, and those in "from" are copied mirrored across the model's middle (x = 0 of the load frame),
+    # with the same UVs (no rebake: the copy shares the texture). The Tripo Juggernaut has two left legs and only one
+    # right one, under the middle of its hull: the right side gets a mirror of the left pair.
+    for mp in CFG.get("mirror_parts", []):
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        def inl(faces):
+            fc = np.array([list(f.calc_center_median()) for f in faces])
+            return C.to_game(C.from_game(fc, XF), XF0)
+        fl_ = list(bm_.faces)
+        Pl_ = inl(fl_)
+        dr = [f for f, k in zip(fl_, C.shapes(Pl_, mp["drop"])) if k]
+        src_ = [f for f, k in zip(fl_, C.shapes(Pl_, mp["from"])) if k]
+        x0 = load_to_final([0.0, 0.0, 0.0])[0][0]
+        ret = bmesh.ops.duplicate(bm_, geom=src_)
+        nf = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMFace)]
+        nvs = [g for g in ret["geom"] if isinstance(g, bmesh.types.BMVert)]
+        for v in nvs:
+            v.co.x = 2 * x0 - v.co.x
+        bmesh.ops.reverse_faces(bm_, faces=nf, flip_multires=False)
+        bmesh.ops.delete(bm_, geom=dr, context="FACES")
+        bm_.to_mesh(lm)
+        bm_.free()
+        lm.update()
+        log("mirror parts: %d faces dropped, %d copied mirrored (x = %.3f)" % (len(dr), len(nf), x0))
+        REPORT.setdefault("mirror_parts", []).append(dict(dropped=len(dr), mirrored=len(nf)))
     nv = len(lm.vertices)
     P = np.zeros(nv * 3)
     lm.vertices.foreach_get("co", P)
