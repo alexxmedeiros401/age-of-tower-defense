@@ -654,6 +654,17 @@ def main():
         M = blend(W4, gn)
     Prest = P.copy()
     Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
+    far_ = np.linalg.norm(Prest[body] - P[body], axis=1) > 1.0
+    if far_.any():
+        # (a vertex whose blended matrix is near singular flies off when un-posed, and the sole snap then moves the whole
+        # body after it: the Knight's crossed arms. Logged with the bones they blend so the config can be fixed)
+        top_ = {}
+        for w_ in W4[far_]:
+            k_ = "/".join(sorted(gn[j] for j in np.nonzero(w_ > 0.1)[0]))
+            top_[k_] = top_.get(k_, 0) + 1
+        Pf_ = C.to_game(C.from_game(P[body][far_], XF), XF0)
+        log("WARNING: %d verts move over 1 m into the rest pose (load frame %s .. %s); their bones: %s" % (
+            far_.sum(), Pf_.min(0).round(2), Pf_.max(0).round(2), sorted(top_.items(), key=lambda x: -x[1])[:6]))
     sole_old = V0[np.unique(tri0), 2].min()
     dz = sole_old - Prest[body, 2].min()
     if not CFG.get("sole_snap", True):          # (a drone has no soles: the fitted height stays, and its props with it)
@@ -1042,6 +1053,32 @@ def main():
     # on his cape), the faces between them stretch into sheets when the limb moves. Inside "within" (rest armature
     # space), every vertex is the limb's (its share on "bones" >= 0.5) or the body's; the edges between the two are
     # split, the limb side keeps only its limb weights and the body side loses them.
+    # drop_stretched (config, off by default): {"ratio": r, "min": m}: a body face whose longest edge in the rest pose is
+    # over m and over r times its longest edge in the Tripo pose is deleted: a face that spans two parts which the
+    # un-posing sent far apart (the Knight's fists, crossed on his sword hilt, and the tabard behind them: their seam
+    # faces hung in shards once each hand went to its own side)
+    if CFG.get("drop_stretched"):
+        ds_ = CFG["drop_stretched"]
+        isb_ = np.zeros(len(lm.vertices), bool)
+        isb_[body] = True
+        Pr_ = np.array([v.co[:] for v in lm.vertices])
+        bm_ = bmesh.new()
+        bm_.from_mesh(lm)
+        bm_.faces.ensure_lookup_table()
+        bad_ = []
+        for f_ in bm_.faces:
+            ix_ = [v.index for v in f_.verts]
+            if not isb_[ix_].all():
+                continue
+            lr_ = max(np.linalg.norm(Pr_[ix_[k]] - Pr_[ix_[k - 1]]) for k in range(len(ix_)))
+            lp_ = max(np.linalg.norm(P[ix_[k]] - P[ix_[k - 1]]) for k in range(len(ix_)))
+            if lr_ > float(ds_.get("min", 0.08)) and lr_ > float(ds_.get("ratio", 3.0)) * lp_:
+                bad_.append(f_)
+        bmesh.ops.delete(bm_, geom=bad_, context="FACES_ONLY")
+        bm_.to_mesh(lm)
+        bm_.free()
+        log("drop_stretched: %d body faces deleted" % len(bad_))
+    nv_det0 = len(lm.vertices)
     for dt in CFG.get("detach", []):
         gi_ = [old.vertex_groups[b].index for b in dt["bones"]]
         bm_ = bmesh.new()
@@ -1055,6 +1092,7 @@ def main():
         if dt.get("parts_only_body", True):
             isb = np.zeros(len(Xr), bool)
             isb[body] = True
+            isb[nv_det0:] = True          # (the copies an earlier detach split off body verts are body verts too)
             inr &= isb
         cut = [e for e in bm_.edges if inr[e.verts[0].index] and inr[e.verts[1].index]
                and limb[e.verts[0].index] != limb[e.verts[1].index]]
@@ -1076,12 +1114,28 @@ def main():
                         del d[k_]
                     else:
                         d[k_] = d[k_] / rest_
+        # "drop_bridges": L (off by default): a face with corners on both sides whose longest edge is over L m in the
+        # rest pose is deleted (splitting edges cannot part a triangle that spans the two sides: the Knight's crossed
+        # fists touched, and the triangles between the knuckles stretched 1.9 m once each fist went to its own side)
+        ndrop_ = 0
+        if dt.get("drop_bridges"):
+            Lb_ = float(dt["drop_bridges"])
+            bad_ = []
+            for f_ in bm_.faces:
+                ix_ = [v.index for v in f_.verts]
+                if not all(inr[i] for i in ix_) or len({bool(limb[i]) for i in ix_}) < 2:
+                    continue
+                if max(e.calc_length() for e in f_.edges) > Lb_:
+                    bad_.append(f_)
+            ndrop_ = len(bad_)
+            bmesh.ops.delete(bm_, geom=bad_, context="FACES_ONLY")
+            cut = [e for e in cut if e.is_valid]
         nv0 = len(bm_.verts)
         bmesh.ops.split_edges(bm_, edges=cut)
         bm_.to_mesh(lm)
         bm_.free()
-        log("detach %s: %d edges split, %d verts added, %d verts in the region (%d the limb's)" % (
-            "/".join(dt["bones"]), len(cut), len(lm.vertices) - nv0, inr.sum(), (inr & limb).sum()))
+        log("detach %s: %d edges split, %d verts added, %d verts in the region (%d the limb's), %d bridging faces dropped" % (
+            "/".join(dt["bones"]), len(cut), len(lm.vertices) - nv0, inr.sum(), (inr & limb).sum(), ndrop_))
     # hard_split (config, off by default; with hard_weights): a machine's parts come apart at their joints instead of
     # stretching. Every body edge whose two ends ride different bones of one hard_weights group (each vertex's
     # heaviest bone) is split, so each part turns rigidly on its bone (the Walker's knees, elbows and hips: the faces
@@ -1377,6 +1431,17 @@ def main():
             log("glow %s: scaled %.2f, moved %s" % (gname, g.get("scale", 1.0), g.get("offset", [0, 0, 0])))
 
     # ---- save and export
+    if CFG.get("drop_stretched") or any(d.get("drop_bridges") for d in CFG.get("detach", [])):
+        # (faces deleted above leave loose vertices; some flew far off when un-posed and would only stretch the bounds)
+        hm_ = bpy.data.objects[INFO["mesh"]].data if INFO["mesh"] in bpy.data.objects else None
+        if hm_ is not None:
+            bm_ = bmesh.new()
+            bm_.from_mesh(hm_)
+            loose_ = [v for v in bm_.verts if not v.link_faces]
+            bmesh.ops.delete(bm_, geom=loose_, context="VERTS")
+            bm_.to_mesh(hm_)
+            bm_.free()
+            log("%d loose verts removed" % len(loose_))
     for ob in sc.objects:
         ob.select_set(False)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "%s_hq.blend" % HID))
