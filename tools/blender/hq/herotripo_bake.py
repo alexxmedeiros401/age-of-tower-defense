@@ -141,6 +141,18 @@ def hi_piece(L, name):
             log("hi %s: patch of %d rim verts skipped (NaN points)" % (name, n))
             continue
         idx = np.r_[remap[Lr], nv + np.arange(len(Pin))]
+        for rc_ in (CFG.get("patch_recess", []) if L == 0 else []):
+            # cfg "patch_recess" (off by default): [{"select": shapes (fitted game frame), "dir": [x, y, z] (game
+            # axes), "depth": d (game units)}]: a body patch whose rim centre lies inside is pushed in along dir,
+            # deepest in its middle (by the square root of the inner point's distance from the rim over the largest
+            # one): a bay behind a door cut away as a prop (The Core's front door: the flat patch sat in front of the
+            # closed door and hid it)
+            if C.shapes(C.to_game(Pw[Lr].mean(0, keepdims=True), XF), rc_["select"])[0]:
+                dr_ = np.array([np.sqrt(((Pw[Lr] - q_) ** 2).sum(1)).min() for q_ in Pin])
+                dv_ = np.array(rc_["dir"], float) @ C.rotz(XF["yaw"])        # (game direction -> Tripo frame)
+                dv_ = dv_ / np.linalg.norm(dv_)
+                Pin = Pin + (np.sqrt(np.clip(dr_ / max(dr_.max(), 1e-9), 0, 1)) * float(rc_["depth"]) / XF["s"])[:, None] * dv_[None]
+                log("hi %s: patch of %d rim verts recessed %.3f" % (name, n, float(rc_["depth"])))
         V.append(Pin)
         Fs.append(idx[tris])
         corner_uv.append(np.zeros((len(tris) * 3, 2), np.float32))
