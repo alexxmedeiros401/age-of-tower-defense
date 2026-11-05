@@ -98,9 +98,13 @@ def main():
     REG = float(C.arg("--reg", cfg["fit_reg"]))
     fix_scale = cfg["scale"] != "auto"
 
+    HOLD = {}                                    # cfg "fit_hold": bones kept at their fit_aim start (filled below)
+
     def unpack(x):
         xx = x[:3 * nb].reshape(-1, 3).copy()
         xx[~free3, 1] = 0.0                      # (no twist about the bone's own axis for limbs)
+        for i_, v_ in HOLD.items():
+            xx[i_] = v_
         rot = {b: Rot.from_rotvec(xx[i]).as_matrix() for i, b in enumerate(BONES)}
         tr = x[3 * nb:3 * nb + 3]
         k = 1.0 if fix_scale else np.exp(x[-1])
@@ -156,6 +160,13 @@ def main():
                 rot0[b] = Rot.from_rotvec(rv).as_matrix()
                 x0[3 * BONES.index(b):3 * BONES.index(b) + 3] = rv
                 print("[fit] %s aimed at %s: %.1f deg" % (b, cfg["fit_aim"][b], np.degrees(np.linalg.norm(rv))))
+    # cfg "fit_hold" (off by default): [bone, ...] of fit_aim's bones that the least squares may not move from their aim
+    # (the Oracle's right upper arm: its old arm hung straight, and the fit swung it back down against the robe, leaving
+    # the elbow joint 10 cm inside her waist; the elbow then tore when her clips bent it)
+    for b in cfg.get("fit_hold", []):
+        if b in BONES and b in cfg.get("fit_aim", {}):
+            HOLD[BONES.index(b)] = x0[3 * BONES.index(b):3 * BONES.index(b) + 3].copy()
+            print("[fit] %s held at its aim" % b)
     r0 = resid(x0)[:len(Vs)]
     print("[fit] reverse term weight %.2f" % REV)
     print("[fit] initial rms %.4f median %.4f" % (np.sqrt((r0 ** 2).mean()), np.median(np.abs(r0))))

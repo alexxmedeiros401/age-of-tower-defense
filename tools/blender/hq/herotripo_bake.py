@@ -135,6 +135,11 @@ def hi_piece(L, name):
         n = len(Lr)
         if (remap[Lr] < 0).any():
             continue
+        if not np.isfinite(Pin).all():
+            # (a patch whose fill came out with NaN points: the Onager's windlass and frame; one such patch stalls the
+            # whole part's decimation, 1.1M faces left at 1.1M. The hole stays open instead.)
+            log("hi %s: patch of %d rim verts skipped (NaN points)" % (name, n))
+            continue
         idx = np.r_[remap[Lr], nv + np.arange(len(Pin))]
         V.append(Pin)
         Fs.append(idx[tris])

@@ -592,9 +592,27 @@ def main():
                 Sc = WB[:, ci].sum(1)
                 m_ = Sc > 0.02
                 Dm = np.stack([seg_dist(P[body][m_], c) for c in cb], 1)
-                iv = 1.0 / np.maximum(Dm, 0.01) ** 4
+                # (cfg "limb_regeom_power", default 4: a lower power blends the joints over a longer stretch; the
+                # Oracle's elbow, bent far past its Tripo pose, folded into a sharp beak at 4)
+                iv = 1.0 / np.maximum(Dm, 0.01) ** float(CFG.get("limb_regeom_power", 4))
                 WB[np.ix_(np.nonzero(m_)[0], ci)] = Sc[m_, None] * iv / iv.sum(1, keepdims=True)
         log("weights: limb shares redistributed along the fitted bones")
+    # limb_strip (config, off by default): [{"bones": [...], "select": shapes (load frame, Tripo pose; colour tests on the
+    # baked albedo)}]: the selected vertices lose their weight on those bones, the rest scaled back up to 1 (the
+    # Oracle's hip drape lay against her elbow and took a share of the arm: it stretched into a flap whenever she
+    # lifted the laurel)
+    for ls_ in CFG.get("limb_strip", []):
+        ci = [gn.index(b_) for b_ in ls_["bones"] if b_ in gn]
+        Pl_ = C.to_game(C.from_game(P[body], XF), XF0)
+        m_ = C.shapes(Pl_, ls_["select"], vcol[body])
+        keep_ = WB[m_].copy()
+        had_ = int((keep_[:, ci].sum(1) > 0).sum())
+        keep_[:, ci] = 0
+        tot_ = keep_.sum(1)
+        ok_ = tot_ > 1e-6
+        WB[np.nonzero(m_)[0][ok_]] = keep_[ok_] / tot_[ok_, None]
+        log("weights: limb_strip %s: %d verts selected, %d had a share on them (%d kept it: no other bone)" % (
+            "/".join(ls_["bones"]), m_.sum(), had_, int((~ok_).sum())))
     if "head" in posed and "head" in gn:             # (a drone has no head bone)
         hb = posed["head"]
         hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
@@ -711,6 +729,36 @@ def main():
                         du = np.where(u < t0, 0.0, np.where(u > t1, -(1 - k) * (t1 - t0), -(1 - k) * (u - t0)))
                     Y = Y + du[:, None] * d_
                 return a + off + Y
+            if pl.get("bend"):
+                # place "bend" (off by default): {"tips": [[load pt, target], ...], "blend": m}: after the placement,
+                # each limb (the side of the anchor a its tip lies on) is turned about a and scaled along so its tip
+                # lands on its target, fading in over `blend` from a (the Cretan Archer's recurve bow: its limbs meet
+                # at 151 deg, the old bow's string tips at 173 deg from the fist)
+                # ("start", default 0: each limb turns about the point that far along it from a, and nothing nearer
+                # a moves: the Cretan bow's lower limb, turned about the fist, had swung its root out of the fist)
+                f_rigid = f
+                bend_ = []
+                st_ = float(pl["bend"].get("start", 0.0))
+                for tp_, tg_ in pl["bend"]["tips"]:
+                    T0 = f_rigid(load_to_final(tp_))[0] - (a + off)
+                    T1 = target_point(tg_, bones) - (a + off)
+                    P0 = nrm(T0) * st_
+                    Rb = Rot.from_matrix(rot_between(T0 - P0, T1 - P0)).as_rotvec()
+                    bend_.append((nrm(T0), Rb, np.linalg.norm(T1 - P0) / np.linalg.norm(T0 - P0), P0))
+                bl_ = float(pl["bend"].get("blend", 0.1))
+                def f(X, f_rigid=f_rigid, bend_=bend_, bl_=bl_, st_=st_, a=a, off=off):
+                    Y = f_rigid(X) - (a + off)
+                    out = Y.copy()
+                    for u_, rv_, k_, p0_ in bend_:
+                        t_ = Y @ u_ - st_
+                        w_ = np.clip(t_ / bl_, 0, 1)
+                        w_ = w_ * w_ * (3 - 2 * w_)
+                        m_ = w_ > 0
+                        if m_.any():
+                            Rk_ = Rot.from_rotvec(w_[m_, None] * rv_[None]).as_matrix()
+                            out[m_] = p0_ + (1 + w_[m_, None] * (k_ - 1)) * np.einsum("nij,nj->ni", Rk_, Y[m_] - p0_)
+                    return a + off + out
+                log("prop %s: bent, limbs %s" % (p["name"], [(round(float(np.degrees(np.linalg.norm(r))), 1), round(float(k), 3)) for _, r, k, _ in bend_]))
             log("prop %s: %s -> %s, scale %.3f, turned %.1f deg%s" % (p["name"], np.round(Aa, 3), np.round(a, 3), s,
                 np.degrees(np.linalg.norm(Rot.from_matrix(R).as_rotvec())), ", stretched x%.2f over %s" % (k_st, st) if st else ""))
             if pl.get("hand_follow"):
@@ -731,7 +779,14 @@ def main():
                 mv_ = kk > 1e-4
                 Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()
                 Xn = Xb.copy()
-                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * (a_hand + off - Aa)
+                sh_ = a_hand + off - Aa
+                if pl.get("grip") is not None:
+                    # place "grip" (load frame, off by default): the fist follows the prop at this point, scale and
+                    # stretch included (the Cretan Archer's bow is scaled 1.17 about its lower tip: without it the
+                    # fist kept the unscaled grip and the bow slid 7 cm out of it)
+                    Gp = fit_xf(load_to_final(pl["grip"]))[0]
+                    sh_ = f(Gp[None])[0] - (Aa + (Gp - Aa) @ R.T)
+                Xn[mv_] = Aa + np.einsum("nij,nj->ni", Rk, Xb[mv_] - Aa) + kk[mv_, None] * sh_
                 Prest[body] = Xn
                 ax_ = nrm(rv)
                 fdir = nrm(e1 - e0)
