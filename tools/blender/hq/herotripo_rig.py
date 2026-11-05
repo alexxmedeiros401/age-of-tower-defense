@@ -363,6 +363,10 @@ def main():
         p = parent[n]
         posed[n] = rest[n] @ R if p is None else posed[p] @ np.linalg.inv(rest[p]) @ rest[n] @ R
     SK = {n: posed[n] @ np.linalg.inv(rest[n]) for n in order}
+    XPAR_ = {xb["name"]: xb["parent"] for xb in CFG.get("extra_bones", [])}
+    def sk_(n):
+        """SK of a bone; an "extra_bones" bone rides its parent's fitted pose (it has no fitted pose of its own)."""
+        return SK[n] if n in SK else sk_(XPAR_[n])
 
     def blend(W, names):
         M = np.zeros((len(W), 4, 4))
@@ -1309,7 +1313,8 @@ def main():
                     m_ = C.shapes(Pl_, spec["select"], fcol)
                     if "within" in spec:
                         m_ &= C.shapes(Pl_, spec["within"], fcol)
-                    gi = old.vertex_groups[list(spec["bones"])[0]].index
+                    bn0_ = list(spec["bones"])[0]          # (an "extra_bones" bone gets its group here)
+                    gi = (old.vertex_groups[bn0_] if bn0_ in old.vertex_groups else old.vertex_groups.new(name=bn0_)).index
                     for k_ in np.nonzero(m_)[0]:
                         fb[fis[k_]] = gi
                         if CFG.get("hard_keep_claimed"):
@@ -1377,6 +1382,38 @@ def main():
                     if nre_ == 0:
                         break
             fb.update(claimed_)
+            # cfg "hard_clusters" (off by default): [{"select": shapes (load frame), "k": n, "bones": [...],
+            # "centre": [x, y, z] (load frame)}]: the selected faces are split into k compact clusters (k-means on their
+            # middles), and each cluster rides, whole, the listed bone whose old faces lie nearest its direction from
+            # the centre. The Tripo Nano Swarm is one fused shell of ~70 mites: by corner majority its 12 wobbling clump
+            # bones cut mites in half; a cluster per mite keeps each mite in one piece.
+            for hc_ in CFG.get("hard_clusters", []):
+                from scipy.cluster.vq import kmeans2
+                fis_ = list(fb.keys())
+                fc_ = np.array([list(bm_.faces[fi].calc_center_median()) for fi in fis_])
+                Pc_ = C.to_game(C.from_game(fc_ - np.array((0, 0, dz)), XF), XF0)
+                sel_ = C.shapes(Pc_, hc_["select"]) if "select" in hc_ else np.ones(len(fis_), bool)
+                cen_ = np.array(hc_["centre"], float)
+                ocen_ = V0.mean(0)
+                dirs_ = []
+                for bn_ in hc_["bones"]:
+                    m_ = W0[:, gn.index(bn_)] > 0.5
+                    d_ = V0[m_].mean(0) - ocen_
+                    dirs_.append(d_ / np.linalg.norm(d_))
+                dirs_ = np.array(dirs_)
+                Q_ = Pc_[sel_] - cen_
+                Qn_ = Q_ / np.linalg.norm(Q_, axis=1, keepdims=True)
+                np.random.seed(int(hc_.get("seed", 1)))
+                _, lab_ = kmeans2(Qn_, int(hc_["k"]), minit="++", seed=int(hc_.get("seed", 1)))
+                sid_ = np.array(fis_)[sel_]
+                for c_ in np.unique(lab_):
+                    mm_ = lab_ == c_
+                    dc_ = Qn_[mm_].mean(0)
+                    bn_ = hc_["bones"][int(np.argmax(dirs_ @ dc_))]
+                    gi_ = old.vertex_groups[bn_].index
+                    for fi in sid_[mm_]:
+                        fb[int(fi)] = gi_
+                log("hard clusters: %d faces in %d clusters on %d bones" % (sel_.sum(), len(np.unique(lab_)), len(hc_["bones"])))
             cut = [e for e in bm_.edges if len(e.link_faces) == 2
                    and fb.get(e.link_faces[0].index, -1) != fb.get(e.link_faces[1].index, -1)
                    and (e.link_faces[0].index in fb or e.link_faces[1].index in fb)]
@@ -1421,9 +1458,9 @@ def main():
                             # it sat in the Tripo pose)
                             Mo = np.zeros((4, 4))
                             for g_, w in d.items():
-                                Mo += w * SK[old.vertex_groups[g_].name]
+                                Mo += w * sk_(old.vertex_groups[g_].name)
                             x_ = np.r_[np.array(v.co) - np.array((0, 0, dz)), 1.0]
-                            v.co = (np.linalg.inv(SK[old.vertex_groups[b].name]) @ (Mo @ x_))[:3] + np.array((0, 0, dz))
+                            v.co = (np.linalg.inv(sk_(old.vertex_groups[b].name)) @ (Mo @ x_))[:3] + np.array((0, 0, dz))
                         for g_ in list(d.keys()):
                             del d[g_]
                         d[b] = 1.0
