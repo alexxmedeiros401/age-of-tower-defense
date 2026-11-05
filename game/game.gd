@@ -7960,7 +7960,7 @@ func _dread_broadside(eid: int) -> void:
 # v0.9.67: the HUNTER-KILLER (robot_hunter_killer.py) launches its Stealth Jets from the bay on its back the same way
 # (its Summon clip's frame 16); a jet's body flies 1.8 over its node (the flying lift plus its own height in its model).
 const BAY_LAUNCH := {"bomber": ["dreadnought", DREAD_BAY, DREAD_LAUNCH, BOMBER_LIFT],
-	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.329, -0.451), 16.0 / CLIP_FPS, 1.8],
+	"stealth_jet": ["hunter_killer", Vector3(0.0, 2.314, -0.381), 16.0 / CLIP_FPS, 1.8],
 	"nano_swarm": ["orbital_uplink", [Vector3(0.872, 1.521, 0.0), Vector3(-0.927, 1.552, 0.0)], 18.0 / CLIP_FPS, 0.4],
 	"sentinel": ["the_core", Vector3(-0.003, 0.280, 1.618), 22.0 / CLIP_FPS, 0.0]}   # (v0.9.84: down the bay's ramp)
 func _bay_launch(n: Node3D, e: Dictionary) -> void:
