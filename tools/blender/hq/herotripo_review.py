@@ -160,7 +160,7 @@ if "turn" in ONLY:
     sc, arm = setup(NEW)
     pose(arm, None, 0)
     lo, hi = frame_box()
-    tg, o = body_target(lo, hi), (hi[2] - lo[2]) * 1.12
+    tg, o = body_target(lo, hi), max(hi[2] - lo[2], 0.8 * max(hi[0] - lo[0], hi[1] - lo[1])) * 1.12
     ps = []
     for k, az in enumerate((0, 35, 180, 90)):
         camera(sc, tg, az, 8, o)
@@ -180,7 +180,7 @@ if "clips" in ONLY:
     sc, arm = setup(NEW)
     pose(arm, None, 0)
     lo, hi = frame_box()
-    tg, o = body_target(lo, hi), (hi[2] - lo[2]) * 1.25
+    tg, o = body_target(lo, hi), max(hi[2] - lo[2], 0.8 * max(hi[0] - lo[0], hi[1] - lo[1])) * 1.25
     ps, labels = [], []
     AZ, EL = float(C.arg("--az", "32")), float(C.arg("--el", "16"))
     FR = C.arg("--frames")                      # e.g. Ability@8,Ability@20 (instead of the default frames)
@@ -198,7 +198,7 @@ if "cmp" in ONLY:
         sc, arm = setup(path)
         pose(arm, None, 0)
         lo, hi = frame_box()
-        tg, o = body_target(lo, hi), (hi[2] - lo[2]) * 1.3
+        tg, o = body_target(lo, hi), max(hi[2] - lo[2], 0.8 * max(hi[0] - lo[0], hi[1] - lo[1])) * 1.3
         for k, (act, fr, az, el) in enumerate(((None, 0, 0, 6), (cmpf[0][0], cmpf[0][1], 35, 25), (cmpf[1][0], cmpf[1][1], 35, 25))):
             pose(arm, act, fr)
             camera(sc, tg, az, el, o)
