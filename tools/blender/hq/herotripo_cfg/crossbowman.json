@@ -475,7 +475,8 @@
      "bone:string_l.head",
      "bone:string_r.head"
     ],
-    "scale": "match"
+    "scale": "match",
+    "spin": 44.8
    }
   },
   {
