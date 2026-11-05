@@ -654,6 +654,17 @@ def main():
         M = blend(W4, gn)
     Prest = P.copy()
     Prest[body] = np.einsum("nij,nj->ni", np.linalg.inv(M), np.c_[P[body], np.ones(len(body))])[:, :3]
+    far_ = np.linalg.norm(Prest[body] - P[body], axis=1) > 1.0
+    if far_.any():
+        # (a vertex whose blended matrix is near singular flies off when un-posed, and the sole snap then moves the whole
+        # body after it: the Knight's crossed arms. Logged with the bones they blend so the config can be fixed)
+        top_ = {}
+        for w_ in W4[far_]:
+            k_ = "/".join(sorted(gn[j] for j in np.nonzero(w_ > 0.1)[0]))
+            top_[k_] = top_.get(k_, 0) + 1
+        Pf_ = C.to_game(C.from_game(P[body][far_], XF), XF0)
+        log("WARNING: %d verts move over 1 m into the rest pose (load frame %s .. %s); their bones: %s" % (
+            far_.sum(), Pf_.min(0).round(2), Pf_.max(0).round(2), sorted(top_.items(), key=lambda x: -x[1])[:6]))
     sole_old = V0[np.unique(tri0), 2].min()
     dz = sole_old - Prest[body, 2].min()
     if not CFG.get("sole_snap", True):          # (a drone has no soles: the fitted height stays, and its props with it)
