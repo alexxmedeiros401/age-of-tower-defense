@@ -8398,5 +8398,60 @@
   "forearm.R",
   "upperarm.L",
   "forearm.L"
- ]
+ ],
+ "drop_stretched": {
+  "ratio": 2.5,
+  "min": 0.06
+ },
+ "detach": [
+  {
+   "bones": [
+    "upperarm.R",
+    "forearm.R",
+    "hand.R"
+   ],
+   "within": [
+    [
+     [
+      -1.3,
+      0.0
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      0.7,
+      1.6
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  },
+  {
+   "bones": [
+    "upperarm.L",
+    "forearm.L",
+    "hand.L"
+   ],
+   "within": [
+    [
+     [
+      0.0,
+      1.3
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      0.7,
+      1.6
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  }
+ ],
+ "limb_regeom_power": 3
 }

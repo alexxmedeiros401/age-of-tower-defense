@@ -814,5 +814,59 @@
     }
    ]
   }
+ ],
+ "drop_stretched": {
+  "ratio": 2.5,
+  "min": 0.06
+ },
+ "detach": [
+  {
+   "bones": [
+    "upperarm.L",
+    "forearm.L",
+    "hand.L"
+   ],
+   "within": [
+    [
+     [
+      0.0,
+      1.2
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      0.5,
+      1.4
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  },
+  {
+   "bones": [
+    "upperarm.R",
+    "forearm.R",
+    "hand.R"
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      0.0
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      0.5,
+      1.4
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  }
  ]
 }
