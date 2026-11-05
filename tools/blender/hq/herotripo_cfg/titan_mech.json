@@ -1,1 +1,859 @@
-{"old": "/home/claude/age-of-tower-defense/assets/towers/titan_mech.glb", "clips": ["Idle","Combat","Attack"], "tris": 20000}
+{
+ "old": "/home/claude/age-of-tower-defense/assets/towers/titan_mech.glb",
+ "clips": [
+  "Idle",
+  "Combat",
+  "Attack"
+ ],
+ "tris": 20000,
+ "yaw": 270,
+ "fit_recentre": true,
+ "props": [
+  {
+   "name": "fist_L",
+   "bone": "hand.L",
+   "keep": "all",
+   "region": [
+    [
+     0.48,
+     1.25
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     0.55,
+     0.98
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.58,
+      1.25
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      0.5900000000000001,
+      0.94
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "fist_R",
+   "bone": "hand.R",
+   "keep": "all",
+   "region": [
+    [
+     -1.25,
+     -0.4
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     0.3,
+     0.98
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.5
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      0.33999999999999997,
+      0.94
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "gauntlet_L",
+   "bone": "forearm.L",
+   "keep": "all",
+   "region": [
+    [
+     0.48,
+     1.25
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     0.96,
+     1.3
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.58,
+      1.25
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      1.0,
+      1.26
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "gauntlet_R",
+   "bone": "forearm.R",
+   "keep": "all",
+   "region": [
+    [
+     -1.25,
+     -0.48
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     0.96,
+     1.3
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.58
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      1.0,
+      1.26
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shoulder_L",
+   "bone": "upperarm.L",
+   "keep": "all",
+   "region": [
+    [
+     0.5,
+     1.25
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     1.28,
+     1.95
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.56,
+      1.25
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      1.32,
+      1.91
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shoulder_R",
+   "bone": "upperarm.R",
+   "keep": "all",
+   "region": [
+    [
+     -1.25,
+     -0.42
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     1.28,
+     1.95
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.56
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      1.32,
+      1.91
+     ]
+    ],
+    [
+     [
+      -1.25,
+      -0.5
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      1.5,
+      1.91
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "foot_L",
+   "bone": "foot.L",
+   "keep": "all",
+   "region": [
+    [
+     0.0,
+     0.65
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     -0.05,
+     0.2
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.08,
+      0.6
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      -0.010000000000000002,
+      0.16
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "foot_R",
+   "bone": "foot.R",
+   "keep": "all",
+   "region": [
+    [
+     -0.65,
+     0.0
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     -0.05,
+     0.2
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.6,
+      -0.08
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      -0.010000000000000002,
+      0.16
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shin_L",
+   "bone": "shin.L",
+   "keep": "all",
+   "region": [
+    [
+     0.0,
+     0.65
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     0.15,
+     0.6
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.08,
+      0.6
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.19,
+      0.5599999999999999
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shin_R",
+   "bone": "shin.R",
+   "keep": "all",
+   "region": [
+    [
+     -0.65,
+     0.0
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     0.15,
+     0.6
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.6,
+      -0.08
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.19,
+      0.5599999999999999
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "thigh_L",
+   "bone": "thigh.L",
+   "keep": "all",
+   "region": [
+    [
+     0.0,
+     0.65
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     0.58,
+     0.88
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      0.08,
+      0.6
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.62,
+      0.84
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "thigh_R",
+   "bone": "thigh.R",
+   "keep": "all",
+   "region": [
+    [
+     -0.65,
+     0.0
+    ],
+    [
+     -0.8,
+     0.8
+    ],
+    [
+     0.58,
+     0.88
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.6,
+      -0.08
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.62,
+      0.84
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "mhead",
+   "bone": "mhead",
+   "keep": "all",
+   "region": [
+    [
+     -0.2,
+     0.2
+    ],
+    [
+     -0.7,
+     0.7
+    ],
+    [
+     1.82,
+     2.15
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.16,
+      0.16
+     ],
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      1.86,
+      2.12
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "footbits_L",
+   "bone": "foot.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.05,
+      0.8
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      -0.01,
+      0.12
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "footbits_R",
+   "bone": "foot.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -0.8,
+      -0.05
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      -0.01,
+      0.12
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shinbits_L",
+   "bone": "shin.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.05,
+      0.5
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.2,
+      0.55
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shinbits_R",
+   "bone": "shin.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -0.5,
+      -0.05
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.2,
+      0.55
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "thighbits_L",
+   "bone": "thigh.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.05,
+      0.48
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.6,
+      0.84
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "thighbits_R",
+   "bone": "thigh.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -0.48,
+      -0.05
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.6,
+      0.84
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "fistbits_L",
+   "bone": "hand.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.5,
+      1.25
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.3,
+      0.94
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "fistbits_R",
+   "bone": "hand.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.5
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.3,
+      0.94
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "gauntbits_L",
+   "bone": "forearm.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.5,
+      1.25
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.97,
+      1.27
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "gauntbits_R",
+   "bone": "forearm.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.5
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.97,
+      1.27
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shoulderbits_L",
+   "bone": "upperarm.L",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      0.5,
+      1.25
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      1.3,
+      1.95
+     ]
+    ]
+   ],
+   "place": "fit"
+  },
+  {
+   "name": "shoulderbits_R",
+   "bone": "upperarm.R",
+   "mode": "pieces",
+   "seeds": [
+    [
+     [
+      -1.25,
+      -0.5
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      1.3,
+      1.95
+     ]
+    ]
+   ],
+   "place": "fit"
+  }
+ ],
+ "armour": [
+  {
+   "name": "torso",
+   "select": [
+    [
+     [
+      -0.6,
+      0.6
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      1.0,
+      2.0
+     ]
+    ]
+   ],
+   "bones": {
+    "chest": 1.0
+   },
+   "seam_rings": 3
+  },
+  {
+   "name": "pelvis",
+   "select": [
+    [
+     [
+      -0.45,
+      0.45
+     ],
+     [
+      -0.8,
+      0.8
+     ],
+     [
+      0.8,
+      1.0
+     ]
+    ]
+   ],
+   "bones": {
+    "root": 1.0
+   },
+   "seam_rings": 3
+  },
+  {
+   "name": "pilot_head",
+   "select": [
+    [
+     [
+      -0.18,
+      0.18
+     ],
+     [
+      -0.4,
+      0.15
+     ],
+     [
+      1.38,
+      1.68
+     ]
+    ]
+   ],
+   "bones": {
+    "head": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "head_rigid_above": 9.0,
+ "sole_snap": false,
+ "glows": {
+  "GlowArmL": {
+   "hide": true
+  },
+  "GlowArmR": {
+   "hide": true
+  },
+  "GlowChest": {
+   "hide": true
+  },
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowLamp": {
+   "hide": true
+  }
+ },
+ "cmp_frames": [
+  [
+   "Idle",
+   32
+  ],
+  [
+   "Attack",
+   9
+  ]
+ ]
+}
