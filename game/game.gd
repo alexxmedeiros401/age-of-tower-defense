@@ -6727,7 +6727,7 @@ func _flare_burn(tid: int) -> void:
 # His punch (anim_steam_brawler.py): he steps in with a straight right and at the blow (frame 10-11) the pistons fire and
 # the iron fist rams out: a burst of steam off the ram and a white flash at the knuckles, and every robot it hits throws
 # sparks with a clang and is knocked back (the sim's hits wait for the blow).
-const BRAWLER_FIST := Vector3(0.020, 1.220, 1.460)
+const BRAWLER_FIST := Vector3(0.19, 1.10, 1.46)
 const BLOW_PTS := {"steam_brawler": BRAWLER_FIST, "jim": Vector3(-0.073, 0.324, 1.302)}   # (v0.9.65: Big Jim's maul face)
 func _brawler_punch(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
@@ -8101,7 +8101,7 @@ func _drone_heal(did: int, radius: float) -> void:
 # muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
 const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.230, 1.858, 0.346), 0.42, 0.85],
-	"field_gun": [Vector3(0.350, 0.876, 0.994), 0.08, 0.45],
+	"field_gun": [Vector3(0.280, 0.889, 1.172), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.290, 1.398, 0.617), 0.125, 1.0],
 	"zero": [Vector3(-0.770, 1.433, 0.635), 0.125, 0.8],
@@ -9261,7 +9261,7 @@ func _vega_killswitch(ev: Dictionary, hp: Vector3) -> void:
 
 # v0.9.64: the Tesla Coil (anim_tesla.py): its engineer hauls the knife-switch closed on Attack frame 8 (DISCHARGE): the
 # toroid flashes and forks of lightning leap from it to each robot in reach, a crackle of blue light round the coil.
-const TESLA_TOROID := Vector3(0.520, 2.120, -0.240)
+const TESLA_TOROID := Vector3(0.59, 2.11, -0.28)
 func _tesla_zap(u: Dictionary, targets: Array) -> void:
 	var uid := int(u.id)
 	var ids := targets.duplicate()
