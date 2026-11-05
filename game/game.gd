@@ -6196,7 +6196,7 @@ func _spear_reach(uid: int, targets: Array) -> void:
 # a ring of dust kicked up at the shield's foot, the thud of it) and the gladius thrusts out round the shield's edge at
 # STAB (ATTACK_FRAME): a lance of light from its point to each robot hit, as the Spear Guard's (_spear_thrust).
 const LEGION_BASH := 6
-const LEGION_BOSS := Vector3(0.103, 1.004, 0.94)  # the boss at full reach (model units, Godot axes, Yaw node)
+const LEGION_BOSS := Vector3(0.103, 1.039, 0.927)  # the boss at full reach (model units, Godot axes, Yaw node)
 
 
 func _legion_bash(u: Dictionary) -> void:
@@ -6294,7 +6294,7 @@ func _lance_hit(tid: int, at0: Vector3, from: Vector3, h: float) -> void:
 # Path B). A robot the pulse destroys blows up when its beam lands.
 const SUN_DISC := Vector3(-0.087, 2.05, 1.242)     # the disc as he drives the staff at the robots (model units, Godot axes, Yaw node)
 # v0.9.44: the Oracle's visions leave from the tip of her laurel as she sweeps it out at the robots (anim_oracle.SEE)
-const ORACLE_LAUREL := Vector3(-0.47, 1.48, 0.7)      # the laurel's tip at SEE (anim_oracle; measured)
+const ORACLE_LAUREL := Vector3(-0.43, 1.48, 0.62)     # the laurel's tip at SEE (anim_oracle; measured)
 const SUN_POINTS := {"sun_priest": SUN_DISC, "oracle": ORACLE_LAUREL}
 const BEAM_GROW := 0.06                           # seconds for a beam to reach its robot
 
@@ -9436,7 +9436,7 @@ func _theron_burst(hid: int, hp: Vector3, R: float, ids: Array) -> void:
 # laurel out at the robots) visions flash from the laurel's tip to every robot the pulse hit (_sun_beams: golden; white
 # on the Pythia's path, burning on the Sun Oracle's) and an eye opens over each, gold ringed in violet, staring a moment
 # and closing: the robot's weak spot laid bare (the sim's "expose").
-const ORACLE_VAPOUR := Vector3(0.25, 1.08, 0.22)     # above the cauldron (model units, Godot axes, Yaw node; measured)
+const ORACLE_VAPOUR := Vector3(0.25, 1.04, 0.22)     # above the cauldron (model units, Godot axes, Yaw node; measured)
 
 
 func _oracle_eyes(u: Dictionary, targets: Array) -> void:
