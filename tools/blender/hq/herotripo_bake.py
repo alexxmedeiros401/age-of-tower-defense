@@ -265,6 +265,17 @@ LOW[0] = ob
 for k in PIECES:
     if k > 0:
         LOW[k] = decimate(HI[k], TARGETS[k], "Low_" + NAMES[k])
+        if CFG["props"][k - 1].get("hi_flip"):
+            # cfg prop "hi_flip" (off by default): the prop's high-poly piece is turned outside in before the bake: a
+            # Tripo shell that came inside out bakes only from rays that meet its faces' fronts (the Hunter-Killer's
+            # bay doors: from above, the rays went through the striped top and took the dark under it)
+            bm_ = bmesh.new()
+            bm_.from_mesh(HI[k].data)
+            bmesh.ops.reverse_faces(bm_, faces=bm_.faces[:], flip_multires=False)
+            bm_.to_mesh(HI[k].data)
+            bm_.free()
+            HI[k].data.update()
+            log("hi_flip: %s high-poly turned inside out" % NAMES[k])
         if CFG["props"][k - 1].get("hull"):
             # cfg prop "hull" (off by default): the prop's low mesh is the convex hull of its high-poly piece (flat
             # shaded) instead of its decimation: a thin slab whose decimated top and underside cross through each other

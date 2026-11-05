@@ -276,7 +276,8 @@
     0.15,
     0.16
    ],
-   "hull": true
+   "hull": true,
+   "hi_flip": true
   },
   {
    "name": "blades.R",
@@ -495,7 +496,8 @@
     0.15,
     0.16
    ],
-   "hull": true
+   "hull": true,
+   "hi_flip": true
   }
  ],
  "extra_bones": [
