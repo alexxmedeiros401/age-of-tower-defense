@@ -611,6 +611,10 @@ def main():
         tot_ = keep_.sum(1)
         ok_ = tot_ > 1e-6
         WB[np.nonzero(m_)[0][ok_]] = keep_[ok_] / tot_[ok_, None]
+        if ls_.get("fallback") and (~ok_).any():      # ("fallback": a bone for the verts with nothing else)
+            nf_ = np.nonzero(m_)[0][~ok_]
+            WB[nf_] = 0
+            WB[nf_, gn.index(ls_["fallback"])] = 1.0
         log("weights: limb_strip %s: %d verts selected, %d had a share on them (%d kept it: no other bone)" % (
             "/".join(ls_["bones"]), m_.sum(), had_, int((~ok_).sum())))
     if "head" in posed and "head" in gn:             # (a drone has no head bone)
