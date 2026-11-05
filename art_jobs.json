@@ -1,0 +1,12 @@
+[
+ {
+  "name": "htD_sentinel_dc1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htD_sentinel_dc1; mkdir -p $O\npip install -q xatlas==0.0.11\n[ -f herotripo_in/sentinel/tripo.glb ] || (cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/sentinel/tripo_src.glb ../herotripo_in/sentinel/tripo.glb)\npython3 herotripo_bake.py -- --hero sentinel --in herotripo_in/sentinel --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htD_sentinel_dc1"
+ },
+ {
+  "name": "htD_the_core_dc1",
+  "cmd": "O=$GITHUB_WORKSPACE/out/htD_the_core_dc1; mkdir -p $O\npip install -q xatlas==0.0.11\n[ -f herotripo_in/the_core/tripo.glb ] || (cd herotripo_prep && npm install --silent --no-audit --no-fund && node decode.mjs ../herotripo_in/the_core/tripo_src.glb ../herotripo_in/the_core/tripo.glb)\npython3 herotripo_bake.py -- --hero the_core --in herotripo_in/the_core --out $O > $O/bake.log 2>&1 || (tail -80 $O/bake.log; exit 1)\ngrep '^.ht.' $O/bake.log | tail -40; rm -f $O/tex_*; ls -la $O",
+  "out": "out/htD_the_core_dc1"
+ }
+]
