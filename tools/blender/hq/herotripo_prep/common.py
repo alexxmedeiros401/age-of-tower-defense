@@ -152,6 +152,10 @@ def from_game(X, xf):
 def box(C, b):
     """b: [[x0,x1],[y0,y1],[z0,z1]] (game units) or {"c": [x,y,z], "r": r} (a ball)."""
     if isinstance(b, dict):
+        if "a" in b and "b" in b:                   # a capsule {"a": [x,y,z], "b": [x,y,z], "r": r} (a limb)
+            a_, d_ = np.array(b["a"], float), np.array(b["b"], float) - np.array(b["a"], float)
+            t_ = np.clip(((C - a_) @ d_) / max(d_ @ d_, 1e-12), 0, 1)
+            return np.linalg.norm(C - (a_ + t_[:, None] * d_), axis=1) < b["r"]
         if "r" in b:
             return np.linalg.norm(C - np.array(b["c"]), axis=1) < b["r"]
         raise ValueError(b)
@@ -167,8 +171,8 @@ def shapes(C, spec, col=None, nrm=None):
     keeps the faces behind that plane ((C - p) . n <= 0)."""
     m = np.zeros(len(C), bool)
     for s in spec or []:
-        if isinstance(s, dict) and ("box" in s or "ball" in s):
-            mm = box(C, s["box"]) if "box" in s else box(C, s["ball"])
+        if isinstance(s, dict) and ("box" in s or "ball" in s or "seg" in s):
+            mm = box(C, s["box"]) if "box" in s else box(C, s["ball"] if "ball" in s else s["seg"])
             if "col" in s and col is not None:
                 lo = np.array(s["col"].get("min", [0, 0, 0]), float)
                 hi = np.array(s["col"].get("max", [1, 1, 1]), float)
