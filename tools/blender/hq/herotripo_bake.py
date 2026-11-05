@@ -280,7 +280,7 @@ for k in PIECES:
             for c_ in co_:
                 bm_.verts.new(c_.tolist())
             r_ = bmesh.ops.convex_hull(bm_, input=bm_.verts[:])
-            bmesh.ops.delete(bm_, geom=[g for g in r_["geom_interior"] + r_["geom_unused"] if isinstance(g, bmesh.types.BMVert)], context="VERTS")
+            bmesh.ops.delete(bm_, geom=list({g for g in r_["geom_interior"] + r_["geom_unused"] if isinstance(g, bmesh.types.BMVert)}), context="VERTS")
             bmesh.ops.dissolve_limit(bm_, angle_limit=math.radians(1.0), verts=bm_.verts[:], edges=bm_.edges[:])
             bmesh.ops.triangulate(bm_, faces=bm_.faces[:])
             me_ = bpy.data.meshes.new("Low_" + NAMES[k])
