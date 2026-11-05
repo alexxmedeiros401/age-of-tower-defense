@@ -1,0 +1,78 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/black_knight.glb",
+ "armature": "BlackKnightRig",
+ "clips": [
+  "Walk",
+  "Summon"
+ ],
+ "tex": 2048,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "tris": 15000,
+ "head_share": 0.12,
+ "face_boost": 1.4,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "core",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "glows": {
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowRune": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   8,
+   16,
+   24,
+   32,
+   40
+  ],
+  "Summon": [
+   12,
+   18,
+   24,
+   36
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   24
+  ]
+ ]
+}

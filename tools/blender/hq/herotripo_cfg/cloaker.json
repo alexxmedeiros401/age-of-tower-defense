@@ -1,0 +1,77 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/cloaker.glb",
+ "armature": "CloakerRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "tris": 8000,
+ "head_share": 0.15,
+ "face_boost": 1.4,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "cloak.B",
+   "cloak.L",
+   "cloak.R",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "glows": {
+  "GlowEdge": {
+   "hide": true
+  },
+  "GlowGem": {
+   "hide": true
+  },
+  "GlowVisor": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   2,
+   4,
+   6,
+   8,
+   10,
+   12,
+   14,
+   16,
+   18
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   5
+  ],
+  [
+   "Walk",
+   15
+  ]
+ ]
+}
