@@ -443,5 +443,122 @@
   "forearm.R",
   "upperarm.L",
   "forearm.L"
+ ],
+ "detach": [
+  {
+   "bones": [
+    "upperarm.R",
+    "forearm.R",
+    "hand.R"
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      1.2
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      0.5,
+      1.5
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  },
+  {
+   "bones": [
+    "upperarm.L",
+    "forearm.L",
+    "hand.L"
+   ],
+   "within": [
+    [
+     [
+      -1.2,
+      1.2
+     ],
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      0.5,
+      1.5
+     ]
+    ]
+   ],
+   "drop_bridges": 0.1
+  }
+ ],
+ "armour": [
+  {
+   "name": "fist_R",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       -0.27,
+       -0.04,
+       0.98
+      ],
+      "r": 0.08
+     }
+    }
+   ],
+   "bones": {
+    "hand.R": 1.0
+   }
+  },
+  {
+   "name": "fist_L",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.43,
+       -0.25,
+       0.97
+      ],
+      "r": 0.08
+     }
+    }
+   ],
+   "bones": {
+    "hand.L": 1.0
+   }
+  }
+ ],
+ "limb_strip": [
+  {
+   "bones": [
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L"
+   ],
+   "select": [
+    [
+     [
+      -0.2,
+      0.32
+     ],
+     [
+      -0.3,
+      0.15
+     ],
+     [
+      0.75,
+      1.2
+     ]
+    ]
+   ],
+   "fallback": "spine"
+  }
  ]
 }
