@@ -1,0 +1,149 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/sentinel.glb",
+ "armature": "SentinelRig",
+ "clips": [
+  "Walk"
+ ],
+ "tex": 1024,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "body_bones": [
+  "spine",
+  "emitter",
+  "halo",
+  "head",
+  "upperarm.L",
+  "forearm.L",
+  "hand.L",
+  "upperarm.R",
+  "forearm.R",
+  "hand.R",
+  "heal",
+  "thigh.L",
+  "shin.L",
+  "foot.L",
+  "thigh.R",
+  "shin.R",
+  "foot.R"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "root",
+  "spine",
+  "emitter",
+  "halo",
+  "head",
+  "upperarm.L",
+  "forearm.L",
+  "hand.L",
+  "upperarm.R",
+  "forearm.R",
+  "hand.R",
+  "heal",
+  "thigh.L",
+  "shin.L",
+  "foot.L",
+  "thigh.R",
+  "shin.R",
+  "foot.R"
+ ],
+ "armour": [],
+ "props": [],
+ "tris": 8000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "spine",
+   "emitter",
+   "halo",
+   "head",
+   "upperarm.L",
+   "forearm.L",
+   "hand.L",
+   "upperarm.R",
+   "forearm.R",
+   "hand.R",
+   "heal",
+   "thigh.L",
+   "shin.L",
+   "foot.L",
+   "thigh.R",
+   "shin.R",
+   "foot.R"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "cyan",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    170,
+    200
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.5,
+   "strength": 1.8
+  },
+  {
+   "name": "red",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.45,
+   "strength": 2.2
+  }
+ ],
+ "glows": {
+  "GlowEmitter": {
+   "hide": true
+  },
+  "GlowEye": {
+   "hide": true
+  },
+  "GlowHalo": {
+   "hide": true
+  },
+  "GlowHealLens": {
+   "hide": true
+  },
+  "GlowHealTips": {
+   "hide": true
+  }
+ },
+ "review_frames": {
+  "Walk": [
+   3,
+   6,
+   9,
+   12,
+   15
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   4
+  ],
+  [
+   "Walk",
+   13
+  ]
+ ]
+}

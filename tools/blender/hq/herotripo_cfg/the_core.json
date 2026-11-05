@@ -1,0 +1,755 @@
+{
+ "old": "/home/claude/age-of-tower-defense/assets/robots/the_core.glb",
+ "armature": "TheCoreRig",
+ "clips": [
+  "Walk",
+  "Emp",
+  "Summon",
+  "Enrage",
+  "WalkRage"
+ ],
+ "tex": 2048,
+ "yaw": 270,
+ "weight_smooth": 1,
+ "limb_regeom": false,
+ "fit_pose": false,
+ "orphan_nearest": true,
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40,
+ "head_rigid_above": 9.0,
+ "hard_by_centre": true,
+ "hard_keep_claimed": true,
+ "body_bones": [
+  "bay",
+  "cable.1",
+  "cable.2",
+  "cable.3",
+  "core",
+  "rage",
+  "crown",
+  "door",
+  "lamp.L",
+  "lamp.R",
+  "pulse",
+  "ringA",
+  "ringB",
+  "thigh.LF",
+  "shin.LF",
+  "foot.LF",
+  "thigh.LH",
+  "shin.LH",
+  "foot.LH",
+  "thigh.LM",
+  "shin.LM",
+  "foot.LM",
+  "thigh.RF",
+  "shin.RF",
+  "foot.RF",
+  "thigh.RH",
+  "shin.RH",
+  "foot.RH",
+  "thigh.RM",
+  "shin.RM",
+  "foot.RM"
+ ],
+ "scale": "auto",
+ "fit_fixed": [
+  "deploy",
+  "root",
+  "bay",
+  "cable.1",
+  "cable.2",
+  "cable.3",
+  "core",
+  "rage",
+  "crown",
+  "door",
+  "lamp.L",
+  "lamp.R",
+  "pulse",
+  "ringA",
+  "ringB",
+  "thigh.LF",
+  "shin.LF",
+  "foot.LF",
+  "thigh.LH",
+  "shin.LH",
+  "foot.LH",
+  "thigh.LM",
+  "shin.LM",
+  "foot.LM",
+  "thigh.RF",
+  "shin.RF",
+  "foot.RF",
+  "thigh.RH",
+  "shin.RH",
+  "foot.RH",
+  "thigh.RM",
+  "shin.RM",
+  "foot.RM"
+ ],
+ "armour": [
+  {
+   "name": "body",
+   "select": [
+    [
+     [
+      -9,
+      9
+     ],
+     [
+      -9,
+      9
+     ],
+     [
+      -9,
+      9
+     ]
+    ]
+   ],
+   "bones": {
+    "root": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_LF",
+   "select": [
+    [
+     [
+      1.0,
+      1.62
+     ],
+     [
+      -1.93,
+      -0.96
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.LF": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_LM",
+   "select": [
+    [
+     [
+      1.0,
+      1.89
+     ],
+     [
+      -0.59,
+      0.21
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.LM": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_LH",
+   "select": [
+    [
+     [
+      1.0,
+      1.95
+     ],
+     [
+      0.5,
+      1.28
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.LH": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_RF",
+   "select": [
+    [
+     [
+      -1.46,
+      -1.0
+     ],
+     [
+      -2.22,
+      -1.01
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.RF": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_RM",
+   "select": [
+    [
+     [
+      -1.92,
+      -1.0
+     ],
+     [
+      -0.51,
+      0.24
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.RM": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "leg_RH",
+   "select": [
+    [
+     [
+      -1.68,
+      -1.0
+     ],
+     [
+      0.59,
+      1.4
+     ],
+     [
+      -0.3,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "leg.RH": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "props": [
+  {
+   "name": "door",
+   "bone": "doorT",
+   "region": [
+    [
+     -0.38,
+     0.38
+    ],
+    [
+     -1.8,
+     -1.6
+    ],
+    [
+     0.7,
+     1.42
+    ]
+   ],
+   "seeds": [
+    [
+     [
+      -0.3,
+      0.3
+     ],
+     [
+      -1.8,
+      -1.64
+     ],
+     [
+      0.8,
+      1.36
+     ]
+    ],
+    [
+     [
+      -0.25,
+      0.25
+     ],
+     [
+      -1.8,
+      -1.62
+     ],
+     [
+      0.78,
+      1.33
+     ]
+    ]
+   ],
+   "sinks": [
+    [
+     [
+      -0.38,
+      0.38
+     ],
+     [
+      -1.59,
+      -1.3
+     ],
+     [
+      0.7,
+      1.42
+     ]
+    ],
+    [
+     [
+      -0.38,
+      0.38
+     ],
+     [
+      -1.8,
+      -1.6
+     ],
+     [
+      0.62,
+      0.69
+     ]
+    ]
+   ],
+   "keep": "all",
+   "place": {
+    "mode": "fit",
+    "frame": "root",
+    "with_soles": true
+   },
+   "patch_col": [
+    0.15,
+    0.15,
+    0.16
+   ]
+  },
+  {
+   "name": "deploy",
+   "bone": "deploy",
+   "source": "old",
+   "place": "fit"
+  }
+ ],
+ "tris": 15000,
+ "head_share": 0.0,
+ "hard_weights": [
+  [
+   "root",
+   "bay",
+   "cable.1",
+   "cable.2",
+   "cable.3",
+   "core",
+   "rage",
+   "crown",
+   "door",
+   "lamp.L",
+   "lamp.R",
+   "pulse",
+   "ringA",
+   "ringB",
+   "thigh.LF",
+   "shin.LF",
+   "foot.LF",
+   "thigh.LH",
+   "shin.LH",
+   "foot.LH",
+   "thigh.LM",
+   "shin.LM",
+   "foot.LM",
+   "thigh.RF",
+   "shin.RF",
+   "foot.RF",
+   "thigh.RH",
+   "shin.RH",
+   "foot.RH",
+   "thigh.RM",
+   "shin.RM",
+   "foot.RM"
+  ]
+ ],
+ "emissive": [
+  {
+   "name": "red",
+   "parts": [
+    "body"
+   ],
+   "hue": [
+    345,
+    15
+   ],
+   "sat_min": 0.6,
+   "val_min": 0.45,
+   "strength": 2.4
+  },
+  {
+   "name": "cyan",
+   "parts": [
+    "body",
+    "door"
+   ],
+   "hue": [
+    170,
+    200
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.5,
+   "strength": 1.6
+  }
+ ],
+ "glows": {
+  "GlowBayGlow": {
+   "hide": true
+  },
+  "GlowCore": {
+   "hide": true
+  },
+  "GlowCrownTips": {
+   "hide": true
+  },
+  "GlowDeckGlow": {
+   "hide": true
+  },
+  "GlowIris": {
+   "hide": true
+  },
+  "GlowLampL": {
+   "hide": true
+  },
+  "GlowLampR": {
+   "hide": true
+  },
+  "GlowLeds": {
+   "hide": true
+  },
+  "GlowLegGlowLF": {
+   "hide": true
+  },
+  "GlowLegGlowLH": {
+   "hide": true
+  },
+  "GlowLegGlowLM": {
+   "hide": true
+  },
+  "GlowLegGlowRF": {
+   "hide": true
+  },
+  "GlowLegGlowRH": {
+   "hide": true
+  },
+  "GlowLegGlowRM": {
+   "hide": true
+  },
+  "GlowRage": {
+   "scale": 1.35
+  }
+ },
+ "extra_bones": [
+  {
+   "name": "hip.LF",
+   "parent": "root",
+   "copy": "thigh.LF",
+   "head": "load:[1.12,-1.26,1.4]"
+  },
+  {
+   "name": "leg.LF",
+   "parent": "hip.LF",
+   "copy": "shin.LF",
+   "head": "load:[1.12,-1.26,1.4]"
+  },
+  {
+   "name": "hip.LM",
+   "parent": "root",
+   "copy": "thigh.LM",
+   "head": "load:[1.14,-0.11,1.4]"
+  },
+  {
+   "name": "leg.LM",
+   "parent": "hip.LM",
+   "copy": "shin.LM",
+   "head": "load:[1.14,-0.11,1.4]"
+  },
+  {
+   "name": "hip.LH",
+   "parent": "root",
+   "copy": "thigh.LH",
+   "head": "load:[1.16,0.81,1.4]"
+  },
+  {
+   "name": "leg.LH",
+   "parent": "hip.LH",
+   "copy": "shin.LH",
+   "head": "load:[1.16,0.81,1.4]"
+  },
+  {
+   "name": "hip.RF",
+   "parent": "root",
+   "copy": "thigh.RF",
+   "head": "load:[-1.05,-1.32,1.4]"
+  },
+  {
+   "name": "leg.RF",
+   "parent": "hip.RF",
+   "copy": "shin.RF",
+   "head": "load:[-1.05,-1.32,1.4]"
+  },
+  {
+   "name": "hip.RM",
+   "parent": "root",
+   "copy": "thigh.RM",
+   "head": "load:[-1.12,-0.06,1.4]"
+  },
+  {
+   "name": "leg.RM",
+   "parent": "hip.RM",
+   "copy": "shin.RM",
+   "head": "load:[-1.12,-0.06,1.4]"
+  },
+  {
+   "name": "hip.RH",
+   "parent": "root",
+   "copy": "thigh.RH",
+   "head": "load:[-1.08,0.9,1.4]"
+  },
+  {
+   "name": "leg.RH",
+   "parent": "hip.RH",
+   "copy": "shin.RH",
+   "head": "load:[-1.08,0.9,1.4]"
+  },
+  {
+   "name": "doorT",
+   "parent": "root",
+   "copy": "door",
+   "head": "load:[0,-1.68,0.73]"
+  }
+ ],
+ "hard_cuts": [
+  {
+   "co": [
+    1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      0.94,
+      1.06
+     ],
+     [
+      -1.93,
+      -0.96
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      0.94,
+      1.06
+     ],
+     [
+      -0.59,
+      0.21
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      0.94,
+      1.06
+     ],
+     [
+      0.5,
+      1.28
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    -1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      -1.06,
+      -0.94
+     ],
+     [
+      -2.22,
+      -1.01
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    -1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      -1.06,
+      -0.94
+     ],
+     [
+      -0.51,
+      0.24
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  },
+  {
+   "co": [
+    -1.0,
+    0,
+    0
+   ],
+   "no": [
+    1,
+    0,
+    0
+   ],
+   "within": [
+    [
+     [
+      -1.06,
+      -0.94
+     ],
+     [
+      0.59,
+      1.4
+     ],
+     [
+      0.6,
+      1.75
+     ]
+    ]
+   ]
+  }
+ ],
+ "body_patch": "dark",
+ "review_frames": {
+  "Walk": [
+   12,
+   24,
+   36
+  ],
+  "Emp": [
+   12,
+   24,
+   36
+  ],
+  "Summon": [
+   8,
+   16,
+   22,
+   30,
+   40
+  ],
+  "Enrage": [
+   13,
+   24,
+   36
+  ],
+  "WalkRage": [
+   12,
+   30
+  ]
+ },
+ "cmp_frames": [
+  [
+   "Walk",
+   12
+  ],
+  [
+   "Summon",
+   22
+  ]
+ ]
+}
