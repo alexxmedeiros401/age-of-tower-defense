@@ -120,6 +120,13 @@ def main():
             dk = lum <= np.median(lum)
             cb = np.tile(np.median(cb[dk], 0), (n, 1))
             rb = np.tile(np.median(rb[dk], 0), (n, 1))
+        # cfg "body_patch_col" (off by default): [{"select": shapes (load frame), "col": [r, g, b]}]: a body hole whose
+        # loop centre lies inside takes that flat colour (the Steam Brawler's gauntlets rested on his thighs: the patches
+        # under them took the gauntlets' grey off the rim)
+        if Lb == 0:
+            for bp_ in cfg.get("body_patch_col", []):
+                if C.shapes(C.to_game(P.mean(0, keepdims=True), C.load_xf(W, fitted=False)), bp_["select"])[0]:
+                    cb = np.tile(np.array(bp_["col"], float), (n, 1))
         col = np.zeros((n + m, 3))
         rmv = np.zeros((n + m, 3))
         col[:n], rmv[:n] = cb, rb
