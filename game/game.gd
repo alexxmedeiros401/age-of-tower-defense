@@ -5939,7 +5939,7 @@ func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.83: the Arc Cannon (anim_arc_cannon.py) fires on Attack frame 2: a crackling amber arc leaps from the centre
 ## electrode's ball to the robot (the sim's bolt flies on, unseen, carrying the hit and its chain to further robots).
-const ARC_TIP := Vector3(0.000, 1.097, 1.060)
+const ARC_TIP := Vector3(0.001, 1.084, 0.941)
 func _arc_shot(root: Node3D, p: Dictionary, u) -> void:
 	var yaw: Node3D = (tower_nodes[u.id] as Node3D).get_meta("yaw")
 	var tip: Vector3 = yaw.global_transform * ARC_TIP
@@ -8105,7 +8105,7 @@ const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco":
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.323, 1.446, 0.655), 0.125, 1.0],
 	"zero": [Vector3(-0.770, 1.433, 0.635), 0.125, 0.8],
-	"nova_artillery": [Vector3(0.380, 1.161, 1.059), 0.125, 0.65]}      # (v0.9.90: the coil howitzer's muzzle, Attack frame 3)      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
+	"nova_artillery": [Vector3(0.391, 1.071, 0.589), 0.125, 0.65]}      # (v0.9.90: the coil howitzer's muzzle, Attack frame 3)      # (v0.9.86: Unit Zero's arm launcher)        # (v0.9.79: a plasma ball from the magnetic tube)   # (v0.9.70: a missile leaves the pod's near upper tube)     # (v0.9.64: the Field Gun fires on frame 2 too)
 func _gun_lob(root: Node3D, p: Dictionary, u) -> void:
 	var g: Array = GUN_LOBS[str(u.type)]
 	if str(u.type) in ["field_gun", "zero"]:
