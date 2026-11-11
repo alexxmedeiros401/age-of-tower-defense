@@ -26,7 +26,9 @@ sync)
   # written, nothing is deleted. Each linked-shell call lasts at most 3 minutes: run "sync" again until it prints
   # "synced" (it resumes where it stopped).
   REF=${2:-art/stone-age-v2}
-  K=$(echo "$REF" | tr '/' '_')
+  # key the download on the commit, so a moved branch is fetched again (not the last unpacked copy)
+  SHA=$(git ls-remote https://github.com/alexxmedeiros401/age-of-tower-defense "refs/heads/$REF" | cut -c1-12)
+  K=${SHA:-$(echo "$REF" | tr '/' '_')}
   P=$HOME/pack; mkdir -p $P
   if [ ! -f $P/$K.x ]; then
     if [ ! -f $P/$K.dl ]; then
