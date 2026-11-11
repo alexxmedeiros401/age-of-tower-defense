@@ -681,7 +681,8 @@
      },
      "not": true
     }
-   ]
+   ],
+   "after_armour": true
   }
  ]
 }

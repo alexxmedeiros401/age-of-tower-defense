@@ -663,7 +663,7 @@ def main():
     # baked albedo)}]: the selected vertices lose their weight on those bones, the rest scaled back up to 1 (the
     # Oracle's hip drape lay against her elbow and took a share of the arm: it stretched into a flap whenever she
     # lifted the laurel)
-    for ls_ in CFG.get("limb_strip", []):
+    def limb_strip_(WB, ls_):
         ci = [gn.index(b_) for b_ in ls_["bones"] if b_ in gn]
         Pl_ = C.to_game(C.from_game(P[body], XF), XF0)
         m_ = C.shapes(Pl_, ls_["select"], vcol[body])
@@ -679,6 +679,9 @@ def main():
             WB[nf_, gn.index(ls_["fallback"])] = 1.0
         log("weights: limb_strip %s: %d verts selected, %d had a share on them (%d kept it: no other bone)" % (
             "/".join(ls_["bones"]), m_.sum(), had_, int((~ok_).sum())))
+        return WB
+    for ls_ in CFG.get("limb_strip", []):
+        WB = limb_strip_(WB, ls_)
     if "head" in posed and "head" in gn:             # (a drone has no head bone)
         hb = posed["head"]
         hlen = np.linalg.norm(np.array(INFO["bones"]["head"]["tail"]) - np.array(INFO["bones"]["head"]["head"]))
@@ -692,6 +695,11 @@ def main():
     W4 = top4(WB)
     for spec in CFG["armour"]:
         W4 = armour_weights(spec, P, body, W4, gn, posed, ea, eb, vcol[body])
+    # limb_strip "after_armour": true: the strip is applied again after the armour pieces (an armour's seam smoothing
+    # spreads its neighbours' weights back in: the Sun Priest's leopard_head seam gave his collar the staff hand again)
+    for ls_ in CFG.get("limb_strip", []):
+        if ls_.get("after_armour"):
+            W4 = top4(limb_strip_(W4, ls_))
     # cfg "hard_weights": [[bone, bone, ...], ...]: within each group a vertex's whole share goes to its heaviest bone of
     # the group (a machine's joint: no blend, so a twisted forearm turns as one piece instead of pinching like a candy
     # wrapper at the elbow, as Glitch's in his Ability)
