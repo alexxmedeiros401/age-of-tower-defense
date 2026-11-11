@@ -76,29 +76,6 @@
  ],
  "armour": [
   {
-   "name": "mantle",
-   "select": [
-    [
-     [
-      -0.7,
-      0.7
-     ],
-     [
-      -0.5,
-      0.5
-     ],
-     [
-      0.95,
-      1.7
-     ]
-    ]
-   ],
-   "bones": {
-    "spine": 1.0
-   },
-   "seam_rings": 0
-  },
-  {
    "name": "cape",
    "select": [
     [
@@ -512,6 +489,29 @@
    ],
    "bones": {
     "forearm.R": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "mantle",
+   "select": [
+    [
+     [
+      -0.7,
+      0.7
+     ],
+     [
+      -0.5,
+      0.5
+     ],
+     [
+      0.99,
+      1.7
+     ]
+    ]
+   ],
+   "bones": {
+    "spine": 1.0
    },
    "seam_rings": 0
   }
