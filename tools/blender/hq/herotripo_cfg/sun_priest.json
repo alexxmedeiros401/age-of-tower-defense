@@ -589,5 +589,100 @@
  ],
  "twist_bones": [
   "R"
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ],
+ "limb_strip": [
+  {
+   "bones": [
+    "hand.R",
+    "forearm.R"
+   ],
+   "fallback": "spine",
+   "select": [
+    [
+     [
+      -0.6,
+      -0.05
+     ],
+     [
+      -0.3,
+      0.35
+     ],
+     [
+      0.75,
+      1.35
+     ]
+    ],
+    {
+     "seg": {
+      "a": [
+       -0.448,
+       0.088,
+       1.051
+      ],
+      "b": [
+       -0.294,
+       -0.095,
+       0.982
+      ],
+      "r": 0.09
+     },
+     "not": true
+    },
+    {
+     "seg": {
+      "a": [
+       -0.265,
+       0.155,
+       1.256
+      ],
+      "b": [
+       -0.448,
+       0.088,
+       1.051
+      ],
+      "r": 0.12
+     },
+     "not": true
+    },
+    {
+     "ball": {
+      "c": [
+       -0.34,
+       -0.116,
+       1.037
+      ],
+      "r": 0.15
+     },
+     "not": true
+    }
+   ],
+   "after_armour": true
+  }
  ]
 }
