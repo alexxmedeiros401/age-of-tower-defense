@@ -4,3 +4,6 @@ build/
 demo.log
 __pycache__/
 .claude/
+
+# herotripo decode tool (npm install output)
+tools/blender/hq/herotripo_prep/package-lock.json
