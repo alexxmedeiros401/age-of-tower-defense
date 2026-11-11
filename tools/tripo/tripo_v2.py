@@ -7,6 +7,11 @@ The balance is checked first (a bad key fails before anything is spent). Every m
 model is downloaded as OUT/<name>.glb (pbr_model, else model, else base_model) with its preview image, and the
 credits each task froze or used, plus the balance before and after, go to OUT/log.json."""
 import json, os, sys, time, urllib.request, urllib.error, mimetypes, uuid
+# Tripo sits behind Cloudflare, which now refuses Python-urllib's default User-Agent (HTTP 403, error 1010):
+# send a named client instead, on every request including the model downloads.
+_op = urllib.request.build_opener()
+_op.addheaders = [("User-Agent", "AgeOfTowerDefense-art-pipeline/1.0 (+https://github.com/alexxmedeiros401/age-of-tower-defense)")]
+urllib.request.install_opener(_op)
 
 BASE = "https://api.tripo3d.ai/v2/openapi"
 
