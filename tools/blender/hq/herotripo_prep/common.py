@@ -53,6 +53,12 @@ def load_cfg(hid):
     for k in ("old", "tripo"):
         if not os.path.isabs(c[k]):
             c[k] = os.path.join(REPO, c[k])
+    # The shipped GLB is now the Tripo rebuild itself, so a re-rig must start from the model shipped BEFORE it.
+    # restore.sh puts that one in $HEROTRIPO_OLD_DIR/<id>.glb (default /home/claude/work/heroglb/old); it wins
+    # whenever it exists (also over a local .blend that is gone).
+    od = os.path.join(os.environ.get("HEROTRIPO_OLD_DIR", "/home/claude/work/heroglb/old"), hid + ".glb")
+    if os.path.exists(od):
+        c["old"] = od
     return c
 
 

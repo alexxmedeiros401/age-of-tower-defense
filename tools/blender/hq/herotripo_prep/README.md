@@ -276,3 +276,14 @@ a sling or the end of a staff cut at the fist are where things poke out: look at
 Same face, sharp eyes; no floating armour (Vega's pauldron floated by his ear in the Ability: weight armour to the
 upper arm, see `armour`); no props through hands or bodies; no grip sticking out of the fist (Vega's pistol grip had
 to be shortened); no tearing in crouches; props in the hands in every clip; the Tripo look kept unless it breaks a clip.
+
+## After a fresh container (restore.sh)
+The work folders live outside the repo and vanish with the container. `bash restore.sh <id>` rebuilds one unit from
+GitHub: the model shipped before its Tripo rebuild (the parent of the first commit with "Tripo" in its message that
+touched `assets/*/<id>.glb`) into `heroglb/old/<id>.glb`, which `common.load_cfg` then uses as `old` (the shipped GLB
+is the Tripo rebuild itself now); the Tripo source and labels/patches/fit from the newest `art-jobs` branch holding
+`herotripo_in/<id>` (fetch them first: `git fetch --filter=blob:none origin '+refs/heads/art-jobs/*:refs/remotes/aj/*'`);
+old.py and load.py re-run; and that branch's bake zip. A re-rig of the restored unit reproduces the shipped GLB byte for
+byte (checked on the Rock Slinger). Units whose branch was later overwritten by a push with the same name (the Bronze
+Archer, Sun Priest, Torsion Catapult, Javelin Thrower, Axe Warrior): `SRC=<tripo.glb> BAKE=<TAG_ID_RUN> bash restore.sh
+<id>` re-runs cut, patches and fit from the config instead.
