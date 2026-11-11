@@ -19,7 +19,7 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   check_glb.py  round trip of a GLB against the shipped one (Blender)
   zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
   oldprop.py    props taken from the old hero's mesh (source: old), after patches.py and fit.py (Blender)
-  stretch_check.py  stretched edges (> 2x and > 3 cm vs rest) and torn seams per clip frame, by bone pair (Blender)
+  stretch_check.py  stretched edges (> 2x and > 3 cm vs rest), flipped faces and torn seams per clip frame, by bone pair (Blender)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -276,7 +276,10 @@ a sling or the end of a staff cut at the fist are where things poke out: look at
 **Stretched edges.** `python3 stretch_check.py -- --hero <id> --model <out>/<id>.glb [--json J]` evaluates every frame
 of every clip and lists the edges more than 2x (`--ratio`) and more than 3 cm (`--abs`) longer than at rest, grouped
 by the dominant bones of their two ends (`chest|upperarm.L`: an armpit; `forearm.R|hand.R`: a wrist), with the worst
-frame and where; vertices that share a rest position and drift more than 1 cm apart (`--gap`) are a torn seam. Run it
+frame and where; vertices that share a rest position and drift more than 1 cm apart (`--gap`) are a torn seam.
+FLIPPED faces (posed normal against the rest normal turned by the face's blended bones, `--flip` -0.2; groups under
+`--flip_area` 4 cm2 dropped) are a limb collapsing through itself (a forearm turned inside out by a twisted hand) or a fold
+(a beard pressed into the chest): neither stretches an edge. Run it
 on the shipped GLB and on the fix: the same frames, the same numbers. It prints `STRETCH OK` when nothing is found.
 
 ## Quality bar (check every hero)
