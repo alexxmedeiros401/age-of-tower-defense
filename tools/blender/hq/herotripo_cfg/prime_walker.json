@@ -32,7 +32,9 @@
    "foot.L",
    "thigh.R",
    "shin.R",
-   "foot.R"
+   "foot.R",
+   "pauldron.L",
+   "pauldron.R"
   ]
  ],
  "hard_split": "faces",
@@ -163,9 +165,16 @@
    42
   ],
   "Summon": [
+   4,
+   8,
    12,
+   16,
+   20,
    24,
-   36
+   28,
+   32,
+   36,
+   40
   ]
  },
  "cmp_frames": [
@@ -250,7 +259,7 @@
     ]
    ],
    "bones": {
-    "upperarm.L": 1.0
+    "pauldron.L": 1.0
    },
    "seam_rings": 0
   },
@@ -345,7 +354,7 @@
     ]
    ],
    "bones": {
-    "upperarm.R": 1.0
+    "pauldron.R": 1.0
    },
    "seam_rings": 0
   },
@@ -374,5 +383,29 @@
   }
  ],
  "closeup_frames": {},
- "hard_min_island": 40
+ "hard_min_island": 40,
+ "extra_bones": [
+  {
+   "name": "pauldron.L",
+   "parent": "spine",
+   "copy": "upperarm.L",
+   "head": [
+    0.74,
+    0.02,
+    2.28
+   ],
+   "share": 0.5
+  },
+  {
+   "name": "pauldron.R",
+   "parent": "spine",
+   "copy": "upperarm.R",
+   "head": [
+    -0.74,
+    0.02,
+    2.28
+   ],
+   "share": 0.5
+  }
+ ]
 }

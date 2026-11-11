@@ -25,7 +25,8 @@
    "foot.L",
    "thigh.R",
    "shin.R",
-   "foot.R"
+   "foot.R",
+   "head"
   ]
  ],
  "props": [
@@ -135,24 +136,16 @@
    "sat_min": 0.45,
    "val_min": 0.3,
    "strength": 2.5
-  },
-  {
-   "name": "antenna_tip",
-   "parts": [
-    "antenna"
-   ],
-   "hue": [
-    338,
-    14
-   ],
-   "sat_min": 0.45,
-   "val_min": 0.3,
-   "strength": 2.5
   }
  ],
  "glows": {
   "GlowAntennaTip": {
-   "hide": true
+   "at": [
+    0.097,
+    0.14,
+    1.595
+   ],
+   "radius": 0.029
   },
   "GlowCore": {
    "hide": true
@@ -184,5 +177,7 @@
    18
   ]
  ],
- "hard_split": true
+ "hard_split": "faces",
+ "hard_smooth": 6,
+ "hard_min_island": 40
 }
