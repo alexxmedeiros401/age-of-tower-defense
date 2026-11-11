@@ -18,6 +18,12 @@ motion of a clip on a shipped GLB (body, legs, head keep their keys) and export 
 | follow.py | cfg helper: keep the shipped hand paths/orientations but move them (an offset per frame) and rebuild the arms; `attach()` keeps a prop on its own bone (halberd, linstock) with the hand |
 | bowstring.py | cfg helper (bows): string tails follow the nock, the arrow re-aims at its rest on the bow, where the shipped clip had them |
 | beforeafter.py / unitnums.py | deliverables: shipped-vs-new video (315 then 200, clips twice), notes numbers tables |
+| triage.py | detection over every clip (heroes, towers): `python3 triage.py GLB OUT.json [clips|all] [step]`. The body is voxelized at rest (1 cm) and labelled by bone; posed arm/hand/weapon points are taken back to rest through head/chest/spine/root and looked up: `pen_<side>_head/torso` (m, beyond the rest overlap), `near_<side>_head`, and per frame psi / forearm twist / elbow / wrist |
+| landmarks.py | authoring aid: shoulders, head/hair volume slices, torso, and each clip's shipped wrist/elbow positions in chest-relative rest coords (`EXTRA=bone`, `AXIS="hand.R:x,y,z"` print a prop's position / axis) |
+| hero_arm.py | generic re-author (heroes): `python3 hero_arm.py IN OUT CFG.py [NUMBERS.json]`. CFG.CLIPS: per clip and side, wrist/pole keys (chest-relative rest coords, Catmull-Rom) or a function; hand mode `keep` / `straight` (+ `twist_<side>` keys) / `world` (the hand keeps its shipped orientation: only where the fist is changes) / aim keys `[(f, dir, up)]` with CFG.AXIS_<side>; `{'offset': vec or f->vec}` in place of keys (the shipped wrist path moved by a chest-relative offset; the shipped arm is used where the offset is 0, eased by its size), `blend`, `blend_<side>` (ease from/to the shipped arm at the ends), `world_rot` (an extra turn of a 'world' hand about a chest axis, e.g. a weapon turned off the head), `aim_fix_<side>` (swing a held axis onto a bone point, e.g. an arrow onto the bow), `follow_tail` (bones whose tails met the old hand, e.g. bowstrings, re-aimed and stretched), `keep_roll` (keep the shipped upper-arm roll and forearm twist: forearm-mounted blades), CFG.HOLD_PROPS (which parentless props follow the hands), `keep_world` (child props keep their world turn, e.g. a sling), `hand_smooth` (sigma, for shipped fists that spin), `psi_max`, `wrist_max`, `tw_max`, `loop`. Analytic two-bone IK; upper-arm roll only to line up the elbow hinge, within +-30, smoothed and <= 6 deg/frame; twist smoothed <= 10 deg/frame; `_half` / `forearm_twist` bones get their herotripo shares; parentless props held by a re-authored hand keep their grip |
+| frames.py / video.py | every frame of chosen clips (workbench, az list, `ZOOM`) and the side-by-side before/after mp4 |
+
+Hero configs: `cfg/<id>_arms.py` (rhB pass; deliverables in /home/claude/work/repose/<id>/).
 
 Club Warrior was built as `author.py` (left arm, cfg/club_warrior_ik.py) then `clubarm.py` (right arm, cfg/club_warrior_arm.py).
 
@@ -28,6 +34,11 @@ Lessons (each was a rejected take):
 - Never let the upper arm roll a lot (> ~30 deg): the skin twists (watch an armband or bracer go diagonal).
 - Forearm twist must be continuous frame to frame (no +60 -> -60 flips).
 - Check per frame: upper-arm roll, forearm twist, wrist angle, elbow angle, and their frame-to-frame deltas.
+- A weapon fist on these Tripo hands often grips at 100-180 deg from the hand bone's rest frame: re-aiming the weapon from
+  keys (or a straight wrist) lays blades across faces or needs a 100+ deg wrist. Keep the shipped weapon orientation
+  (`world`) and move the fist (heroes: Kira, Tarek).
+- The 315 camera puts anything at the unit's front-right at head height over its face: raised right hands go out (x >= 0.45)
+  and level with or behind the head (y >= 0), not forward.
 - Review as video (front az 315 and back az 200, elev 35) and close-ups; the user judges the motion, not stills.
 
 Tower pass notes (rtA):
@@ -38,3 +49,5 @@ Tower pass notes (rtA):
   the elbow angle in the report (12 deg = the target was out of reach and was clamped).
 - Several stances are side-on (chest yawed, head turned to the target along chest +X): author in chest space, use
   headpose numbers to find where the face is.
+
+Hero tools (from the heroes pass) ship as triage_heroes.py and shots_heroes.py; hero_arm.py imports may expect the names triage/shots, so check before reusing.
