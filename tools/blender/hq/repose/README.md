@@ -13,6 +13,12 @@ motion of a clip on a shipped GLB (body, legs, head keep their keys) and export 
 | author.py | the same, generic: `python3 author.py IN OUT CFG.py`; CFG gives ATTACK/LOOP clip names, ATK_R/ATK_L key lists `(frame, wrist, pole)`, loop_r/loop_l(f), optional SLING, optional CLUB_AXIS + club_dir(clip, f) |
 | clubarm.py | weapon arm: `python3 clubarm.py IN OUT CFG.py`, CFG.CLIPS = {clip: [(frame, wrist, weapon_dir)]}, CLUB_AXIS (weapon axis, rest armature space). Solves forearm direction, upper-arm roll (psi, kept small) and forearm twist (continuous) so the weapon points along weapon_dir with a modest wrist |
 
+| armsolve.py | generic two-arm re-author (towers, rtA): `python3 armsolve.py IN OUT cfg/<id>.py [report.json]`. Wrist paths (+ optional weapon dir/up, elbow pole, aim) keyed chest-relative per clip/side; per frame the elbow goes where the upper arm needs the least roll, the forearm twist gives the smallest wrist, both smoothed in time; WINDOW (re-author only some frames), GRAB (two-handed: one wrist rides the other hand's weapon), PRE/POST hooks. Prints/reports psi, twist, wrist, elbow and their frame deltas |
+| triage.py | detection: per clip/frame, forearm/hand/weapon depth inside head/neck and torso (bind-pose overlaps left out), joint numbers, chest-relative wrist/elbow/hand frame. `python3 triage.py GLB OUT.json` |
+| follow.py | cfg helper: keep the shipped hand paths/orientations but move them (an offset per frame) and rebuild the arms; `attach()` keeps a prop on its own bone (halberd, linstock) with the hand |
+| bowstring.py | cfg helper (bows): string tails follow the nock, the arrow re-aims at its rest on the bow, where the shipped clip had them |
+| beforeafter.py / unitnums.py | deliverables: shipped-vs-new video (315 then 200, clips twice), notes numbers tables |
+
 Club Warrior was built as `author.py` (left arm, cfg/club_warrior_ik.py) then `clubarm.py` (right arm, cfg/club_warrior_arm.py).
 
 Lessons (each was a rejected take):
@@ -23,3 +29,12 @@ Lessons (each was a rejected take):
 - Forearm twist must be continuous frame to frame (no +60 -> -60 flips).
 - Check per frame: upper-arm roll, forearm twist, wrist angle, elbow angle, and their frame-to-frame deltas.
 - Review as video (front az 315 and back az 200, elev 35) and close-ups; the user judges the motion, not stills.
+
+Tower pass notes (rtA):
+- Weapons sit in the fist across the palm (perpendicular to the forearm): with a straight wrist a held staff/axe/mallet
+  stands up when the forearm is level, points back when it is upright, forward when the arm hangs. Design the hand
+  path so the arm carries the weapon, and use `aim` < 1 where the weapon direction only matters a little.
+- Arms are short on the Tripo bodies (~0.6 m reach): two-handed grips only meet close in front of the chest; check
+  the elbow angle in the report (12 deg = the target was out of reach and was clamped).
+- Several stances are side-on (chest yawed, head turned to the target along chest +X): author in chest space, use
+  headpose numbers to find where the face is.
