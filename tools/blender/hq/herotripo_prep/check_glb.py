@@ -52,7 +52,7 @@ if glow:                                  # (the emissive key's <HeroMat>Glow: t
     n["materials"] = [m for m in n["materials"] if m not in glow]
 # added helper bones (cfg twist_bones / joint_helpers / extra_bones): new-only bones named like these are expected;
 # a bone the new file lacks or renames is still a difference (the game looks bones up by name)
-HELPER = re.compile(r"^(forearm_twist\.|.+_half\.|spin_)")
+HELPER = re.compile(r"^(forearm_twist\.|.+_half\.|spin_|.+_mount\.)")
 xb = [b for b in n["bones"] if b not in o["bones"] and (HELPER.match(b) or b in sys.argv[sys.argv.index("--") + 3:])]
 if xb:
     print("added helper bones (expected):", xb)
