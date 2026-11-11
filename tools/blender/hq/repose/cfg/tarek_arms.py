@@ -6,7 +6,15 @@
 import math
 from mathutils import Vector as V
 HERO = 'tarek'
-COCK = V((-0.50, 0.12, 1.70)); COCK_POLE = V((-0.95, 0.25, 1.45))
+WR = -35.0     # the cocked hammer turned out about the forward axis: its head clears his head from behind too
+
+def ramp(f, pts):
+    # piecewise-smooth weight from [(frame, w)]
+    for (a, wa), (b, wb) in zip(pts, pts[1:]):
+        if a <= f <= b:
+            t = (f - a) / float(b - a); t = t * t * (3 - 2 * t); return wa + (wb - wa) * t
+    return pts[-1][1] if f > pts[-1][0] else pts[0][1]
+COCK = V((-0.62, 0.00, 1.68)); COCK_POLE = V((-1.05, 0.20, 1.45))
 HIGH = V((-0.50, 0.05, 1.90)); HIGH_POLE = V((-0.95, 0.20, 1.65))
 IDLE = V((-0.24, -0.18, 1.20)); IDLE_POLE = V((-0.75, -0.10, 1.00))
 STRIKE = V((-0.18, -0.32, 1.28)); STRIKE_POLE = V((-0.80, -0.05, 1.20))
@@ -18,13 +26,13 @@ def idle_r(f, n=120):
 
 L_REST = V((0.34, 0.03, 1.00)); L_POLE = V((0.85, 0.30, 1.05))
 CLIPS = {
-    'Combat': {'R': combat_r, 'hand_R': 'world', 'loop': True, 'wrist_max': 180},
+    'Combat': {'R': combat_r, 'hand_R': 'world', 'loop': True, 'world_rot': ((0, 1, 0), WR)},
     'Attack': {   # release at frame 2 (game.gd RELEASE)
         'R': [(0, COCK, COCK_POLE), (2, V((-0.56, -0.20, 1.90)), V((-1.0, 0.10, 1.65))),
               (5, V((-0.44, -0.45, 1.36)), V((-0.90, -0.05, 1.30))), (8, V((-0.40, -0.36, 1.06)), V((-0.85, 0.05, 1.10))),
               (12, V((-0.46, -0.08, 0.98)), V((-0.85, 0.25, 1.05))), (15, V((-0.52, -0.02, 1.20)), V((-0.90, 0.30, 1.15))),
               (18, V((-0.54, 0.10, 1.50)), V((-0.95, 0.30, 1.35))), (22, COCK, COCK_POLE)],
-        'hand_R': 'world', 'hand_smooth': 2.0,
+        'hand_R': 'world', 'hand_smooth': 2.0, 'world_rot': lambda f: ((0, 1, 0), WR * ramp(f, [(0, 1), (2, 0), (18, 0), (22, 1)])),
     },
     'Ability': {   # Forge Fury: three strikes on the anvil in front, then the hammer raised and a roar
         'R': [(0, V((0.01, -0.19, 1.38)), STRIKE_POLE), (4, V((-0.42, -0.05, 1.62)), HIGH_POLE), (8, HIGH, HIGH_POLE),
@@ -33,7 +41,7 @@ CLIPS = {
               (36, STRIKE, STRIKE_POLE), (42, STRIKE, STRIKE_POLE), (47, V((-0.46, 0.10, 1.70)), HIGH_POLE),
               (51, HIGH + V((0.02, 0, 0.05)), HIGH_POLE), (57, HIGH + V((0.02, 0, 0.05)), HIGH_POLE), (62, V((-0.50, 0.08, 1.80)), HIGH_POLE),
               (66, COCK, COCK_POLE)],
-        'hand_R': 'world', 'wrist_max': 180, 'blend_R': (3, 0),
+        'hand_R': 'world', 'blend_R': (3, 0), 'world_rot': lambda f: ((0, 1, 0), WR * ramp(f, [(0, 0), (60, 0), (66, 1)])),
     },
     'Cheer': {   # the hammer thrust up beside his head twice
         'R': [(0, IDLE, IDLE_POLE), (6, HIGH + V((0, 0, 0.04)), HIGH_POLE), (12, HIGH, HIGH_POLE), (18, HIGH + V((0, 0, 0.04)), HIGH_POLE),

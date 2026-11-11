@@ -173,7 +173,8 @@ for clip, spec in C.CLIPS.items():
                    'upper': {s_: r3(AW @ P['upperarm.' + s_].matrix) for s_ in 'RL'},
                    'elbow': {s_: (AW @ P['forearm.' + s_].matrix).translation.copy() for s_ in 'RL'},
                    'shoulder': {s_: (AW @ P['upperarm.' + s_].matrix).translation.copy() for s_ in 'RL'},
-                   'world': {b: (AW @ P[b].matrix).copy() for b in spec.get('keep_world', [])}}
+                   'world': {b: (AW @ P[b].matrix).copy() for b in spec.get('keep_world', [])},
+                   'tails': {b: (AW @ P[b].tail).copy() for b in spec.get('follow_tail', {})}}
     WANT = {s: {} for s in sides}; PSI = None; PIN = {}; TWS = None; TWW = {}
     HW = {}
     for s in sides:
@@ -255,6 +256,24 @@ for clip, spec in C.CLIPS.items():
                     # the hand (and what it holds) keeps its shipped orientation: only where it is changes
                     # (optionally smoothed over time: 'hand_smooth' sigma in frames, for shipped clips that flip the fist)
                     Rh_target = HW[s][f] if s in HW else r3(orig[f]['hand_w'][s])
+                    af = spec.get('aim_fix_' + s)
+                    if af:      # swing the held thing's axis onto a bone's point (an arrow onto the bow grip), weight w(f)
+                        w_ = af['w'](f) if callable(af.get('w')) else af.get('w', 1.0)
+                        if w_ == 'auto':    # only while the shipped clip had it on target (the grip within 6 cm of its line)
+                            oh = orig[f]['hand_w'][s]; ax0 = (oh.to_3x3().normalized() @ (r3(B['hand.' + s].matrix_local).inverted() @ Vector(af['axis']))).normalized()
+                            gp = orig[f]['hand_w'][af['at'].split('.')[-1]] if af['at'].startswith('hand.') else None
+                            gp = (gp @ Vector(af.get('offset', (0, 0, 0)))) if gp is not None else tgt0
+                            rel_ = gp - oh.translation; dl_ = (rel_ - ax0 * rel_.dot(ax0)).length if rel_.dot(ax0) > 0 else 9
+                            w_ = max(0.0, min(1.0, (0.12 - dl_) / 0.06))
+                        if w_ > 0:
+                            tgt = (AW @ P[af['at']].matrix) @ Vector(af.get('offset', (0, 0, 0)))
+                            axw = (Rh_target @ (r3(B['hand.' + s].matrix_local).inverted() @ Vector(af['axis']))).normalized()
+                            want_ = (tgt - Hreal).normalized()
+                            Rh_target = Quaternion().slerp(axw.rotation_difference(want_), w_).to_matrix() @ Rh_target
+                    wr_ = spec.get('world_rot_' + s, spec.get('world_rot'))
+                    if wr_:     # an extra turn of the held thing about a chest-relative axis (deg), e.g. a hammer head swung out
+                        ax_, deg_ = wr_(f) if callable(wr_) else wr_
+                        Rh_target = Matrix.Rotation(math.radians(deg_), 3, (r3(X) @ Vector(ax_)).normalized()) @ Rh_target
                 elif hs == 'straight':
                     # straight wrist; the hand (and what it holds) turned about the forearm by the keyed twist (deg)
                     tk = spec.get('twist_' + s)
@@ -388,6 +407,20 @@ for clip, spec in C.CLIPS.items():
                     bpy.context.view_layer.update()
                     newhand[f][s] = (AW @ P['hand.' + s].matrix).copy()
                 row['blend'] = round(wb, 2)
+            for b, s_ in spec.get('follow_tail', {}).items():
+                # a bone whose tail met the (old) hand (a bowstring at the nock) is turned and stretched to meet it again
+                if s_ not in sides: continue
+                ot = orig[f]['tails'][b]
+                if (ot - orig[f]['hand_w'][s_].translation).length > spec.get('tail_reach', 0.15): continue
+                tgt = newhand[f][s_] @ (orig[f]['hand_w'][s_].inverted() @ ot)
+                m = AW @ P[b].matrix; head = m.translation.copy(); cur = AW @ P[b].tail
+                q = (cur - head).normalized().rotation_difference((tgt - head).normalized())
+                P[b].matrix = AWi @ (Matrix.Translation(head) @ q.to_matrix().to_4x4() @ Matrix.Translation(-head) @ m)
+                bpy.context.view_layer.update()
+                k_ = (tgt - head).length / max((AW @ P[b].tail - head).length, 1e-6)
+                sc_ = P[b].scale.copy(); sc_.y *= k_; P[b].scale = sc_
+                bpy.context.view_layer.update()
+                P[b].keyframe_insert('rotation_quaternion', frame=f); P[b].keyframe_insert('scale', frame=f)
             for b in spec.get('keep_world', []):
                 m = AW @ P[b].matrix; wo = orig[f]['world'][b]
                 nm = Matrix.Translation(m.translation) @ wo.to_quaternion().to_matrix().to_4x4() @ Matrix.Diagonal(m.to_scale()).to_4x4()
