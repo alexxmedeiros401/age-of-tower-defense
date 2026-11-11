@@ -357,6 +357,26 @@
     "anchor": 0,
     "spin": 75
    }
+  },
+  {
+   "name": "shield_bits",
+   "bone": "hand.L",
+   "mode": "pieces",
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.507,
+       0.149,
+       0.588
+      ],
+      "r": 0.04
+     }
+    }
+   ],
+   "place": {
+    "like": "shield"
+   }
   }
  ],
  "fit_recentre": true,
@@ -379,5 +399,31 @@
    12
   ]
  ],
- "orphans": "nearest"
+ "orphans": "nearest",
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ]
 }

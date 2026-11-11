@@ -708,8 +708,13 @@
       0.824
      ]
     ],
-    "scale": "keep",
-    "hand_follow": true
+    "scale": 0.9,
+    "hand_follow": true,
+    "shorten": [
+     0.12,
+     0.8,
+     0.3
+    ]
    }
   },
   {
@@ -889,5 +894,31 @@
   "forearm.R",
   "hand.R"
  ],
- "limb_regeom_power": 3
+ "limb_regeom_power": 3,
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ]
 }
