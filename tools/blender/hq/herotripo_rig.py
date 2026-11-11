@@ -1135,7 +1135,7 @@ def main():
         pb_c, pb_n = arm.pose.bones[ch_n], arm.pose.bones[hn_]
         pb_n.rotation_mode = "QUATERNION"
         arm.animation_data_create()
-        from mathutils import Quaternion
+        pass  # (Quaternion: imported at the top)
         big = 0.0
         for act in bpy.data.actions:
             arm.animation_data.action = act
