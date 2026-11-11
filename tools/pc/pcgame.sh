@@ -39,7 +39,7 @@ sync)
     echo "unpacked"; exit 0
   fi
   mkdir -p "$R/game"
-  timeout 165 rsync -rc --exclude .godot --exclude .github $P/g/ "$R/game/" || { echo "copying (run again)"; exit 0; }
+  timeout 110 rsync -rc --exclude .godot --exclude .github $P/g/ "$R/game/" || { echo "copying (run again)"; exit 0; }
   echo "synced $REF"
   ST=$(date +%H%M%S)
   python3 - "$ST" <<'PY'
