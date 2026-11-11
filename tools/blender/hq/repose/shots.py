@@ -21,7 +21,10 @@ if arm.animation_data is None: arm.animation_data_create()
 ch = [o for o in bpy.data.objects if o.type == 'MESH' and o.find_armature() == arm]
 pts = [o.matrix_world @ mathutils.Vector(c) for o in ch for c in o.bound_box]
 lo = mathutils.Vector([min(p[i] for p in pts) for i in range(3)]); hi = mathutils.Vector([max(p[i] for p in pts) for i in range(3)])
-ctr = (lo + hi) / 2; size = max(hi - lo) * 1.35
+import os
+ctr = (lo + hi) / 2; size = max(hi - lo) * 1.35 / float(os.environ.get('ZOOM', '1'))   # ZOOM, CX, CZ: close-ups
+if os.environ.get('CZ'): ctr.z = float(os.environ['CZ'])
+if os.environ.get('CX'): ctr.x = float(os.environ['CX'])
 cam.data.ortho_scale = size
 for item in spec.split(';'):
     clip, fr = item.split(':')
