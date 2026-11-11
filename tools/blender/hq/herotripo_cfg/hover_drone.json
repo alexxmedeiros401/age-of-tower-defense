@@ -173,7 +173,7 @@
   ]
  ],
  "hard_split": "faces",
- "hard_smooth": 6,
+ "hard_smooth": 0,
  "hard_min_island": 30,
  "emissive": [
   {
@@ -208,23 +208,28 @@
    ],
    "select": [
     {
-     "ball": {
-      "c": [
-       0,
-       0.37,
-       0.91
+     "seg": {
+      "a": [
+       0.065,
+       0.185,
+       0.849
       ],
-      "r": 0.07
+      "b": [
+       0.065,
+       0.24,
+       0.849
+      ],
+      "r": 0.075
      }
     }
    ],
    "hue": [
-    25,
-    60
+    30,
+    62
    ],
    "sat_min": 0.4,
-   "val_min": 0.5,
-   "strength": 2.0
+   "val_min": 0.55,
+   "strength": 2.2
   }
  ],
  "glows": {
@@ -257,6 +262,29 @@
   ]
  ],
  "armour": [
+  {
+   "name": "thorax",
+   "select": [
+    [
+     [
+      -0.2,
+      0.33
+     ],
+     [
+      -0.16,
+      -0.034
+     ],
+     [
+      0.66,
+      1.05
+     ]
+    ]
+   ],
+   "bones": {
+    "root": 1.0
+   },
+   "seam_rings": 0
+  },
   {
    "name": "eye_socket",
    "select": [
@@ -291,6 +319,39 @@
     "root": 1.0
    },
    "seam_rings": 0
+  },
+  {
+   "name": "abdomen",
+   "select": [
+    {
+     "seg": {
+      "a": [
+       0.065,
+       -0.034,
+       0.862
+      ],
+      "b": [
+       0.065,
+       0.32,
+       0.85
+      ],
+      "r": 0.105
+     }
+    }
+   ],
+   "bones": {
+    "tail": 1.0
+   },
+   "seam_rings": 0
   }
- ]
+ ],
+ "hard_by_centre": true,
+ "hard_caps": {
+  "col": [
+   0.2,
+   0.2,
+   0.22
+  ],
+  "flat": 0.2
+ }
 }

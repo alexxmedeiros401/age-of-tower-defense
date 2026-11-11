@@ -525,5 +525,13 @@
    ]
   }
  ],
- "hard_by_centre": true
+ "hard_by_centre": true,
+ "load_xf": {
+  "s": 2.065978,
+  "t": [
+   -0.000818,
+   0.142915,
+   0.525
+  ]
+ }
 }
