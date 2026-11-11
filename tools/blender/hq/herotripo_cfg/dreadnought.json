@@ -845,7 +845,8 @@
    ],
    "hull": true,
    "ray": 0.06,
-   "hull_out": true
+   "hull_out": true,
+   "hi_flip": true
   },
   {
    "name": "door.R",
@@ -928,7 +929,8 @@
    ],
    "hull": true,
    "ray": 0.06,
-   "hull_out": true
+   "hull_out": true,
+   "hi_flip": true
   }
  ],
  "load_xf": {
