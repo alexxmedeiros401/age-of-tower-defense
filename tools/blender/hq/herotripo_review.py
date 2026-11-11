@@ -169,7 +169,9 @@ if "turn" in ONLY:
         camera(sc, tg, az, 8, o)
         ps.append(shot(sc, os.path.join(OUT, "_t%d.png" % k)))
     sheet(ps, os.path.join(OUT, "turn.png"), 4, ["front", "three-quarter", "back", "side (his left)"])
-if "face" in ONLY:
+if "face" in ONLY and "head" not in INFO["bones"]:
+    print("[review] no head bone (a drone): face.png skipped")
+elif "face" in ONLY:
     sc, arm = setup(NEW)
     pose(arm, None, 0)
     hc = bone_world(arm, "head", 0.32)
