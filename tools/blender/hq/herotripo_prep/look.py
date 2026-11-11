@@ -18,7 +18,8 @@ import common as C
 PAL = np.array([[0.75, 0.75, 0.75], [0.1, 0.45, 1.0], [0.1, 0.85, 0.2], [1.0, 0.75, 0.0], [0.6, 0.2, 0.9],
                 [0.0, 0.85, 0.85], [1.0, 0.4, 0.1], [0.5, 0.3, 0.1]])
 VIEWS = {"front": ((0, 2), (1, -1), -1), "back": ((0, 2), (1, 1), -1), "left": ((1, 2), (0, -1), 1),
-         "right": ((1, 2), (0, 1), 1), "top": ((0, 1), (2, 1), 1)}
+         "right": ((1, 2), (0, 1), 1), "top": ((0, 1), (2, 1), 1),
+         "bottom": ((0, 1), (2, -1), 1)}
 # per view: (image axes (u, v)), (depth axis, sign: larger depth*sign = nearer the camera), flip u
 
 
@@ -37,7 +38,7 @@ def render(Cg, N, col, view, px, crop=None):
     X = Cg[m]
     u, v, d = X[:, ua] * (-1 if (view in ("back", "left")) else 1), X[:, va], X[:, da] * ds
     if view == "top":
-        v = X[:, 1] * -1
+        v = X[:, 1] * -1                            # (bottom: seen from below, +x right, +y up)
     lo_u, hi_u = u.min(), u.max()
     lo_v, hi_v = v.min(), v.max()
     span = max(hi_u - lo_u, hi_v - lo_v) * 1.04
