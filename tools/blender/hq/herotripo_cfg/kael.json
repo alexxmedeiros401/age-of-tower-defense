@@ -552,30 +552,94 @@
    ]
   }
  ],
- "joint_helpers": [
+ "limb_strip": [
   {
-   "bone": "upperarm.R",
-   "from": [
-    "clavicle.R",
-    "chest"
+   "bones": [
+    "thigh.R",
+    "shin.R",
+    "foot.R"
    ],
-   "smooth": 20
+   "fallback": "root",
+   "select": [
+    [
+     [
+      -1.0,
+      -0.4
+     ],
+     [
+      -0.5,
+      0.6
+     ],
+     [
+      0.6,
+      1.4
+     ]
+    ]
+   ]
   },
   {
-   "bone": "upperarm.L",
-   "from": [
-    "clavicle.L",
-    "chest"
+   "bones": [
+    "thigh.L",
+    "shin.L",
+    "foot.L"
    ],
-   "smooth": 20
+   "fallback": "root",
+   "select": [
+    [
+     [
+      0.4,
+      1.0
+     ],
+     [
+      -0.5,
+      0.6
+     ],
+     [
+      0.6,
+      1.4
+     ]
+    ]
+   ]
   },
   {
-   "bone": "forearm.R",
-   "smooth": 10
-  },
-  {
-   "bone": "forearm.L",
-   "smooth": 10
+   "bones": [
+    "cape.1",
+    "cape.2"
+   ],
+   "fallback": "forearm.L",
+   "after_armour": true,
+   "select": [
+    {
+     "seg": {
+      "a": [
+       0.583,
+       0.222,
+       1.196
+      ],
+      "b": [
+       0.745,
+       0.127,
+       0.976
+      ],
+      "r": 0.1
+     }
+    },
+    {
+     "seg": {
+      "a": [
+       0.745,
+       0.127,
+       0.976
+      ],
+      "b": [
+       0.909,
+       0.074,
+       0.743
+      ],
+      "r": 0.1
+     }
+    }
+   ]
   }
  ]
 }
