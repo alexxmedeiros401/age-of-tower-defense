@@ -31,7 +31,7 @@ for ID in "$@"; do
   cp /home/claude/work/heroglb/old/$ID.glb pcin/old/$ID.glb
   echo "$ID: bake $(basename $B)"
 done
-git add -f pcin
+git add --sparse -f pcin
 git commit -qm "PC job: $TAG $RUN ($*)"
 git push -q -f origin "$BR"
 echo "pushed $BR"
