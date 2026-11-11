@@ -21,8 +21,8 @@ sys.path.insert(0, HQ)
 sys.path.insert(0, os.path.join(HQ, "herotripo_prep"))
 import numpy as np
 import bpy, bmesh
-from mathutils import Vector, Matrix
-from scipy.spatial import cKDTree
+from mathutils import Vector, Matrix, Quaternion
+from scipy.spatial import cKDTree, Delaunay
 from scipy.spatial.transform import Rotation as Rot
 import scipy.sparse as sp
 import common as C
@@ -84,6 +84,15 @@ def adjacency(lt, nv, sel):
     E = np.unique(E, axis=0)
     E = E[(idx[E[:, 0]] >= 0) & (idx[E[:, 1]] >= 0)]
     return idx[E[:, 0]], idx[E[:, 1]]
+
+
+def in_polygon(P, Q):
+    """Points P (n, 2) inside the closed polygon Q (m, 2) (even-odd ray casting; numpy only)."""
+    x, y = P[:, 0][:, None], P[:, 1][:, None]
+    x1, y1 = Q[:, 0][None], Q[:, 1][None]
+    x2, y2 = np.roll(Q[:, 0], -1)[None], np.roll(Q[:, 1], -1)[None]
+    cr = ((y1 > y) != (y2 > y)) & (x < (x2 - x1) * (y - y1) / np.where(y2 - y1 == 0, 1e-12, y2 - y1) + x1)
+    return cr.sum(1) % 2 == 1
 
 
 def target_point(t, bones):
@@ -1205,11 +1214,14 @@ def main():
                 pass
             for fr in range(int(round(act.frame_range[0])), int(round(act.frame_range[1])) + 1):
                 sc.frame_set(fr)
-                pb_n.rotation_quaternion = pb_s.matrix_basis.to_quaternion()
+                q_ = pb_s.matrix_basis.to_quaternion()
+                if float(xb.get("share", 1.0)) != 1.0:   # "share" (default 1): only this fraction of the turn (slerp)
+                    q_ = Quaternion((1, 0, 0, 0)).slerp(q_, float(xb["share"]))
+                pb_n.rotation_quaternion = q_
                 pb_n.keyframe_insert("rotation_quaternion", frame=fr)
         arm.animation_data.action = None
         REPORT.setdefault("extra_bones", []).append(xb["name"])
-        log("extra bone %s on %s at %s, spinning with %s" % (xb["name"], xb["parent"], np.round(hd, 3), src))
+        log("extra bone %s on %s at %s, turning with %s x%.2f" % (xb["name"], xb["parent"], np.round(hd, 3), src, float(xb.get("share", 1.0))))
 
     # ---- replace the old mesh's data; keep the object, its mesh data name and modifier
     old_me = old.data
@@ -1585,6 +1597,91 @@ def main():
                         for g_ in list(d.keys()):
                             del d[g_]
                         d[b] = 1.0
+            # cfg "hard_caps" (off by default): {"col": [r, g, b]} (or true: dark grey): each part's open rim along a part
+            # line (a boundary loop left by the split, whose edges have a twin on the other part) is closed by a fan to
+            # its middle, riding the part's bone and textured flat from one texel of the atlas nearest that colour: the
+            # Tripo shell is hollow, so a joint that opens showed the inside of the mesh (dark slivers in Blender, the
+            # background in Godot, which culls back faces)
+            if CFG.get("hard_caps"):
+                hc_cfg = CFG["hard_caps"] if isinstance(CFG["hard_caps"], dict) else {}
+                tcol = np.array(hc_cfg.get("col", [0.12, 0.12, 0.13]), float)
+                S_ = alb.shape[0]
+                bs_ = max(4, S_ // 128)
+                nb_ = S_ // bs_
+                blk = alb[:nb_ * bs_, :nb_ * bs_].reshape(nb_, bs_, nb_, bs_, 3)
+                bmean, bstd = blk.mean((1, 3)), blk.std((1, 3)).mean(-1)
+                score = np.linalg.norm(bmean - tcol, axis=-1) + 2.0 * bstd
+                by_, bx_ = np.unravel_index(np.argmin(score), score.shape)
+                cap_uv = ((bx_ + 0.5) * bs_ / S_, 1.0 - (by_ + 0.5) * bs_ / S_)
+                log("hard caps: texel colour %s (wanted %s, block std %.3f)" % (np.round(bmean[by_, bx_], 3), tcol, bstd[by_, bx_]))
+                bm_.edges.ensure_lookup_table()
+                bnd = [e for e in bm_.edges if len(e.link_faces) == 1 and e.link_faces[0][fl] >= 0]
+                key_ = lambda e: tuple(sorted(tuple(np.round(np.array(v.co), 5)) for v in e.verts))
+                kc = {}
+                for e in bnd:
+                    kc[key_(e)] = kc.get(key_(e), 0) + 1
+                nxt = {}
+                for e in bnd:
+                    if kc[key_(e)] < 2:
+                        continue
+                    f = e.link_faces[0]
+                    for lp in f.loops:
+                        if lp.edge == e:
+                            a_, b_ = lp.vert, lp.link_loop_next.vert
+                    nxt.setdefault(a_, []).append((b_, f))
+                ul_ = bm_.loops.layers.uv.active
+                ncap = nloop = 0
+                used = set()
+                for a0 in list(nxt):
+                    for b0, f0 in list(nxt[a0]):
+                        if (a0, b0) in used:
+                            continue
+                        loop_, cur, bb = [(a0, b0, f0)], b0, f0[fl]
+                        used.add((a0, b0))
+                        ok_ = True
+                        while cur != a0:
+                            cand = [(x, f) for x, f in nxt.get(cur, []) if (cur, x) not in used and f[fl] == bb]
+                            if not cand:
+                                ok_ = False
+                                break
+                            x, f = cand[0]
+                            used.add((cur, x))
+                            loop_.append((cur, x, f))
+                            cur = x
+                        if not ok_ or len(loop_) < 3:
+                            continue
+                        # (triangulated in the rim's best plane: a Delaunay of its points, the triangles inside it;
+                        # a fan to the middle poked out of a long curved rim)
+                        Pr = np.array([np.array(a.co) for a, _, _ in loop_])
+                        c_ = Pr.mean(0)
+                        _, _, Vt_ = np.linalg.svd(Pr - c_)
+                        Q2 = (Pr - c_) @ Vt_[:2].T
+                        try:
+                            tri_ = Delaunay(Q2).simplices
+                        except Exception:
+                            continue
+                        tri_ = tri_[in_polygon(Q2[tri_].mean(1), Q2)]
+                        A_ = 0.5 * np.sum(Q2[:, 0] * np.roll(Q2[:, 1], -1) - np.roll(Q2[:, 0], -1) * Q2[:, 1])
+                        vs_ = [a for a, _, _ in loop_]
+                        f0_ = loop_[0][2]
+                        for t_ in tri_:
+                            a2, b2, c2 = Q2[t_[0]], Q2[t_[1]], Q2[t_[2]]
+                            sa = (b2[0] - a2[0]) * (c2[1] - a2[1]) - (b2[1] - a2[1]) * (c2[0] - a2[0])
+                            if np.sign(sa) == np.sign(A_):
+                                t_ = t_[::-1]
+                            try:
+                                nf_ = bm_.faces.new([vs_[i] for i in t_])
+                            except ValueError:
+                                continue
+                            nf_.material_index = f0_.material_index
+                            nf_.smooth = False
+                            nf_[fl] = bb
+                            for lp in nf_.loops:
+                                lp[ul_].uv = cap_uv
+                            ncap += 1
+                        nloop += 1
+                log("hard caps: %d rims closed, %d triangles" % (nloop, ncap))
+                REPORT["hard_caps"] = dict(rims=nloop, tris=ncap)
             bm_.faces.layers.int.remove(fl)
             log("hard split (faces): %d faces given one bone each, %d verts re-weighted" % (len(fb), nre))
         bm_.to_mesh(lm)

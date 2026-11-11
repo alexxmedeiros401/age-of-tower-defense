@@ -20,6 +20,7 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
   oldprop.py    props taken from the old hero's mesh (source: old), after patches.py and fit.py (Blender)
   stretch_check.py  stretched edges (> 2x and > 3 cm vs rest), flipped faces and torn seams per clip frame, by bone pair (Blender)
+  robot_check.py  rigid-robot check over the clips (Blender): faces that span two bones, shards, joint gaps (below)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -123,6 +124,11 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `hard_clusters` | off | ("faces" split) `[{"select": shapes (load frame), "k": n, "bones": [...], "centre": [x, y, z] (load frame), "seed": 1}]`: the selected faces are split into k compact clusters (k-means on their directions from the centre) and each cluster rides, whole, the listed bone whose old faces lie nearest in direction: the Tripo Nano Swarm is one fused shell of ~70 mites, which the 12 wobbling clump bones would otherwise cut in half. An `armour` entry may name an `extra_bones` bone (the Nano Mite's and the Orbital Uplink's legs pivot on new bones at the Tripo hips, knees and ankles) |
 | `place.frame` | the prop's bone | (points/fit) read the prop in another bone's fitted frame: a pistol on its own root-level bone held in hand.R |
 | `place.with_soles` | false | the prop moves down (or up) with the body's sole snap: a prop cut from the Tripo body that stays where it was (`"mode": "fit", "frame": "root"`) on a model whose soles move (the Orbital Uplink's flank doors: the snap moved the body 16 cm down and left the doors behind). `extra_bones` heads given as `"load:[...]"` always follow the snap |
+| `load_xf` | off | `{"s": s, "t": [x, y, z]}` (load.py): the load frame given outright instead of the auto guess, so a config's shapes keep the frame they were read in (the Brute's and the Carrier's were read in their fitted frame; a fresh load guessed another, and the Brute's visor and the Carrier's thrusters lost their glow) |
+| `bridge_holes` | off | `[{"select": shapes (load frame), "col": [r, g, b]}]` (patches.py): the body's holes whose loop centres lie in select are joined in pairs by a tube (flat `col`) instead of capped: a solid disc cut out of a duct (a prop with `drop`) leaves a hole above and below, and the tube is the open duct's inner wall (the Scout's rotors) |
+| `extra_bones` `share` | 1 | (rig) the new bone is keyed with only this fraction of `copy`'s turn (slerp): the Prime Walker's pauldrons ride `pauldron_half.L/R` at 0.5 of the upper arm's turn, so its 120 deg Summon no longer shows their undersides as big beige discs. Name such bones `*_half.*` so check_glb lists them as expected |
+| prop `old_bone` | the prop's `bone` | (oldprop.py, `source: "old"`) the old bone whose faces are taken when the prop rides a new bone (the Scout's old blades from `rotor.L`, riding `spin_rotor.L`) |
+| `hard_caps` | off | `{"col": [r, g, b]}` (rig, "faces" split): every part's open rim along a part line (a boundary loop whose edges have a twin on the next part) is closed in its best plane, riding the part's bone, textured flat from the atlas texel block nearest `col`. The Tripo shell is hollow: a joint that opens showed the inside (dark slivers in Blender, the background in Godot, which culls back faces). Dark grey (0.12) on the Brute and the Prime Walker, mid grey (0.33) on the grey Walker |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
 | `joint_helpers` | off | `[{"bone": "forearm.R", "share": 0.5, "smooth": 0, "from": [bones]}]` (rig): adds `<bone>_half.<side>` (e.g. `forearm_half.R`), a child of the bone's parent with the bone's rest, keyed in every action at `share` of the bone's turn; a vertex blended a/b between the parent side and the bone gives 2 min(a, b) to it (its blended turn unchanged). A hinge bent far keeps its volume instead of caving in (the Club Warrior's elbow at 150 deg in his Attack opened like a hollow tube; the Rock Slinger's shoulder tore at the back in his Throw). `from`: the bones counted as the parent side (a shoulder blended straight from chest to upperarm: `["clavicle.R", "chest"]`); `smooth`: Laplacian passes over the joint's split first (a narrow, noisy blend widened). The Stone Age recipe: upper arms `from` clavicle + chest, `smooth` 20 (Ugo 40, + neck); forearms `smooth` 10. check_glb lists the bones as expected |
@@ -288,6 +294,13 @@ FLIPPED faces (posed normal against the rest normal turned by the face's blended
 `--flip_area` 4 cm2 dropped) are a limb collapsing through itself (a forearm turned inside out by a twisted hand) or a fold
 (a beard pressed into the chest): neither stretches an edge. Run it
 on the shipped GLB and on the fix: the same frames, the same numbers. It prints `STRETCH OK` when nothing is found.
+**Robots: `robot_check.py`.** `python3 robot_check.py -- --hero ID --model OUT/ID_hq.blend` checks a `hard_split: "faces"`
+machine over every clip frame: faces whose corners ride different bones (stretched > x1.5 and > 5 mm), shards (patches
+under `--island` faces of one bone inside another that drift > `--gap` from it), loose pieces, and the widest opening
+per bone pair along the part lines. `hard_caps` faces (one UV point) are left out. Prints `ROBOT OK` or the counts.
+The Stone Age robot recipe (Walker, Brute, Prime Walker): `hard_split: "faces"`, `fit_pose: false`, `hard_by_centre`
+with one `armour` box per part read off slices of the Tripo mesh, `hard_cuts` planes at each joint, `hard_smooth: 0`,
+`hard_min_island: 40`, `hard_keep_claimed: false` (so stray faces still merge), `hard_caps`.
 
 ## Quality bar (check every hero)
 Same face, sharp eyes; no floating armour (Vega's pauldron floated by his ear in the Ability: weight armour to the
@@ -303,4 +316,5 @@ is the Tripo rebuild itself now); the Tripo source and labels/patches/fit from t
 old.py and load.py re-run; and that branch's bake zip. A re-rig of the restored unit reproduces the shipped GLB byte for
 byte (checked on the Rock Slinger). Units whose branch was later overwritten by a push with the same name (the Bronze
 Archer, Sun Priest, Torsion Catapult, Javelin Thrower, Axe Warrior): `SRC=<tripo.glb> BAKE=<TAG_ID_RUN> bash restore.sh
-<id>` re-runs cut, patches and fit from the config instead.
+<id>` re-runs cut, patches and fit from the config instead. The Walker shipped from `aj/htD-w1` (8k tris), not the newer
+5.2k comparison bake `htD-w2`: restore it with `bash restore.sh walker aj/htD-w1`.

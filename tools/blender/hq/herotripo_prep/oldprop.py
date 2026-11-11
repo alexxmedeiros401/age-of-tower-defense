@@ -83,7 +83,8 @@ def main():
     pk = os.path.join(W, "patches.pkl")
     out = pickle.load(open(pk, "rb"))
     for p in props:
-        bone = p.get("bone") or p["name"]
+        bone = p.get("old_bone") or p.get("bone") or p["name"]    # "old_bone": the old bone whose faces to take, when the
+                                                                    # prop rides a new one (the Scout's blades: spin_rotor.L)
         g = ob.vertex_groups[bone].index
         wv = np.zeros(len(me.vertices))
         for v in me.vertices:
