@@ -1,0 +1,35 @@
+{
+ "api": "v2",
+ "model_versions": [
+  "v3.1-20260211",
+  "v3.0-20250812"
+ ],
+ "params": {
+  "texture": true,
+  "pbr": true,
+  "texture_quality": "detailed",
+  "geometry_quality": "detailed"
+ },
+ "models": [
+  {
+   "name": "knight",
+   "file": "tools/tripo/in/remake5/knight.png"
+  },
+  {
+   "name": "wardrummer",
+   "file": "tools/tripo/in/remake5/wardrummer.png"
+  },
+  {
+   "name": "flamethrower",
+   "file": "tools/tripo/in/remake5/flamethrower.png"
+  },
+  {
+   "name": "cannon",
+   "file": "tools/tripo/in/remake5/cannon.png"
+  },
+  {
+   "name": "laserturret",
+   "file": "tools/tripo/in/remake5/laserturret.png"
+  }
+ ]
+}
