@@ -257,6 +257,26 @@ def main():
             res.append(r)
             print("[patch] %s: bridged loops %d and %d (gap %.3f): %d inner points, %d tris" % (nm, len(lps[i]), len(lps[j]), pairs[0][0] * xf_s, len(r[1]), len(r[2])))
             lps = [l for k_, l in enumerate(lps) if k_ not in (i, j)]
+        # cfg "bridge_holes" (off by default): [{"select": shapes (load frame), "col": [r, g, b]}]: the body's holes whose
+        # loop centres lie in select are joined in pairs (the nearest centres) by a tube instead of being capped: a solid
+        # disc cut out of a duct (a prop with "drop") leaves a hole on top and one below, and the tube is the duct's
+        # inner wall, so the duct is open (the Scout's rotors: the blades spin inside it). "col": the tube's flat colour
+        if Lb == 0:
+            for bh in cfg.get("bridge_holes", []):
+                cs_ = [Pw[np.array(l)].mean(0) for l in lps]
+                ins = [k_ for k_, c_ in enumerate(cs_) if C.shapes(C.to_game(c_[None], C.load_xf(W, fitted=False)), bh["select"])[0]]
+                used_ = set()
+                prs = sorted((np.linalg.norm(cs_[i] - cs_[j]), i, j) for i in ins for j in ins if i < j)
+                for _, i, j in prs:
+                    if i in used_ or j in used_:
+                        continue
+                    used_ |= {i, j}
+                    r = bridge(lps[i], lps[j], mask, vuv)
+                    if bh.get("col") is not None:
+                        r = (r[0], r[1], r[2], np.tile(np.array(bh["col"], float), (len(r[3]), 1)), r[4])
+                    res.append(r)
+                    print("[patch] body: holes %d and %d bridged (bridge_holes, gap %.3f): %d tris" % (len(lps[i]), len(lps[j]), _ * xf_s, len(r[2])))
+                lps = [l for k_, l in enumerate(lps) if k_ not in used_]
         for lp in lps:
             # cfg "no_patch" (shapes, load frame; default none): a hole whose loop centre lies inside is left open (the
             # Shield Bot's frame round its cut-away glass: the old GlowShieldPanel, which the game shows and hides, fills it)

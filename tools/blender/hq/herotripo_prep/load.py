@@ -96,6 +96,12 @@ def main():
         return np.r_[np.median(sl[:, :2], 0), z0]
     t = hips(Vb) - hips(Q)
     xf = dict(yaw=yaw, s=s, t=t.tolist())
+    if cfg.get("load_xf"):
+        # cfg "load_xf" (off by default): {"s": s, "t": [x, y, z]}: the load frame given outright (the frame a config's
+        # shapes were read in, when the auto guess has since moved: the Brute's and the Carrier's were written in their
+        # fitted frame)
+        xf = dict(yaw=yaw, s=float(cfg["load_xf"]["s"]), t=[float(v) for v in cfg["load_xf"]["t"]])
+        s, t = xf["s"], np.array(xf["t"])
     json.dump(xf, open(os.path.join(W, "xf.json"), "w"), indent=1)
     print("[load] xf: yaw %.0f, scale %.4f (old body %.3f tall, Tripo %.3f), offset %s" % (yaw, s, h_old, h_new, np.round(t, 4)))
     np.savez(os.path.join(W, "topo.npz"), Pw=Pw, F=F, fa=fa, fb=fb, L=L, N=N, C=Cc, A=A / 2)

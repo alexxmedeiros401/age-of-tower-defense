@@ -21,7 +21,7 @@ sys.path.insert(0, HQ)
 sys.path.insert(0, os.path.join(HQ, "herotripo_prep"))
 import numpy as np
 import bpy, bmesh
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as Rot
 import scipy.sparse as sp
@@ -1120,11 +1120,14 @@ def main():
                 pass
             for fr in range(int(round(act.frame_range[0])), int(round(act.frame_range[1])) + 1):
                 sc.frame_set(fr)
-                pb_n.rotation_quaternion = pb_s.matrix_basis.to_quaternion()
+                q_ = pb_s.matrix_basis.to_quaternion()
+                if float(xb.get("share", 1.0)) != 1.0:   # "share" (default 1): only this fraction of the turn (slerp)
+                    q_ = Quaternion((1, 0, 0, 0)).slerp(q_, float(xb["share"]))
+                pb_n.rotation_quaternion = q_
                 pb_n.keyframe_insert("rotation_quaternion", frame=fr)
         arm.animation_data.action = None
         REPORT.setdefault("extra_bones", []).append(xb["name"])
-        log("extra bone %s on %s at %s, spinning with %s" % (xb["name"], xb["parent"], np.round(hd, 3), src))
+        log("extra bone %s on %s at %s, turning with %s x%.2f" % (xb["name"], xb["parent"], np.round(hd, 3), src, float(xb.get("share", 1.0))))
 
     # ---- replace the old mesh's data; keep the object, its mesh data name and modifier
     old_me = old.data
