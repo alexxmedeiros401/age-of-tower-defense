@@ -1,0 +1,390 @@
+{
+ "mesh": "IronColossusMesh",
+ "mesh_data": "IronColossusMesh",
+ "material": "IronColossusMat",
+ "armature": "IronColossusRig",
+ "prop_bones": [
+  "furnace"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    1.2999999523162842
+   ],
+   "tail": [
+    0.0,
+    7.561328452254656e-09,
+    1.5209070444107056
+   ],
+   "parent": null
+  },
+  "spine": {
+   "head": [
+    -2.2217928316364474e-16,
+    0.020000016316771507,
+    1.5199998617172241
+   ],
+   "tail": [
+    -9.963737497011797e-16,
+    0.006261427886784077,
+    2.227538585662842
+   ],
+   "parent": "root"
+  },
+  "furnace": {
+   "head": [
+    -2.2074527332460216e-14,
+    -0.49999985098838806,
+    1.999999761581421
+   ],
+   "tail": [
+    -5.728775879241046e-14,
+    -1.207672119140625,
+    1.999999761581421
+   ],
+   "parent": "spine"
+  },
+  "head": {
+   "head": [
+    -4.765255742355135e-15,
+    -0.25999993085861206,
+    2.4200000762939453
+   ],
+   "tail": [
+    3.8914650242970715e-15,
+    -0.33408254384994507,
+    3.123784065246582
+   ],
+   "parent": "spine"
+  },
+  "upperarm.L": {
+   "head": [
+    0.9799999594688416,
+    0.0400000736117363,
+    2.320000171661377
+   ],
+   "tail": [
+    1.1400001049041748,
+    0.1400000900030136,
+    1.779999852180481
+   ],
+   "parent": "spine"
+  },
+  "forearm.L": {
+   "head": [
+    1.1400002241134644,
+    0.13999995589256287,
+    1.7800002098083496
+   ],
+   "tail": [
+    1.1800003051757812,
+    -0.06000015139579773,
+    1.2800002098083496
+   ],
+   "parent": "upperarm.L"
+  },
+  "hand.L": {
+   "head": [
+    1.1800001859664917,
+    -0.06000014767050743,
+    1.2800004482269287
+   ],
+   "tail": [
+    1.1800003051757812,
+    -0.16590288281440735,
+    0.7504869103431702
+   ],
+   "parent": "forearm.L"
+  },
+  "upperarm.R": {
+   "head": [
+    -0.979999840259552,
+    0.04000008478760719,
+    2.319999933242798
+   ],
+   "tail": [
+    -1.1399999856948853,
+    0.14000004529953003,
+    1.7799997329711914
+   ],
+   "parent": "spine"
+  },
+  "forearm.R": {
+   "head": [
+    -1.1399998664855957,
+    0.13999995589256287,
+    1.7799999713897705
+   ],
+   "tail": [
+    -1.1799999475479126,
+    -0.0600002259016037,
+    1.2799999713897705
+   ],
+   "parent": "upperarm.R"
+  },
+  "hand.R": {
+   "head": [
+    -1.179999828338623,
+    -0.060000110417604446,
+    1.28000009059906
+   ],
+   "tail": [
+    -1.1799999475479126,
+    -0.16590291261672974,
+    0.750486433506012
+   ],
+   "parent": "forearm.R"
+  },
+  "thigh.L": {
+   "head": [
+    0.4000000059604645,
+    0.020000003278255463,
+    1.2999999523162842
+   ],
+   "tail": [
+    0.47000008821487427,
+    -0.12000002712011337,
+    0.7799997329711914
+   ],
+   "parent": "root"
+  },
+  "shin.L": {
+   "head": [
+    0.4700000584125519,
+    -0.11999993771314621,
+    0.779999852180481
+   ],
+   "tail": [
+    0.470000296831131,
+    0.060000382363796234,
+    0.2399996519088745
+   ],
+   "parent": "thigh.L"
+  },
+  "foot.L": {
+   "head": [
+    0.470000296831131,
+    0.06000032275915146,
+    0.23999977111816406
+   ],
+   "tail": [
+    0.47000008821487427,
+    -0.4694536626338959,
+    0.03100508451461792
+   ],
+   "parent": "shin.L"
+  },
+  "thigh.R": {
+   "head": [
+    -0.4000000059604645,
+    0.020000003278255463,
+    1.2999999523162842
+   ],
+   "tail": [
+    -0.47000008821487427,
+    -0.12000001221895218,
+    0.7799997925758362
+   ],
+   "parent": "root"
+  },
+  "shin.R": {
+   "head": [
+    -0.47000017762184143,
+    -0.12000001221895218,
+    0.7799999117851257
+   ],
+   "tail": [
+    -0.47000041604042053,
+    0.06000032275915146,
+    0.2399996519088745
+   ],
+   "parent": "thigh.R"
+  },
+  "foot.R": {
+   "head": [
+    -0.47000038623809814,
+    0.06000027805566788,
+    0.23999977111816406
+   ],
+   "tail": [
+    -0.47000017762184143,
+    -0.4694537818431854,
+    0.03100515902042389
+   ],
+   "parent": "shin.R"
+  }
+ },
+ "actions": {
+  "Emp": [
+   0.0,
+   36.0
+  ],
+  "Summon": [
+   0.0,
+   48.0
+  ],
+  "Walk": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "GlowCoilTip": {
+   "type": "MESH",
+   "parent": "IronColossusRig",
+   "groups": [
+    "root",
+    "spine",
+    "furnace",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 80
+  },
+  "GlowEye": {
+   "type": "MESH",
+   "parent": "IronColossusRig",
+   "groups": [
+    "root",
+    "spine",
+    "furnace",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 40
+  },
+  "GlowFurnace": {
+   "type": "MESH",
+   "parent": "IronColossusRig",
+   "groups": [
+    "root",
+    "spine",
+    "furnace",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 80
+  },
+  "GlowStackGlow": {
+   "type": "MESH",
+   "parent": "IronColossusRig",
+   "groups": [
+    "root",
+    "spine",
+    "furnace",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "IronColossus": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "IronColossusMesh": {
+   "type": "MESH",
+   "parent": "IronColossusRig",
+   "groups": [
+    "root",
+    "spine",
+    "furnace",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 8729
+  },
+  "IronColossusRig": {
+   "type": "ARMATURE",
+   "parent": "IronColossus",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "IronColossus",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
