@@ -22,12 +22,20 @@ ch = [o for o in bpy.data.objects if o.type == 'MESH' and o.find_armature() == a
 pts = [o.matrix_world @ mathutils.Vector(c) for o in ch for c in o.bound_box]
 lo = mathutils.Vector([min(p[i] for p in pts) for i in range(3)]); hi = mathutils.Vector([max(p[i] for p in pts) for i in range(3)])
 ctr = (lo + hi) / 2; size = max(hi - lo) * 1.35
+Z = float(__import__('os').environ.get('ZOOM', '1'))
+if Z != 1:
+    ctr.z = lo.z + (hi.z - lo.z) * 0.68; size = size / Z
 cam.data.ortho_scale = size
 for item in spec.split(';'):
     clip, fr = item.split(':')
     arm.animation_data.action = bpy.data.actions[clip]
     for f in [int(x) for x in fr.split(',')]:
         sc.frame_set(f)
+        FB = __import__('os').environ.get('FOCUS')
+        if FB:     # close-up: centre on a bone (FOCUS=forearm.R:0.8 = 80% along it), ortho size FSIZE
+            bn, _, t = FB.partition(':'); pb = arm.pose.bones[bn]; t = float(t or 0.5)
+            ctr = arm.matrix_world @ (pb.head + (pb.tail - pb.head) * t); size = float(__import__('os').environ.get('FSIZE', '0.5'))
+            cam.data.ortho_scale = size
         for az in [float(a) for a in azs.split(',')]:
             r = size * 3; a = math.radians(az); e = math.radians(elev)
             cam.location = ctr + mathutils.Vector((math.sin(a) * math.cos(e) * r, -math.cos(a) * math.cos(e) * r, math.sin(e) * r))
