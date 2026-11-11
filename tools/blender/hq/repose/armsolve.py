@@ -10,10 +10,12 @@
 #   CLIPS = {clip: {'R': keys | callable, 'L': ...}}  (a side left out keeps its shipped motion)
 #     keys: [(frame, wrist(Vector, rest armature space = chest-relative), opts dict)], opts: dir (weapon axis direction,
 #     chest-relative), up (weapon second axis, needs AXIS2), pole (where the elbow should point, a direction), tw (forearm
-#     twist preference, deg). A callable f -> (wrist, opts).
+#     twist preference, deg), aim (0..1, how much the dir counts; 0 = straight wrist). A callable f -> (wrist, opts).
 #   AXIS = {'R': Vector}  weapon axis in rest armature space (needed for dir); AXIS2 = {'R': Vector} (for up)
 #   OUT = {'R': Vector, 'L': Vector} preferred elbow direction (default out/back/down)
-#   POST(ctx, clip, f) optional hook after a frame is keyed (bow strings etc.)
+#   POST(ctx, clip, f) optional hook after a frame is keyed (bow strings etc.); PRE(ctx, clip) before a clip
+#   GRAB = {clip: {'L': ('R', t, offset)}}: two-handed weapons, the L wrist follows a point t along the R weapon
+#   (the side listed first in CLIPS[clip] is solved first); WINDOW = {clip: {side: (fa, fb, ramp) | [..]}}
 import bpy, sys, math, json, importlib.util
 from mathutils import Vector, Matrix, Quaternion
 
@@ -31,6 +33,7 @@ chest_rest = RB['chest']
 OUTD = getattr(C, 'OUT', {})
 TWS = getattr(C, 'TWIST_SHARE', 0.5)
 OUTMIN = getattr(C, 'OUTMIN', 0.0)
+GRAB = getattr(C, 'GRAB', {})   # {clip: {side: (weapon side, t, offset) | f -> that}}; key the weapon side first
 WFIT = getattr(C, 'WFIT', 1.0)
 TWMAX = getattr(C, "TWMAX", 60.0)
 CONT = getattr(C, "CONT", 0.0)
@@ -61,8 +64,10 @@ def interp(keys, f):
         a = a.normalized(); b = b.normalized()
         if k == 'pole': opts[k] = (a.lerp(b, ts)).normalized()
         else: opts[k] = (Quaternion().slerp(a.rotation_difference(b), ts) @ a).normalized()
-    for k in ('tw',):
+    for k in ('tw', 'aim'):
         a, b = o1.get(k), o2.get(k)
+        if k == 'aim' and (a is not None or b is not None):
+            a = 1.0 if a is None else a; b = 1.0 if b is None else b
         if a is not None or b is not None:
             a = a if a is not None else b; b = b if b is not None else a; opts[k] = a + (b - a) * ts
     return pos, opts
@@ -128,6 +133,14 @@ for clip, sides in C.CLIPS.items():
                 X = P['chest'].matrix @ chest_rest.inverted()
                 wr, o = keys(f) if callable(keys) else interp(keys, f)
                 H = X @ wr
+                g_ = GRAB.get(clip, {}).get(side)
+                if g_ is not None:
+                    # two-handed: this wrist goes to a point on the other hand's weapon (already re-keyed this clip):
+                    # (weapon side, distance along its AXIS from that wrist, chest-relative offset)
+                    ws, t_, off = g_(f) if callable(g_) else g_
+                    hb = 'hand.' + ws
+                    prest = RB[hb].translation + C.AXIS[ws].normalized() * t_
+                    H = P[hb].matrix @ (RB[hb].inverted() @ prest) + rot3(X) @ off
                 Mc = P['clavicle.' + side].matrix.copy()
                 Mu_rc = Mc @ rel_u; S = Mu_rc.translation.copy()
                 d = H - S; dl = d.length
@@ -165,6 +178,9 @@ for clip, sides in C.CLIPS.items():
                         c2 = (Mh @ ax2_l); rr = ang(c2, upw, dw)
                         Mh = Quaternion(dw, rr).to_matrix() @ Mh
                     wq = (Mh0.inverted() @ Mh).to_quaternion()
+                    aim = o.get('aim', 1.0)
+                    if aim < 1.0:   # aim < 1: the weapon direction only partly matters (a hidden prop): ease the wrist straight
+                        wq = Quaternion().slerp(wq, max(aim, 0.0)); Mh = Mh0 @ wq.to_matrix()
                     return Mf, Mh, math.degrees(wq.angle)
                 def tw_cost(t_, w): return w + 0.1 * abs(t_ - pref) + TWC * abs(t_ - prev_tw) + TWK * max(0.0, abs(t_) - TWMAX)
                 def best_tw(F, Mf0, coarse=False):
