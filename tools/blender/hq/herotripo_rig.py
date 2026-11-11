@@ -42,6 +42,13 @@ if not CFG.get("fit_pose", True):
     # kept, its bone turns dropped): nothing is un-posed, so a machine's fused parts don't crack apart at rest (the
     # Brute's forearms were turned 17 deg by the fit; un-posing them opened the elbows)
     FIT["rotvec"] = {}
+for b_ in CFG.get("fit_drop", []):
+    # cfg "fit_drop" (off by default): bones whose fitted turn the rig leaves out (rig stage: fit.json and the bake are
+    # unchanged). The Tar Shaman's Tripo tar hand is raised 63 deg on a forearm bent 53 deg: the wrist's blended
+    # vertices, un-posed through turns some 150 deg apart, landed 25 cm apart in the rest pose and the wrist stretched
+    # into a paddle whenever the clips moved the hand. With hand.L dropped the hand bone stays straight on the forearm
+    # and the raised claw rides it as it is.
+    FIT["rotvec"].pop(b_, None)
 REPORT = {}
 
 

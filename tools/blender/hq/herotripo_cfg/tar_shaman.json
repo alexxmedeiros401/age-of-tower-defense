@@ -411,5 +411,8 @@
    "bone": "forearm.L",
    "smooth": 10
   }
+ ],
+ "fit_drop": [
+  "hand.L"
  ]
 }
