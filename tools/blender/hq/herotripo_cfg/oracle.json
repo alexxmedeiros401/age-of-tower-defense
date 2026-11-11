@@ -272,7 +272,45 @@
    ]
   ]
  },
- "armour": [],
+ "armour": [
+  {
+   "name": "armband_R",
+   "select": [
+    {
+     "seg": {
+      "a": [
+       -0.644,
+       0.217,
+       1.355
+      ],
+      "b": [
+       -0.713,
+       0.157,
+       1.06
+      ],
+      "r": 0.08
+     },
+     "col": {
+      "min": [
+       0.55,
+       0.3,
+       0.0
+      ],
+      "max": [
+       1.0,
+       0.85,
+       0.26
+      ]
+     }
+    }
+   ],
+   "grow": 1,
+   "bones": {
+    "upperarm.R": 1.0
+   },
+   "seam_rings": 2
+  }
+ ],
  "fit_hold": [
   "upperarm.R",
   "forearm.R"
@@ -384,5 +422,32 @@
    ]
   }
  ],
- "limb_regeom_power": 3
+ "limb_regeom_power": 3,
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ],
+ "twist_share": 0.25
 }
