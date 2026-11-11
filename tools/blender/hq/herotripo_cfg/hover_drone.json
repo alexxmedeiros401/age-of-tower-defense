@@ -229,7 +229,7 @@
    ],
    "sat_min": 0.4,
    "val_min": 0.55,
-   "strength": 2.2
+   "strength": 2.0
   }
  ],
  "glows": {

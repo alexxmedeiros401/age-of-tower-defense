@@ -101,9 +101,9 @@
    "n3R",
    "headR",
    "jawR",
-   "skull_pivotC",
-   "skull_pivotL",
-   "skull_pivotR"
+   "skull_mount.C",
+   "skull_mount.L",
+   "skull_mount.R"
   ]
  ],
  "emissive": [
@@ -297,6 +297,111 @@
   ]
  ],
  "armour": [
+  {
+   "name": "skullC",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.0,
+       -0.67,
+       1.62
+      ],
+      "r": 0.34
+     }
+    }
+   ],
+   "within": [
+    [
+     [
+      -2,
+      2
+     ],
+     [
+      -2,
+      2
+     ],
+     [
+      1.5,
+      3
+     ]
+    ]
+   ],
+   "bones": {
+    "skull_mount.C": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "skullL",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.56,
+       -0.25,
+       1.36
+      ],
+      "r": 0.34
+     }
+    }
+   ],
+   "within": [
+    [
+     [
+      -2,
+      2
+     ],
+     [
+      -2,
+      2
+     ],
+     [
+      1.2400000000000002,
+      3
+     ]
+    ]
+   ],
+   "bones": {
+    "skull_mount.L": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "skullR",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       -0.42,
+       -0.9,
+       1.35
+      ],
+      "r": 0.34
+     }
+    }
+   ],
+   "within": [
+    [
+     [
+      -2,
+      2
+     ],
+     [
+      -2,
+      2
+     ],
+     [
+      1.23,
+      3
+     ]
+    ]
+   ],
+   "bones": {
+    "skull_mount.R": 1.0
+   },
+   "seam_rings": 0
+  },
   {
    "name": "seg_f2",
    "select": [
@@ -492,111 +597,6 @@
    ],
    "bones": {
     "hive": 1.0
-   },
-   "seam_rings": 0
-  },
-  {
-   "name": "skullC",
-   "select": [
-    {
-     "ball": {
-      "c": [
-       0.0,
-       -0.67,
-       1.62
-      ],
-      "r": 0.34
-     }
-    }
-   ],
-   "within": [
-    [
-     [
-      -2,
-      2
-     ],
-     [
-      -2,
-      2
-     ],
-     [
-      1.5,
-      3
-     ]
-    ]
-   ],
-   "bones": {
-    "skull_pivotC": 1.0
-   },
-   "seam_rings": 0
-  },
-  {
-   "name": "skullL",
-   "select": [
-    {
-     "ball": {
-      "c": [
-       0.56,
-       -0.25,
-       1.36
-      ],
-      "r": 0.34
-     }
-    }
-   ],
-   "within": [
-    [
-     [
-      -2,
-      2
-     ],
-     [
-      -2,
-      2
-     ],
-     [
-      1.2400000000000002,
-      3
-     ]
-    ]
-   ],
-   "bones": {
-    "skull_pivotL": 1.0
-   },
-   "seam_rings": 0
-  },
-  {
-   "name": "skullR",
-   "select": [
-    {
-     "ball": {
-      "c": [
-       -0.42,
-       -0.9,
-       1.35
-      ],
-      "r": 0.34
-     }
-    }
-   ],
-   "within": [
-    [
-     [
-      -2,
-      2
-     ],
-     [
-      -2,
-      2
-     ],
-     [
-      1.23,
-      3
-     ]
-    ]
-   ],
-   "bones": {
-    "skull_pivotR": 1.0
    },
    "seam_rings": 0
   }
@@ -810,19 +810,19 @@
  },
  "extra_bones": [
   {
-   "name": "skull_pivotC",
+   "name": "skull_mount.C",
    "parent": "n3C",
    "copy": "headC",
    "head": "load:[0.0, -0.44, 1.36]"
   },
   {
-   "name": "skull_pivotL",
+   "name": "skull_mount.L",
    "parent": "n3L",
    "copy": "headL",
    "head": "load:[0.46, -0.06, 1.12]"
   },
   {
-   "name": "skull_pivotR",
+   "name": "skull_mount.R",
    "parent": "n3R",
    "copy": "headR",
    "head": "load:[-0.52, -0.66, 1.1]"

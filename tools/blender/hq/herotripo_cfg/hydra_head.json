@@ -57,8 +57,8 @@
    "n3",
    "head",
    "jaw",
-   "skull_pivot",
-   "jaw_pivot"
+   "skull_mount.C",
+   "jaw_mount.C"
   ]
  ],
  "emissive": [
@@ -415,7 +415,7 @@
     ]
    ],
    "bones": {
-    "skull_pivot": 1.0
+    "skull_mount.C": 1.0
    },
    "seam_rings": 0
   },
@@ -452,7 +452,7 @@
     }
    ],
    "bones": {
-    "jaw_pivot": 1.0
+    "jaw_mount.C": 1.0
    },
    "seam_rings": 0
   }
@@ -666,14 +666,14 @@
  },
  "extra_bones": [
   {
-   "name": "skull_pivot",
+   "name": "skull_mount.C",
    "parent": "n3",
    "copy": "head",
    "head": "load:[0.0, -0.55, 0.775]"
   },
   {
-   "name": "jaw_pivot",
-   "parent": "skull_pivot",
+   "name": "jaw_mount.C",
+   "parent": "skull_mount.C",
    "copy": "jaw",
    "head": "load:[0.0, -0.67, 0.735]"
   }
