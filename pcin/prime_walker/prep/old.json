@@ -1,0 +1,409 @@
+{
+ "mesh": "PrimeWalkerMesh",
+ "mesh_data": "PrimeWalkerMesh",
+ "material": "PrimeWalkerMat",
+ "armature": "PrimeWalkerRig",
+ "prop_bones": [
+  "core"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    1.4199999570846558
+   ],
+   "tail": [
+    0.0,
+    6.199055047062529e-09,
+    1.6011077165603638
+   ],
+   "parent": null
+  },
+  "spine": {
+   "head": [
+    0.0,
+    0.019999999552965164,
+    1.600000023841858
+   ],
+   "tail": [
+    9.587246175033837e-16,
+    0.008269216865301132,
+    2.12788462638855
+   ],
+   "parent": "root"
+  },
+  "core": {
+   "head": [
+    -2.5870032841195795e-14,
+    -0.2999999523162842,
+    2.0199997425079346
+   ],
+   "tail": [
+    -2.960050485430708e-14,
+    -0.8280149102210999,
+    2.0199999809265137
+   ],
+   "parent": "spine"
+  },
+  "head": {
+   "head": [
+    3.0550604347066813e-16,
+    -0.07999999076128006,
+    2.5
+   ],
+   "tail": [
+    2.084348183417281e-15,
+    -0.1101231649518013,
+    3.0271549224853516
+   ],
+   "parent": "spine"
+  },
+  "upperarm.L": {
+   "head": [
+    0.7400001287460327,
+    0.020000016316771507,
+    2.2799997329711914
+   ],
+   "tail": [
+    0.8600001335144043,
+    0.1000000536441803,
+    1.7199997901916504
+   ],
+   "parent": "spine"
+  },
+  "forearm.L": {
+   "head": [
+    0.8600001335144043,
+    0.1000000387430191,
+    1.71999990940094
+   ],
+   "tail": [
+    0.9000001549720764,
+    -0.0999998152256012,
+    1.2200000286102295
+   ],
+   "parent": "upperarm.L"
+  },
+  "hand.L": {
+   "head": [
+    0.9000001549720764,
+    -0.09999988228082657,
+    1.2200002670288086
+   ],
+   "tail": [
+    0.9000002145767212,
+    -0.2309689223766327,
+    0.6961234211921692
+   ],
+   "parent": "forearm.L"
+  },
+  "upperarm.R": {
+   "head": [
+    -0.7400001883506775,
+    0.019999951124191284,
+    2.2799999713897705
+   ],
+   "tail": [
+    -0.8600002527236938,
+    0.09999997168779373,
+    1.7200000286102295
+   ],
+   "parent": "spine"
+  },
+  "forearm.R": {
+   "head": [
+    -0.8600000739097595,
+    0.09999996423721313,
+    1.7200000286102295
+   ],
+   "tail": [
+    -0.9000000953674316,
+    -0.10000000894069672,
+    1.21999990940094
+   ],
+   "parent": "upperarm.R"
+  },
+  "hand.R": {
+   "head": [
+    -0.8999999761581421,
+    -0.09999999403953552,
+    1.21999990940094
+   ],
+   "tail": [
+    -0.9000000357627869,
+    -0.23096923530101776,
+    0.6961228847503662
+   ],
+   "parent": "forearm.R"
+  },
+  "thigh.L": {
+   "head": [
+    0.35999998450279236,
+    0.020000005140900612,
+    1.4199999570846558
+   ],
+   "tail": [
+    0.4199998676776886,
+    -0.1400001347064972,
+    0.8399999737739563
+   ],
+   "parent": "root"
+  },
+  "shin.L": {
+   "head": [
+    0.419999897480011,
+    -0.1400001049041748,
+    0.8400001525878906
+   ],
+   "tail": [
+    0.4199996590614319,
+    0.04999953508377075,
+    0.2400004267692566
+   ],
+   "parent": "thigh.L"
+  },
+  "foot.L": {
+   "head": [
+    0.4199996888637543,
+    0.04999949038028717,
+    0.24000060558319092
+   ],
+   "tail": [
+    0.4199998676776886,
+    -0.5343506336212158,
+    0.006260395050048828
+   ],
+   "parent": "shin.L"
+  },
+  "thigh.R": {
+   "head": [
+    -0.35999998450279236,
+    0.020000005140900612,
+    1.4199999570846558
+   ],
+   "tail": [
+    -0.419999897480011,
+    -0.14000017940998077,
+    0.839999794960022
+   ],
+   "parent": "root"
+  },
+  "shin.R": {
+   "head": [
+    -0.4199998676776886,
+    -0.140000119805336,
+    0.8399999737739563
+   ],
+   "tail": [
+    -0.4199996292591095,
+    0.04999937117099762,
+    0.2400001883506775
+   ],
+   "parent": "thigh.R"
+  },
+  "foot.R": {
+   "head": [
+    -0.4199995994567871,
+    0.04999932646751404,
+    0.24000036716461182
+   ],
+   "tail": [
+    -0.41999977827072144,
+    -0.5343507528305054,
+    0.006260126829147339
+   ],
+   "parent": "shin.R"
+  }
+ },
+ "actions": {
+  "Summon": [
+   0.0,
+   48.0
+  ],
+  "Walk": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "GlowCore": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 120
+  },
+  "GlowCrest": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 220
+  },
+  "GlowExhaust": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "GlowShoulderLights": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 160
+  },
+  "GlowVisor": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 70
+  },
+  "PrimeWalker": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "PrimeWalkerMesh": {
+   "type": "MESH",
+   "parent": "PrimeWalkerRig",
+   "groups": [
+    "root",
+    "spine",
+    "core",
+    "head",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 9736
+  },
+  "PrimeWalkerRig": {
+   "type": "ARMATURE",
+   "parent": "PrimeWalker",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "PrimeWalker",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
