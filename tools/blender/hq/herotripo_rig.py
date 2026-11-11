@@ -23,7 +23,6 @@ import numpy as np
 import bpy, bmesh
 from mathutils import Vector, Matrix, Quaternion
 from scipy.spatial import cKDTree, Delaunay
-from matplotlib.path import Path as MplPath
 from scipy.spatial.transform import Rotation as Rot
 import scipy.sparse as sp
 import common as C
@@ -78,6 +77,15 @@ def adjacency(lt, nv, sel):
     E = np.unique(E, axis=0)
     E = E[(idx[E[:, 0]] >= 0) & (idx[E[:, 1]] >= 0)]
     return idx[E[:, 0]], idx[E[:, 1]]
+
+
+def in_polygon(P, Q):
+    """Points P (n, 2) inside the closed polygon Q (m, 2) (even-odd ray casting; numpy only)."""
+    x, y = P[:, 0][:, None], P[:, 1][:, None]
+    x1, y1 = Q[:, 0][None], Q[:, 1][None]
+    x2, y2 = np.roll(Q[:, 0], -1)[None], np.roll(Q[:, 1], -1)[None]
+    cr = ((y1 > y) != (y2 > y)) & (x < (x2 - x1) * (y - y1) / np.where(y2 - y1 == 0, 1e-12, y2 - y1) + x1)
+    return cr.sum(1) % 2 == 1
 
 
 def target_point(t, bones):
@@ -1567,7 +1575,7 @@ def main():
                             tri_ = Delaunay(Q2).simplices
                         except Exception:
                             continue
-                        tri_ = tri_[MplPath(Q2).contains_points(Q2[tri_].mean(1))]
+                        tri_ = tri_[in_polygon(Q2[tri_].mean(1), Q2)]
                         A_ = 0.5 * np.sum(Q2[:, 0] * np.roll(Q2[:, 1], -1) - np.roll(Q2[:, 0], -1) * Q2[:, 1])
                         vs_ = [a for a, _, _ in loop_]
                         f0_ = loop_[0][2]
