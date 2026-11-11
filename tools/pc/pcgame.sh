@@ -15,10 +15,10 @@ V=4.7.2
 case "$1" in
 setup)
   mkdir -p "$R/godot"
-  if [ ! -f "$R/godot/godot.exe" ]; then
+  # (the console build is a small wrapper that starts the main exe beside it BY NAME: keep both names as shipped)
+  if [ ! -f "$R/godot/Godot_v$V-stable_win64_console.exe" ]; then
     cd $HOME && curl -sSL -o g.zip https://github.com/godotengine/godot/releases/download/$V-stable/Godot_v$V-stable_win64.exe.zip
-    unzip -q -o g.zip -d gw && cp gw/Godot_v$V-stable_win64_console.exe "$R/godot/godot.exe" \
-      && cp gw/Godot_v$V-stable_win64.exe "$R/godot/godot_gui.exe" && rm -rf g.zip gw
+    unzip -q -o g.zip -d gw && cp gw/Godot_v$V-stable_win64_console.exe gw/Godot_v$V-stable_win64.exe "$R/godot/" && rm -rf g.zip gw
   fi
   ls -la "$R/godot" ;;
 sync)
@@ -35,7 +35,7 @@ import json, os, sys
 R = os.path.expanduser("~/mnt/Documents/AgeOfTD")
 st = sys.argv[1]
 spec = dict(name="pc_import_" + st, cwd="{ROOT}/game", mem_gb=3,
-            cmd=["{ROOT}/godot/godot.exe", "--headless", "--path", "{ROOT}/game", "--import"])
+            cmd=["{ROOT}/godot/Godot_v4.7.2-stable_win64_console.exe", "--headless", "--path", "{ROOT}/game", "--import"])
 p = os.path.join(R, "queue", "%s_000_%s.json" % (st, spec["name"]))
 json.dump(spec, open(p + ".tmp", "w"), indent=1); os.replace(p + ".tmp", p)
 open(os.path.join(R, "game_import.txt"), "w").write(spec["name"])
@@ -50,7 +50,7 @@ R = os.path.expanduser("~/mnt/Documents/AgeOfTD")
 n, cm, kinds, units, maps = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4].split(), sys.argv[5].split()
 imp = open(os.path.join(R, "game_import.txt")).read().strip()
 st = time.strftime("%H%M%S")
-G = "{ROOT}/godot/godot.exe"
+G = "{ROOT}/godot/Godot_v4.7.2-stable_win64_console.exe"
 jobs = []
 for u in units:
     j = "%s_att_%s" % (n, u)
