@@ -36,3 +36,35 @@ def track(clip, side, off=Vector(), extra=None):
     return k
 def orig(clip, side, f):
     return _O[clip][(side, f)]
+
+# A prop on its own bone (not a child of the hand: halberd, linstock, musket) rides along with a hand: its shipped
+# placement relative to the hand is kept frame by frame. In a cfg: PRE = FW.pre(...); POST = FW.attach_post
+# with ATTACH = FW.attach('halberd', 'R') listed before (attach() registers the prop for the PRE capture).
+_ATT = []
+_AO = {}
+def attach(prop, side):
+    _ATT.append((prop, side))
+def _pre_attach(ctx, clip):
+    P, sc = ctx['P'], ctx['sc']
+    d = {}
+    for f in range(ctx['f0'], ctx['f1'] + 1):
+        sc.frame_set(f)
+        for prop, side in _ATT:
+            d[(prop, f)] = P['hand.' + side].matrix.inverted() @ P[prop].matrix
+    _AO[clip] = d
+_pre_plain = pre
+def pre(sides=('R', 'L')):
+    p0 = _pre_plain(sides)
+    def _pre(ctx, clip):
+        p0(ctx, clip); _pre_attach(ctx, clip)
+    return _pre
+def attach_post(ctx, clip, f):
+    import bpy
+    P = ctx['P']
+    for prop, side in _ATT:
+        rel = _AO.get(clip, {}).get((prop, f))
+        if rel is None: continue
+        P[prop].matrix = P['hand.' + side].matrix @ rel
+        bpy.context.view_layer.update()
+        for ch in ('rotation_quaternion', 'location', 'scale'):
+            P[prop].keyframe_insert(ch, frame=f)

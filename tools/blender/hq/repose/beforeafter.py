@@ -14,7 +14,7 @@ def ranges(glb):
     return {a.name: [int(round(x)) for x in a.frame_range] for a in bpy.data.actions}
 R = ranges(new)
 spec = ';'.join('%s:%s' % (c, ','.join(str(f) for f in range(R[c][0], R[c][1] + 1))) for c in clips if c in R)
-env = dict(os.environ, RX='400', RY='500')
+env = dict(os.environ, RX='320', RY='400')
 for tag, g in (('old', old), ('new', new)):
     subprocess.run([sys.executable, os.path.join(HERE, 'shots.py'), g, os.path.join(tmp, tag), spec, '315,200', '35'],
                    env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
