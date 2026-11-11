@@ -119,5 +119,13 @@
  "hard_smooth": 6,
  "fit_pose": false,
  "orphan_nearest": true,
- "hard_min_island": 40
+ "hard_min_island": 40,
+ "load_xf": {
+  "s": 1.417261,
+  "t": [
+   0.000336,
+   -0.021944,
+   0.670016
+  ]
+ }
 }
