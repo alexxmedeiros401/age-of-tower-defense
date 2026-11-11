@@ -66,7 +66,7 @@
  "hard_min_island": 40,
  "head_rigid_above": 9.0,
  "hard_by_centre": true,
- "hard_keep_claimed": true,
+ "hard_keep_claimed": false,
  "armour": [
   {
    "name": "thigh_L",
@@ -846,7 +846,9 @@
    "hull": true,
    "ray": 0.06,
    "hull_out": true,
-   "hi_flip": true
+   "hi_flip": true,
+   "upside_down": true,
+   "turn_axis": "plane"
   },
   {
    "name": "door.R",
@@ -930,7 +932,9 @@
    "hull": true,
    "ray": 0.06,
    "hull_out": true,
-   "hi_flip": true
+   "hi_flip": true,
+   "upside_down": true,
+   "turn_axis": "plane"
   }
  ],
  "load_xf": {
