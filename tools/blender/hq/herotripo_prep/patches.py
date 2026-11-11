@@ -253,6 +253,15 @@ def main():
             cs = [Pw[np.array(l)].mean(0) for l in lps]
             pairs = sorted((np.linalg.norm(cs[i] - cs[j]), i, j) for i in range(len(lps)) for j in range(i + 1, len(lps)))
             _, i, j = pairs[0]
+            if pc.get("bridge_at"):
+                # prop "bridge_at" [x, y, z] (load frame, off by default): bridge the two loops whose centres lie
+                # nearest this point (the fist), not the nearest pair of centres (the Cretan Archer's bow: the cut
+                # above the fist was bridged to the hole a dropped string left 15 cm away, and the cut below the fist
+                # was capped flat: a broken, hollow-looking end under the fist)
+                cg = C.to_game(np.array(cs), C.load_xf(W, fitted=False))
+                dd = np.linalg.norm(cg - np.array(pc["bridge_at"], float), axis=1)
+                i, j = sorted(np.argsort(dd)[:2].tolist())
+                pairs[0] = (np.linalg.norm(cs[i] - cs[j]), i, j)
             r = bridge(lps[i], lps[j], mask, vuv)
             res.append(r)
             print("[patch] %s: bridged loops %d and %d (gap %.3f): %d inner points, %d tris" % (nm, len(lps[i]), len(lps[j]), pairs[0][0] * xf_s, len(r[1]), len(r[2])))
