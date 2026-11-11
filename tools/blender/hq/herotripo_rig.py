@@ -737,6 +737,16 @@ def main():
         dz = 0.0
     Prest[body, 2] += dz
     log("soles moved by %.4f to the old soles (z %.4f)" % (dz, sole_old))
+
+    def xbone_head(xb_):
+        """an "extra_bones" head: armature space (rest), "load:[x,y,z]" (load frame, moved with the soles) or
+        "bone:<name>.head" / ".tail" (rest)"""
+        hd_ = xb_["head"]
+        if isinstance(hd_, str) and hd_.startswith("load:"):
+            return load_to_final(json.loads(hd_[5:]))[0] + np.array((0, 0, dz))
+        if isinstance(hd_, str) and hd_.startswith("bone:"):
+            return target_point(hd_, bones)
+        return np.array(hd_, float)
     mv = np.linalg.norm(Prest[body] - P[body], axis=1)
     log("body to rest: moved median %.4f max %.4f" % (np.median(mv), mv.max()))
 
@@ -892,10 +902,17 @@ def main():
                 # bone's rest segment, blended over `bone_blend` (m) between the two nearest
                 bl_ = list(p["bones"])
                 Xr_ = Prest[vs]
-                Dd = np.stack([np.linalg.norm(Xr_ - (np.array(bones[b_].head_local) + np.clip(
-                    ((Xr_ - np.array(bones[b_].head_local)) @ (np.array(bones[b_].tail_local) - np.array(bones[b_].head_local)))
-                    / max(np.sum((np.array(bones[b_].tail_local) - np.array(bones[b_].head_local)) ** 2), 1e-12), 0, 1)[:, None]
-                    * (np.array(bones[b_].tail_local) - np.array(bones[b_].head_local))), axis=1) for b_ in bl_], 1)
+                def seg_(b_):                                # (an "extra_bones" bone is not made yet: its rest
+                    if b_ in bones:                          # segment from its config)
+                        return np.array(bones[b_].head_local), np.array(bones[b_].tail_local)
+                    xb_ = next(x for x in CFG.get("extra_bones", []) if x["name"] == b_)
+                    h_ = xbone_head(xb_)
+                    return h_, h_ + np.array(bones[xb_["copy"]].tail_local) - np.array(bones[xb_["copy"]].head_local)
+                def dseg_(b_):
+                    h_, t_ = seg_(b_)
+                    d_ = t_ - h_
+                    return np.linalg.norm(Xr_ - (h_ + np.clip(((Xr_ - h_) @ d_) / max(d_ @ d_, 1e-12), 0, 1)[:, None] * d_), axis=1)
+                Dd = np.stack([dseg_(b_) for b_ in bl_], 1)
                 bb = float(p.get("bone_blend", 0.0))
                 if bb > 0:
                     Wm = np.clip(1 - (Dd - Dd.min(1, keepdims=True)) / bb, 0, 1)
@@ -1173,12 +1190,12 @@ def main():
     # orientation and length of bone `copy`, its head at `head` (armature space, rest; or "load:[x,y,z]" in the load
     # frame), parented to `parent`, keyed in every action with `copy`'s own (local) rotation. A part that must spin on
     # its own centre where the old rig's bone sits elsewhere (the Steam Tank's Tripo road wheels and sprockets: spun on
-    # the old wheel bones they would orbit) rides one. check_glb reports the added bones (expected).
+    # the old wheel bones they would orbit) rides one. "head" may also be "bone:<name>.head|.tail"; "share": k keys k of
+    # copy's turn (slerp): the Bronze Archer's bow limbs flex with his string bones. A multi-bone prop ("bones") may
+    # name extra bones. check_glb reports the added bones (expected).
     for xb in CFG.get("extra_bones", []):
         src = xb["copy"]
-        hd = xb["head"]
-        if isinstance(hd, str) and hd.startswith("load:"):
-            hd = (load_to_final(json.loads(hd[5:]))[0] + np.array((0, 0, dz))).tolist()   # (moved with the soles)
+        hd = xbone_head(xb).tolist()
         bpy.context.view_layer.objects.active = arm
         for o_ in sc.objects:
             o_.select_set(o_ == arm)
@@ -1205,7 +1222,11 @@ def main():
                 pass
             for fr in range(int(round(act.frame_range[0])), int(round(act.frame_range[1])) + 1):
                 sc.frame_set(fr)
-                pb_n.rotation_quaternion = pb_s.matrix_basis.to_quaternion()
+                q_ = pb_s.matrix_basis.to_quaternion()
+                if "share" in xb:                       # ("share": that fraction of copy's turn, slerped: a bow
+                    from mathutils import Quaternion    #  limb that flexes with its string)
+                    q_ = Quaternion((1, 0, 0, 0)).slerp(q_, float(xb["share"]))
+                pb_n.rotation_quaternion = q_
                 pb_n.keyframe_insert("rotation_quaternion", frame=fr)
         arm.animation_data.action = None
         REPORT.setdefault("extra_bones", []).append(xb["name"])
