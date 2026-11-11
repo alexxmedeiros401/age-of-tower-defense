@@ -1,0 +1,8 @@
+out/
+out_*/
+renders/
+deliver/
+video/[A-D]_old/
+video/[A-D]_new/
+video/_frames/
+video/*.log
