@@ -436,7 +436,8 @@
     0.53,
     -0.06,
     0.9
-   ]
+   ],
+   "bridge_waist": 0.45
   },
   {
    "name": "string_top",

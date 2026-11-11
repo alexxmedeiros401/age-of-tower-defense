@@ -708,8 +708,13 @@
       0.824
      ]
     ],
-    "scale": "keep",
-    "hand_follow": true
+    "scale": 0.9,
+    "hand_follow": true,
+    "shorten": [
+     0.12,
+     0.8,
+     0.3
+    ]
    }
   },
   {
