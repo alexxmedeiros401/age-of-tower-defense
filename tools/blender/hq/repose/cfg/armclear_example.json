@@ -1,0 +1,4 @@
+{"mesh":"Caveman","arms":[
+ {"root":"upperarm.R","upper":["upperarm.R","upperarm_half.R"],"clips":["Throw","Whirl","Idle"],"loop":["Whirl","Idle"],"head":["head","neck"],"torso":["chest","spine","root","thigh.L","thigh.R"],"margin":0.015,"head_margin":0.05,"max_deg":50,"lam":0.004,"lam2":0.004},
+ {"root":"upperarm.L","upper":["upperarm.L","upperarm_half.L"],"clips":["Throw","Whirl","Idle"],"loop":["Whirl","Idle"],"head":["head","neck"],"torso":["chest","spine","root","thigh.L","thigh.R"],"margin":0.015,"head_margin":0.05,"max_deg":50,"lam":0.004,"lam2":0.004}],
+ "halves":{"upperarm_half.R":"upperarm.R","forearm_half.R":"forearm.R","upperarm_half.L":"upperarm.L","forearm_half.L":"forearm.L"}}
