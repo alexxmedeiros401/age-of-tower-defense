@@ -1,9 +1,8 @@
 #!/bin/sh
 # PC side (linked Linux shell): the game's map tests on the PC (Windows Godot, real GPU) instead of the cloud.
 #   sh pcgame.sh setup                 once: Godot 4.7.2 (Windows console build) into AgeOfTD\godot\
-#   sh pcgame.sh sync [REF]            the game (default art/stone-age-v2) into AgeOfTD\game\ (git in the shell's home,
-#                                      then rsync without .git: the mounted folder can't delete git's lock files),
-#                                      then queues a headless import job (pc_import_<stamp>)
+#   sh pcgame.sh sync [REF]            the game at REF (GitHub's archive download) into AgeOfTD\game\, then queues a
+#                                      headless import job (pc_import_<stamp>); run it again until it prints synced
 #   sh pcgame.sh test NAME CAPTURE_MAP KINDS "unit ..." "map ..."
 #        queues, after the newest import: one attack-capture job per unit (a 1920x1080 game window, --shoot-attacks
 #        --focus --frames=40) and one headless --autowin job per map. Each job gets its own user-data folder through
@@ -22,13 +21,26 @@ setup)
   fi
   ls -la "$R/godot" ;;
 sync)
+  # The game at REF (a branch or a commit; default art/stone-age-v2) from GitHub's archive download (about 75 s for the
+  # 0.9 GB archive), unpacked in the shell's home, then copied over AgeOfTD\game with checksums: only changed files are
+  # written, nothing is deleted. Each linked-shell call lasts at most 3 minutes: run "sync" again until it prints
+  # "synced" (it resumes where it stopped).
   REF=${2:-art/stone-age-v2}
-  G=$HOME/game
-  if [ -d $G/.git ]; then git -C $G fetch -q --depth 1 origin "$REF" && git -C $G reset -q --hard FETCH_HEAD
-  else git clone -q --depth 1 --branch "$REF" https://github.com/alexxmedeiros401/age-of-tower-defense $G; fi
-  git -C $G log --oneline -1
+  K=$(echo "$REF" | tr '/' '_')
+  P=$HOME/pack; mkdir -p $P
+  if [ ! -f $P/$K.x ]; then
+    if [ ! -f $P/$K.dl ]; then
+      rm -f $P/*.tar.gz $P/*.dl $P/*.x
+      timeout 165 curl -sSL --fail -o $P/$K.tar.gz https://codeload.github.com/alexxmedeiros401/age-of-tower-defense/tar.gz/$REF \
+        && touch $P/$K.dl || { echo "download incomplete (run again)"; exit 0; }
+      echo "downloaded"; exit 0
+    fi
+    rm -rf $P/g && mkdir -p $P/g && tar xzf $P/$K.tar.gz -C $P/g --strip-components=1 && rm -f $P/$K.tar.gz && touch $P/$K.x
+    echo "unpacked"; exit 0
+  fi
   mkdir -p "$R/game"
-  rsync -rt --exclude .git --exclude .godot $G/ "$R/game/"
+  timeout 165 rsync -rc --exclude .godot --exclude .github $P/g/ "$R/game/" || { echo "copying (run again)"; exit 0; }
+  echo "synced $REF"
   ST=$(date +%H%M%S)
   python3 - "$ST" <<'PY'
 import json, os, sys
