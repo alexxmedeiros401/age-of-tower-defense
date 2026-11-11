@@ -461,14 +461,14 @@
      ],
      [
       0.7,
-      0.885
+      0.835
      ]
     ]
    ],
    "bones": {
     "hand.R": 1.0
    },
-   "seam_rings": 2
+   "seam_rings": 3
   },
   {
    "name": "fist_L",
