@@ -307,6 +307,10 @@ for k in PIECES:
             bmesh.ops.delete(bm_, geom=list({g for g in r_["geom_interior"] + r_["geom_unused"] if isinstance(g, bmesh.types.BMVert)}), context="VERTS")
             bmesh.ops.dissolve_limit(bm_, angle_limit=math.radians(1.0), verts=bm_.verts[:], edges=bm_.edges[:])
             bmesh.ops.triangulate(bm_, faces=bm_.faces[:])
+            if CFG["props"][k - 1].get("hull_out"):
+                # prop "hull_out" (off by default): the hull's faces turned to face outward first (the convex hull's
+                # winding came out mixed on the Dreadnought's hangar doors: their normal map baked inside out, black)
+                bmesh.ops.recalc_face_normals(bm_, faces=bm_.faces[:])
             me_ = bpy.data.meshes.new("Low_" + NAMES[k])
             bm_.to_mesh(me_)
             bm_.free()

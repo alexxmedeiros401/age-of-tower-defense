@@ -844,7 +844,8 @@
     0.11
    ],
    "hull": true,
-   "ray": 0.06
+   "ray": 0.06,
+   "hull_out": true
   },
   {
    "name": "door.R",
@@ -926,7 +927,8 @@
     0.11
    ],
    "hull": true,
-   "ray": 0.06
+   "ray": 0.06,
+   "hull_out": true
   }
  ],
  "load_xf": {
