@@ -357,6 +357,26 @@
     "anchor": 0,
     "spin": 75
    }
+  },
+  {
+   "name": "shield_bits",
+   "bone": "hand.L",
+   "mode": "pieces",
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.507,
+       0.149,
+       0.588
+      ],
+      "r": 0.04
+     }
+    }
+   ],
+   "place": {
+    "like": "shield"
+   }
   }
  ],
  "fit_recentre": true,
