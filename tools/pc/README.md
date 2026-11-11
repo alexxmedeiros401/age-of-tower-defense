@@ -18,3 +18,10 @@ A job file: `{"name", "cmd": ["{PY}", "script.py", ...], "cwd", "env", "mkdirs",
 "expect": [files that must exist afterwards]}`; `{PY}`, `{ROOT}`, `{REPO}` and `{OUT}` are replaced with the folder's
 paths. `AOTD_GPU=CUDA` in a job's env makes Cycles bake and render on the GPU (`tools/blender/hq/cycles_dev.py`).
 `addjobs.py` queues a unit's three build steps, `addprev.py` a quick preview (coarse sculpt, quick rig, clip frames).
+
+## Rig and review jobs for the Tripo pipeline (v0.9.114 rigging pass)
+From the cloud: `bash tools/pc/push_pc.sh TAG RUN ID ...` pushes the unit's rig inputs (prep jsons/npz, the newest
+bake, the pre-Tripo model) with the current tools/ to `pc-jobs/TAG-RUN`. Then, through the linked Linux shell:
+`sh ~/mnt/Documents/AgeOfTD/repo/tools/pc/pcrig.sh pc-jobs/TAG-RUN ID ... [-- review args]` queues a rig job and a
+review job (Cycles on the GPU) per unit; results land in `out\pc\TAG-RUN\ID\` (stage them back with the device file
+tools). `herotripo_review.py` now renders through `cycles_dev`, so `AOTD_GPU` puts it on the GPU like the bakes.

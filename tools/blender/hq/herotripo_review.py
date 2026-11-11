@@ -44,7 +44,8 @@ def setup(path):
     sc.render.engine = "CYCLES"
     sc.cycles.samples = SPP
     sc.cycles.use_denoising = True
-    sc.cycles.device = "CPU"
+    import cycles_dev                      # the GPU when AOTD_GPU names a backend (the PC runner), else the CPU
+    cycles_dev.use(sc)
     sc.render.resolution_x = sc.render.resolution_y = RES
     sc.render.resolution_percentage = 100
     sc.view_settings.view_transform = "Standard"
