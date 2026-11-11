@@ -1,10 +1,11 @@
 """Round-trip check of a rebuilt hero GLB against the shipped one (Blender, light).
 
-    python3 check_glb.py -- NEW.glb OLD.glb
+    python3 check_glb.py -- NEW.glb OLD.glb [EXTRA_BONE ...]
 
 Imports both and compares: objects (name, type, parent), mesh data names, materials and their image names, bones,
 actions and their frame ranges, and the bones' world positions over each clip (they must not move: the rig and the
-clips are the old ones). Prints OK or every difference.
+clips are the old ones). Added helper bones (forearm_twist.*, *_half.*, spin_*, or named after OLD.glb) are listed as
+expected. Prints OK or every difference.
 """
 import sys, os
 import numpy as np
@@ -49,6 +50,13 @@ glow = [m for m in n["materials"] if m not in o["materials"] and re.search(r"Glo
 if glow:                                  # (the emissive key's <HeroMat>Glow: the hero's own images, expected)
     print("glow materials (expected, cfg emissive):", [m[0] for m in glow])
     n["materials"] = [m for m in n["materials"] if m not in glow]
+# added helper bones (cfg twist_bones / joint_helpers / extra_bones): new-only bones named like these are expected;
+# a bone the new file lacks or renames is still a difference (the game looks bones up by name)
+HELPER = re.compile(r"^(forearm_twist\.|.+_half\.|spin_)")
+xb = [b for b in n["bones"] if b not in o["bones"] and (HELPER.match(b) or b in sys.argv[sys.argv.index("--") + 3:])]
+if xb:
+    print("added helper bones (expected):", xb)
+    n["bones"] = [b for b in n["bones"] if b not in xb]
 for k in ("objects", "meshes", "materials", "bones", "actions"):
     if n[k] != o[k]:
         bad += 1
