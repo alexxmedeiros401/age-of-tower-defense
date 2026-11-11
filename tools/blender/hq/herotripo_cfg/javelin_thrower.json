@@ -291,5 +291,109 @@
  },
  "twist_bones": [
   "R"
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ],
+ "armour": [
+  {
+   "name": "shaft_stub",
+   "select": [
+    {
+     "seg": {
+      "a": [
+       -0.212,
+       -0.0996,
+       1.146
+      ],
+      "b": [
+       -0.2232,
+       -0.1082,
+       1.2644
+      ],
+      "r": 0.042
+     },
+     "col": {
+      "max": [
+       1,
+       1,
+       0.23
+      ]
+     }
+    },
+    {
+     "seg": {
+      "a": [
+       -0.1787,
+       -0.074,
+       0.7945
+      ],
+      "b": [
+       -0.191,
+       -0.0834,
+       0.924
+      ],
+      "r": 0.03
+     },
+     "col": {
+      "max": [
+       1,
+       1,
+       0.23
+      ]
+     }
+    }
+   ],
+   "bones": {
+    "javelin": 1.0
+   },
+   "seam_rings": 0
+  }
+ ],
+ "detach": [
+  {
+   "bones": [
+    "javelin"
+   ],
+   "within": [
+    [
+     [
+      -0.95,
+      -0.5
+     ],
+     [
+      -0.3,
+      0.3
+     ],
+     [
+      0.55,
+      1.05
+     ]
+    ]
+   ]
+  }
  ]
 }

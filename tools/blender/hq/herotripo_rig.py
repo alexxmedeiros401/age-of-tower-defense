@@ -1256,7 +1256,11 @@ def main():
     lm.name = keep_name
     old.vertex_groups.clear()
     groups = {n: old.vertex_groups.new(name=n) for n in gn}
-    for j in body_groups:
+    for j in sorted(set(body_groups) | {j_ for j_ in range(len(gn)) if gn[j_] in props_bones and (W4[:, j_] > 0).any()}):
+        # (an armour entry may put body faces on a prop bone: the Javelin Thrower's shaft stub in his fist rides
+        # "javelin", so it vanishes with the thrown javelin)
+        if gn[j] not in groups:
+            groups[gn[j]] = old.vertex_groups.new(name=gn[j])
         w = W4[:, j]
         nz = np.nonzero(w > 0)[0]
         g = groups[gn[j]]
