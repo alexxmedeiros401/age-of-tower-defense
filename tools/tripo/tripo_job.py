@@ -13,6 +13,11 @@ links expire in minutes) and in OUT_DIR/log.json. Step kinds:
 "@name" means an earlier step's output: a file token, an image URL or a task id. Steps run in order; independent steps
 can be marked "parallel": true to start before the previous one finishes (polled together)."""
 import json, os, sys, time, urllib.request, urllib.error, mimetypes, uuid
+# Tripo sits behind Cloudflare, which now refuses Python-urllib's default User-Agent (HTTP 403, error 1010):
+# send a named client instead, on every request including the model downloads.
+_op = urllib.request.build_opener()
+_op.addheaders = [("User-Agent", "AgeOfTowerDefense-art-pipeline/1.0 (+https://github.com/alexxmedeiros401/age-of-tower-defense)")]
+urllib.request.install_opener(_op)
 
 BASE = "https://openapi.tripo3d.com/v3"
 KEY = os.environ.get("TRIPO_API_KEY", "").strip()
