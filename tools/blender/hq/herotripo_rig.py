@@ -1645,9 +1645,21 @@ def main():
                 kc = {}
                 for e in bnd:
                     kc[key_(e)] = kc.get(key_(e), 0) + 1
+                # ("skip": [bones]: rims along a part line of these bones are left open on both sides, e.g. a lens
+                # recessed in its ring, which a flat cap at the rim would hide)
+                skip_g = {old.vertex_groups[b].index for b in hc_cfg.get("skip", []) if b in old.vertex_groups}
+                skip_k = {key_(e) for e in bnd if e.link_faces[0][fl] in skip_g}
+                # ("skip_pairs": [[bone, bone], ...]: rims between these two parts only, e.g. an arm fused to the
+                # torso's side at rest, whose contact patch is no joint)
+                kb_ = {}
+                for e in bnd:
+                    kb_.setdefault(key_(e), set()).add(e.link_faces[0][fl])
+                for pr_ in hc_cfg.get("skip_pairs", []):
+                    gp_ = {old.vertex_groups[b].index for b in pr_ if b in old.vertex_groups}
+                    skip_k |= {k for k, bs in kb_.items() if bs == gp_}
                 nxt = {}
                 for e in bnd:
-                    if kc[key_(e)] < 2:
+                    if kc[key_(e)] < 2 or key_(e) in skip_k:
                         continue
                     f = e.link_faces[0]
                     for lp in f.loops:
@@ -1655,7 +1667,7 @@ def main():
                             a_, b_ = lp.vert, lp.link_loop_next.vert
                     nxt.setdefault(a_, []).append((b_, f))
                 ul_ = bm_.loops.layers.uv.active
-                ncap = nloop = 0
+                ncap = nloop = nbent = 0
                 used = set()
                 for a0 in list(nxt):
                     for b0, f0 in list(nxt[a0]):
@@ -1679,7 +1691,12 @@ def main():
                         # a fan to the middle poked out of a long curved rim)
                         Pr = np.array([np.array(a.co) for a, _, _ in loop_])
                         c_ = Pr.mean(0)
-                        _, _, Vt_ = np.linalg.svd(Pr - c_)
+                        sv_, _, Vt_ = (lambda u, s, v: (s, u, v))(*np.linalg.svd(Pr - c_, full_matrices=False))
+                        # (a rim far from flat, e.g. the outline of a housing wrapped over a curved hull, would be
+                        # filled across the outside: "flat": r leaves open the rims thicker than r times their extent; off by default)
+                        if hc_cfg.get("flat") is not None and sv_[2] > float(hc_cfg["flat"]) * sv_[0]:
+                            nbent += 1
+                            continue
                         Q2 = (Pr - c_) @ Vt_[:2].T
                         try:
                             tri_ = Delaunay(Q2).simplices
@@ -1705,8 +1722,23 @@ def main():
                                 lp[ul_].uv = cap_uv
                             ncap += 1
                         nloop += 1
-                log("hard caps: %d rims closed, %d triangles" % (nloop, ncap))
+                log("hard caps: %d rims closed, %d triangles; %d rims too far from flat left open" % (nloop, ncap, nbent))
                 REPORT["hard_caps"] = dict(rims=nloop, tris=ncap)
+            # armour "move" (off by default): [dx, dy, dz] (armature space, rest): the part's vertices are moved after
+            # the split, the part rides its own bone ("extra_bones", copying the old one) so nothing else moves with it
+            # (the Shield Bot's Tripo shield, held 14 cm further left than the old panel, moved back onto it)
+            for spec in CFG["armour"]:
+                if not spec.get("move"):
+                    continue
+                gi_ = old.vertex_groups[list(spec["bones"])[0]].index
+                mv_ = Vector(spec["move"])
+                nmv_ = 0
+                for v in bm_.verts:
+                    d = v[dl_]
+                    if len(d) == 1 and gi_ in d:
+                        v.co += mv_
+                        nmv_ += 1
+                log("armour %s: %d verts moved by %s" % (spec["name"], nmv_, list(spec["move"])))
             bm_.faces.layers.int.remove(fl)
             log("hard split (faces): %d faces given one bone each, %d verts re-weighted" % (len(fb), nre))
         bm_.to_mesh(lm)
