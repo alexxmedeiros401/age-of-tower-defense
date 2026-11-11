@@ -434,10 +434,11 @@
    },
    "bridge_at": [
     0.53,
-    -0.06,
+    -0.05,
     0.9
    ],
-   "bridge_waist": 0.45
+   "bridge_waist": 0.45,
+   "bridge_via": true
   },
   {
    "name": "string_top",
