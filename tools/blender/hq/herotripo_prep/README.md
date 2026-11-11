@@ -19,6 +19,7 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   check_glb.py  round trip of a GLB against the shipped one (Blender)
   zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
   oldprop.py    props taken from the old hero's mesh (source: old), after patches.py and fit.py (Blender)
+  stretch_check.py  stretched edges (> 2x and > 3 cm vs rest) and torn seams per clip frame, by bone pair (Blender)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -271,6 +272,12 @@ spawns its Scouts on death; game.gd doesn't take them from the model). push_bake
 --name back` renders any other view of chosen frames (the back, a crouch). For weights, run the rig with `--debug`
 (writes rig_debug.npz: the Tripo-pose mesh and its weights) and paint a bone's weight on the mesh. The cord ends of
 a sling or the end of a staff cut at the fist are where things poke out: look at the hand from behind as well.
+
+**Stretched edges.** `python3 stretch_check.py -- --hero <id> --model <out>/<id>.glb [--json J]` evaluates every frame
+of every clip and lists the edges more than 2x (`--ratio`) and more than 3 cm (`--abs`) longer than at rest, grouped
+by the dominant bones of their two ends (`chest|upperarm.L`: an armpit; `forearm.R|hand.R`: a wrist), with the worst
+frame and where; vertices that share a rest position and drift more than 1 cm apart (`--gap`) are a torn seam. Run it
+on the shipped GLB and on the fix: the same frames, the same numbers. It prints `STRETCH OK` when nothing is found.
 
 ## Quality bar (check every hero)
 Same face, sharp eyes; no floating armour (Vega's pauldron floated by his ear in the Ability: weight armour to the
