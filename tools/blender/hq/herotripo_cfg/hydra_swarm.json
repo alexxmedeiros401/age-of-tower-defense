@@ -836,5 +836,5 @@
   ],
   "flat": 0.25
  },
- "hard_keep_claimed": true
+ "hard_keep_claimed": false
 }
