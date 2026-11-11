@@ -433,7 +433,7 @@ for clip, spec in C.CLIPS.items():
             if TWW: TWS = smooth_tw(TWW, frames, spec.get("loop", False))
     # props held by a re-authored hand keep their grip
     hold = getattr(C, 'HOLD', 0.3)
-    for p in PROPS:
+    for p in getattr(C, 'HOLD_PROPS', PROPS):
         for f in frames:
             po = orig[f]['props'][p]
             best = None
