@@ -133,6 +133,11 @@ def smooth_psi(WANT, frames, psi_max, loop, PIN):
                 acc += kk * v[ii]; ws += kk
             sm.append(acc / ws)
         sm = [pin[f] if f in pin else x for f, x in zip(frames, sm)]
+        if len(pin) == len(frames):      # keep_roll: the shipped roll, unwrapped, as it is
+            for i in range(1, n):
+                while sm[i] - sm[i - 1] > math.pi: sm[i] -= 2 * math.pi
+                while sm[i] - sm[i - 1] < -math.pi: sm[i] += 2 * math.pi
+            out[s] = {f: sm[i] for i, f in enumerate(frames)}; continue
         # rate limit, forward then backward (no step bigger than PSI_RATE)
         for i in range(1, n): sm[i] = max(sm[i - 1] - PSI_RATE, min(sm[i - 1] + PSI_RATE, sm[i]))
         for i in range(n - 2, -1, -1): sm[i] = max(sm[i + 1] - PSI_RATE, min(sm[i + 1] + PSI_RATE, sm[i]))
@@ -204,7 +209,16 @@ for clip, spec in C.CLIPS.items():
             row = {'f': f}
             for s in sides:
                 R = REL[s]
-                wr, pole = get_keys(spec[s], f)
+                if isinstance(spec[s], dict) and 'offset' in spec[s]:
+                    # the shipped wrist path, moved by an offset (chest-relative; a function of the frame or constant);
+                    # the elbow keeps its shipped side (pole through the shipped elbow, pushed out from the arm's line)
+                    off = spec[s]['offset']; off = Vector(off(f) if callable(off) else off)
+                    Xi = X.inverted()
+                    ow = Xi @ orig[f]['hand_w'][s].translation; oe = Xi @ orig[f]['elbow'][s]; os_ = Xi @ orig[f]['shoulder'][s]
+                    mid = (ow + os_) / 2
+                    wr = ow + off; pole = oe + off + (oe - mid) * 2.0
+                else:
+                    wr, pole = get_keys(spec[s], f)
                 Hw = X @ wr; Pw = X @ pole
                 Sw = (AW @ P['upperarm.' + s].matrix).translation
                 d_vec = Hw - Sw; d = d_vec.length
@@ -238,7 +252,7 @@ for clip, spec in C.CLIPS.items():
                 while want - prev[s]['psi'] < -math.pi: want += 2 * math.pi
                 WANT[s][f] = want
                 bi_, bo_ = spec.get('blend_' + s, spec.get('blend', (0, 0)))
-                if (bi_ and f - f0 < bi_) or (bo_ and f1 - f < bo_):
+                if (bi_ and f - f0 < bi_) or (bo_ and f1 - f < bo_) or spec.get('keep_roll'):
                     uo = (orig[f]['elbow'][s] - orig[f]['shoulder'][s]).normalized()
                     Rso = (Ru0 @ R['dU']).rotation_difference(uo).to_matrix() @ Ru0
                     xo = Rso.col[0]; xu = orig[f]['upper'][s].col[0]
@@ -348,6 +362,8 @@ for clip, spec in C.CLIPS.items():
                 else:
                     twm = spec.get('tw_max_' + s, spec.get('tw_max', 0 if hs in ('world', 'keep') else TW_MAX))
                     ftw = max(-twm, min(twm, tw))
+                    if spec.get('keep_roll'):    # the forearm keeps its shipped twist (blades ride the forearms)
+                        ftw = math.degrees(orig[f]['local']['forearm.' + s].to_swing_twist('Y')[1])
                 Rf = Matrix.Rotation(math.radians(ftw), 3, fd) @ Rfs
                 # write: matrices in armature space
                 def setm(bn, Rw, pos=None):
@@ -398,6 +414,14 @@ for clip, spec in C.CLIPS.items():
                 if bi and f - f0 < bi: wb = (f - f0) / bi
                 if bo and f1 - f < bo: wb = min(wb, (f1 - f) / bo)
                 wb = wb * wb * (3 - 2 * wb)
+                if isinstance(spec[s], dict) and 'offset' in spec[s]:
+                    # offset paths: where the offset is (near) zero the shipped arm is used as it is
+                    off = spec[s]['offset']; off = Vector(off(f) if callable(off) else off)
+                    if 'full' not in spec[s]:
+                        o_ = spec[s]['offset']
+                        spec[s]['full'] = max(0.02, max(Vector(o_(g) if callable(o_) else o_).length for g in frames))
+                    wo_ = max(0.0, min(1.0, off.length / spec[s]['full']))
+                    wb = min(wb, wo_ * wo_ * (3 - 2 * wo_))
                 if wb < 1.0:
                     for b in [x for x in ('upperarm.', 'forearm.', 'hand.', 'upperarm_half.', 'forearm_half.', 'forearm_twist.') if x + s in P]:
                         pb = P[b + s]; qn = pb.rotation_quaternion.copy(); qo = orig[f]['local'][b + s]
