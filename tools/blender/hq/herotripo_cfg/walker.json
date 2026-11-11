@@ -138,16 +138,30 @@
    "val_min": 0.3,
    "strength": 2.5,
    "match": 4
+  },
+  {
+   "name": "antenna_tip",
+   "parts": [
+    "antenna"
+   ],
+   "hue": [
+    338,
+    20
+   ],
+   "sat_min": 0.3,
+   "val_min": 0.3,
+   "match": 1,
+   "strength": 2.5
   }
  ],
  "glows": {
   "GlowAntennaTip": {
    "at": [
-    0.097,
-    0.14,
-    1.595
+    0.112,
+    0.1976,
+    1.568
    ],
-   "radius": 0.029
+   "radius": 0.035
   },
   "GlowCore": {
    "hide": true
