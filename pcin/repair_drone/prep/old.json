@@ -1,0 +1,295 @@
+{
+ "mesh": "RepairDroneMesh",
+ "mesh_data": "RepairDroneMesh",
+ "material": "RepairDroneMat",
+ "armature": "RepairDroneRig",
+ "prop_bones": [
+  "rotor.BL",
+  "rotor.BR",
+  "rotor.FL",
+  "rotor.FR"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    0.800000011920929
+   ],
+   "tail": [
+    0.0,
+    4.7919956891462334e-09,
+    0.9399999976158142
+   ],
+   "parent": null
+  },
+  "arm.L": {
+   "head": [
+    0.07999996095895767,
+    -0.059999980032444,
+    0.6600000858306885
+   ],
+   "tail": [
+    0.12999996542930603,
+    -0.1600000262260437,
+    0.5500000715255737
+   ],
+   "parent": "root"
+  },
+  "tool.L": {
+   "head": [
+    0.12999995052814484,
+    -0.1599999964237213,
+    0.5500001311302185
+   ],
+   "tail": [
+    0.11346715688705444,
+    -0.2922624349594116,
+    0.46733614802360535
+   ],
+   "parent": "arm.L"
+  },
+  "arm.R": {
+   "head": [
+    -0.07999996095895767,
+    -0.059999980032444,
+    0.6600000858306885
+   ],
+   "tail": [
+    -0.12999996542930603,
+    -0.1600000262260437,
+    0.5500000715255737
+   ],
+   "parent": "root"
+  },
+  "tool.R": {
+   "head": [
+    -0.12999995052814484,
+    -0.1599999964237213,
+    0.5500001311302185
+   ],
+   "tail": [
+    -0.11346715688705444,
+    -0.2922624349594116,
+    0.46733614802360535
+   ],
+   "parent": "arm.R"
+  },
+  "eye": {
+   "head": [
+    0.0,
+    -0.19999998807907104,
+    0.800000011920929
+   ],
+   "tail": [
+    0.0,
+    -0.3399999737739563,
+    0.8000000715255737
+   ],
+   "parent": "root"
+  },
+  "lens": {
+   "head": [
+    0.0,
+    -4.7919952450570236e-09,
+    0.6600000262260437
+   ],
+   "tail": [
+    0.0,
+    -9.583990490114047e-09,
+    0.5200000405311584
+   ],
+   "parent": "root"
+  },
+  "rotor.BL": {
+   "head": [
+    0.30000001192092896,
+    0.2399999499320984,
+    0.8999999165534973
+   ],
+   "tail": [
+    0.30000001192092896,
+    0.2399999499320984,
+    1.0399999618530273
+   ],
+   "parent": "root"
+  },
+  "rotor.BR": {
+   "head": [
+    -0.30000001192092896,
+    0.2399999499320984,
+    0.8999999165534973
+   ],
+   "tail": [
+    -0.30000001192092896,
+    0.2399999499320984,
+    1.0399999618530273
+   ],
+   "parent": "root"
+  },
+  "rotor.FL": {
+   "head": [
+    0.30000001192092896,
+    -0.2399999499320984,
+    0.8999999761581421
+   ],
+   "tail": [
+    0.30000001192092896,
+    -0.2399999499320984,
+    1.0399999618530273
+   ],
+   "parent": "root"
+  },
+  "rotor.FR": {
+   "head": [
+    -0.30000001192092896,
+    -0.2399999499320984,
+    0.8999999761581421
+   ],
+   "tail": [
+    -0.30000001192092896,
+    -0.2399999499320984,
+    1.0399999618530273
+   ],
+   "parent": "root"
+  }
+ },
+ "actions": {
+  "Fly": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "GlowEye": {
+   "type": "MESH",
+   "parent": "RepairDroneRig",
+   "groups": [
+    "root",
+    "arm.L",
+    "tool.L",
+    "arm.R",
+    "tool.R",
+    "eye",
+    "lens",
+    "rotor.BL",
+    "rotor.BR",
+    "rotor.FL",
+    "rotor.FR"
+   ],
+   "tris": 50
+  },
+  "GlowFlame": {
+   "type": "MESH",
+   "parent": "RepairDroneRig",
+   "groups": [
+    "root",
+    "arm.L",
+    "tool.L",
+    "arm.R",
+    "tool.R",
+    "eye",
+    "lens",
+    "rotor.BL",
+    "rotor.BR",
+    "rotor.FL",
+    "rotor.FR"
+   ],
+   "tris": 40
+  },
+  "GlowLens": {
+   "type": "MESH",
+   "parent": "RepairDroneRig",
+   "groups": [
+    "root",
+    "arm.L",
+    "tool.L",
+    "arm.R",
+    "tool.R",
+    "eye",
+    "lens",
+    "rotor.BL",
+    "rotor.BR",
+    "rotor.FL",
+    "rotor.FR"
+   ],
+   "tris": 60
+  },
+  "GlowLights": {
+   "type": "MESH",
+   "parent": "RepairDroneRig",
+   "groups": [
+    "root",
+    "arm.L",
+    "tool.L",
+    "arm.R",
+    "tool.R",
+    "eye",
+    "lens",
+    "rotor.BL",
+    "rotor.BR",
+    "rotor.FL",
+    "rotor.FR"
+   ],
+   "tris": 60
+  },
+  "RepairDrone": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "RepairDroneMesh": {
+   "type": "MESH",
+   "parent": "RepairDroneRig",
+   "groups": [
+    "root",
+    "arm.L",
+    "tool.L",
+    "arm.R",
+    "tool.R",
+    "eye",
+    "lens",
+    "rotor.BL",
+    "rotor.BR",
+    "rotor.FL",
+    "rotor.FR"
+   ],
+   "tris": 3100
+  },
+  "RepairDroneRig": {
+   "type": "ARMATURE",
+   "parent": "RepairDrone",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "RepairDrone",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}

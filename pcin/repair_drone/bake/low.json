@@ -1,0 +1,1 @@
+{"names": ["body", "rotor.FL", "rotor.FR", "rotor.BL", "rotor.BR"], "targets": {"rotor.FL": 655, "rotor.FR": 653, "rotor.BL": 711, "rotor.BR": 673, "body": 4808}, "xf": {"yaw": 270.0, "s": 0.9770406664791091, "t": [-0.004130120556741006, -0.08433670545327976, 0.6723184170530407]}}

@@ -1,0 +1,428 @@
+{
+ "mesh": "ShieldBotMesh",
+ "mesh_data": "ShieldBotMesh",
+ "material": "ShieldBotMat",
+ "armature": "ShieldBotRig",
+ "prop_bones": [
+  "antenna"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    0.6200000047683716
+   ],
+   "tail": [
+    0.0,
+    3.422855332502195e-09,
+    0.7200000286102295
+   ],
+   "parent": null
+  },
+  "spine": {
+   "head": [
+    0.0,
+    3.422854888412985e-09,
+    0.7200000286102295
+   ],
+   "tail": [
+    0.0,
+    1.5745129644528788e-08,
+    1.0800000429153442
+   ],
+   "parent": "root"
+  },
+  "head": {
+   "head": [
+    0.0,
+    1.5745129644528788e-08,
+    1.0799999237060547
+   ],
+   "tail": [
+    0.0,
+    2.580623004178051e-08,
+    1.373938798904419
+   ],
+   "parent": "spine"
+  },
+  "antenna": {
+   "head": [
+    -0.08000002801418304,
+    0.04000002145767212,
+    1.3600000143051147
+   ],
+   "tail": [
+    -0.1243690550327301,
+    0.11394838243722916,
+    1.6410037279129028
+   ],
+   "parent": "head"
+  },
+  "upperarm.L": {
+   "head": [
+    0.32999998331069946,
+    2.7908010125088367e-08,
+    1.0000001192092896
+   ],
+   "tail": [
+    0.3999999761581421,
+    -0.07999999076128006,
+    0.8000001311302185
+   ],
+   "parent": "spine"
+  },
+  "forearm.L": {
+   "head": [
+    0.3999999761581421,
+    -0.07999996840953827,
+    0.8000003099441528
+   ],
+   "tail": [
+    0.28000009059906006,
+    -0.2999999523162842,
+    0.7800002694129944
+   ],
+   "parent": "upperarm.L"
+  },
+  "hand.L": {
+   "head": [
+    0.28000009059906006,
+    -0.299999862909317,
+    0.7800002694129944
+   ],
+   "tail": [
+    0.14055077731609344,
+    -0.5091740489006042,
+    0.7800002098083496
+   ],
+   "parent": "forearm.L"
+  },
+  "upperarm.R": {
+   "head": [
+    -0.3300000727176666,
+    1.3006848931240711e-08,
+    1.0
+   ],
+   "tail": [
+    -0.3900001049041748,
+    0.02999999187886715,
+    0.7799999713897705
+   ],
+   "parent": "spine"
+  },
+  "forearm.R": {
+   "head": [
+    -0.3900001347064972,
+    0.030000006780028343,
+    0.7800000309944153
+   ],
+   "tail": [
+    -0.410000205039978,
+    -0.020000020042061806,
+    0.5800000429153442
+   ],
+   "parent": "upperarm.R"
+  },
+  "hand.R": {
+   "head": [
+    -0.41000017523765564,
+    -0.02000000886619091,
+    0.5800000429153442
+   ],
+   "tail": [
+    -0.410000205039978,
+    -0.07449773699045181,
+    0.3801751136779785
+   ],
+   "parent": "forearm.R"
+  },
+  "thigh.L": {
+   "head": [
+    0.14000000059604645,
+    0.010000010021030903,
+    0.6200000643730164
+   ],
+   "tail": [
+    0.16000008583068848,
+    -0.04999994859099388,
+    0.35999998450279236
+   ],
+   "parent": "root"
+  },
+  "shin.L": {
+   "head": [
+    0.1600000262260437,
+    -0.049999941140413284,
+    0.36000001430511475
+   ],
+   "tail": [
+    0.1600002497434616,
+    0.020000476390123367,
+    0.10999971628189087
+   ],
+   "parent": "thigh.L"
+  },
+  "foot.L": {
+   "head": [
+    0.16000021994113922,
+    0.020000476390123367,
+    0.10999971628189087
+   ],
+   "tail": [
+    0.1599999964237213,
+    -0.22481462359428406,
+    0.023594900965690613
+   ],
+   "parent": "shin.L"
+  },
+  "thigh.R": {
+   "head": [
+    -0.14000000059604645,
+    0.010000010021030903,
+    0.6200000643730164
+   ],
+   "tail": [
+    -0.16000008583068848,
+    -0.04999995604157448,
+    0.35999995470046997
+   ],
+   "parent": "root"
+  },
+  "shin.R": {
+   "head": [
+    -0.1600000411272049,
+    -0.04999995604157448,
+    0.35999995470046997
+   ],
+   "tail": [
+    -0.1600002497434616,
+    0.020000454038381577,
+    0.1099996566772461
+   ],
+   "parent": "thigh.R"
+  },
+  "foot.R": {
+   "head": [
+    -0.1600002646446228,
+    0.020000454038381577,
+    0.1099996566772461
+   ],
+   "tail": [
+    -0.1600000411272049,
+    -0.22481460869312286,
+    0.023594841361045837
+   ],
+   "parent": "shin.R"
+  }
+ },
+ "actions": {
+  "Walk": [
+   0.0,
+   24.0
+  ]
+ },
+ "objects": {
+  "GlowAntennaTip": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 28
+  },
+  "GlowCore": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "GlowEmitter": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 78
+  },
+  "GlowNodes": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 90
+  },
+  "GlowShieldPanel": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "GlowVisor": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "ShieldBot": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "ShieldBotMesh": {
+   "type": "MESH",
+   "parent": "ShieldBotRig",
+   "groups": [
+    "root",
+    "spine",
+    "head",
+    "antenna",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 4540
+  },
+  "ShieldBotRig": {
+   "type": "ARMATURE",
+   "parent": "ShieldBot",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "ShieldBot",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
