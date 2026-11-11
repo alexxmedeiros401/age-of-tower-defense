@@ -526,7 +526,8 @@
    "name": "spin_eye",
    "parent": "root",
    "copy": "eye",
-   "head": "load:[0.0, -0.25, 0.955]"
+   "head": "load:[0.0, -0.36, 0.955]",
+   "share": 0.6
   },
   {
    "name": "spin_rotor.FL",
