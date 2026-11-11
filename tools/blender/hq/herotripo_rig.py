@@ -1243,6 +1243,9 @@ def main():
                 if float(xb.get("share", 1.0)) != 1.0:   # "share" (default 1): only this fraction of the turn (slerp)
                     q_ = Quaternion((1, 0, 0, 0)).slerp(q_, float(xb["share"]))
                 pb_n.rotation_quaternion = q_
+                if xb.get("scale"):                      # "scale": true: also key copy's own scale (a part that
+                    pb_n.scale = pb_s.scale.copy()       # pulses or swells about its own centre)
+                    pb_n.keyframe_insert("scale", frame=fr)
                 pb_n.keyframe_insert("rotation_quaternion", frame=fr)
         arm.animation_data.action = None
         REPORT.setdefault("extra_bones", []).append(xb["name"])
