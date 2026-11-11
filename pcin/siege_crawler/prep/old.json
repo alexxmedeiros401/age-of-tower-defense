@@ -1,0 +1,407 @@
+{
+ "mesh": "SiegeCrawlerMesh",
+ "mesh_data": "SiegeCrawlerMesh",
+ "material": "SiegeCrawlerMat",
+ "armature": "SiegeCrawlerRig",
+ "prop_bones": [],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.05000000074505806,
+    1.2999999523162842
+   ],
+   "tail": [
+    0.0,
+    0.050000011920928955,
+    1.6667423248291016
+   ],
+   "parent": null
+  },
+  "cannon": {
+   "head": [
+    -2.2624526492716346e-13,
+    -0.9199999570846558,
+    1.1200000047683716
+   ],
+   "tail": [
+    -2.3022065482290743e-13,
+    -1.2849223613739014,
+    1.0835078954696655
+   ],
+   "parent": "root"
+  },
+  "dome": {
+   "head": [
+    0.0,
+    0.12000001221895218,
+    1.659999966621399
+   ],
+   "tail": [
+    0.0,
+    0.12000002712011337,
+    2.026742458343506
+   ],
+   "parent": "root"
+  },
+  "hatch": {
+   "head": [
+    0.0,
+    0.7199999094009399,
+    1.6399998664855957
+   ],
+   "tail": [
+    0.0,
+    1.0867424011230469,
+    1.6399998664855957
+   ],
+   "parent": "root"
+  },
+  "thigh.L1": {
+   "head": [
+    0.6200000047683716,
+    -0.7200000286102295,
+    1.2400001287460327
+   ],
+   "tail": [
+    1.1200001239776611,
+    -0.972000002861023,
+    1.8600001335144043
+   ],
+   "parent": "root"
+  },
+  "shin.L1": {
+   "head": [
+    1.1200000047683716,
+    -0.9719998240470886,
+    1.8600002527236938
+   ],
+   "tail": [
+    1.2563875913619995,
+    -1.0701990127563477,
+    1.041672945022583
+   ],
+   "parent": "thigh.L1"
+  },
+  "thigh.L2": {
+   "head": [
+    0.6199999451637268,
+    0.059999991208314896,
+    1.2400000095367432
+   ],
+   "tail": [
+    1.1200000047683716,
+    0.0599999874830246,
+    1.8600001335144043
+   ],
+   "parent": "root"
+  },
+  "shin.L2": {
+   "head": [
+    1.119999885559082,
+    0.0599999874830246,
+    1.8600000143051147
+   ],
+   "tail": [
+    1.250942349433899,
+    0.05999995395541191,
+    1.0743447542190552
+   ],
+   "parent": "thigh.L2"
+  },
+  "thigh.L3": {
+   "head": [
+    0.6199999451637268,
+    0.8399999737739563,
+    1.2400003671646118
+   ],
+   "tail": [
+    1.119999885559082,
+    1.0920000076293945,
+    1.8600002527236938
+   ],
+   "parent": "root"
+  },
+  "shin.L3": {
+   "head": [
+    1.1200003623962402,
+    1.0919997692108154,
+    1.8599997758865356
+   ],
+   "tail": [
+    1.2563883066177368,
+    1.1901990175247192,
+    1.0416728258132935
+   ],
+   "parent": "thigh.L3"
+  },
+  "thigh.R1": {
+   "head": [
+    -0.6200000047683716,
+    -0.7200000286102295,
+    1.2400001287460327
+   ],
+   "tail": [
+    -1.1200001239776611,
+    -0.972000002861023,
+    1.8600001335144043
+   ],
+   "parent": "root"
+  },
+  "shin.R1": {
+   "head": [
+    -1.1200000047683716,
+    -0.9719998240470886,
+    1.8600002527236938
+   ],
+   "tail": [
+    -1.2563875913619995,
+    -1.0701990127563477,
+    1.041672945022583
+   ],
+   "parent": "thigh.R1"
+  },
+  "thigh.R2": {
+   "head": [
+    -0.6199999451637268,
+    0.059999991208314896,
+    1.2400000095367432
+   ],
+   "tail": [
+    -1.1200000047683716,
+    0.0599999874830246,
+    1.8600001335144043
+   ],
+   "parent": "root"
+  },
+  "shin.R2": {
+   "head": [
+    -1.119999885559082,
+    0.0599999874830246,
+    1.8600000143051147
+   ],
+   "tail": [
+    -1.250942349433899,
+    0.05999995395541191,
+    1.0743447542190552
+   ],
+   "parent": "thigh.R2"
+  },
+  "thigh.R3": {
+   "head": [
+    -0.6199999451637268,
+    0.8399999737739563,
+    1.2400003671646118
+   ],
+   "tail": [
+    -1.119999885559082,
+    1.0920000076293945,
+    1.8600002527236938
+   ],
+   "parent": "root"
+  },
+  "shin.R3": {
+   "head": [
+    -1.1200003623962402,
+    1.0919997692108154,
+    1.8599997758865356
+   ],
+   "tail": [
+    -1.2563883066177368,
+    1.1901990175247192,
+    1.0416728258132935
+   ],
+   "parent": "thigh.R3"
+  }
+ },
+ "actions": {
+  "Summon": [
+   0.0,
+   48.0
+  ],
+  "Walk": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "GlowDome": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 160
+  },
+  "GlowExhaust": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 40
+  },
+  "GlowEyes": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 58
+  },
+  "GlowLights": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 60
+  },
+  "GlowMuzzle": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 40
+  },
+  "SiegeCrawler": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "SiegeCrawlerMesh": {
+   "type": "MESH",
+   "parent": "SiegeCrawlerRig",
+   "groups": [
+    "root",
+    "cannon",
+    "dome",
+    "hatch",
+    "thigh.L1",
+    "shin.L1",
+    "thigh.L2",
+    "shin.L2",
+    "thigh.L3",
+    "shin.L3",
+    "thigh.R1",
+    "shin.R1",
+    "thigh.R2",
+    "shin.R2",
+    "thigh.R3",
+    "shin.R3"
+   ],
+   "tris": 8816
+  },
+  "SiegeCrawlerRig": {
+   "type": "ARMATURE",
+   "parent": "SiegeCrawler",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "SiegeCrawler",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
