@@ -180,7 +180,7 @@
   ]
  ],
  "hard_split": "faces",
- "hard_smooth": 6,
+ "hard_smooth": 0,
  "hard_min_island": 40,
  "armour": [
   {
@@ -188,8 +188,8 @@
    "select": [
     [
      [
-      -0.5,
-      0.4
+      -0.251,
+      0.125
      ],
      [
       -0.5,
@@ -575,6 +575,52 @@
     "foot.R": 1.0
    },
    "seam_rings": 0
+  },
+  {
+   "name": "pack_L",
+   "select": [
+    [
+     [
+      0.06,
+      0.2
+     ],
+     [
+      0.105,
+      0.4
+     ],
+     [
+      0.82,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "spine": 1.0
+   },
+   "seam_rings": 0
+  },
+  {
+   "name": "pack_R",
+   "select": [
+    [
+     [
+      -0.326,
+      -0.186
+     ],
+     [
+      0.105,
+      0.4
+     ],
+     [
+      0.82,
+      1.2
+     ]
+    ]
+   ],
+   "bones": {
+    "spine": 1.0
+   },
+   "seam_rings": 0
   }
  ],
  "hard_cuts": [
@@ -888,7 +934,14 @@
   }
  ],
  "hard_by_centre": true,
- "hard_keep_claimed": true,
+ "hard_keep_claimed": false,
  "fit_pose": false,
- "orphan_nearest": true
+ "orphan_nearest": true,
+ "hard_caps": {
+  "col": [
+   0.12,
+   0.12,
+   0.13
+  ]
+ }
 }

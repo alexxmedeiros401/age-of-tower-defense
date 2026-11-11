@@ -77,6 +77,9 @@ X0 = coords()
 q = np.round(X0 / 1e-4).astype(np.int64)
 _, wid = np.unique(q, axis=0, return_inverse=True)
 wid = wid.ravel()
+# hard_caps faces (all corners on one UV point) close the parts' rims: not part of the shard / patch analysis
+uvd = np.zeros(len(me.loops) * 2); me.uv_layers.active.data.foreach_get("uv", uvd); uvd = uvd.reshape(-1, 2)
+capf = np.array([np.ptp(uvd[a:a + n], 0).max() < 1e-7 for a, n in zip(ls, lt)])
 # face bone (all corners pure on one bone) or -1 (mixed)
 fb = np.array([dom[f[0]] if (pure[f].all() and (dom[f] == dom[f[0]]).all()) else -1 for f in FV])
 mixed = np.nonzero(fb < 0)[0]
@@ -95,7 +98,7 @@ for i, f in enumerate(FV):
 rows, cols = np.array(rows), np.array(cols)
 A = coo_matrix((np.ones(len(rows)), (rows, cols)), shape=(nf, nf))
 ncomp, comp = connected_components(A, directed=False)
-same = fb[rows] == fb[cols]
+same = (fb[rows] == fb[cols]) & ~capf[rows] & ~capf[cols]
 As = coo_matrix((np.ones(same.sum()), (rows[same], cols[same])), shape=(nf, nf))
 _, patch = connected_components(As, directed=False)
 psz = np.bincount(patch)
@@ -104,11 +107,11 @@ small = [p for p in np.nonzero(psz < ISL)[0]]
 shards = []
 for p in small:
     fs = np.nonzero(patch == p)[0]
-    if fb[fs[0]] < 0:
+    if fb[fs[0]] < 0 or capf[fs].all():
         continue
     m = (patch[rows] == p) ^ (patch[cols] == p)
     other = np.r_[cols[m & (patch[rows] == p)], rows[m & (patch[cols] == p)]]
-    nb = fb[other]
+    nb = np.where(capf[other], -1, fb[other])
     nb = nb[(nb >= 0) & (nb != fb[fs[0]])]
     if not len(nb):
         continue
@@ -169,7 +172,7 @@ for s, dr in zip(shards, shard_drift):
     s["drift"] = round(float(dr), 4)
     del s["verts"], s["nbbone"]
 bad_sh = [s for s in shards if s["drift"] > GAP]
-print("[robot] %s: %d faces, %d verts; %d pieces; clips %s" % (os.path.basename(MODEL), nf, nv, ncomp, clips))
+print("[robot] %s: %d faces (%d joint caps), %d verts; %d pieces; clips %s" % (os.path.basename(MODEL), nf, capf.sum(), nv, ncomp, clips))
 smix = np.unique(Ef[stretched]) if len(E) else np.zeros(0, np.int64)
 print("[robot] mixed faces: %d, %d of them stretched (an edge > x1.5 and > 5 mm longer), worst x%.2f, +%.0f mm" % (
     len(mixed), len(smix), mix_worst, (grow.max() if len(grow) else 0) * 1000))

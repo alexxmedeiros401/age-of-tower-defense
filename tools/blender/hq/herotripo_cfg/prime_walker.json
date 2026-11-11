@@ -187,7 +187,7 @@
    24
   ]
  ],
- "hard_smooth": 6,
+ "hard_smooth": 0,
  "fit_pose": false,
  "orphan_nearest": true,
  "armour": [
@@ -563,5 +563,12 @@
   }
  ],
  "hard_by_centre": true,
- "hard_keep_claimed": true
+ "hard_keep_claimed": false,
+ "hard_caps": {
+  "col": [
+   0.12,
+   0.12,
+   0.13
+  ]
+ }
 }
