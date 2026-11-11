@@ -1,0 +1,223 @@
+{
+ "mesh": "CarrierMesh",
+ "mesh_data": "CarrierMesh",
+ "material": "CarrierMat",
+ "armature": "CarrierRig",
+ "prop_bones": [
+  "antenna",
+  "pod0",
+  "pod1",
+  "pod2"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    0.5799999833106995
+   ],
+   "tail": [
+    0.0,
+    6.922294293332243e-09,
+    0.7822374701499939
+   ],
+   "parent": null
+  },
+  "antenna": {
+   "head": [
+    0.2200000286102295,
+    0.4800000488758087,
+    0.7000002264976501
+   ],
+   "tail": [
+    0.2397363781929016,
+    0.5194727778434753,
+    0.8973637819290161
+   ],
+   "parent": "root"
+  },
+  "pod0": {
+   "head": [
+    0.0,
+    -0.2699999511241913,
+    0.7799999713897705
+   ],
+   "tail": [
+    0.0,
+    -0.47223740816116333,
+    0.7800000309944153
+   ],
+   "parent": "root"
+  },
+  "pod1": {
+   "head": [
+    0.0,
+    0.030000006780028343,
+    0.7799999713897705
+   ],
+   "tail": [
+    0.0,
+    -0.17223747074604034,
+    0.7800000309944153
+   ],
+   "parent": "root"
+  },
+  "pod2": {
+   "head": [
+    0.0,
+    0.3299999535083771,
+    0.7799999713897705
+   ],
+   "tail": [
+    0.0,
+    0.12776248157024384,
+    0.7800000309944153
+   ],
+   "parent": "root"
+  }
+ },
+ "actions": {
+  "Fly": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "Carrier": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "CarrierMesh": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 2970
+  },
+  "CarrierRig": {
+   "type": "ARMATURE",
+   "parent": "Carrier",
+   "groups": [],
+   "tris": 0
+  },
+  "GlowAntennaTip": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 30
+  },
+  "GlowEye": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 60
+  },
+  "GlowLights": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 50
+  },
+  "GlowPodEye0": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 40
+  },
+  "GlowPodEye1": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 40
+  },
+  "GlowPodEye2": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 40
+  },
+  "GlowThrusters": {
+   "type": "MESH",
+   "parent": "CarrierRig",
+   "groups": [
+    "root",
+    "antenna",
+    "pod0",
+    "pod1",
+    "pod2"
+   ],
+   "tris": 80
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "Carrier",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}

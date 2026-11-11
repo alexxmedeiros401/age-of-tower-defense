@@ -1,0 +1,1 @@
+{"names": ["body", "antenna", "hub.L", "disc.L", "blades.L", "hub.R", "disc.R", "blades.R"], "targets": {"antenna": 290, "hub.L": 250, "blades.L": 250, "hub.R": 250, "blades.R": 250, "body": 5710}, "xf": {"yaw": 270.0, "s": 1.1604277295057108, "t": [4.414300784788029e-07, -0.012748807955642733, 0.9492577666076227]}}

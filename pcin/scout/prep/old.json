@@ -1,0 +1,175 @@
+{
+ "mesh": "ScoutMesh",
+ "mesh_data": "ScoutMesh",
+ "material": "ScoutMat",
+ "armature": "ScoutRig",
+ "prop_bones": [
+  "antenna",
+  "eye",
+  "rotor.L",
+  "rotor.R"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.0,
+    0.8600000143051147
+   ],
+   "tail": [
+    0.0,
+    5.818852955030707e-09,
+    1.0299999713897705
+   ],
+   "parent": null
+  },
+  "antenna": {
+   "head": [
+    0.0599999837577343,
+    0.1199999749660492,
+    1.059999942779541
+   ],
+   "tail": [
+    0.08679573982954025,
+    0.20038723945617676,
+    1.2073765993118286
+   ],
+   "parent": "root"
+  },
+  "eye": {
+   "head": [
+    0.0,
+    -0.16999998688697815,
+    0.8600000143051147
+   ],
+   "tail": [
+    0.0,
+    -0.3399999737739563,
+    0.8600000739097595
+   ],
+   "parent": "root"
+  },
+  "rotor.L": {
+   "head": [
+    0.4300000071525574,
+    0.029999999329447746,
+    0.9300000071525574
+   ],
+   "tail": [
+    0.4300000071525574,
+    0.030000004917383194,
+    1.100000023841858
+   ],
+   "parent": "root"
+  },
+  "rotor.R": {
+   "head": [
+    -0.4300000071525574,
+    0.029999999329447746,
+    0.9300000071525574
+   ],
+   "tail": [
+    -0.4300000071525574,
+    0.030000004917383194,
+    1.100000023841858
+   ],
+   "parent": "root"
+  }
+ },
+ "actions": {
+  "Fly": [
+   0.0,
+   48.0
+  ]
+ },
+ "objects": {
+  "GlowAntennaTip": {
+   "type": "MESH",
+   "parent": "ScoutRig",
+   "groups": [
+    "root",
+    "antenna",
+    "eye",
+    "rotor.L",
+    "rotor.R"
+   ],
+   "tris": 28
+  },
+  "GlowEye": {
+   "type": "MESH",
+   "parent": "ScoutRig",
+   "groups": [
+    "root",
+    "antenna",
+    "eye",
+    "rotor.L",
+    "rotor.R"
+   ],
+   "tris": 90
+  },
+  "GlowThruster": {
+   "type": "MESH",
+   "parent": "ScoutRig",
+   "groups": [
+    "root",
+    "antenna",
+    "eye",
+    "rotor.L",
+    "rotor.R"
+   ],
+   "tris": 40
+  },
+  "Scout": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "ScoutMesh": {
+   "type": "MESH",
+   "parent": "ScoutRig",
+   "groups": [
+    "root",
+    "antenna",
+    "eye",
+    "rotor.L",
+    "rotor.R"
+   ],
+   "tris": 1988
+  },
+  "ScoutRig": {
+   "type": "ARMATURE",
+   "parent": "Scout",
+   "groups": [],
+   "tris": 0
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "Scout",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
