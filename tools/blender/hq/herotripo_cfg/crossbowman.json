@@ -571,5 +571,27 @@
    "bone": "forearm.L",
    "smooth": 10
   }
+ ],
+ "limb_strip": [
+  {
+   "bones": [
+    "upperarm.R",
+    "upperarm_half.R"
+   ],
+   "fallback": "forearm.R",
+   "after_armour": true,
+   "select": [
+    {
+     "ball": {
+      "c": [
+       -0.871,
+       0.19,
+       0.96
+      ],
+      "r": 0.03
+     }
+    }
+   ]
+  }
  ]
 }
