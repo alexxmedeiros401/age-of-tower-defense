@@ -273,6 +273,11 @@ spawns its Scouts on death; game.gd doesn't take them from the model). push_bake
 (writes rig_debug.npz: the Tripo-pose mesh and its weights) and paint a bone's weight on the mesh. The cord ends of
 a sling or the end of a staff cut at the fist are where things poke out: look at the hand from behind as well.
 
+**Shots.** `herotripo_review.py ... --only shots --shots "hand.R,Attack,0-24/6,30,12,0.7;forearm.R:0,Attack,19,300,10,0.6"
+--name elbows [--models SHIPPED.glb,NEW_hq.blend --labels before,after --cols n]`: the character alone (scenery hidden)
+framed on a bone (`bone:along`, or `body`) in chosen clip frames (`a-b/n`: n frames over a..b), one row per model: the
+audit close-ups and the before/after sheet.
+
 **Stretched edges.** `python3 stretch_check.py -- --hero <id> --model <out>/<id>.glb [--json J]` evaluates every frame
 of every clip and lists the edges more than 2x (`--ratio`) and more than 3 cm (`--abs`) longer than at rest, grouped
 by the dominant bones of their two ends (`chest|upperarm.L`: an armpit; `forearm.R|hand.R`: a wrist), with the worst

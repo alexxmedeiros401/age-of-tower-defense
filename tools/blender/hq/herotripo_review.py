@@ -3,6 +3,7 @@
     python3 herotripo_review.py -- --hero ugo --new OUT/ugo_hq.blend --out OUT [--res 512] [--samples 24]
                                    [--only turn,face,clips,cmp,close]
                                    [--az 32 --el 16 --frames Ability@8,Cheer@20 --name clips_back]   (other clip views)
+                                   [--only shots --shots "hand.R,Attack,0-24/6,30,12,0.7;..." --models A,B --name N]
 
 turn.png: front, three-quarter, back, side in the rest pose; face.png: three head close-ups; clips.png: frames across
 all five clips (cfg "review_frames" adds key frames, e.g. the attack frame and the ability's key frame); old_vs_new.png:
@@ -247,4 +248,40 @@ if "close" in ONLY:
             labels.append("%s: %s" % (nm, "rest" if act is None else "%s %d" % (act, fr)))
     if ps:
         sheet(ps, os.path.join(OUT, "closeups.png"), 6 if len(ps) > 8 else 4, labels)
+if "shots" in ONLY:
+    # --only shots --shots "bone[:along],Clip|rest,frame,az,el,ortho;..." [--models A,B --labels a,b --cols n --name N]
+    # (a frame "a-b/n" spreads n frames over a..b; bone "body": the hero's rest bbox middle). The character alone: the
+    # tower base, grass, flowers and torch are hidden (glows, Spin* and Bubble* on the rig stay). With several models
+    # each one is a row (before / after at the same frames).
+    shots = []
+    for spec in C.arg("--shots").split(";"):
+        bone, act, fr, az, el, o = spec.split(",")
+        if "/" in fr:
+            rg, n = fr.split("/")
+            f0, f1 = [int(x) for x in rg.split("-")]
+            n = int(n)
+            shots += [(bone, act, int(round(f0 + (f1 - f0) * i / max(n - 1, 1))), float(az), float(el), float(o)) for i in range(n)]
+        else:
+            shots.append((bone, act, int(fr), float(az), float(el), float(o)))
+    models = (C.arg("--models") or NEW).split(",")
+    mlabels = (C.arg("--labels") or ",".join("m%d" % i for i in range(len(models)))).split(",")
+    ps, labels = [], []
+    for mi, M in enumerate(models):
+        sc, arm = setup(M)
+        for ob in bpy.data.objects:
+            if ob.type == "MESH" and ob.name != INFO["mesh"] and not (ob.parent == arm and ob.name.startswith(("Glow", "Spin", "Bubble"))):
+                ob.hide_render = True
+        for k, (bone, act, fr, az, el, o) in enumerate(shots):
+            if bone == "body":
+                pose(arm, None, 0)
+                lo, hi = frame_box()
+                c = Vector(body_target(lo, hi))
+            pose(arm, None if act == "rest" else act, fr)
+            if bone != "body":
+                c = bone_world(arm, bone.split(":")[0], float(bone.split(":")[1]) if ":" in bone else 0.5)
+            camera(sc, c, az, el, o)
+            ps.append(shot(sc, os.path.join(OUT, "_s%d_%d.png" % (mi, k))))
+            labels.append("%s %s %s %d az%d" % (mlabels[mi], bone, act, fr, az))
+    cols = int(C.arg("--cols", "0")) or (len(shots) if len(models) > 1 else min(len(shots), 6))
+    sheet(ps, os.path.join(OUT, C.arg("--name", "shots") + ".png"), cols, labels)
 print("[review] done", OUT)
