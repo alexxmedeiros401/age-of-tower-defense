@@ -11,6 +11,7 @@ into the body).
 """
 import sys, os, pickle
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import math
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.linalg import spsolve
@@ -150,7 +151,7 @@ def main():
             tri = tri[:, ::-1]
         return Lp, allP[n:], tri, col, rmv
 
-    def bridge(l1, l2, faces_mask, vuv, rings_per_m=60.0):
+    def bridge(l1, l2, faces_mask, vuv, rings_per_m=60.0, waist=1.0, via=None):
         """A tube between two boundary loops of one piece (a staff cut in two where it went through a fist): rings
         lofted between the loops (each resampled by arc length; loop 2 reversed and turned to line up with loop 1),
         colours interpolated between the two rims."""
@@ -187,6 +188,12 @@ def main():
         for r in range(1, K):
             a = r / K
             X = at(P1, t1, q) * (1 - a) + at(P2, t2, q + off) * a
+            if waist != 1.0:                            # (prop "bridge_waist": the tube narrows to this share of
+                cx_ = X.mean(0)                         #  its radius in the middle, inside the fist)
+                X = cx_ + (X - cx_) * (1.0 - (1.0 - waist) * math.sin(math.pi * a))
+            if via is not None:                         # (with "bridge_at": the tube's middle bends through that
+                c0_ = P1.mean(0) * (1 - a) + P2.mean(0) * a   #  point, so it stays inside a curled fist)
+                X = X + (via - P1.mean(0) * 0.5 - P2.mean(0) * 0.5) * math.sin(math.pi * a)
             ring_idx.append(list(range(nb + len(inner) * M, nb + (len(inner) + 1) * M)))
             ring_par.append(q)
             inner.append(X)
@@ -253,7 +260,18 @@ def main():
             cs = [Pw[np.array(l)].mean(0) for l in lps]
             pairs = sorted((np.linalg.norm(cs[i] - cs[j]), i, j) for i in range(len(lps)) for j in range(i + 1, len(lps)))
             _, i, j = pairs[0]
-            r = bridge(lps[i], lps[j], mask, vuv)
+            if pc.get("bridge_at"):
+                # prop "bridge_at" [x, y, z] (load frame, off by default): bridge the two loops whose centres lie
+                # nearest this point (the fist), not the nearest pair of centres (the Cretan Archer's bow: the cut
+                # above the fist was bridged to the hole a dropped string left 15 cm away, and the cut below the fist
+                # was capped flat: a broken, hollow-looking end under the fist)
+                cg = C.to_game(np.array(cs), C.load_xf(W, fitted=False))
+                dd = np.linalg.norm(cg - np.array(pc["bridge_at"], float), axis=1)
+                i, j = sorted(np.argsort(dd)[:2].tolist())
+                print("[patch] %s: bridge_at loops centred at %s and %s" % (nm, cg[i].round(3).tolist(), cg[j].round(3).tolist()))
+                pairs[0] = (np.linalg.norm(cs[i] - cs[j]), i, j)
+            via_ = C.from_game(np.array([pc["bridge_at"]], float), C.load_xf(W, fitted=False))[0] if pc.get("bridge_via") and pc.get("bridge_at") else None
+            r = bridge(lps[i], lps[j], mask, vuv, waist=float(pc.get("bridge_waist", 1.0)), via=via_)
             res.append(r)
             print("[patch] %s: bridged loops %d and %d (gap %.3f): %d inner points, %d tris" % (nm, len(lps[i]), len(lps[j]), pairs[0][0] * xf_s, len(r[1]), len(r[2])))
             lps = [l for k_, l in enumerate(lps) if k_ not in (i, j)]
