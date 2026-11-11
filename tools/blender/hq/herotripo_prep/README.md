@@ -19,6 +19,7 @@ herotripo_prep/   (numpy steps, local, ~1-2 GB RAM)        ../herotripo_bake.py 
   check_glb.py  round trip of a GLB against the shipped one (Blender)
   zoom.py       close-ups of bones in chosen clip frames (Blender); wlook.py: bone weights painted (numpy)
   oldprop.py    props taken from the old hero's mesh (source: old), after patches.py and fit.py (Blender)
+  stretch_check.py  stretched edges (> 2x and > 3 cm vs rest), flipped faces and torn seams per clip frame, by bone pair (Blender)
   decode.mjs / package.json the meshopt decoder (runs on the runner)
 ```
 
@@ -124,6 +125,8 @@ model is `/home/claude/work/heroglb/plain/<id>.glb` (plain floats, decoded), its
 | `place.with_soles` | false | the prop moves down (or up) with the body's sole snap: a prop cut from the Tripo body that stays where it was (`"mode": "fit", "frame": "root"`) on a model whose soles move (the Orbital Uplink's flank doors: the snap moved the body 16 cm down and left the doors behind). `extra_bones` heads given as `"load:[...]"` always follow the snap |
 | `twist_bones` | off | `["R", "L"]` (or `true`): add `forearm_twist.<side>` bones and key them in every action (see below) |
 | `twist_at`, `twist_share`, `twist_from`, `twist_to` | 0.6, 0.5, 0.3, 0.85 | the twist bone's head (fraction of the forearm), its share of the hand's twist, the forearm stretch its weight ramps over |
+| `joint_helpers` | off | `[{"bone": "forearm.R", "share": 0.5, "smooth": 0, "from": [bones]}]` (rig): adds `<bone>_half.<side>` (e.g. `forearm_half.R`), a child of the bone's parent with the bone's rest, keyed in every action at `share` of the bone's turn; a vertex blended a/b between the parent side and the bone gives 2 min(a, b) to it (its blended turn unchanged). A hinge bent far keeps its volume instead of caving in (the Club Warrior's elbow at 150 deg in his Attack opened like a hollow tube; the Rock Slinger's shoulder tore at the back in his Throw). `from`: the bones counted as the parent side (a shoulder blended straight from chest to upperarm: `["clavicle.R", "chest"]`); `smooth`: Laplacian passes over the joint's split first (a narrow, noisy blend widened). The Stone Age recipe: upper arms `from` clavicle + chest, `smooth` 20 (Ugo 40, + neck); forearms `smooth` 10. check_glb lists the bones as expected |
+| `fit_drop` | off | `[bones]` (rig): their fitted turn is left out of the rig (fit.json and the bake unchanged): a Tripo joint posed far from the old rest (the Tar Shaman's tar claw raised 63 deg on a forearm bent 53 deg) un-posed its blended wrist 25 cm apart, which stretched into a paddle in the clips; dropped, the hand bone stays straight and the raised claw rides it |
 
 **Shapes** (seeds, sinks, armour selections) are a list of boxes `[[x0,x1],[y0,y1],[z0,z1]]`, balls
 `{"ball": {"c": [x,y,z], "r": r}}`, capsules `{"seg": {"a": [x,y,z], "b": [x,y,z], "r": r}}` (a limb: the Cloaker's cape is
@@ -271,6 +274,20 @@ spawns its Scouts on death; game.gd doesn't take them from the model). push_bake
 --name back` renders any other view of chosen frames (the back, a crouch). For weights, run the rig with `--debug`
 (writes rig_debug.npz: the Tripo-pose mesh and its weights) and paint a bone's weight on the mesh. The cord ends of
 a sling or the end of a staff cut at the fist are where things poke out: look at the hand from behind as well.
+
+**Shots.** `herotripo_review.py ... --only shots --shots "hand.R,Attack,0-24/6,30,12,0.7;forearm.R:0,Attack,19,300,10,0.6"
+--name elbows [--models SHIPPED.glb,NEW_hq.blend --labels before,after --cols n]`: the character alone (scenery hidden)
+framed on a bone (`bone:along`, or `body`) in chosen clip frames (`a-b/n`: n frames over a..b), one row per model: the
+audit close-ups and the before/after sheet.
+
+**Stretched edges.** `python3 stretch_check.py -- --hero <id> --model <out>/<id>.glb [--json J]` evaluates every frame
+of every clip and lists the edges more than 2x (`--ratio`) and more than 3 cm (`--abs`) longer than at rest, grouped
+by the dominant bones of their two ends (`chest|upperarm.L`: an armpit; `forearm.R|hand.R`: a wrist), with the worst
+frame and where; vertices that share a rest position and drift more than 1 cm apart (`--gap`) are a torn seam.
+FLIPPED faces (posed normal against the rest normal turned by the face's blended bones, `--flip` -0.2; groups under
+`--flip_area` 4 cm2 dropped) are a limb collapsing through itself (a forearm turned inside out by a twisted hand) or a fold
+(a beard pressed into the chest): neither stretches an edge. Run it
+on the shipped GLB and on the fix: the same frames, the same numbers. It prints `STRETCH OK` when nothing is found.
 
 ## Quality bar (check every hero)
 Same face, sharp eyes; no floating armour (Vega's pauldron floated by his ear in the Ability: weight armour to the

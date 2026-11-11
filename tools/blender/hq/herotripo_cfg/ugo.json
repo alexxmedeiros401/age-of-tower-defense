@@ -154,5 +154,33 @@
    "Ability",
    24
   ]
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
  ]
 }

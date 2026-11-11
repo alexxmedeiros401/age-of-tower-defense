@@ -42,6 +42,13 @@ if not CFG.get("fit_pose", True):
     # kept, its bone turns dropped): nothing is un-posed, so a machine's fused parts don't crack apart at rest (the
     # Brute's forearms were turned 17 deg by the fit; un-posing them opened the elbows)
     FIT["rotvec"] = {}
+for b_ in CFG.get("fit_drop", []):
+    # cfg "fit_drop" (off by default): bones whose fitted turn the rig leaves out (rig stage: fit.json and the bake are
+    # unchanged). The Tar Shaman's Tripo tar hand is raised 63 deg on a forearm bent 53 deg: the wrist's blended
+    # vertices, un-posed through turns some 150 deg apart, landed 25 cm apart in the rest pose and the wrist stretched
+    # into a paddle whenever the clips moved the hand. With hand.L dropped the hand bone stays straight on the forearm
+    # and the raised claw rides it as it is.
+    FIT["rotvec"].pop(b_, None)
 REPORT = {}
 
 
@@ -1083,6 +1090,84 @@ def main():
             log("twist bone %s: %d verts share the forearm's weight with it" % (t_n, (mv_ > 0.01).sum()))
         W4 = top4(W4)
         arm.animation_data.action = None
+
+    # ---- joint helpers (cfg "joint_helpers", off by default): [{"bone": "forearm.R", "share": 0.5, "smooth": 0}]: a
+    # bone "<bone's name>_half" (e.g. forearm_half.R) is added, a child of the bone's parent with the bone's own rest
+    # (head on the joint), keyed in every action with `share` of the bone's turn (slerp). The joint's blended vertices
+    # move to it: a vertex with a on the parent and b on the bone gives 2 min(a, b) to the helper (so its blended turn
+    # is unchanged) and keeps |a - b| on the side it leans to. A hinge bent far (the Club Warrior's elbow, 150 deg in
+    # his Attack: the thick Tripo forearm folds into the biceps) keeps its volume instead of caving in to a point, the
+    # linear blend of two turns that far apart. "smooth": Laplacian passes over the joint's split first (a narrow blend
+    # made wider). "from": [bones] the parent side when it is not the parent alone (a shoulder whose Tripo deltoid blends
+    # from the chest straight to the upper arm: ["clavicle.R", "chest"]). check_glb reports the added bones (expected).
+    for jh in CFG.get("joint_helpers", []):
+        ch_n = jh["bone"]
+        pa_n = INFO["bones"][ch_n]["parent"]
+        if ch_n not in gn or pa_n not in gn:
+            log("joint helper %s: no weights on it or its parent, skipped" % ch_n)
+            continue
+        hn_ = jh.get("name") or (ch_n.replace(".", "_half.", 1) if "." in ch_n else ch_n + "_half")
+        jsh = float(jh.get("share", 0.5))
+        bpy.context.view_layer.objects.active = arm
+        for o_ in sc.objects:
+            o_.select_set(o_ == arm)
+        bpy.ops.object.mode_set(mode="EDIT")
+        ebs = arm.data.edit_bones
+        ce = ebs[ch_n]
+        nb_ = ebs.new(hn_)
+        nb_.head = ce.head.copy()
+        nb_.tail = ce.head + (ce.tail - ce.head) * 0.5
+        nb_.roll = ce.roll
+        nb_.parent = ebs[pa_n]
+        nb_.use_connect = False
+        nb_.use_deform = True
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bones = {b.name: b for b in arm.data.bones}
+        pb_c, pb_n = arm.pose.bones[ch_n], arm.pose.bones[hn_]
+        pb_n.rotation_mode = "QUATERNION"
+        arm.animation_data_create()
+        from mathutils import Quaternion
+        big = 0.0
+        for act in bpy.data.actions:
+            arm.animation_data.action = act
+            try:
+                arm.animation_data.action_slot = act.slots[0]
+            except Exception:
+                pass
+            for fr in range(int(round(act.frame_range[0])), int(round(act.frame_range[1])) + 1):
+                sc.frame_set(fr)
+                q_ = pb_c.matrix_basis.to_quaternion()
+                big = max(big, math.degrees(q_.angle))
+                pb_n.rotation_quaternion = Quaternion((1, 0, 0, 0)).slerp(q_, jsh)
+                pb_n.keyframe_insert("rotation_quaternion", frame=fr)
+        arm.animation_data.action = None
+        jps = [gn.index(b_) for b_ in jh.get("from", [pa_n]) if b_ in gn]   # ("from": the bones that count as the
+        jc = gn.index(ch_n)                                                  # parent side, e.g. a shoulder blended
+        W_par = W4[:, jps].copy()                                            # straight from chest to upperarm)
+        wp, wc = W_par.sum(1), W4[:, jc].copy()
+        ns_ = int(jh.get("smooth", 0))
+        if ns_:
+            tot_ = wp + wc
+            jm = tot_ > 0.5
+            r_ = np.where(tot_ > 0, wc / np.maximum(tot_, 1e-9), 0.0)
+            lm.calc_loop_triangles()                          # (the mesh as it is now: object props split off)
+            ja, jb = adjacency(np.array([t.vertices[:] for t in lm.loop_triangles]), len(lm.vertices), body)
+            deg_ = np.bincount(np.r_[ja, jb], minlength=len(body)).astype(float)
+            for _ in range(ns_):
+                acc_ = np.zeros(len(body))
+                np.add.at(acc_, ja, r_[jb])
+                np.add.at(acc_, jb, r_[ja])
+                r_[jm] = 0.5 * r_[jm] + 0.5 * (acc_ / np.maximum(deg_, 1))[jm]
+            wp, wc = np.where(jm, tot_ * (1 - r_), wp), np.where(jm, tot_ * r_, wc)
+        hh = 2 * np.minimum(wp, wc)
+        gn.append(hn_)
+        body_groups.append(len(gn) - 1)
+        W4 = np.c_[W4, hh]
+        W4[:, jps] = W_par * ((wp - hh / 2) / np.maximum(W_par.sum(1), 1e-9))[:, None]
+        W4[:, jc] = wc - hh / 2
+        W4 = top4(W4)
+        REPORT.setdefault("joint_helpers", {})[hn_] = dict(bone=ch_n, share=jsh, verts=int((hh > 0.01).sum()), max_turn=round(big))
+        log("joint helper %s: %s's turn x %.2f (up to %d deg), %d verts ride it" % (hn_, ch_n, jsh, big, (hh > 0.01).sum()))
 
     # ---- extra bones (cfg "extra_bones", off by default): [{"name", "parent", "copy", "head"}]: a new bone with the
     # orientation and length of bone `copy`, its head at `head` (armature space, rest; or "load:[x,y,z]" in the load
