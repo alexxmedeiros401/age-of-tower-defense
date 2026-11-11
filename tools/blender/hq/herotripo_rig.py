@@ -886,6 +886,13 @@ def main():
                 tt = tt * tt * (3 - 2 * tt)
                 kk = np.clip(wh + wf * tt, 0, 1)
                 rv = Rot.from_matrix(R).as_rotvec()
+                if pl.get("reverse_grip") and np.degrees(np.linalg.norm(rv)) > 90:
+                    # place "reverse_grip" (off by default): a fist is a tunnel, so it turns only onto the prop's
+                    # line (the short way: the grip's reversed direction) while the prop turns the long way and
+                    # leaves the fist by its other end (the new Knight holds his sword blade-down where the old
+                    # clips hold it blade-up: 143 deg of fist turn wrung his gauntlet; 37 deg does not)
+                    rv = Rot.from_matrix(rot_between(Bb - Aa, -(b - a))).as_rotvec()
+                    log("prop %s: reverse grip, the fist turns %.1f deg" % (p["name"], np.degrees(np.linalg.norm(rv))))
                 Xb = Prest[body]
                 mv_ = kk > 1e-4
                 Rk = Rot.from_rotvec(kk[mv_, None] * rv[None]).as_matrix()

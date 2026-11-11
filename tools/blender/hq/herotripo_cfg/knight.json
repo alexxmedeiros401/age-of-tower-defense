@@ -195,7 +195,8 @@
      ]
     ],
     "scale": "keep",
-    "hand_follow": true
+    "hand_follow": true,
+    "reverse_grip": true
    }
   },
   {
@@ -256,5 +257,89 @@
   "upperarm.R",
   "forearm.R"
  ],
- "orphan_nearest": true
+ "orphan_nearest": true,
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ],
+ "armour": [
+  {
+   "name": "pauldron_R",
+   "select": [
+    [
+     [
+      -0.64,
+      -0.3
+     ],
+     [
+      -0.32,
+      0.36
+     ],
+     [
+      1.15,
+      1.47
+     ]
+    ]
+   ],
+   "bones": {
+    "upperarm.R": 1.0
+   },
+   "fade": {
+    "bone": "clavicle.R",
+    "share": 0.4,
+    "len": 0.2
+   },
+   "seam_rings": 3
+  },
+  {
+   "name": "pauldron_L",
+   "select": [
+    [
+     [
+      0.3,
+      0.64
+     ],
+     [
+      -0.32,
+      0.36
+     ],
+     [
+      1.15,
+      1.47
+     ]
+    ]
+   ],
+   "bones": {
+    "upperarm.L": 1.0
+   },
+   "fade": {
+    "bone": "clavicle.L",
+    "share": 0.4,
+    "len": 0.2
+   },
+   "seam_rings": 3
+  }
+ ]
 }
