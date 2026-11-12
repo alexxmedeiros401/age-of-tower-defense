@@ -685,5 +685,10 @@
    },
    "seam_rings": 3
   }
- ]
+ ],
+ "glows": {
+  "GlowFirebox": {
+   "hide": true
+  }
+ }
 }
