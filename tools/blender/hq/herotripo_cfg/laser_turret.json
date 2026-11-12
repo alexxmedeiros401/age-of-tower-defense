@@ -1,134 +1,72 @@
 {
- "old": "/home/claude/age-of-tower-defense/assets/towers/laser_turret.glb",
+ "old": "assets/towers/laser_turret.glb",
  "clips": [
   "Idle",
   "Combat",
   "Attack"
  ],
- "tris": 20000,
- "yaw": 0,
+ "tris": 22000,
  "props": [
   {
    "name": "gun",
    "bone": "gun",
-   "keep": "all",
-   "bridge": true,
+   "keep": "largest",
    "region": [
     [
-     -0.5,
-     0.42
+     -1.5,
+     0.38
     ],
     [
      -1.1,
-     0.265
+     1.0
     ],
     [
-     0.76,
-     1.33
+     0.7,
+     1.75
     ]
    ],
    "seeds": [
     [
      [
-      -0.45,
-      0.37
+      -1.45,
+      0.3
      ],
      [
-      -1.05,
-      0.0
+      -1.0,
+      0.9
      ],
      [
-      0.8,
-      1.26
+      0.98,
+      1.7
      ]
-    ],
-    {
-     "box": [
-      [
-       -0.45,
-       0.37
-      ],
-      [
-       0.0,
-       0.255
-      ],
-      [
-       0.82,
-       1.3
-      ]
-     ]
-    },
-    {
-     "box": [
-      [
-       -0.45,
-       0.37
-      ],
-      [
-       0.0,
-       0.265
-      ],
-      [
-       0.77,
-       1.07
-      ]
-     ]
-    },
-    {
-     "ball": {
-      "c": [
-       -0.28,
-       0.22,
-       1.17
-      ],
-      "r": 0.11
-     },
-     "not": true
-    },
-    {
-     "ball": {
-      "c": [
-       0.25,
-       0.22,
-       1.17
-      ],
-      "r": 0.11
-     },
-     "not": true
-    }
+    ]
    ],
    "sinks": [
-    {
-     "ball": {
-      "c": [
-       -0.28,
-       0.22,
-       1.15
-      ],
-      "r": 0.085
-     }
-    },
-    {
-     "ball": {
-      "c": [
-       0.25,
-       0.22,
-       1.15
-      ],
-      "r": 0.085
-     }
-    },
     [
      [
-      -0.7,
-      0.7
+      -1.5,
+      0.4
      ],
      [
-      0.3,
-      1.3
+      -1.1,
+      1.0
      ],
      [
-      -0.05,
+      -0.1,
+      0.66
+     ]
+    ],
+    [
+     [
+      0.42,
+      1.0
+     ],
+     [
+      -1.1,
+      1.0
+     ],
+     [
+      -0.1,
       2.0
      ]
     ]
@@ -137,181 +75,138 @@
     "mode": "points",
     "from": [
      [
-      -0.043,
-      0.151,
-      1.125
+      -0.45,
+      0.0,
+      0.0
      ],
      [
-      -0.03,
-      -0.955,
-      1.0
+      -1.02,
+      -0.82,
+      0.0
      ]
     ],
     "to": [
      [
       0.0,
-      -0.43,
-      1.03
+      -0.87,
+      0.0
      ],
      [
       0.0,
-      -1.545,
-      1.08
+      -1.87,
+      0.0
      ]
     ],
-    "scale": "match"
+    "scale": 0.94
    }
   },
   {
    "name": "mount",
    "bone": "mount",
-   "keep": "all",
+   "keep": "largest",
    "region": [
     [
-     -0.5,
-     0.42
+     -1.5,
+     0.38
     ],
     [
-     -0.6,
-     0.32
+     -1.1,
+     1.0
     ],
     [
-     -0.05,
-     0.86
+     -0.1,
+     1.75
     ]
    ],
    "seeds": [
     [
      [
-      -0.44,
-      0.35
+      -1.2,
+      0.3
      ],
      [
-      -0.55,
-      0.28
+      -0.7,
+      0.7
      ],
      [
-      0.0,
-      0.72
+      -0.05,
+      0.55
      ]
     ]
    ],
    "sinks": [
     [
      [
-      -0.7,
-      0.7
+      0.42,
+      1.0
      ],
      [
-      0.3,
-      1.3
+      -0.6,
+      0.6
      ],
      [
-      -0.05,
+      -0.1,
       2.0
      ]
     ]
    ],
    "place": {
-    "like": "gun"
-   }
-  },
-  {
-   "name": "gun_bits",
-   "bone": "gun",
-   "mode": "pieces",
-   "seeds": [
-    [
+    "mode": "points",
+    "from": [
      [
-      -0.25,
-      0.16
+      -0.45,
+      0.0,
+      0.0
      ],
      [
-      -1.05,
-      -0.42
-     ],
-     [
-      0.67,
-      0.81
+      -1.02,
+      -0.82,
+      0.0
      ]
-    ]
-   ],
-   "place": {
-    "like": "gun"
+    ],
+    "to": [
+     [
+      0.0,
+      -0.87,
+      0.0
+     ],
+     [
+      0.0,
+      -1.87,
+      0.0
+     ]
+    ],
+    "scale": 0.94
    }
-  },
-  {
-   "name": "vent",
-   "bone": "vent",
-   "source": "old",
-   "place": "fit"
   }
  ],
- "fit_aim": {
-  "upperarm.R": [
-   -0.37,
-   0.5,
-   1.18
-  ],
-  "forearm.R": [
-   -0.29,
-   0.24,
-   1.15
-  ],
-  "upperarm.L": [
-   0.3,
-   0.5,
-   1.18
-  ],
-  "forearm.L": [
-   0.24,
-   0.24,
-   1.15
-  ]
- },
  "fit_fixed": [
-  "hand.R",
-  "hand.L",
   "neck",
   "head"
  ],
- "cmp_frames": [
-  [
-   "Combat",
-   10
-  ],
-  [
-   "Attack",
-   2
-  ]
+ "orphan_nearest": true,
+ "twist_bones": [
+  "R",
+  "L"
  ],
- "closeup_frames": {
-  "gun": [
-   [
-    "Idle",
-    30
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
    ],
-   [
-    "Combat",
-    10
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
    ],
-   [
-    "Attack",
-    2
-   ]
-  ]
- },
- "fit_hold": [
-  "upperarm.R",
-  "forearm.R",
-  "upperarm.L",
-  "forearm.L"
+   "smooth": 20
+  }
  ],
- "fit_recentre": true,
- "drop_stretched": {
-  "ratio": 3.0,
-  "min": 0.08
- },
  "glows": {
   "GlowCoil": {
    "hide": true
@@ -319,7 +214,16 @@
   "GlowCrest": {
    "hide": true
   },
+  "GlowHolo": {
+   "hide": true
+  },
   "GlowLens": {
+   "hide": true
+  },
+  "GlowLights": {
+   "hide": true
+  },
+  "GlowRim": {
    "hide": true
   },
   "GlowStrips": {
@@ -328,5 +232,51 @@
   "GlowTrim": {
    "hide": true
   }
+ },
+ "emissive": [
+  {
+   "name": "violet",
+   "strength": 2.0,
+   "parts": [
+    "body",
+    "gun",
+    "mount"
+   ],
+   "select": [
+    [
+     [
+      -2,
+      2
+     ],
+     [
+      -2,
+      2
+     ],
+     [
+      -1,
+      3
+     ]
+    ]
+   ],
+   "hue": [
+    265,
+    310
+   ],
+   "sat_min": 0.45,
+   "val_min": 0.55
+  }
+ ],
+ "fit_recentre": true,
+ "closeup_frames": {
+  "gun": [
+   [
+    "Idle",
+    30
+   ],
+   [
+    "Attack",
+    6
+   ]
+  ]
  }
 }
