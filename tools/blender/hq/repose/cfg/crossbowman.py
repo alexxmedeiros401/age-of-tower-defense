@@ -8,5 +8,9 @@ from mathutils import Vector as V
 import follow as FW
 PRE = FW.pre(('R', 'L'))
 AXIS = FW.AXIS; AXIS2 = FW.AXIS2
-OFF = V((0.0, -0.06, -0.18))
+OFF = V((-0.05, -0.09, -0.21))   # pass 2 (p2H): was (0, -0.06, -0.18); 5 cm out at his right, 3 cm forward, 3 cm lower
 CLIPS = {c: {'L': FW.track(c, 'L', OFF), 'R': FW.track(c, 'R', OFF, {'aim': 0.3})} for c in ('Combat', 'Attack')}
+
+# Pass 2 (p2H): at a few reload frames the trigger forearm still reached the kettle-hat brim / beard (Attack 4: 12 cm into
+# the head volume) and the right hand pressed into the gambeson while the stock was tucked (Combat: 14 cm). The aim/reload
+# is now carried 5 cm further out at his right, 3 cm more forward and 3 cm lower (Attack head 2 cm, Combat torso 1 cm).
