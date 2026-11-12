@@ -1,0 +1,663 @@
+{
+ "mesh": "Zero",
+ "mesh_data": "Zero",
+ "material": "ZeroMat",
+ "armature": "CavemanRig",
+ "prop_bones": [
+  "fingers.L",
+  "barrel",
+  "flare",
+  "eye",
+  "smile"
+ ],
+ "bones": {
+  "root": {
+   "head": [
+    0.0,
+    0.029999999329447746,
+    0.9599999785423279
+   ],
+   "tail": [
+    0.0,
+    0.030000008642673492,
+    1.217293620109558
+   ],
+   "parent": null
+  },
+  "spine": {
+   "head": [
+    0.0,
+    0.029999999329447746,
+    0.9599999785423279
+   ],
+   "tail": [
+    0.0,
+    0.030000006780028343,
+    1.1599998474121094
+   ],
+   "parent": "root"
+  },
+  "chest": {
+   "head": [
+    4.453496478151362e-16,
+    0.030000006780028343,
+    1.1599998474121094
+   ],
+   "tail": [
+    3.2484909961240415e-15,
+    0.04905150085687637,
+    1.5791335105895996
+   ],
+   "parent": "spine"
+  },
+  "clavicle.L": {
+   "head": [
+    0.07000000029802322,
+    0.059999980032444,
+    1.5999997854232788
+   ],
+   "tail": [
+    0.5999999642372131,
+    0.05999993532896042,
+    1.5999997854232788
+   ],
+   "parent": "chest"
+  },
+  "upperarm.L": {
+   "head": [
+    0.5999999642372131,
+    0.05999990552663803,
+    1.5999995470046997
+   ],
+   "tail": [
+    0.7599999904632568,
+    0.12999996542930603,
+    1.1799992322921753
+   ],
+   "parent": "clavicle.L"
+  },
+  "forearm.L": {
+   "head": [
+    0.7599998712539673,
+    0.12999998033046722,
+    1.1799992322921753
+   ],
+   "tail": [
+    0.8199998140335083,
+    0.04000004380941391,
+    0.7799996137619019
+   ],
+   "parent": "upperarm.L"
+  },
+  "hand.L": {
+   "head": [
+    0.8199998736381531,
+    0.040000058710575104,
+    0.7799996733665466
+   ],
+   "tail": [
+    0.8476637005805969,
+    -0.0014957040548324585,
+    0.5955740809440613
+   ],
+   "parent": "forearm.L"
+  },
+  "fingers.L": {
+   "head": [
+    0.8673008680343628,
+    -0.0006320333341136575,
+    0.5994127988815308
+   ],
+   "tail": [
+    0.8949647545814514,
+    -0.04212779551744461,
+    0.4149872064590454
+   ],
+   "parent": "hand.L"
+  },
+  "clavicle.R": {
+   "head": [
+    -0.07000000029802322,
+    0.05999995395541191,
+    1.5999997854232788
+   ],
+   "tail": [
+    -0.5999999642372131,
+    0.059999994933605194,
+    1.5999997854232788
+   ],
+   "parent": "chest"
+  },
+  "upperarm.R": {
+   "head": [
+    -0.5999999642372131,
+    0.059999965131282806,
+    1.5999995470046997
+   ],
+   "tail": [
+    -0.7599999308586121,
+    0.1300000548362732,
+    1.1799992322921753
+   ],
+   "parent": "clavicle.R"
+  },
+  "forearm.R": {
+   "head": [
+    -0.7599998712539673,
+    0.1300000548362732,
+    1.1799992322921753
+   ],
+   "tail": [
+    -0.8199998140335083,
+    0.040000125765800476,
+    0.7799996137619019
+   ],
+   "parent": "upperarm.R"
+  },
+  "hand.R": {
+   "head": [
+    -0.8199998736381531,
+    0.04000013321638107,
+    0.7799996733665466
+   ],
+   "tail": [
+    -0.8272398710250854,
+    0.029140179976820946,
+    0.7317332029342651
+   ],
+   "parent": "forearm.R"
+  },
+  "barrel": {
+   "head": [
+    -0.8272396922111511,
+    0.029140176251530647,
+    0.7317332029342651
+   ],
+   "tail": [
+    -0.8344796895980835,
+    0.01828022301197052,
+    0.6834667325019836
+   ],
+   "parent": "hand.R"
+  },
+  "flare": {
+   "head": [
+    -2.3267382486848176e-13,
+    -0.327261745929718,
+    1.3799996376037598
+   ],
+   "tail": [
+    -1.914452347736087e-13,
+    -0.7429038286209106,
+    1.322749137878418
+   ],
+   "parent": "chest"
+  },
+  "neck": {
+   "head": [
+    3.5063608595531934e-15,
+    2.607703031287656e-08,
+    1.6200001239776611
+   ],
+   "tail": [
+    4.686471513865118e-15,
+    -0.06999997049570084,
+    1.8000000715255737
+   ],
+   "parent": "chest"
+  },
+  "head": {
+   "head": [
+    4.1017909283968396e-15,
+    -0.07000000774860382,
+    1.7999999523162842
+   ],
+   "tail": [
+    -4.085161977576343e-15,
+    -0.10052060335874557,
+    2.07468581199646
+   ],
+   "parent": "neck"
+  },
+  "eye": {
+   "head": [
+    -1.8639133646085066e-15,
+    -0.2803584337234497,
+    1.9792572259902954
+   ],
+   "tail": [
+    -5.510027926546729e-14,
+    -0.5532635450363159,
+    2.0229222774505615
+   ],
+   "parent": "head"
+  },
+  "smile": {
+   "head": [
+    -1.8639133646085066e-15,
+    -0.2803584337234497,
+    1.9792572259902954
+   ],
+   "tail": [
+    -5.510027926546729e-14,
+    -0.5532635450363159,
+    2.0229222774505615
+   ],
+   "parent": "head"
+  },
+  "thigh.L": {
+   "head": [
+    0.2499999850988388,
+    0.040000006556510925,
+    0.8999999165534973
+   ],
+   "tail": [
+    0.28000012040138245,
+    -0.039999812841415405,
+    0.529999852180481
+   ],
+   "parent": "root"
+  },
+  "shin.L": {
+   "head": [
+    0.28000015020370483,
+    -0.039999820291996,
+    0.529999852180481
+   ],
+   "tail": [
+    0.29000046849250793,
+    0.0400007963180542,
+    0.17999961972236633
+   ],
+   "parent": "thigh.L"
+  },
+  "foot.L": {
+   "head": [
+    0.29000043869018555,
+    0.04000081866979599,
+    0.17999956011772156
+   ],
+   "tail": [
+    0.29986339807510376,
+    -0.295352578163147,
+    0.051776736974716187
+   ],
+   "parent": "shin.L"
+  },
+  "thigh.R": {
+   "head": [
+    -0.2499999850988388,
+    0.040000006556510925,
+    0.8999999165534973
+   ],
+   "tail": [
+    -0.28000012040138245,
+    -0.039999812841415405,
+    0.529999852180481
+   ],
+   "parent": "root"
+  },
+  "shin.R": {
+   "head": [
+    -0.28000015020370483,
+    -0.039999820291996,
+    0.529999852180481
+   ],
+   "tail": [
+    -0.29000046849250793,
+    0.0400007963180542,
+    0.17999961972236633
+   ],
+   "parent": "thigh.R"
+  },
+  "foot.R": {
+   "head": [
+    -0.29000043869018555,
+    0.04000081866979599,
+    0.17999956011772156
+   ],
+   "tail": [
+    -0.29986339807510376,
+    -0.295352578163147,
+    0.051776736974716187
+   ],
+   "parent": "shin.R"
+  }
+ },
+ "actions": {
+  "Ability": [
+   0.0,
+   72.0
+  ],
+  "Attack": [
+   0.0,
+   32.0
+  ],
+  "Cheer": [
+   0.0,
+   48.0
+  ],
+  "Combat": [
+   0.0,
+   40.0
+  ],
+  "Idle": [
+   0.0,
+   96.0
+  ]
+ },
+ "objects": {
+  "Base": {
+   "type": "MESH",
+   "parent": "HeroZeroHQ",
+   "groups": [],
+   "tris": 13298
+  },
+  "CavemanRig": {
+   "type": "ARMATURE",
+   "parent": "Yaw",
+   "groups": [],
+   "tris": 0
+  },
+  "GlowBore": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 80
+  },
+  "GlowCore": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 160
+  },
+  "GlowEye": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 300
+  },
+  "GlowFlare": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 160
+  },
+  "GlowGlowmarks": {
+   "type": "MESH",
+   "parent": "HeroZeroHQ",
+   "groups": [],
+   "tris": 300
+  },
+  "GlowMouth": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 120
+  },
+  "GlowSmile": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 160
+  },
+  "GlowSpark": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 60
+  },
+  "GrassBlades": {
+   "type": "EMPTY",
+   "parent": "HeroZeroHQ",
+   "groups": [],
+   "tris": 0
+  },
+  "HeroZeroHQ": {
+   "type": "EMPTY",
+   "parent": null,
+   "groups": [],
+   "tris": 0
+  },
+  "Yaw": {
+   "type": "EMPTY",
+   "parent": "HeroZeroHQ",
+   "groups": [],
+   "tris": 0
+  },
+  "Zero": {
+   "type": "MESH",
+   "parent": "CavemanRig",
+   "groups": [
+    "root",
+    "spine",
+    "chest",
+    "clavicle.L",
+    "upperarm.L",
+    "forearm.L",
+    "hand.L",
+    "fingers.L",
+    "clavicle.R",
+    "upperarm.R",
+    "forearm.R",
+    "hand.R",
+    "barrel",
+    "flare",
+    "neck",
+    "head",
+    "eye",
+    "smile",
+    "thigh.L",
+    "shin.L",
+    "foot.L",
+    "thigh.R",
+    "shin.R",
+    "foot.R"
+   ],
+   "tris": 23859
+  }
+ },
+ "scene_fps": 24,
+ "yaw_node": "Yaw",
+ "arm_world": [
+  [
+   1.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   1.0,
+   0.0,
+   0.0
+  ],
+  [
+   0.0,
+   0.0,
+   1.0,
+   0.18000000715255737
+  ],
+  [
+   0.0,
+   0.0,
+   0.0,
+   1.0
+  ]
+ ]
+}
