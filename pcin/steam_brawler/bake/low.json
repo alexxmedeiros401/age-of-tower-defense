@@ -1,0 +1,1 @@
+{"names": ["body", "gauntlet_L", "gauntlet_R", "gauntlet_L_bits", "gauntlet_R_bits", "wrist_L_inner", "wrist_R_inner", "cuff_L_inner"], "targets": {"gauntlet_L": 2500, "gauntlet_R": 2500, "gauntlet_L_bits": 250, "gauntlet_R_bits": 250, "body": 14500}, "xf": {"yaw": 270.0, "s": 1.9544336463284888, "t": [-0.005415434359554855, 0.04643397977673064, 0.9570681699099368]}}
