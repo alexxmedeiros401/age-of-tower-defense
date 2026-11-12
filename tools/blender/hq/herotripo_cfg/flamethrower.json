@@ -121,7 +121,8 @@
      0.3,
      0.75
     ],
-    "hand_follow": true
+    "hand_follow": true,
+    "hand": "hand.R"
    }
   }
  ],
