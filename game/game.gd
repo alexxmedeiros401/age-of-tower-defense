@@ -5878,7 +5878,7 @@ func _musket_proj(root: Node3D, p: Dictionary, u) -> void:
 
 ## v0.9.78: the Digital Age's lasers: a violet bolt leaves the emitter lens in a violet flash (no smoke) and streaks to
 ## the robot; Nova's double tap adds a second, cosmetic bolt on her clip's frame 3.
-const LASER_TIPS := {"nova": Vector3(-0.138, 1.416, 1.102), "laser_turret": Vector3(0.000, 1.094, 0.945), "vega": Vector3(-0.211, 1.426, 1.373)}   # (v0.9.93: the Tripo Vega's plasma pistol, amber)
+const LASER_TIPS := {"nova": Vector3(-0.138, 1.416, 1.102), "laser_turret": Vector3(-0.114, 1.149, 1.337), "vega": Vector3(-0.211, 1.426, 1.373)}   # (v0.9.93: the Tripo Vega's plasma pistol, amber)
 const LASER_SECOND := {"nova": 2}                   # (frames after the first: her second shot)
 func _laser_proj(root: Node3D, p: Dictionary, u) -> void:
 	var amber := str(u.type) == "vega"
@@ -6131,7 +6131,7 @@ func _tick_stuck(fx: Dictionary, n: Node3D) -> void:
 # ---------------------------------------------------------------- Spear Guard (v0.9.22)
 # At full reach (THRUST in tools/blender/hq/anim_spear.py) a narrow golden lance of light flies on from the spear's point
 # to every robot the thrust hit, strikes sparks off it and jolts it back; a robot it destroys blows up when it lands.
-const GUARD_TIP := Vector3(-0.25, 1.272, 1.841)    # the spear's point at full reach (model units, Godot axes, Yaw node)
+const GUARD_TIP := Vector3(-0.449, 1.642, 1.864)    # the spear's point at full reach (model units, Godot axes, Yaw node)
 const BRENNA_TIP := Vector3(-0.219, 1.222, 1.667)      # Brenna's spear point at full reach (anim_brenna.THRUST; measured)
 const LEGION_TIP := Vector3(-0.254, 1.125, 1.119)  # the Legionary's gladius point at full reach (anim_legionary.STAB)
 const CASSIA_TIP := Vector3(-0.235, 1.112, 1.390)  # Cassia's gladius point at full reach (anim_cassia.THRUST; measured)
