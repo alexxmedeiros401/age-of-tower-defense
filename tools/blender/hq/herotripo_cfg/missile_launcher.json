@@ -442,5 +442,36 @@
    -0.694,
    -0.217
   ]
- }
+ },
+ "orphan_nearest": true,
+ "twist_bones": [
+  "R",
+  "L"
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest"
+   ],
+   "smooth": 20
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ]
 }
