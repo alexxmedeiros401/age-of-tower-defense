@@ -15,9 +15,9 @@ READY_L = V((0.36, -0.24, 1.16))
 ATK_R = [
     (0,  READY_R,                  {'dir': SPEAR, 'pole': EL_UP}),
     (3,  V((-0.54, 0.02, 1.46)),   {'dir': V((0.12, -0.98, -0.06)), 'pole': EL_UP}),   # draw back
-    (6,  V((-0.47, -0.40, 1.38)),  {'dir': V((0.18, -0.98, 0.02)), 'pole': EL_TH}),   # thrust (level), in front of the right shoulder
-    (12, V((-0.47, -0.39, 1.38)),  {'dir': V((0.18, -0.98, 0.02)), 'pole': EL_TH}),
-    (20, V((-0.52, -0.22, 1.41)),  {'dir': V((0.15, -0.98, -0.05)), 'pole': EL_UP}),
+    (6,  V((-0.47, -0.40, 1.38)),  {'dir': V((0.18, -0.98, 0.02)), 'pole': EL_TH, 'aim': 0.8}),   # thrust (level), in front of the right shoulder
+    (12, V((-0.47, -0.39, 1.38)),  {'dir': V((0.18, -0.98, 0.02)), 'pole': EL_TH, 'aim': 0.8}),
+    (20, V((-0.52, -0.22, 1.41)),  {'dir': V((0.15, -0.98, -0.05)), 'pole': EL_UP, 'aim': 0.85}),
     (30, READY_R,                  {'dir': SPEAR, 'pole': EL_UP}),
 ]
 ATK_L = [
@@ -36,3 +36,7 @@ CLIPS = {
     'Combat': {'R': loop(READY_R, (0.01, 0.015), 40, {'dir': SPEAR, 'pole': EL_UP}), 'L': loop(READY_L, (0.0, 0.012), 40, SH, 0.8)},
 }
 WFIT = 0.4
+
+# Pass 2 (p2H): the thrust held the spear exactly level with the wrist bent 74-78 deg for frames 5-23 (above the ~65 deg
+# guideline). The thrust keys now aim the spear at 0.8 (the recovery at 0.85): the wrist eases toward straight and the
+# spear tilts ~15 deg up through the thrust; wrist <= 66 deg.
