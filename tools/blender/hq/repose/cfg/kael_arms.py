@@ -12,15 +12,15 @@ IDLE = V((-0.38, -0.05, 0.99)); IDLE_POLE = V((-0.80, 0.30, 1.10))
 
 CLIPS = {
     'Attack': {   # RELEASE 3, FRESH 14
-        'R': [(0, POISE, POISE_POLE), (3, V((-0.52, -0.20, 1.86)), V((-1.0, 0.0, 1.70))), (6, V((-0.48, -0.42, 1.45)), V((-0.95, -0.05, 1.35))),
-              (9, V((-0.42, -0.40, 1.22)), V((-0.90, 0.05, 1.15))), (12, V((-0.55, 0.15, 1.50)), V((-1.0, 0.30, 1.55))),
+        'R': [(0, POISE, POISE_POLE), (3, V((-0.62, 0.02, 1.80)), V((-1.0, 0.1, 1.70))), (6, V((-0.62, -0.20, 1.42)), V((-1.0, 0.05, 1.35))),
+              (9, V((-0.50, -0.30, 1.20)), V((-0.90, 0.05, 1.15))), (12, V((-0.55, 0.15, 1.50)), V((-1.0, 0.30, 1.55))),
               (15, CASE + V((0, -0.03, -0.10)), CASE_POLE), (18, CASE, CASE_POLE), (21, V((-0.50, 0.18, 1.72)), V((-1.0, 0.25, 1.65))),
               (24, POISE, POISE_POLE)],
         'hand_R': 'world', 'hand_smooth': 1.0,
     },
     'Ability': {   # Javelin Storm: the hurl straight up at frame ~15 (A_RELEASE), fresh javelin from the case 42-48
         'R': [(0, POISE, POISE_POLE), (6, V((-0.50, -0.10, 1.44)), POISE_POLE), (12, V((-0.48, -0.20, 1.40)), POISE_POLE),
-              (15, V((-0.50, -0.12, 2.00)), HIGH_POLE), (18, V((-0.48, -0.25, 1.75)), HIGH_POLE), (21, V((-0.40, -0.32, 1.53)), POISE_POLE),
+              (15, V((-0.58, 0.00, 2.00)), HIGH_POLE), (18, V((-0.62, -0.10, 1.72)), HIGH_POLE), (21, V((-0.52, -0.25, 1.50)), POISE_POLE),
               (27, V((-0.30, -0.32, 1.27)), V((-0.80, -0.05, 1.20))), (30, V((-0.30, -0.31, 1.17)), V((-0.80, -0.05, 1.15))),
               (36, V((-0.22, -0.35, 1.24)), V((-0.80, -0.05, 1.20))), (39, V((-0.45, -0.07, 1.48)), POISE_POLE),
               (42, CASE + V((0.02, -0.06, -0.18)), CASE_POLE), (45, CASE, CASE_POLE), (48, CASE + V((-0.02, -0.10, 0.03)), CASE_POLE),
@@ -40,3 +40,7 @@ CLIPS = {
         'hand_R': 'world', 'hand_smooth': 1.0, 'loop': True,
     },
 }
+
+# Pass 2 (p2H): with his chest turned hard into the throw, the release and follow-through (Attack 3-6, Ability 15-21)
+# still brought the fist in front of his mouth from the 315 view; they now come over and down further out at his right
+# and further back (chest-relative), beside the head.

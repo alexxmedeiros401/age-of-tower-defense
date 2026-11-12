@@ -1,0 +1,1 @@
+pistol_L:Ability:13-14:L;pistol_L:Ability:44-44:L;pistol_L:Ability:49-50:L;pistol_L:Cheer:10-10:L;pistol_L:Cheer:41-41:L

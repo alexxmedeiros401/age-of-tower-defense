@@ -464,11 +464,22 @@ def main():
         bm_.faces.ensure_lookup_table()
         fl_ = [bm_.faces[i] for i in np.nonzero(fp_ == k_up)[0]]
         vs_ = list({v for f in fl_ for v in f.verts})
-        ax_ = "xyz".index(CFG["props"][k_up - 1].get("turn_axis", "z"))   # (prop "turn_axis": "y" turns a door
-        zs_ = np.array([v.co[ax_] for v in vs_])                          # front to back instead: The Core's)
-        zc_ = 0.5 * (zs_.min() + zs_.max())
-        for v in vs_:
-            v.co[ax_] = 2 * zc_ - v.co[ax_]
+        if CFG["props"][k_up - 1].get("turn_axis") == "plane":
+            # ("turn_axis": "plane": mirrored across the piece's own best plane (through its middle, normal = its thinnest
+            # direction): a slanted slab keeps its slant and footprint, the Dreadnought's sloped hangar doors)
+            X_ = np.array([v.co[:] for v in vs_])
+            c_ = 0.5 * (X_.min(0) + X_.max(0))
+            n_ = np.linalg.svd(X_ - X_.mean(0), full_matrices=False)[2][2]
+            for v in vs_:
+                d_ = float((np.array(v.co[:]) - c_) @ n_)
+                v.co = (np.array(v.co[:]) - 2 * d_ * n_).tolist()
+            zc_ = float(c_[2])
+        else:
+            ax_ = "xyz".index(CFG["props"][k_up - 1].get("turn_axis", "z"))   # (prop "turn_axis": "y" turns a door
+            zs_ = np.array([v.co[ax_] for v in vs_])                          # front to back instead: The Core's)
+            zc_ = 0.5 * (zs_.min() + zs_.max())
+            for v in vs_:
+                v.co[ax_] = 2 * zc_ - v.co[ax_]
         bmesh.ops.reverse_faces(bm_, faces=fl_, flip_multires=False)
         bm_.to_mesh(lm)
         bm_.free()
@@ -1250,6 +1261,9 @@ def main():
                 if float(xb.get("share", 1.0)) != 1.0:   # "share" (default 1): only this fraction of the turn (slerp)
                     q_ = Quaternion((1, 0, 0, 0)).slerp(q_, float(xb["share"]))
                 pb_n.rotation_quaternion = q_
+                if xb.get("scale"):                      # "scale": true: also key copy's own scale (a part that
+                    pb_n.scale = pb_s.scale.copy()       # pulses or swells about its own centre)
+                    pb_n.keyframe_insert("scale", frame=fr)
                 pb_n.keyframe_insert("rotation_quaternion", frame=fr)
         arm.animation_data.action = None
         REPORT.setdefault("extra_bones", []).append(xb["name"])

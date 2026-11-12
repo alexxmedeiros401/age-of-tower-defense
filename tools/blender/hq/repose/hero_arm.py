@@ -199,6 +199,19 @@ for clip, spec in C.CLIPS.items():
                 acc += Vector(q[:]) * k; ws += k
             out_[f] = Quaternion(acc / ws).normalized().to_matrix()
         HW[s] = out_
+    # 'hand_slerp_<side>': [(f0, f1), ...]: inside each span the 'world' hand turns the short way from its frame-f0 to its
+    # frame-f1 orientation (smoothstep), replacing a shipped fist that spins/flips through a big wrist bend (Marco's
+    # fresh-grenade grab: 125 -> -128 deg of hand twist in one frame, the cuff crumpled)
+    for s in sides:
+        spans = spec.get('hand_slerp_' + s)
+        if not spans: continue
+        if s not in HW: HW[s] = {f: r3(orig[f]['hand_w'][s]) for f in frames}
+        for fa, fb in spans:
+            qa = HW[s][fa].to_quaternion(); qb = HW[s][fb].to_quaternion()
+            if qa.dot(qb) < 0: qb.negate()
+            for f in range(fa + 1, fb):
+                t = (f - fa) / (fb - fa); t = t * t * (3 - 2 * t)
+                HW[s][f] = qa.slerp(qb, t).to_matrix()
     for pass_ in (0, 1):
         rows = []
         prev = {s: dict(psi=0.0, tw=None, q={}) for s in sides}

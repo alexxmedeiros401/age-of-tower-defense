@@ -368,5 +368,83 @@
    "Ability",
    46
   ]
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
+  }
+ ],
+ "armour": [
+  {
+   "name": "pauldron_L",
+   "select": [
+    [
+     [
+      0.45,
+      0.96
+     ],
+     [
+      -0.24,
+      0.36
+     ],
+     [
+      1.7,
+      2.12
+     ]
+    ]
+   ],
+   "bones": {
+    "upperarm.L": 0.5,
+    "clavicle.L": 0.5
+   },
+   "seam_rings": 2
+  },
+  {
+   "name": "pauldron_R",
+   "select": [
+    [
+     [
+      -0.96,
+      -0.45
+     ],
+     [
+      -0.24,
+      0.36
+     ],
+     [
+      1.7,
+      2.12
+     ]
+    ]
+   ],
+   "bones": {
+    "upperarm.R": 0.5,
+    "clavicle.R": 0.5
+   },
+   "seam_rings": 2
+  }
  ]
 }
