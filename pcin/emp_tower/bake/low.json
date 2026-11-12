@@ -1,0 +1,1 @@
+{"names": ["body", "t_console", "mast", "generator", "generator_bits", "mast_bits", "button", "guard", "console"], "targets": {"mast": 2500, "generator": 2500, "mast_bits": 250, "button": 250, "guard": 250, "console": 250, "body": 14000}, "xf": {"yaw": 332.0, "s": 3.0457869558074635, "t": [-0.7987825116793303, -0.7057914679884276, 1.216917584435338]}}
