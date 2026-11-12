@@ -1,0 +1,1 @@
+{"names": ["body", "t_cable", "t_lever", "coil", "console", "console_bits", "switch", "wires"], "targets": {"coil": 2500, "console": 2500, "console_bits": 318, "switch": 250, "wires": 250, "body": 14182}, "xf": {"yaw": 270.0, "s": 2.425452514686278, "t": [0.12146334762087588, -0.039622475084328763, 1.1252831410187576]}}
