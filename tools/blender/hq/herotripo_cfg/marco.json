@@ -373,17 +373,19 @@
    "bone": "upperarm.R",
    "from": [
     "clavicle.R",
-    "chest"
+    "chest",
+    "neck"
    ],
-   "smooth": 20
+   "smooth": 40
   },
   {
    "bone": "upperarm.L",
    "from": [
     "clavicle.L",
-    "chest"
+    "chest",
+    "neck"
    ],
-   "smooth": 20
+   "smooth": 40
   },
   {
    "bone": "forearm.R",
@@ -391,6 +393,14 @@
   },
   {
    "bone": "forearm.L",
+   "smooth": 10
+  },
+  {
+   "bone": "shin.R",
+   "smooth": 10
+  },
+  {
+   "bone": "shin.L",
    "smooth": 10
   }
  ]
