@@ -596,5 +596,43 @@
    "bone": "forearm.L",
    "smooth": 10
   }
+ ],
+ "armour": [
+  {
+   "name": "belt_disc",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.378,
+       -0.099,
+       0.943
+      ],
+      "r": 0.07
+     }
+    }
+   ],
+   "bones": {
+    "spine": 1.0
+   }
+  },
+  {
+   "name": "pack_top_L",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.398,
+       0.476,
+       1.789
+      ],
+      "r": 0.13
+     }
+    }
+   ],
+   "bones": {
+    "chest": 1.0
+   }
+  }
  ]
 }
