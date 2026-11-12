@@ -468,6 +468,105 @@
    "place": {
     "like": "gauntlet_R"
    }
+  },
+  {
+   "name": "wrist_L_inner",
+   "bone": "forearm.L",
+   "drop": true,
+   "keep": "all",
+   "region": [
+    [
+     0.31,
+     0.43
+    ],
+    [
+     -0.22,
+     0.02
+    ],
+    [
+     0.56,
+     0.85
+    ]
+   ],
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.367,
+       -0.102,
+       0.702
+      ],
+      "r": 0.05
+     }
+    }
+   ],
+   "sinks": []
+  },
+  {
+   "name": "wrist_R_inner",
+   "bone": "forearm.R",
+   "drop": true,
+   "keep": "all",
+   "region": [
+    [
+     -0.42,
+     -0.37
+    ],
+    [
+     -0.14,
+     -0.07
+    ],
+    [
+     0.68,
+     0.75
+    ]
+   ],
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       -0.391,
+       -0.105,
+       0.712
+      ],
+      "r": 0.03
+     }
+    }
+   ],
+   "sinks": []
+  },
+  {
+   "name": "cuff_L_inner",
+   "bone": "forearm.L",
+   "drop": true,
+   "keep": "all",
+   "region": [
+    [
+     0.46,
+     0.51
+    ],
+    [
+     0.0,
+     0.05
+    ],
+    [
+     0.95,
+     1.02
+    ]
+   ],
+   "seeds": [
+    {
+     "ball": {
+      "c": [
+       0.485,
+       0.02,
+       0.985
+      ],
+      "r": 0.02
+     }
+    }
+   ],
+   "sinks": []
   }
  ],
  "fit_fixed": [
@@ -564,6 +663,27 @@
     0.2,
     0.1
    ]
+  }
+ ],
+ "armour": [
+  {
+   "name": "pack_stack",
+   "select": [
+    {
+     "ball": {
+      "c": [
+       0.295,
+       0.692,
+       1.872
+      ],
+      "r": 0.14
+     }
+    }
+   ],
+   "bones": {
+    "chest": 1.0
+   },
+   "seam_rings": 3
   }
  ]
 }
