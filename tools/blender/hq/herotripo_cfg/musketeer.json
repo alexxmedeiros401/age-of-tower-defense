@@ -890,14 +890,6 @@
     "chest"
    ],
    "smooth": 20
-  },
-  {
-   "bone": "forearm.R",
-   "smooth": 10
-  },
-  {
-   "bone": "forearm.L",
-   "smooth": 10
   }
  ]
 }
