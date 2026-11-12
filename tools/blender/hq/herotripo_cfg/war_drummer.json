@@ -329,5 +329,9 @@
    "bone": "forearm.L",
    "smooth": 10
   }
+ ],
+ "twist_bones": [
+  "R",
+  "L"
  ]
 }
