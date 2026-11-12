@@ -1,0 +1,1 @@
+{"names": ["body", "barrel", "carriage", "barrel_bits", "carriage_bits", "props", "shell", "case"], "targets": {"barrel": 2500, "carriage": 2500, "barrel_bits": 250, "carriage_bits": 456, "props": 250, "shell": 250, "case": 250, "body": 13544}, "xf": {"yaw": 0.0, "s": 3.531826797454927, "t": [-0.6032494121231565, -1.1928587135567503, 1.3036254154739726]}}
