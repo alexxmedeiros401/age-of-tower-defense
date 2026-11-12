@@ -1324,5 +1324,56 @@
    "bone": "forearm.L",
    "smooth": 10
   }
+ ],
+ "limb_strip": [
+  {
+   "bones": [
+    "root",
+    "spine",
+    "thigh.L",
+    "chest"
+   ],
+   "fallback": "forearm.L",
+   "select": [
+    [
+     [
+      0.6,
+      0.84
+     ],
+     [
+      0.72,
+      1.14
+     ],
+     [
+      0.8,
+      1.12
+     ]
+    ]
+   ]
+  },
+  {
+   "bones": [
+    "forearm.L",
+    "hand.L",
+    "upperarm.L"
+   ],
+   "fallback": "root",
+   "select": [
+    [
+     [
+      0.36,
+      0.6
+     ],
+     [
+      0.68,
+      1.2
+     ],
+     [
+      0.52,
+      1.0
+     ]
+    ]
+   ]
+  }
  ]
 }
