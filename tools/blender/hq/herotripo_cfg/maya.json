@@ -357,5 +357,6 @@
    "bone": "forearm.L",
    "smooth": 10
   }
- ]
+ ],
+ "orphan_nearest": true
 }
