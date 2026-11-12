@@ -8100,7 +8100,7 @@ func _drone_heal(did: int, radius: float) -> void:
 # v0.9.61: the Gunpowder Age's lobbed shells. The Cannon (anim_cannon.py) fires on Attack frame 2: its ball leaves the
 # muzzle in a flash and a cloud of smoke and flies in a flatter arc than a catapult's; Marco (anim_marco.py) lobs his lit
 # grenade from his hand on frame 10. Both burst where they land (_shell_burst).
-const GUN_LOBS := {"cannon": [Vector3(0.280, 0.705, 0.950), 0.08, 0.5], "marco": [Vector3(-0.230, 1.858, 0.346), 0.42, 0.85],
+const GUN_LOBS := {"cannon": [Vector3(0.336, 0.897, 0.744), 0.08, 0.5], "marco": [Vector3(-0.230, 1.858, 0.346), 0.42, 0.85],
 	"field_gun": [Vector3(0.280, 0.889, 1.172), 0.08, 0.45],
 	"missile_launcher": [Vector3(0.322, 1.313, 0.630), 0.125, 0.75],
 	"plasma_mortar": [Vector3(0.323, 1.446, 0.655), 0.125, 1.0],
