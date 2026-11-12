@@ -702,6 +702,108 @@
     "hand.L": 1.0
    },
    "seam_rings": 2
+  },
+  {
+   "name": "cuff_R",
+   "select": [
+    {
+     "box": [
+      [
+       -0.88,
+       -0.5
+      ],
+      [
+       -0.25,
+       0.32
+      ],
+      [
+       0.78,
+       1.03
+      ]
+     ],
+     "col": {
+      "min": [
+       0.0,
+       0.0,
+       0.16
+      ],
+      "max": [
+       0.32,
+       0.38,
+       1.0
+      ]
+     }
+    }
+   ],
+   "bones": {
+    "forearm.R": 1.0
+   },
+   "seam_rings": 1
+  },
+  {
+   "name": "cuff_L",
+   "select": [
+    {
+     "box": [
+      [
+       0.5,
+       0.88
+      ],
+      [
+       -0.25,
+       0.32
+      ],
+      [
+       0.78,
+       1.03
+      ]
+     ],
+     "col": {
+      "min": [
+       0.0,
+       0.0,
+       0.16
+      ],
+      "max": [
+       0.32,
+       0.38,
+       1.0
+      ]
+     }
+    }
+   ],
+   "bones": {
+    "forearm.L": 1.0
+   },
+   "seam_rings": 1
+  }
+ ],
+ "joint_helpers": [
+  {
+   "bone": "upperarm.R",
+   "from": [
+    "clavicle.R",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "upperarm.L",
+   "from": [
+    "clavicle.L",
+    "chest",
+    "neck"
+   ],
+   "smooth": 40
+  },
+  {
+   "bone": "forearm.R",
+   "smooth": 10
+  },
+  {
+   "bone": "forearm.L",
+   "smooth": 10
   }
  ]
 }

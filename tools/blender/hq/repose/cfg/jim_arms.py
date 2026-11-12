@@ -41,3 +41,27 @@ AB = [(0, (-0.10, -0.38, 1.12), (-0.09, -0.26, 1.38), Z), (9, (-0.10, -0.39, 1.0
 CLIPS = {
     'Ability': {'R': both(AB, 'R'), 'L': both(AB, 'L'), 'hand_R': 'world', 'hand_L': 'world', 'hand_smooth': 1.0},
 }
+
+# Pass 2 (p2H): a new carry stance. In Combat (and where Attack, Ability and Cheer start and end in it) his left hand
+# held the handle up at his chin, the fist 5-7 cm into his beard. It now slides 13 cm down the handle toward the right
+# fist (the handle line, chest-relative), so the left fist rides at his chest below the beard; the maul, the right fist
+# and the swing are unchanged. Cheer: on the way up and down (3-6, 42-45) the raised maul crossed his face from the
+# front-right, and the Attack's wind-up (1-6) brought the left forearm across his mouth: both fists go up 11 cm further out at his right and 3 cm further forward (the left arm is at full reach there).
+SLIDE = V((0.0, -0.055, -0.118))          # 13 cm down the handle (left wrist -> right wrist direction in Combat)
+def _ease(f, pts): return V(SLIDE) * ramp(f, pts)
+OUT = V((-0.11, -0.03, 0.0))
+def _cheer_out(f): return OUT * ramp(f, [(1, 0.0), (4, 1.0), (6, 1.0), (9, 0.0)]) if f < 20 else OUT * ramp(f, [(39, 0.0), (42, 1.0), (44, 1.0), (47, 0.0)])
+CLIPS['Combat'] = {'L': {'offset': lambda f: V(SLIDE)}, 'hand_L': 'world', 'loop': True}
+OUT2 = V((-0.12, -0.05, -0.12))
+def _atk_out(f): return OUT2 * ramp(f, [(0, 0.0), (2, 1.0), (5, 1.0), (7, 0.0)])
+CLIPS['Attack'] = {'L': {'offset': lambda f: _ease(f, [(0, 1.0), (5, 1.0), (8, 0.0), (11, 0.0), (14, 1.0)]) + _atk_out(f)},
+                   'R': {'offset': _atk_out}, 'hand_L': 'world', 'hand_R': 'world'}
+CLIPS['Cheer'] = {'L': {'offset': lambda f: _ease(f, [(0, 1.0), (3, 0.0), (45, 0.0), (48, 1.0)]) + _cheer_out(f)},
+                  'R': {'offset': _cheer_out}, 'hand_L': 'world', 'hand_R': 'world'}
+_ab = []
+for f, r, l, d in AB:
+    if f in (0, 9, 48, 54, 60, 66) or (f == 12):
+        k = 1.0 if f != 12 else 0.5
+        l = tuple(V(l) + V(SLIDE) * k)
+    _ab.append((f, r, l, d))
+CLIPS['Ability'] = {'R': both(_ab, 'R'), 'L': both(_ab, 'L'), 'hand_R': 'world', 'hand_L': 'world', 'hand_smooth': 1.0}
